@@ -113,6 +113,14 @@ input[type=text],input[type=search],input[type=number],input[type=password],.pan
 .lab .ctl{display:flex;justify-content:space-between;align-items:center;border-top:1px dashed #bbb}
 .lab .ctl button{border:0;background:none;color:var(--label-ink);font-size:18px;width:38px;height:34px;cursor:pointer}
 .lab .ctl span{font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.labsel{margin:8px 0;border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--surface)}
+.labsel summary{cursor:pointer;font-weight:600;padding:4px 0}
+.labsel .row{margin:6px 0}
+.lsrow{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px dashed var(--line);cursor:pointer}
+.lsrow input[type=checkbox]{width:20px;height:20px;flex:none}
+.lsn{flex:1;font-size:13px;line-height:1.35}
+.labsel .lsq{width:64px!important;min-width:0!important;flex:0 0 64px;height:34px;padding:0 4px!important;text-align:center;border:1px solid var(--line);border-radius:6px;font:600 14px/1 inherit;background:#fff}
+.lsx{font-size:12px;color:var(--muted)}
 .lab .ctl input.qn{width:64px;height:30px;text-align:center;font:700 15px/1 inherit;font-variant-numeric:tabular-nums;border:1px solid #bbb;border-radius:6px;background:#fff;color:var(--label-ink);padding:0 4px;-moz-appearance:textfield}
 .lab .ctl input.qn::-webkit-inner-spin-button,.lab .ctl input.qn::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 #tab-back{font-weight:700}
@@ -967,7 +975,7 @@ function lieferscheinPdf(l,useOrig){
   return doc;
 }
 const KINDS={lab:{name:'Etiketten',make:labelsPdf},labo:{name:'Etiketten-Original',make:labelsPdfOrig},ls:{name:'Angebotspreis',make:lieferscheinPdf},lso:{name:'Angebotspreis-Original',make:l=>lieferscheinPdf(l,true)}};
-const fname=(kind,l)=>KINDS[kind].name+'-'+custFile(l)+'-'+stamp(l)+'.pdf';
+const fname=(kind,l)=>KINDS[kind].name+(l._part?'-Auswahl':'')+'-'+custFile(l)+'-'+stamp(l)+'.pdf';
 async function prepImgs(l){
   for(const it of (l.items||[])){
     if(isOil(it)||imgs[it.t])continue;
@@ -997,7 +1005,7 @@ async function expandPdf(b64,rep){
 }
 async function clpFetch(l){
   const r=await srv('clp',JSON.stringify(l),'rep');
-  const files=[];for(const f of (r.files||[]))files.push({name:f.name,blob:await expandPdf(f.b64,f.rep),url:f.rep?'':(f.url||'')});
+  const files=[];for(const f of (r.files||[]))files.push({name:l._part?f.name.replace(/\.pdf$/i,'-Auswahl.pdf'):f.name,blob:await expandPdf(f.b64,f.rep),url:f.rep?'':(f.url||'')});
   return {files,fehlend:r.fehlend||[]};
 }
 async function orderFiles(l,which){
@@ -1116,6 +1124,7 @@ async function phomemoPrint(blob,progress){
   return doc.numPages;
 }
 async function savePdf(kind,l,btn,out){
+  if(LAB_KINDS.includes(kind)){const lo=labOrder(l);if(lo._part&&!lo.items.length){const o=document.querySelector('[data-files="'+orderKey(l)+'"]')||out;o.textContent='اختر صنفاً واحداً على الأقل من «اختيار أصناف للملصقات».';return}l=lo}
   const old=btn.textContent,key=orderKey(l);
   btn.disabled=true;btn.textContent=kind==='clp'?'جاري إنشاء ملصقات CLP… قد يستغرق دقيقة':'جاري التجهيز…';
   const live=()=>document.querySelector('[data-files="'+key+'"]')||out;
@@ -1130,6 +1139,28 @@ async function savePdf(kind,l,btn,out){
   }catch(e){live().textContent='فشل التجهيز: '+e.message}
   btn.disabled=false;btn.textContent=old;
 }
+/* choose which oils (and how many labels each) are printed – for CLP, simple and original-name labels */
+const labSel={},LAB_KINDS=['clp','lab','labo'];
+function labOrder(l){const s=labSel[orderKey(l)];if(!s)return l;const items=[];(l.items||[]).forEach((it,i)=>{if(isOil(it)&&s[i]>0)items.push(Object.assign({},it,{q:s[i]}))});return Object.assign({},l,{items,_part:true})}
+function labPicker(l){
+  const k=orderKey(l),oils=(l.items||[]).map((it,i)=>[it,i]).filter(([it])=>isOil(it));
+  const d=el('details','labsel'),sm=el('summary');d.append(sm);
+  const upd=()=>{const s=labSel[k];sm.textContent='🏷️ اختيار أصناف للملصقات — '+(s?Object.values(s).filter(q=>q>0).length+' من '+oils.length:'الكل ('+oils.length+')')};
+  const tools=el('div','row'),all=el('button','btn small','تحديد الكل'),none=el('button','btn small','إلغاء الكل');tools.append(all,none);d.append(tools);
+  const rows=[];
+  oils.forEach(([it,i])=>{
+    const r=el('label','lsrow'),cb=el('input'),q=el('input','lsq');cb.type='checkbox';q.type='number';q.min='1';q.inputMode='numeric';
+    const s=labSel[k];cb.checked=!s||s[i]>0;q.value=s&&s[i]>0?s[i]:(it.q||1);
+    const save=()=>{let m=labSel[k];if(!m){m={};oils.forEach(([x,j])=>m[j]=x.q||1)}
+      m[i]=cb.checked?Math.max(1,Math.floor(+String(q.value).replace(',','.'))||1):0;
+      labSel[k]=oils.every(([x,j])=>m[j]===(x.q||1))?null:m;upd()};
+    cb.onchange=save;q.onchange=()=>{cb.checked=true;save()};q.onclick=e=>{e.preventDefault();e.stopPropagation();q.focus();q.select()};
+    r.append(cb,el('span','lsn',[it.t,it.tier,it.size].filter(Boolean).join(' · ')),q,el('span','lsx','ملصق'));d.append(r);rows.push([cb,q,it]);
+  });
+  all.onclick=e=>{e.preventDefault();rows.forEach(([cb,q,it])=>{cb.checked=true;q.value=it.q||1});labSel[k]=null;upd()};
+  none.onclick=e=>{e.preventDefault();const m={};oils.forEach(([x,j])=>m[j]=0);rows.forEach(([cb])=>cb.checked=false);labSel[k]=m;upd()};
+  upd();return d;
+}
 function actions(l,primary){
   const box=el('div','acts'),row=el('div','row grow'),out=el('div','filebox');
   out.setAttribute('data-files',orderKey(l));
@@ -1142,7 +1173,7 @@ function actions(l,primary){
   if(!hasOil){[c,a,ao].forEach(x=>{x.disabled=true});c.textContent='لا ملصقات (بدون زيوت)';a.hidden=true;ao.hidden=true}
   const b=el('button','btn','Angebotspreis');b.onclick=()=>savePdf('ls',l,b,out);
   const bo=el('button','btn','Angebot بالاسم الأصلي');bo.onclick=()=>savePdf('lso',l,bo,out);
-  row.append(c,b);box.append(row);
+  row.append(c,b);box.append(row);if(hasOil)box.append(labPicker(l));
   const more=el('div','row grow');more.append(a,ao,bo);box.more=more;box.extra=[];
   if(addrLines(l).length)box.extra.push(el('p','note',addrLines(l).join(', ')+' · '+LANG_NAME[LANG_OF(l.country)]));
   if(l.clpAddr)box.extra.push(el('p','note','عنوان العميل على ملصق CLP: '+l.clpAddr+(l.clpLogo?' · مع لوغو العميل':'')));
