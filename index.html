@@ -1073,8 +1073,11 @@ async function printPdf(blob){
 let pmDev=null,pmChar=null;
 async function pmConnect(){
   if(pmChar&&pmDev&&pmDev.gatt.connected)return pmChar;
-  if(!pmDev)pmDev=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[0xff00]});
-  const g=await pmDev.gatt.connect(),s=await g.getPrimaryService(0xff00);pmChar=await s.getCharacteristic(0xff02);return pmChar;
+  const isPm=n=>/^(Q1|M1|M2|D3|Phomemo)/i.test(n||'');
+  if(!pmDev&&navigator.bluetooth.getDevices){try{pmDev=(await navigator.bluetooth.getDevices()).find(d=>isPm(d.name))||null}catch(e){}}   // printer chosen before: no list
+  if(!pmDev)pmDev=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'Q1'},{namePrefix:'M1'},{namePrefix:'M2'},{namePrefix:'D3'},{namePrefix:'Phomemo'}],optionalServices:[0xff00]});
+  try{const g=await pmDev.gatt.connect(),s=await g.getPrimaryService(0xff00);pmChar=await s.getCharacteristic(0xff02);return pmChar}
+  catch(e){pmDev=null;pmChar=null;throw new Error('الطابعة غير متصلة — تأكد أنها مشغّلة وقريبة ثم حاول مرة أخرى')}
 }
 const pmSleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function pmSend(ch,bytes){for(let i=0;i<bytes.length;i+=128){const part=bytes.slice(i,i+128);
