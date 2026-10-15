@@ -113,6 +113,9 @@ input[type=text],input[type=search],input[type=number],input[type=password],.pan
 .lab .ctl{display:flex;justify-content:space-between;align-items:center;border-top:1px dashed #bbb}
 .lab .ctl button{border:0;background:none;color:var(--label-ink);font-size:18px;width:38px;height:34px;cursor:pointer}
 .lab .ctl span{font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.lab .ctl input.qn{width:64px;height:30px;text-align:center;font:700 15px/1 inherit;font-variant-numeric:tabular-nums;border:1px solid #bbb;border-radius:6px;background:#fff;color:var(--label-ink);padding:0 4px;-moz-appearance:textfield}
+.lab .ctl input.qn::-webkit-inner-spin-button,.lab .ctl input.qn::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+#tab-back{font-weight:700}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
 .card.done{opacity:.75}
 .ohead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
@@ -211,6 +214,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
   <header>
     <h1><span class="bn">FRAGRANCE HUB<small>GERMANY</small></span><span class="bs">صالة العرض · نظام الطلبات والمخزون</span></h1>
     <div class="row">
+      <button class="btn" id="tab-back" hidden aria-label="رجوع">→ رجوع</button>
       <button class="btn" id="tab-home">⌂ الرئيسية</button>
       <button class="btn primary" id="tab-new" hidden>+ طلب جديد</button>
       <button class="btn" id="tab-lg">📦 المخزون</button>
@@ -453,7 +457,20 @@ let size=LS.get('size2','100 g');
 let dim=LS.get('dim2',{w:40,h:30});
 
 /* ---------- tabs ---------- */
-function tab(which){
+let navCur=null;const navStack=[];
+function tab(which,fromBack){
+  const st={which,focusId,focusCust,onlyDone};
+  if(!fromBack&&navCur&&JSON.stringify(navCur)!==JSON.stringify(st)){navStack.push(navCur);if(navStack.length>40)navStack.shift();if(!IN_GAS)try{history.pushState({fh:navStack.length},'')}catch(e){}}
+  navCur=st;tabRaw(which);$('tab-back').hidden=!navStack.length;
+}
+function goBack(){
+  if(!$('drawer').hidden){drawer(false);return}
+  const p=navStack.pop();if(!p){$('tab-back').hidden=true;return}
+  focusId=p.focusId;focusCust=p.focusCust;onlyDone=p.onlyDone;tab(p.which,true);if(p.which==='wh')renderLists();
+}
+$('tab-back').onclick=()=>{if(!IN_GAS&&navStack.length&&$('drawer').hidden)history.back();else goBack()};
+if(!IN_GAS){try{history.replaceState({fh:0},'')}catch(e){}window.addEventListener('popstate',()=>{if(!$('drawer').hidden){drawer(false);try{history.pushState({fh:navStack.length},'')}catch(e){}return}goBack()})}
+function tabRaw(which){
   const n=which==='new', lg=which==='lg', h=which==='home';
   $('view-home').hidden=!h;
   $('view-new').hidden=!n; $('view-new').style.display=n?'contents':'none';
@@ -551,7 +568,10 @@ function labelTile(it,editable,ix){
   }
   if(editable){
     const c=el('div','ctl');
-    const minus=el('button',null,it.q>1?'−':'×'),num=el('span',null,it.q+'×'),plus=el('button',null,'+');
+    const minus=el('button',null,it.q>1?'−':'×'),plus=el('button',null,'+'),num=el('input','qn');
+    num.type='number';num.inputMode='numeric';num.min='1';num.step='1';num.value=it.q;num.setAttribute('aria-label','الكمية');
+    num.onfocus=()=>num.select();num.onkeydown=e=>{if(e.key==='Enter')num.blur()};
+    num.onchange=()=>{const v=Math.floor(+String(num.value).replace(',','.'));it.q=v>=1?Math.min(v,100000):1;saveDraft();renderItems()};
     minus.setAttribute('aria-label',it.q>1?'أقل':'حذف');plus.setAttribute('aria-label','أكثر');
     minus.onclick=()=>{if(it.q>1)it.q--;else draft.items.splice(ix,1);saveDraft();renderItems()};
     plus.onclick=()=>{it.q++;saveDraft();renderItems()};
