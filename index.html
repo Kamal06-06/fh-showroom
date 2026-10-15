@@ -267,6 +267,47 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
 #lists .irow .isz:empty{display:none}
 #lists .irow .nm{font-size:14.5px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 #lists .irow .cd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px}
+
+/* ===== Phase 2 (16.10.2026): Neue Bestellung – Zeilen statt Etiketten, Summenleiste, Einstellungen im Fenster ===== */
+details.sub{border:1px solid var(--line);border-radius:12px;padding:0 12px;margin-top:10px;background:var(--bg)}
+details.sub>summary{cursor:pointer;padding:11px 0;font-weight:600;font-size:14px;color:var(--ink)}
+details.sub[open]{padding-bottom:12px}
+.sumrow{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:14px;color:var(--muted)}
+.sumrow .sum{font-size:20px}
+#view-new #send{display:none}
+#items.labels{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+#items:empty{display:none}
+.ir{border-top:1px solid var(--line)}
+.ir:first-child{border-top:0}
+.ir-top{display:flex;align-items:center;gap:10px;padding:10px 12px}
+.ir-img{width:42px;height:42px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:8px;flex:none}
+.ir-main{flex:1;min-width:0}
+.ir-name{font-weight:700;font-size:14.5px;line-height:1.3;direction:ltr;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ir-sub{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:2px;direction:ltr;justify-content:flex-end}
+.ir-tier{background:#141210;color:#c9a24a;font-weight:700;font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:5px}
+.ir-size{font-weight:700;color:var(--ink)}
+.ir-code{font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px}
+.ir-pr{font-size:12px;color:var(--ink);margin-top:3px;font-variant-numeric:tabular-nums;direction:ltr;text-align:right}
+.ir-note{font-size:12px;color:#9a6b12;margin-top:2px}
+.ir-q{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:none}
+.ir-q button{border:0;background:none;width:32px;height:34px;font-size:18px;cursor:pointer;color:var(--ink)}
+.ir-q input{width:44px;height:34px;border:0;border-inline:1px solid var(--line);text-align:center;font:700 15px/1 inherit;background:var(--surface);color:var(--ink);-moz-appearance:textfield;padding:0}
+.ir-q input::-webkit-inner-spin-button,.ir-q input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.ir-more{border:0;background:none;font-size:20px;width:28px;height:34px;color:var(--muted);cursor:pointer;flex:none}
+.ir-edit{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:0 12px 12px}
+.ir-edit label{display:flex;flex-direction:column;font-size:11.5px;color:var(--muted);gap:3px}
+.ir-edit input{width:96px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:14px;background:var(--surface);color:var(--ink)}
+.ir-edit input.wide{width:200px}
+#sendbar{position:fixed;z-index:25;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));background:#141210;color:#fff;display:flex;align-items:center;gap:12px;padding:10px 16px;box-shadow:0 -6px 18px rgba(0,0,0,.18)}
+#sendbar[hidden]{display:none}
+#sendbar .sb-info{flex:1;min-width:0;display:flex;flex-direction:column}
+#sendbar b{color:#c9a24a;font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sendbar span{font-size:11.5px;color:#cfc6b4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sendbar .btn{background:#b08d3c;border-color:#b08d3c;color:#141210;font-weight:700;padding:11px 18px;white-space:nowrap}
+#sendbar .btn:disabled{opacity:.5}
+body.has-sb .wrap{padding-bottom:170px!important}
+#tab-set{font-size:16px;padding:6px 10px}
+@media (min-width:900px){#sendbar{bottom:0;right:210px;left:0}body.has-sb .wrap{padding-bottom:90px!important}}
 .btn.filesbtn{width:100%;border:1px solid var(--gold);color:var(--ink);background:#faf5ea}
 #sheet{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;background:rgba(20,18,16,.45)}
 #sheet[hidden]{display:none}
@@ -306,6 +347,7 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
   <button class="btn" id="tab-wh">عرض كل الطلبات المفتوحة</button>
   <div id="drawer-list"></div>
 </aside>
+<div id="sendbar" hidden dir="rtl" lang="ar"><div class="sb-info"><b id="sb-sum"></b><span id="sb-n"></span></div><button class="btn" id="sb-send">إرسال إلى المستودع</button></div>
 <div id="sheet" hidden dir="rtl" lang="ar"><div class="sh"><div class="grab"></div><div class="shh"><b id="sheet-t"></b><button class="btn small" id="sheet-x">إغلاق</button></div><div id="sheet-b"></div></div></div>
 <nav id="appnav" dir="rtl" lang="ar" aria-label="التنقل">
   <div class="nvlogo">FRAGRANCE HUB<small>GERMANY</small></div>
@@ -328,6 +370,7 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
       <button class="btn" id="tab-lg">📦 المخزون</button>
       <button class="btn" id="menu" aria-controls="drawer" aria-expanded="false">☰ الطلبات <span class="badge" id="open-count" hidden>0</span></button>
       <span id="syncdot" title="المزامنة" style="font-size:12px;color:var(--muted);align-self:center;white-space:nowrap"></span>
+      <button class="btn small" id="tab-set" aria-label="الإعدادات" title="الإعدادات">⚙️</button>
     </div>
   </header>
 
@@ -354,11 +397,12 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
     <div class="status editbar" id="draftbar" hidden><span id="draft-txt"></span> <button class="btn small" id="draft-keep">متابعة المسودة</button> <button class="btn small danger" id="draft-clear">مسح وبدء طلب جديد</button></div>
     <div class="panel">
       <h2><span class="step">1</span> العميل</h2>
+      <div class="custbox"><label for="cust">اسم العميل <span id="cust-no" class="code"></span></label><input type="text" id="cust" autocomplete="off" placeholder="مثال: Parfümerie Müller"><div id="cust-sug" class="sug" hidden></div></div>
+      <label class="clprow" id="kg-box"><input type="checkbox" id="kgprice"> تسعير بالكيلو لهذا العميل (100 / 250 / 500 غ من سعر 1 كغ) <span id="kg-st" class="code"></span></label>
+      <details class="sub" id="cust-more"><summary>العنوان · الدولة · ملاحظة</summary>
       <div class="row grow">
-        <div class="custbox"><label for="cust">اسم العميل <span id="cust-no" class="code"></span></label><input type="text" id="cust" autocomplete="off" placeholder="مثال: Parfümerie Müller"><div id="cust-sug" class="sug" hidden></div></div>
         <div><label for="note">ملاحظة (اختياري)</label><input type="text" id="note" autocomplete="off" placeholder="مثال: يستلم خلال ساعة"></div>
       </div>
-      <label class="clprow" id="kg-box"><input type="checkbox" id="kgprice"> تسعير بالكيلو لهذا العميل (100 / 250 / 500 غ تُحسب من سعر 1 كغ) <span id="kg-st" class="code"></span></label>
       <div class="row grow" style="margin-top:8px">
         <div><label for="street">الشارع ورقم المبنى</label><input type="text" id="street" autocomplete="off" placeholder="Bahnhofstraße 86"></div>
         <div><label for="city">الرمز البريدي والمدينة</label><input type="text" id="city" autocomplete="off" placeholder="44623 Herne"></div>
@@ -368,6 +412,7 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
           <option value="IT">Italien</option><option value="ES">Spanien</option><option value="PL">Polen</option>
           <option value="GB">United Kingdom</option><option value="XX">أخرى (English)</option></select></div>
       </div>
+      </details>
     </div>
 
     <div class="panel">
@@ -387,26 +432,29 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
     </div>
 
     <div class="panel">
-      <div class="sec-title"><h2><span class="step">3</span> الملصقات والإرسال <span id="count" class="time"></span></h2><button class="btn small" id="clear">مسح الكل</button></div>
+      <div class="sec-title"><h2><span class="step">3</span> السلة <span id="count" class="time"></span></h2><button class="btn small" id="clear">مسح الكل</button></div>
       <div class="labels" id="items"></div>
-      <p class="hint" id="empty">لم تُضف أصناف بعد. كل صنف تختاره يظهر هنا كملصق: الاسم، الكود، الجودة، الكمية.</p>
+      <p class="hint" id="empty">السلة فارغة. ابحث عن صنف أو امسح QR فيظهر هنا.</p>
+      <div class="sumrow"><span>المجموع الصافي</span><div class="sum" id="sum">0,00 EUR</div></div>
+      <details class="sub" id="disc-box"><summary>الخصم والشحن <span id="disc-sum" class="code"></span></summary>
       <div class="row grow">
         <div><label for="rab">خصم Rabatt %</label><input type="number" id="rab" min="0" max="100" step="0.5" placeholder="0" inputmode="decimal"></div>
         <div><label for="rabscope">الخصم على</label><select id="rabscope"><option value="all">كل الطلب</option><option value="oil">الزيوت فقط</option></select></div>
         <div><label for="rabfix">خصم مبلغ ثابت €</label><input type="number" id="rabfix" min="0" step="0.5" placeholder="0" inputmode="decimal"></div>
         <div><label for="versand">أجور الشحن € (Versand)</label><input type="number" id="versand" min="0" step="0.5" placeholder="0" inputmode="decimal"></div>
-        <div><div class="lbl">المجموع الصافي</div><div class="sum" id="sum">0,00 EUR</div></div>
       </div>
+      </details>
+      <details class="sub" id="clp-box"><summary>خيارات الملصق · CLP · عنوان ولوغو العميل</summary>
       <label class="clprow"><input type="checkbox" id="use-clp"> ملصقات الزيوت مع CLP (102 × 51 مم) بدل الملصق البسيط</label>
       <div id="clp-addr-box" hidden><label for="clp-addr">عنوان العميل على ملصق CLP بدل عنواني (اختياري)</label><input type="text" id="clp-addr" autocomplete="off" dir="ltr" placeholder="Firma, Straße Nr., PLZ Ort, Tel."></div>
 <div id="clp-logo-box" style="display:flex;align-items:center;gap:10px;margin:8px 0;flex-wrap:wrap"><input type="file" id="clp-logo-file" accept="image/*" hidden><button type="button" class="btn" id="clp-logo-btn">＋ لوغو العميل فوق العنوان (اختياري)</button><img id="clp-logo-img" alt="" hidden style="height:40px;max-width:150px;object-fit:contain;background:#fff;border:1px solid #ccc;border-radius:6px;padding:2px"><button type="button" class="btn" id="clp-logo-del" hidden>× إزالة اللوغو</button><span id="clp-logo-st" class="note"></span></div>
+      </details>
       <button class="btn primary big" id="send" disabled>إرسال إلى المستودع</button>
       <div id="send-status" class="status" hidden></div>
       <div id="last-actions" hidden></div>
     </div>
 
-    <details class="panel">
-      <summary>الإعدادات</summary>
+    <div id="settings-holder" hidden><div id="settings-body">
       <div class="dim">
         <button class="btn small" id="sync">تحديث الأصناف والأسعار من Shopify</button>
       </div>
@@ -426,7 +474,7 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
         <label for="lw">العرض مم</label><input type="number" id="lw" min="20" max="210" step="1">
         <label for="lh">الارتفاع مم</label><input type="number" id="lh" min="10" max="297" step="1">
       </div>
-    </details>
+    </div></div>
   </section>
 
   <section id="view-lg" hidden dir="rtl" lang="ar">
@@ -576,7 +624,7 @@ let navCur=null;const navStack=[];
 function tab(which,fromBack){
   const st={which,focusId,focusCust,onlyDone};
   if(!fromBack&&navCur&&JSON.stringify(navCur)!==JSON.stringify(st)){navStack.push(navCur);if(navStack.length>40)navStack.shift();if(!IN_GAS)try{history.pushState({fh:navStack.length},'')}catch(e){}}
-  navCur=st;tabRaw(which);$('tab-back').hidden=!navStack.length;navMark(which);
+  navCur=st;tabRaw(which);$('tab-back').hidden=!navStack.length;navMark(which);try{updSendbar()}catch(e){}
 }
 function navMark(w){const m={home:'nv-home',wh:onlyDone?'nv-done':'nv-wh',new:'nv-new',lg:'nv-lg',cash:'nv-cash',cust:'nv-cust',acc:'nv-acc'};
   document.querySelectorAll('#appnav .nv').forEach(b=>b.classList.toggle('on',b.id===m[w]))}
@@ -630,6 +678,8 @@ function renderCust(){
     b.onclick=()=>{focusId=null;focusCust=g.key;tab('wh');renderLists()};box.append(b)});
 }
 $('cu-q').oninput=renderCust;
+$('sb-send').onclick=()=>$('send').click();
+$('tab-set').onclick=()=>openSheet('⚙️ الإعدادات',b=>b.append($('settings-body')));
 $('nv-home').onclick=()=>{drawer(false);tab('home')};$('nv-wh').onclick=()=>$('h-wh').click();$('nv-new').onclick=()=>$('h-new').click();
 $('nv-lg').onclick=()=>{drawer(false);$('h-lg').click()};$('nv-cash').onclick=()=>$('h-cash').click();$('nv-cust').onclick=()=>$('h-cust').click();
 $('nv-acc').onclick=()=>$('h-acc').click();$('nv-done').onclick=()=>$('h-done').click();$('h-last-all').onclick=()=>$('h-wh').click();
@@ -685,7 +735,44 @@ function renderDrawer(){
 $('tab-new').onclick=()=>tab('new'); $('tab-wh').onclick=()=>{focusId=null;focusCust=null;onlyDone=false;drawer(false);tab('wh');renderLists()};
 
 /* ---------- label tile ---------- */
+/* editable cart row (new order) */
+const irOpen=new Set();
+function itemRow(it,ix){
+  const w=el('div','ir'),top=el('div','ir-top');
+  {const src=imgOf(it);if(src)top.append(mkImg(src,'ir-img'))}
+  const m=el('div','ir-main');m.append(el('div','ir-name',it.t));
+  const sub=el('div','ir-sub');if(it.tier)sub.append(el('span','ir-tier',it.tier));if(it.size)sub.append(el('span','ir-size',it.size));if(it.code)sub.append(el('span','ir-code',it.code));m.append(sub);
+  const hasP=it.price!=null&&it.price!=='';
+  m.append(el('div','ir-pr',hasP?money(it.price)+' × '+(it.q||1)+' = '+money(lineTot(it))+(itRab(it)?' · −'+String(itRab(it)).replace('.',',')+' %':'')+(it.kg?' · سعر الكيلو':''):'بدون سعر — اضغط ⋯'));
+  if(it.note)m.append(el('div','ir-note','✎ '+it.note));
+  if(draft.kg&&isOil(it)&&gramsOf(it.size)>=100&&!it.kg&&kgPrice(it)==null)m.append(el('div','ir-note','لا سعر 1 كغ لهذه الجودة → السعر العادي'));
+  const q=el('div','ir-q'),minus=el('button',null,it.q>1?'−':'×'),plus=el('button',null,'+'),num=el('input');
+  num.type='number';num.inputMode='numeric';num.min='1';num.step='1';num.value=it.q;num.setAttribute('aria-label','الكمية');
+  num.onfocus=()=>num.select();num.onkeydown=e=>{if(e.key==='Enter')num.blur()};
+  num.onchange=()=>{const v=Math.floor(+String(num.value).replace(',','.'));it.q=v>=1?Math.min(v,100000):1;saveDraft();renderItems()};
+  minus.setAttribute('aria-label',it.q>1?'أقل':'حذف');plus.setAttribute('aria-label','أكثر');
+  minus.onclick=()=>{if(it.q>1)it.q--;else{draft.items.splice(ix,1);irOpen.clear()}saveDraft();renderItems()};
+  plus.onclick=()=>{it.q++;saveDraft();renderItems()};
+  q.append(plus,num,minus);
+  const more=el('button','ir-more','⋯');more.setAttribute('aria-label','السعر والخصم والملاحظة');
+  top.append(m,q,more);w.append(top);
+  const ed=el('div','ir-edit');ed.hidden=!irOpen.has(ix);
+  const f=(lab,inp)=>{const l=el('label',null,lab);l.append(inp);ed.append(l);return inp};
+  const pi=f('السعر €',el('input'));pi.type='number';pi.step='0.01';pi.min='0';pi.inputMode='decimal';pi.value=hasP?it.price:'';
+  pi.onchange=()=>{it.price=pi.value===''?null:+pi.value;delete it.kg;saveDraft();renderItems()};
+  const ri=f('خصم الصنف %',el('input'));ri.type='number';ri.step='0.5';ri.min='0';ri.max='100';ri.inputMode='decimal';ri.value=it.rab||'';
+  ri.onchange=()=>{it.rab=+ri.value||0;if(!it.rab)delete it.rab;saveDraft();renderItems()};
+  if(!isOil(it)){const ni=f('ملاحظة (لون الغطاء، البخاخ…)',el('input','wide'));ni.type='text';ni.value=it.note||'';ni.oninput=()=>{it.note=ni.value;saveDraft()};ni.onchange=()=>renderItems()}
+  const del=el('button','btn small danger','حذف الصنف');del.onclick=()=>{draft.items.splice(ix,1);irOpen.clear();saveDraft();renderItems()};ed.append(del);
+  more.onclick=()=>{ed.hidden=!ed.hidden;if(ed.hidden)irOpen.delete(ix);else irOpen.add(ix)};
+  w.append(ed);return w;
+}
+function updSendbar(){const n=draft.items.reduce((s,i)=>s+(i.q||1),0),on=!$('view-new').hidden&&draft.items.length>0;
+  $('sendbar').hidden=!on;document.body.classList.toggle('has-sb',on);if(!on)return;
+  $('sb-sum').textContent=$('sum').textContent;$('sb-n').textContent=draft.items.length+' صنف · '+n+' قطعة'+(draft.cust?' · '+draft.cust:'');
+  $('sb-send').disabled=$('send').disabled;$('sb-send').textContent=$('send').textContent}
 function labelTile(it,editable,ix){
+  if(editable)return itemRow(it,ix);
   const l=el('div','lab');
   {const src=imgOf(it);if(src)l.append(mkImg(src,'tthumb'))}
   l.append(el('div','ln',it.t));
@@ -788,6 +875,8 @@ function renderItems(){
   const n=draft.items.reduce((s,i)=>s+i.q,0),t=totals(draft);
   $('count').textContent=n?'('+n+')':'';$('sum').textContent=money(t.net)+(t.ship?' (شامل الشحن '+money(t.ship)+')':'');
   $('send').disabled=!draft.items.length||!db;
+  {const t2=totals(draft);$('disc-sum').textContent=(t2.disc?' −'+money(t2.disc):'')+(t2.ship?' · شحن '+money(t2.ship):'')}
+  updSendbar();
   const stale=draft.items.length&&!editing&&(Date.now()-(draft.at||0))>15*60000;$('draftbar').hidden=!stale;
   if(stale)$('draft-txt').textContent='⚠️ مسودة غير مرسلة من '+new Date(draft.at||Date.now()).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})+' · '+n+' صنف'+(draft.cust?' · '+draft.cust:'')+' — هل تريد متابعتها أم البدء بطلب جديد؟';
 }
@@ -1172,7 +1261,7 @@ async function pregenClp(id,rec){
   }catch(e){console.warn('CLP pregen',e)}
 }
 let sheetPushed=false,skipPop=false;
-function openSheet(t,fill){$('sheet-t').textContent=t;const b=$('sheet-b');b.textContent='';fill(b);$('sheet').hidden=false;if(!IN_GAS&&!sheetPushed){try{history.pushState({sh:1},'');sheetPushed=true}catch(e){}}}
+function openSheet(t,fill){$('sheet-t').textContent=t;const b=$('sheet-b'),sb=$('settings-body');if(sb&&b.contains(sb))$('settings-holder').append(sb);b.textContent='';fill(b);$('sheet').hidden=false;if(!IN_GAS&&!sheetPushed){try{history.pushState({sh:1},'');sheetPushed=true}catch(e){}}}
 function closeSheet(fromPop){if($('sheet').hidden)return;$('sheet').hidden=true;if(sheetPushed&&!fromPop){skipPop=true;try{history.back()}catch(e){skipPop=false}}sheetPushed=false}
 $('sheet-x').onclick=()=>closeSheet();$('sheet').onclick=e=>{if(e.target===$('sheet'))closeSheet()};
 function filesSheet(l,r){openSheet('📂 ملفات '+custLabel(l),b=>showFilesFull(l,r,b))}
