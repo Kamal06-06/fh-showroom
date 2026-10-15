@@ -1033,7 +1033,14 @@ function showFiles(l,r,out){
       const file=new File([f.blob],f.name,{type:'application/pdf'});
       try{if(!navigator.canShare({files:[file]}))throw new Error('المشاركة غير مدعومة على هذا الجهاز');await navigator.share({files:[file],title:f.name})}
       catch(e){if(e&&e.name!=='AbortError')alert('تعذّرت المشاركة: '+(e.message||e))}};
-    row.append(el('span','fname',f.name),pr,sh,a,w,c,d);out.append(row);
+    const pm=el('button','btn small','🏷️ Phomemo بلوتوث');pm.hidden=!navigator.bluetooth;
+    pm.onclick=async()=>{const o=pm.textContent;pm.disabled=true;
+      try{pm.textContent='اختر الطابعة…';await pmConnect();pm.textContent='جاري الطباعة…';
+        if(!f.blob){f.blob=b64blob(await srv('pdf',f.url));d.hidden=false}
+        const n=await phomemoPrint(f.blob,k=>pm.textContent='جاري الطباعة '+k);pm.textContent='✓ طُبع '+n}
+      catch(e){pm.textContent=o;if(e&&e.name!=='NotFoundError')alert('Phomemo: '+(e.message||e))}
+      pm.disabled=false;setTimeout(()=>pm.textContent=o,4000)};
+    row.append(el('span','fname',f.name),pr,pm,sh,a,w,c,d);out.append(row);
   });
   if(r.files.length>1){
     const all=el('a','btn wa','إرسال كل الروابط عبر واتساب');all.href=waHref(head+'\n'+r.files.map(f=>f.name+': '+f.url).join('\n'));all.target='_blank';all.rel='noopener';
@@ -1061,6 +1068,33 @@ async function printPdf(blob){
   await Promise.all([...area.querySelectorAll('img')].map(im=>im.decode().catch(()=>{})));
   const done=()=>{setTimeout(()=>{area.remove();urls.forEach(u=>URL.revokeObjectURL(u))},1500);window.removeEventListener('afterprint',done)};
   window.addEventListener('afterprint',done);window.print();
+}
+/* Phomemo M110 (and similar) over Web Bluetooth: each PDF page → 1-bit raster at 203 dpi (8 dots/mm) */
+let pmDev=null,pmChar=null;
+async function pmConnect(){
+  if(pmChar&&pmDev&&pmDev.gatt.connected)return pmChar;
+  if(!pmDev)pmDev=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[0xff00]});
+  const g=await pmDev.gatt.connect(),s=await g.getPrimaryService(0xff00);pmChar=await s.getCharacteristic(0xff02);return pmChar;
+}
+const pmSleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function pmSend(ch,bytes){for(let i=0;i<bytes.length;i+=128){const part=bytes.slice(i,i+128);
+  if(ch.properties.writeWithoutResponse&&ch.writeValueWithoutResponse){await ch.writeValueWithoutResponse(part);await pmSleep(20)}else await ch.writeValue(part)}}
+async function phomemoPrint(blob,progress){
+  const lib=await loadPdfJs(),doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer())}).promise,ch=await pmConnect();
+  for(let i=1;i<=doc.numPages;i++){
+    progress&&progress(i+'/'+doc.numPages);
+    const pg=await doc.getPage(i),v1=pg.getViewport({scale:1});
+    let W=Math.min(384,Math.round(v1.width*25.4/72*8));W=Math.ceil(W/8)*8;const sc=W/v1.width,vp=pg.getViewport({scale:sc}),H=Math.round(vp.height);
+    const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);
+    await pg.render({canvasContext:x,viewport:vp}).promise;
+    const px=x.getImageData(0,0,W,H).data,bpr=W/8,data=new Uint8Array(bpr*H);
+    for(let y=0;y<H;y++)for(let X=0;X<W;X++){const p=(y*W+X)*4;if(px[p]*0.3+px[p+1]*0.59+px[p+2]*0.11<150)data[y*bpr+(X>>3)]|=0x80>>(X&7)}
+    const head=[0x1b,0x4e,0x0d,0x05, 0x1b,0x4e,0x04,0x0a, 0x1f,0x11,0x0a, 0x1d,0x76,0x30,0x00,bpr&255,bpr>>8,H&255,H>>8];
+    const foot=[0x1f,0xf0,0x05,0x00, 0x1f,0xf0,0x03,0x00];
+    const all=new Uint8Array(head.length+data.length+foot.length);all.set(head,0);all.set(data,head.length);all.set(foot,head.length+data.length);
+    await pmSend(ch,all);await pmSleep(400);
+  }
+  return doc.numPages;
 }
 async function savePdf(kind,l,btn,out){
   const old=btn.textContent,key=orderKey(l);
