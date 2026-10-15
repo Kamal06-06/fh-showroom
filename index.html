@@ -984,6 +984,22 @@ const b64blob=b=>{const s=atob(b),u=new Uint8Array(s.length);for(let i=0;i<s.len
 const blob64=bl=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',').pop());r.onerror=no;r.readAsDataURL(bl)});
 function download(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.target='_blank';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},5000)}
 /* files of an order: Angebotspreis + oil labels (simple, or CLP from the server) */
+/* CLP: the server builds every different label once; here the pages are repeated to the ordered quantity (pdf-lib) */
+let pdfLibP=null;
+function loadPdfLib(){return pdfLibP||(pdfLibP=new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';s.onload=()=>ok(window.PDFLib);s.onerror=()=>{pdfLibP=null;no(new Error('تعذّر تحميل أداة PDF'))};document.head.append(s)}))}
+async function expandPdf(b64,rep){
+  const blob=b64blob(b64);if(!Array.isArray(rep)||!rep.some(n=>n>1))return blob;
+  const L=await loadPdfLib(),src=await L.PDFDocument.load(await blob.arrayBuffer());
+  if(src.getPageCount()!==rep.length){console.warn('CLP rep mismatch',src.getPageCount(),rep);return blob}
+  const out=await L.PDFDocument.create(),idx=[];rep.forEach((n,i)=>{for(let k=0;k<Math.max(1,n|0);k++)idx.push(i)});
+  (await out.copyPages(src,idx)).forEach(p=>out.addPage(p));
+  return new Blob([await out.save()],{type:'application/pdf'});
+}
+async function clpFetch(l){
+  const r=await srv('clp',JSON.stringify(l),'rep');
+  const files=[];for(const f of (r.files||[]))files.push({name:f.name,blob:await expandPdf(f.b64,f.rep),url:f.rep?'':(f.url||'')});
+  return {files,fehlend:r.fehlend||[]};
+}
 async function orderFiles(l,which){
   const out={files:[],note:''},hasOil=(l.items||[]).some(isOil);
   if(which==='ls'||which==='lso'||which==='lab'||which==='labo'){if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF')}
@@ -992,8 +1008,8 @@ async function orderFiles(l,which){
   if(which==='lab'&&hasOil)out.files.push({name:fname('lab',l),blob:labelsPdf(l).output('blob')});
   if(which==='labo'&&hasOil)out.files.push({name:fname('labo',l),blob:labelsPdfOrig(l).output('blob')});
   if(which==='clp'&&hasOil){
-    const r=await srv('clp',JSON.stringify(l));
-    (r.files||[]).forEach(f=>out.files.push({name:f.name,blob:b64blob(f.b64),url:f.url}));
+    const r=await clpFetch(l);
+    r.files.forEach(f=>out.files.push(f));
     if(r.fehlend&&r.fehlend.length)out.note='بدون ملصق CLP: '+r.fehlend.join('، ');
     if(!(r.files||[]).length&&!out.note)out.note='لم يُنشأ أي ملصق CLP.';
   }
@@ -1007,8 +1023,8 @@ function clpReady(l){return l.clpFiles&&l.clpFiles.length&&l.clpSig===clpSig(l)}
 async function pregenClp(id,rec){
   if(!(rec.items||[]).some(isOil))return;
   try{
-    const r=await srv('clp',JSON.stringify(rec));
-    const files=(r.files||[]).filter(f=>f.url).map(f=>({name:f.name,url:f.url}));
+    const r=await clpFetch(rec);await withLinks(r.files);
+    const files=r.files.filter(f=>f.url).map(f=>({name:f.name,url:f.url}));
     const patch={clpFiles:files,clpSig:clpSig(rec),clpAt:Date.now(),clpNote:(r.fehlend&&r.fehlend.length)?'بدون ملصق CLP: '+r.fehlend.join('، '):''};
     if(files.length){await db.doc('lists/'+id).update(patch);Object.assign(rec,patch);
       if(lastSent===rec){const la=$('last-actions');la.textContent='';la.append(actions(rec,'flat'))}}
