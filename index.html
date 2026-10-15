@@ -308,6 +308,32 @@ details.sub[open]{padding-bottom:12px}
 body.has-sb .wrap{padding-bottom:170px!important}
 #tab-set{font-size:16px;padding:6px 10px}
 @media (min-width:900px){#sendbar{bottom:0;right:210px;left:0}body.has-sb .wrap{padding-bottom:90px!important}}
+
+/* ===== Phase 3 (16.10.2026): Kasse, Konten, Lager ===== */
+.cskpi{grid-template-columns:repeat(3,minmax(0,1fr))!important;margin-bottom:6px}
+.cskpi div{text-align:center}
+.cskpi b{font-size:15px!important}
+@media (min-width:900px){.cskpi b{font-size:22px!important}}
+.csnotes{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted);margin:0 4px 8px}
+.csnotes span:empty{display:none}
+.csq{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.csq .btn{padding:12px 4px;font-size:13.5px;font-weight:700;border-radius:14px;background:var(--surface)}
+@media (max-width:420px){.csq{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#cs-form{border:0;padding:0;margin:0;background:none;box-shadow:none}
+#cs-form .sec-title h2{display:none}
+#cs-list .hrow{align-items:flex-start;padding:12px 2px}
+#cs-list .hrow>div:first-child{min-width:0;flex:1}
+#cs-list b.neg{color:#b3261e}#cs-list b.pos{color:#1e7a46}
+#cs-list .hrow .btn.small{padding:5px 9px;font-size:12px}
+details.accd{display:block;padding:12px 14px}
+details.accd>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
+details.accd>summary::-webkit-details-marker{display:none}
+details.accd>summary .cust{font-size:15.5px;font-weight:700}
+details.accd[open]>summary{margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+#acc-list{display:flex;flex-direction:column;gap:10px}
+#view-lg .searchrow{flex-wrap:wrap}
+#view-lg .searchrow input{flex:1 1 100%;font-size:16px;padding:13px 14px}
+#view-lg .searchrow .btn{flex:1}
 .btn.filesbtn{width:100%;border:1px solid var(--gold);color:var(--ink);background:#faf5ea}
 #sheet{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;background:rgba(20,18,16,.45)}
 #sheet[hidden]{display:none}
@@ -512,12 +538,10 @@ body.has-sb .wrap{padding-bottom:170px!important}
     </div>
   </section>
 <section id="view-cash" hidden dir="rtl" lang="ar">
-    <div class="home" style="margin-bottom:12px">
-      <div class="tile" style="cursor:default"><span>💶 في صندوق المستودع</span><b id="cs-box" style="font-size:24px">0,00 EUR</b><button class="btn small" id="cs-wd">⬆️ سحب مبلغ من الصندوق</button></div>
-      <div class="tile" style="cursor:default"><span>👤 نقد عند الموظفين (لم يُسلَّم بعد)</span><b id="cs-held" style="font-size:24px">0,00 EUR</b><span id="cs-held-d"></span></div>
-      <div class="tile" style="cursor:default"><span>🧾 مصروفات هذا الشهر</span><b id="cs-month" style="font-size:24px">0,00 EUR</b><span id="cs-owed"></span></div>
-    </div>
-    <div class="panel">
+    <div class="htoday cskpi"><div><b id="cs-box">0,00 EUR</b><span>في الصندوق</span></div><div><b id="cs-held">0,00 EUR</b><span>عند الموظفين</span></div><div><b id="cs-month">0,00 EUR</b><span>مصروفات الشهر</span></div></div>
+    <div class="csnotes"><span id="cs-held-d"></span><span id="cs-owed"></span></div>
+    <div class="csq"><button class="btn" data-t="exp">➖ مصروف</button><button class="btn" data-t="in">➕ قبض نقدي</button><button class="btn" data-t="withdraw" id="cs-wd">⬆️ سحب</button><button class="btn" data-t="deposit">⬇️ إيداع</button></div>
+    <div id="cs-form-holder" hidden><div class="panel" id="cs-form">
       <div class="sec-title"><h2>➕ حركة جديدة</h2><span class="code" id="cs-who-note"></span></div>
       <div class="row grow">
         <div><label for="cs-type">النوع</label><select id="cs-type"><option value="exp">🧾 مصروف (قهوة، تنظيف، بنزين…)</option><option value="in">💵 قبض نقدي من عميل</option><option value="withdraw">⬆️ سحب نقدي من الصندوق (كمال)</option><option value="deposit">⬇️ إيداع نقدي في الصندوق</option></select></div>
@@ -536,7 +560,7 @@ body.has-sb .wrap{padding-bottom:170px!important}
         <div style="display:flex;align-items:flex-end"><button class="btn primary" id="cs-save" style="width:100%">حفظ الحركة</button></div>
       </div>
       <div id="cs-msg" class="status" hidden></div>
-    </div>
+    </div></div>
     <div class="panel">
       <div class="sec-title"><h2>📒 دفتر الصندوق</h2><div class="row"><select id="cs-filter"><option value="">كل الحركات</option><option value="exp">المصروفات فقط</option><option value="in">القبض النقدي</option><option value="withdraw">السحب</option><option value="deposit">الإيداع</option><option value="own">مستحقات الموظفين</option></select><input type="month" id="cs-month-f"></div></div>
       <div id="cs-import" class="status" hidden><span id="cs-import-txt"></span> <button class="btn small" id="cs-import-btn">إضافتها إلى الصندوق</button></div>
@@ -625,6 +649,7 @@ function tab(which,fromBack){
   const st={which,focusId,focusCust,onlyDone};
   if(!fromBack&&navCur&&JSON.stringify(navCur)!==JSON.stringify(st)){navStack.push(navCur);if(navStack.length>40)navStack.shift();if(!IN_GAS)try{history.pushState({fh:navStack.length},'')}catch(e){}}
   navCur=st;tabRaw(which);$('tab-back').hidden=!navStack.length;navMark(which);try{updSendbar()}catch(e){}
+  if(which==='lg'&&$('lg-box').hidden&&!$('lg-q').value&&($('lg-low').hidden||Date.now()-(window._lgAt||0)>300000)){window._lgAt=Date.now();try{$('lg-low-btn').click()}catch(e){}}
 }
 function navMark(w){const m={home:'nv-home',wh:onlyDone?'nv-done':'nv-wh',new:'nv-new',lg:'nv-lg',cash:'nv-cash',cust:'nv-cust',acc:'nv-acc'};
   document.querySelectorAll('#appnav .nv').forEach(b=>b.classList.toggle('on',b.id===m[w]))}
@@ -1261,7 +1286,7 @@ async function pregenClp(id,rec){
   }catch(e){console.warn('CLP pregen',e)}
 }
 let sheetPushed=false,skipPop=false;
-function openSheet(t,fill){$('sheet-t').textContent=t;const b=$('sheet-b'),sb=$('settings-body');if(sb&&b.contains(sb))$('settings-holder').append(sb);b.textContent='';fill(b);$('sheet').hidden=false;if(!IN_GAS&&!sheetPushed){try{history.pushState({sh:1},'');sheetPushed=true}catch(e){}}}
+function openSheet(t,fill){$('sheet-t').textContent=t;const b=$('sheet-b'),sb=0;[['settings-body','settings-holder'],['cs-form','cs-form-holder']].forEach(([x,h])=>{const e=$(x);if(e&&b.contains(e))$(h).append(e)});b.textContent='';fill(b);$('sheet').hidden=false;if(!IN_GAS&&!sheetPushed){try{history.pushState({sh:1},'');sheetPushed=true}catch(e){}}}
 function closeSheet(fromPop){if($('sheet').hidden)return;$('sheet').hidden=true;if(sheetPushed&&!fromPop){skipPop=true;try{history.back()}catch(e){skipPop=false}}sheetPushed=false}
 $('sheet-x').onclick=()=>closeSheet();$('sheet').onclick=e=>{if(e.target===$('sheet'))closeSheet()};
 function filesSheet(l,r){openSheet('📂 ملفات '+custLabel(l),b=>showFilesFull(l,r,b))}
@@ -1482,12 +1507,14 @@ $('cs-save').onclick=async()=>{
   $('cs-save').disabled=true;
   try{const f=$('cs-file').files[0];if(f){msg.textContent='جاري رفع الفاتورة…';rec.receipt=await uploadReceipt(f,who)}
     msg.textContent='جاري الحفظ…';await db.collection('cash').add(rec);
-    $('cs-amt').value='';$('cs-note').value='';$('cs-file').value='';msg.textContent='✓ تم تسجيل الحركة';setTimeout(()=>{msg.hidden=true},2500);
+    $('cs-amt').value='';$('cs-note').value='';$('cs-file').value='';msg.textContent='✓ تم تسجيل الحركة';setTimeout(()=>{msg.hidden=true},2500);setTimeout(()=>{if($('sheet-b').contains($('cs-form')))closeSheet()},900);
   }catch(e){msg.textContent='فشل: '+(e.message||e);msg.classList.add('err')}
   $('cs-save').disabled=false;
 };
 $('cs-filter').onchange=$('cs-month-f').onchange=()=>renderCashList();
-$('cs-wd').onclick=()=>{$('cs-type').value='withdraw';$('cs-type').onchange();$('cs-amt').focus();$('cs-amt').scrollIntoView({behavior:'smooth',block:'center'})};
+{const CTT={exp:'➖ مصروف جديد',in:'➕ قبض نقدي من عميل',withdraw:'⬆️ سحب من الصندوق',deposit:'⬇️ إيداع في الصندوق'};
+ document.querySelectorAll('.csq button').forEach(b=>b.onclick=()=>{$('cs-type').value=b.dataset.t;$('cs-type').onchange();$('cs-msg').hidden=true;
+  openSheet(CTT[b.dataset.t],x=>x.append($('cs-form')));setTimeout(()=>$('cs-amt').focus(),150)})}
 function cashUnlinked(){return lists.filter(l=>l.pay&&l.pay.method==='Bar'&&(+l.pay.paid||0)>0&&!l.pay.cashId&&!cash.some(c=>c.orderId===l.id))}
 $('cs-import-btn').onclick=async()=>{const b=$('cs-import-btn');b.disabled=true;const u=cashUnlinked();let n=0;
   for(const l of u){try{const r=await db.collection('cash').add({type:'in',amount:+l.pay.paid,note:custLabel(l),orderId:l.id,who:WHO(),holder:'box',at:l.pay.at||l.at||Date.now()});await db.doc('lists/'+l.id).update({pay:Object.assign({},l.pay,{cashId:(r&&r.id)||''})});n++;b.textContent='…'+n+'/'+u.length}catch(e){}}
@@ -1509,7 +1536,7 @@ function renderCashList(){
   rows.forEach(c=>{
     const r=el('div','hrow');r.style.cursor='default';const left=el('div');
     const sign=(c.type==='exp'||c.type==='withdraw')?'−':'+';
-    left.append(el('b',null,sign+' '+money(c.amount)+' · '+CT[c.type]+(c.cat?' · '+c.cat:'')));
+    left.append(el('b',sign==='−'?'neg':'pos',sign+' '+money(c.amount)+' · '+CT[c.type]+(c.cat?' · '+c.cat:'')));
     const d=[new Date(c.at||0).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'}),c.who?'👤 '+c.who:'',c.note||''];
     if(c.type==='exp')d.push(c.src==='own'?(c.reimb?'رُدّ للموظف ✓':'⚠️ من جيب الموظف — لم يُرد بعد'):'من الصندوق');
     if(c.type==='in')d.push(csHolder(c)==='box'?'في الصندوق':csHolder(c)==='kamal'?'سُلّم لكمال':'💼 عند '+csHolder(c));
@@ -1549,11 +1576,11 @@ function renderAcc(){
   const box=$('acc-list');box.textContent='';const all=$('acc-all').checked,gs=custGroups();
   $('acc-sum').textContent='إجمالي غير المدفوع: '+money(gs.reduce((s,g)=>s+g.open,0));
   const shown=gs.filter(g=>all||g.open>0.004);if(!shown.length)box.append(el('p','hint','لا توجد أرصدة مفتوحة.'));
-  shown.forEach(g=>{const c=el('div','card');const hd=el('div','sec-title');hd.append(el('span','cust',g.name+(g.no?' ('+g.no+')':'')));
+  shown.forEach(g=>{const c=el('details','card accd');const hd=el('summary');hd.append(el('span','cust',g.name+(g.no?' ('+g.no+')':'')));
     hd.append(el('span','pay '+(g.open>0.004?'open':'paid'),g.open>0.004?'مفتوح: '+money(g.open):'مسدَّد'));c.append(hd);
     c.append(el('p','note',g.orders.length+' طلب · الإجمالي '+money(g.net)+' · المدفوع '+money(g.paid)));
     const ul=el('div','hlist');g.orders.slice().sort((a,b)=>(b.at||0)-(a.at||0)).forEach(l=>{const b=el('button','hrow');const left=el('div');left.append(el('b',null,'AP-'+stamp(l)),el('div','time',new Date(l.at).toLocaleDateString('de-DE')+' · '+money(totals(l).net)+' netto'));b.append(left,payBadge(l));b.onclick=()=>{focusId=l.id;tab('wh');renderLists()};ul.append(b)});c.append(ul);
-    const out=el('div','filebox'),btn=el('button','btn primary','📄 كشف حساب PDF (Kontoauszug)');btn.onclick=()=>makeStatement(g,btn,out);const row=el('div','row grow');row.append(btn);c.append(row,out);box.append(c)});
+    const out=el('div','filebox'),btn=el('button','btn','📄 كشف حساب PDF (Kontoauszug)');btn.onclick=()=>makeStatement(g,btn,out);const row=el('div','row grow');row.append(btn);c.append(row,out);box.append(c)});
 }
 $('acc-all').onchange=renderAcc;
 const KT={
