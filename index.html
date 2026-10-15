@@ -334,6 +334,19 @@ details.accd[open]>summary{margin-bottom:8px;padding-bottom:8px;border-bottom:1p
 #view-lg .searchrow{flex-wrap:wrap}
 #view-lg .searchrow input{flex:1 1 100%;font-size:16px;padding:13px 14px}
 #view-lg .searchrow .btn{flex:1}
+
+/* Zahlung direkt von der Karte (16.10.2026) */
+button.pay{border:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:700}
+button.pay::after{content:' ✎';opacity:.6;font-weight:400}
+.paysh{display:flex;flex-direction:column;gap:10px}
+.paysh .tot{font-size:22px;font-weight:700;text-align:center;margin:4px 0}
+.paysh .tot small{display:block;font-size:12px;color:var(--muted);font-weight:500}
+.paysh .pq{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.paysh .pq .btn{padding:14px 6px;font-weight:700}
+.paysh .pq .btn.ok{background:#e6f4ea;border-color:#b7dcc3;color:#1e7a3c}
+.paysh .part{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;border-top:1px solid var(--line);padding-top:10px}
+.paysh .part label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);flex:1;min-width:120px}
+.paysh .part input,.paysh .part select{padding:10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--surface);color:var(--ink)}
 .btn.filesbtn{width:100%;border:1px solid var(--gold);color:var(--ink);background:#faf5ea}
 #sheet{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;background:rgba(20,18,16,.45)}
 #sheet[hidden]{display:none}
@@ -1485,6 +1498,28 @@ function cashSums(){
       if((c.at||0)>=m0.getTime()){month+=a;cats[c.cat||'أخرى']=(cats[c.cat||'أخرى']||0)+a}}});
   return {box,held,owed,month,cats};
 }
+/* change the payment straight from the order card */
+function payBtn(l){const s=payBadge(l),b=el('button',s.className,s.textContent);b.title='تعديل الدفع';b.onclick=e=>{e.stopPropagation();openPaySheet(l)};return b}
+function openPaySheet(l){
+  const p=payOf(l);
+  openSheet('💶 الدفع — '+custLabel(l),b=>{
+    const w=el('div','paysh');b.append(w);
+    const t=el('div','tot',money(p.net));t.append(el('small',null,'الحالي: '+PAY_AR[p.status]+(p.status==='part'?' · مدفوع '+money(p.paid):'')+(p.method?' · '+p.method:'')));w.append(t);
+    const st=el('div','status');st.hidden=true;
+    const save=async(status,paid,method)=>{st.hidden=false;st.classList.remove('err');st.textContent='جاري الحفظ…';
+      const pay={status,paid:status==='part'?paid:(status==='paid'?p.net:0),method:status==='open'?'':method,at:Date.now(),cashId:(l.pay&&l.pay.cashId)||''};
+      try{pay.cashId=await syncCash(l,pay);await db.doc('lists/'+l.id).update({pay});l.pay=pay;st.textContent='✓ تم الحفظ';setTimeout(()=>closeSheet(),500);try{renderLists()}catch(_){}}
+      catch(e){st.textContent='فشل: '+(e.message||e);st.classList.add('err')}};
+    const q=el('div','pq');
+    [['Bar','💵 مدفوع نقداً'],['Überweisung','🏦 مدفوع بتحويل'],['PayPal','PayPal'],['Karte','💳 بطاقة']].forEach(([m,txt])=>{const x=el('button','btn ok',txt);x.onclick=()=>save('paid',0,m);q.append(x)});
+    w.append(q);
+    const pr=el('div','part'),la=el('label',null,'دفعة جزئية €'),amt=el('input');amt.type='number';amt.step='0.01';amt.min='0';amt.inputMode='decimal';amt.value=p.status==='part'?p.paid:'';la.append(amt);
+    const lm=el('label',null,'الطريقة'),met=el('select');[['Bar','نقداً (Bar)'],['Überweisung','تحويل'],['PayPal','PayPal'],['Karte','بطاقة']].forEach(([v,x])=>{const o=el('option',null,x);o.value=v;met.append(o)});met.value=p.method||'Bar';lm.append(met);
+    const sp=el('button','btn','حفظ الدفعة');sp.onclick=()=>{const a=+String(amt.value).replace(',','.')||0;if(!(a>0)){amt.focus();return}save(a>=p.net-0.004?'paid':'part',a,met.value)};
+    pr.append(la,lm,sp);w.append(pr);
+    const un=el('button','btn danger','↩︎ غير مدفوع');un.onclick=()=>save('open',0,'');w.append(un,st);
+  });
+}
 async function syncCash(l,pay){
   const isCash=pay.method==='Bar'&&pay.paid>0;
   if(!isCash){if(pay.cashId){try{await db.doc('cash/'+pay.cashId).delete()}catch(_){}}return ''}
@@ -1658,7 +1693,7 @@ function renderLists(){
     const c=el('div','card'+(done?' done':''));
     /* header */
     const h=el('div','ohead');const hl=el('div');hl.append(el('div','cust',custLabel(l)));
-    const meta=el('div','meta');meta.append(el('span','pill '+(done?'done':'new'),done?'منجزة':'مفتوحة'),payBadge(l),el('span',null,new Date(l.at).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})),el('span',null,'· '+n+' صنف'));
+    const meta=el('div','meta');meta.append(el('span','pill '+(done?'done':'new'),done?'منجزة':'مفتوحة'),payBtn(l),el('span',null,new Date(l.at).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})),el('span',null,'· '+n+' صنف'));
     if(l.kg)meta.append(el('span',null,'· ⚖️ سعر الكيلو'));hl.append(meta);
     const hr=el('div');hr.style.textAlign='left';hr.append(el('div','tot',money(t.net)),el('div','meta','netto'),el('div','chev','▾'));h.append(hl,hr);c.append(h);
     if(l.note)c.append(el('p','note','📝 '+l.note));
