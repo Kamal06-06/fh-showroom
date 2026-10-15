@@ -1027,7 +1027,13 @@ function showFiles(l,r,out){
     const pr=el('button','btn small primary','🖨️ طباعة');pr.onclick=async()=>{const o=pr.textContent;pr.disabled=true;pr.textContent='جاري التجهيز…';
       try{if(!f.blob){const b64=await srv('pdf',f.url);f.blob=b64blob(b64);d.hidden=false}await printPdf(f.blob)}catch(e){alert('تعذّرت الطباعة: '+(e.message||e))}
       pr.disabled=false;pr.textContent=o};
-    row.append(el('span','fname',f.name),pr,a,w,c,d);out.append(row);
+    const sh=el('button','btn small','📲 Phomemo / مشاركة');sh.hidden=!(navigator.canShare&&window.File);
+    sh.onclick=async()=>{
+      if(!f.blob){sh.disabled=true;sh.textContent='جاري التجهيز…';try{f.blob=b64blob(await srv('pdf',f.url));d.hidden=false;sh.textContent='📲 اضغط مرة أخرى للمشاركة'}catch(e){sh.textContent='تعذّر التجهيز'}sh.disabled=false;return}
+      const file=new File([f.blob],f.name,{type:'application/pdf'});
+      try{if(!navigator.canShare({files:[file]}))throw new Error('المشاركة غير مدعومة على هذا الجهاز');await navigator.share({files:[file],title:f.name})}
+      catch(e){if(e&&e.name!=='AbortError')alert('تعذّرت المشاركة: '+(e.message||e))}};
+    row.append(el('span','fname',f.name),pr,sh,a,w,c,d);out.append(row);
   });
   if(r.files.length>1){
     const all=el('a','btn wa','إرسال كل الروابط عبر واتساب');all.href=waHref(head+'\n'+r.files.map(f=>f.name+': '+f.url).join('\n'));all.target='_blank';all.rel='noopener';
