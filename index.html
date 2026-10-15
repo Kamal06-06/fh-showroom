@@ -418,7 +418,7 @@ const IN_GAS=!!(window.google&&google.script&&google.script.run);
 if(!IN_GAS){const qs=new URLSearchParams(location.search);window.SR_URL=location.origin+location.pathname;window.SR_CODE=(qs.get('code')||'').slice(0,80)}
 function srv1(action,a,b,c){
   if(IN_GAS)return new Promise((ok,no)=>google.script.run.withSuccessHandler(r=>{if(r&&r.err)no(new Error(r.err));else ok(r?r.val:null)}).withFailureHandler(e=>no(new Error((e&&e.message)||String(e)))).srApi(PIN,action,a,b,c));
-  return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({pin:PIN,action,a,b,c}),redirect:'follow'})
+  return fetch(API_URL+'?app=sr',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({pin:PIN,action,a,b,c}),redirect:'follow'})
     .then(r=>{if(!r.ok)throw Object.assign(new Error('NET '+r.status),{net:true});return r.json()},e=>{throw Object.assign(new Error('لا يوجد اتصال بالإنترنت'),{net:true})})
     .then(r=>{if(r&&r.err)throw new Error(r.err);return r?r.val:null});
 }
