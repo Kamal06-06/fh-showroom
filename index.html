@@ -504,7 +504,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
         <label for="who">👤 اسم مستخدم هذا الجهاز (يُسجَّل مع القبض النقدي والمصروفات)</label><input type="text" id="who" autocomplete="off" placeholder="مثال: Ahmad" style="width:190px"><br>
         <label class="lbl"><input type="checkbox" id="snd" checked> 🔔 تنبيه صوتي عند وصول طلب جديد إلى المستودع</label> <button class="btn small" id="snd-test">تجربة الصوت</button>
       </div>
-      <div class="dim">
+      <div class="dim" hidden>
         <label for="newpin">تغيير رمز الدخول (4–8 أرقام)</label><input type="password" id="newpin" inputmode="numeric" dir="ltr" autocomplete="new-password" style="width:150px">
         <button class="btn small" id="setpin">حفظ الرمز الجديد</button><span id="setpin-msg" class="code"></span>
       </div>
