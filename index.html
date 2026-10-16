@@ -731,7 +731,7 @@ async function repriceOrder(l,on){const items=JSON.parse(JSON.stringify(l.items|
 function kgToggle(name,after){const c=findCust(name);const s=el('span','pay '+(c&&c.kg?'paid':'open'),'⚖️ سعر الكيلو: '+(c&&c.kg?'مفعّل':'لا'));s.title='تبديل تسعير الكيلو لهذا العميل';
   s.style.cursor='pointer';s.onclick=async e=>{e.stopPropagation();e.preventDefault();if(!c||!c.id){s.textContent='العميل غير مسجّل بعد';return}
     const nv=!c.kg;s.textContent='…';try{await db.doc('customers/'+c.id).update({kg:nv});c.kg=nv;
-    if(after){const all=lists.filter(l=>findCust(l.customer)===c);for(const l of all){try{await repriceOrder(l,nv)}catch(_){}}}if(after)after();else{s.className='pay '+(nv?'paid':'open');s.textContent='⚖️ سعر الكيلو: '+(nv?'مفعّل':'لا')}}catch(err){s.textContent='فشل الحفظ'}};return s}
+    if(after){const all=lists.filter(l=>findCust(l.customer)===c&&l.status!=='done'&&payOf(l).status==='open');for(const l of all){try{await repriceOrder(l,nv)}catch(_){}}}if(after)after();else{s.className='pay '+(nv?'paid':'open');s.textContent='⚖️ سعر الكيلو: '+(nv?'مفعّل':'لا')}}catch(err){s.textContent='فشل الحفظ'}};return s}
 $('h-done').onclick=()=>{focusId=null;focusCust=null;onlyDone=true;tab('wh');renderLists()};
 /* ---------- customers without orders · old debts (Saldovortrag) ---------- */
 const docOf=l=>db.doc((l.kind==='debt'?'customers/':'lists/')+l.id);
@@ -967,12 +967,15 @@ const qn=it=>it.unit==='kg'?1:(+it.q||1);   /* pieces count (a line sold by kg c
 const qtxt=it=>it.unit?(String(+it.q||1).replace('.',',')+' '+(it.unit==='kg'?'kg':'Stk')):((it.q||1)+'×');
 const imgOf=it=>{if(isOil(it))return '';const p=(catalog||[]).find(p=>p.t===it.t);return (p&&p.i)||''};
 const mkImg=(src,cls)=>{const im=el('img',cls);im.src=src;im.loading='lazy';im.alt='';im.onerror=()=>im.remove();return im};
-const itRab=it=>Math.min(100,Math.max(0,+it.rab||0));const lineTot=it=>(+it.price)*(it.q||1)*(1-itRab(it)/100);
+const itRab=it=>Math.min(100,Math.max(0,+it.rab||0));
+const r2=x=>Math.round(Number((((+x)||0)*100).toPrecision(12)))/100;   /* every amount is rounded to whole cents, like on an invoice */
+const lineTot=it=>r2((+it.price)*(+it.q||1)*(1-itRab(it)/100));
 function totals(l){
-  if(l&&l.kind==='debt'){const a=Math.max(0,+l.amount||0);return {sub:a,oils:0,oilOnly:false,r:0,pd:0,fix:0,disc:0,ship:0,goods:a,net:a,missing:0}}
+  if(l&&l.kind==='debt'){const a=r2(Math.max(0,+l.amount||0));return {sub:a,oils:0,oilOnly:false,r:0,pd:0,fix:0,disc:0,ship:0,goods:a,net:a,missing:0}}
   let sub=0,oils=0,missing=0;(l.items||[]).forEach(i=>{if(i.price==null||i.price==='')missing++;else{const x=lineTot(i);sub+=x;if(isOil(i))oils+=x}});
-  const oilOnly=l.rabScope==='oil',base=oilOnly?oils:sub;const r=Math.min(100,Math.max(0,+l.rabatt||0)),pd=base*r/100,fix=Math.min(Math.max(0,+l.rabattFix||0),base-pd);
-  const ship=Math.max(0,+l.versand||0);return {sub,oils,oilOnly,r,pd,fix,disc:pd+fix,ship,goods:sub-pd-fix,net:sub-pd-fix+ship,missing};
+  sub=r2(sub);oils=r2(oils);
+  const oilOnly=l.rabScope==='oil',base=oilOnly?oils:sub;const r=Math.min(100,Math.max(0,+l.rabatt||0)),pd=r2(base*r/100),fix=r2(Math.min(Math.max(0,+l.rabattFix||0),base-pd));
+  const ship=r2(Math.max(0,+l.versand||0));return {sub,oils,oilOnly,r,pd,fix,disc:r2(pd+fix),ship,goods:r2(sub-pd-fix),net:r2(sub-pd-fix+ship),missing};
 }
 
 /* ---------- draft ---------- */
@@ -1006,7 +1009,8 @@ async function ensureCustomer(name,adr){
     }
     return c.no;
   }
-  const max=customers.reduce((m,c)=>Math.max(m,+String(c.no).replace(/\D/g,'')||0),1000);
+  const num=x=>+String(x||'').replace(/\D/g,'')||0;
+  const max=Math.max(1000,...customers.map(c=>num(c.no)),...lists.map(l=>num(l.custNo)),...debts.map(d=>num(d.custNo)));
   const no='K-'+(max+1);
   const rec=Object.assign({name:name.trim(),no,at:Date.now()},adr);
   const r=await db.collection('customers').add(rec);
@@ -1689,18 +1693,18 @@ function openPaySheet(l){
   const p=payOf(l);
   openSheet('💶 الدفع — '+custLabel(l),b=>{
     const w=el('div','paysh');b.append(w);
-    const t=el('div','tot',money(p.net));t.append(el('small',null,'الحالي: '+PAY_AR[p.status]+(p.status==='part'?' · مدفوع '+money(p.paid):'')+(p.method?' · '+p.method:'')));w.append(t);
+    const t=el('div','tot',money(p.net));t.append(el('small',null,'الحالي: '+PAY_AR[p.status]+(p.paidAll>0?' · مدفوع حتى الآن '+money(p.paidAll):'')+(p.open>0.004&&p.paidAll>0?' · المتبقي '+money(p.open):'')+(p.method?' · '+p.method:'')+(p.over>0.004?' · دُفع زيادة '+money(p.over):'')));w.append(t);
     const st=el('div','status');st.hidden=true;
     const save=async(status,paid,method)=>{st.hidden=false;st.classList.remove('err');st.textContent='جاري الحفظ…';
-      const pay={status,paid:status==='part'?paid:(status==='paid'?p.net:0),method:status==='open'?'':method,at:Date.now(),cashId:(l.pay&&l.pay.cashId)||''};
+      const pay={status,paid:r2(status==='part'?paid:(status==='paid'?Math.max(p.net,status==='paid'&&paid>0?paid:0):0)),method:status==='open'?'':method,at:Date.now(),cashId:(l.pay&&l.pay.cashId)||''};
       try{pay.cashId=await syncCash(l,pay);await docOf(l).update({pay});l.pay=pay;st.textContent='✓ تم الحفظ';setTimeout(()=>closeSheet(),500);try{renderLists()}catch(_){}}
       catch(e){st.textContent='فشل: '+(e.message||e);st.classList.add('err')}};
     const q=el('div','pq');
     [['Bar','💵 مدفوع نقداً'],['Überweisung','🏦 مدفوع بتحويل'],['PayPal','PayPal'],['Karte','💳 بطاقة']].forEach(([m,txt])=>{const x=el('button','btn ok',txt);x.onclick=()=>save('paid',0,m);q.append(x)});
     w.append(q);
-    const pr=el('div','part'),la=el('label',null,'دفعة جزئية €'),amt=el('input');amt.type='number';amt.step='0.01';amt.min='0';amt.inputMode='decimal';amt.value=p.status==='part'?p.paid:'';la.append(amt);
+    const pr=el('div','part'),la=el('label',null,p.paidAll>0?'دفعة إضافية € (تُضاف إلى '+money(p.paidAll)+')':'دفعة جزئية €'),amt=el('input');amt.type='text';amt.inputMode='decimal';amt.placeholder='0,00';amt.value='';la.append(amt);
     const lm=el('label',null,'الطريقة'),met=el('select');[['Bar','نقداً (Bar)'],['Überweisung','تحويل'],['PayPal','PayPal'],['Karte','بطاقة']].forEach(([v,x])=>{const o=el('option',null,x);o.value=v;met.append(o)});met.value=p.method||'Bar';lm.append(met);
-    const sp=el('button','btn','حفظ الدفعة');sp.onclick=()=>{const a=+String(amt.value).replace(',','.')||0;if(!(a>0)){amt.focus();return}save(a>=p.net-0.004?'paid':'part',a,met.value)};
+    const sp=el('button','btn','حفظ الدفعة');sp.onclick=()=>{const a=r2(+String(amt.value).replace(',','.')||0);if(!(a>0)){amt.focus();return}const tot=r2(p.paidAll+a);save(tot>=p.net-0.004?'paid':'part',tot,met.value)};
     pr.append(la,lm,sp);w.append(pr);
     const un=el('button','btn danger','↩︎ غير مدفوع');un.onclick=()=>save('open',0,'');w.append(un,st);
   });
@@ -1708,7 +1712,7 @@ function openPaySheet(l){
 async function syncCash(l,pay){
   const isCash=pay.method==='Bar'&&pay.paid>0;
   if(!isCash){if(pay.cashId){try{await db.doc('cash/'+pay.cashId).delete()}catch(_){}}return ''}
-  const rec={type:'in',amount:+pay.paid,note:custLabel(l),orderId:l.id,who:WHO(),at:Date.now()};
+  const rec={type:'in',amount:r2(pay.paid),note:custLabel(l),orderId:l.id,who:WHO(),at:Date.now()};
   if(pay.cashId){try{await db.doc('cash/'+pay.cashId).update({amount:rec.amount,note:rec.note});return pay.cashId}catch(_){}}
   rec.holder=WHO()||'box';const r=await db.collection('cash').add(rec);return (r&&r.id)||'';
 }
@@ -1780,14 +1784,19 @@ function beep(){if(LS.get('snd',true)===false)return;try{sndUnlock();const t=aud
     g.gain.setValueAtTime(0.0001,t+o);g.gain.exponentialRampToValueAtTime(0.6,t+o+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+o+0.45);s.start(t+o);s.stop(t+o+0.5)});
   if(navigator.vibrate)navigator.vibrate([200,100,200])}catch(e){}}
 const PAY_AR={open:'غير مدفوع',part:'دفعة جزئية',paid:'مدفوع'};
-const payOf=l=>{const p=l.pay||{};const net=totals(l).net;const st=p.status||'open';const paid=st==='paid'?net:(st==='part'?Math.min(net,+p.paid||0):0);return {status:st,paid,open:Math.max(0,net-paid),net,method:p.method||'',at:p.at||0}};
-function payBadge(l){const p=payOf(l);return el('span','pay '+p.status,PAY_AR[p.status]+(p.status==='part'?' · متبقٍ '+money(p.open):'')+(p.status==='paid'&&p.method?' · '+p.method:''))}
+/* what was really paid counts – if an order is changed after payment, the difference shows as open (or as credit) */
+const payOf=l=>{const p=l.pay||{};const net=totals(l).net;const st0=p.status||'open';
+  let paid=st0==='open'?0:r2(+p.paid||0);if(st0==='paid'&&!(paid>0))paid=net;
+  const open=r2(Math.max(0,net-paid)),over=r2(Math.max(0,paid-net));
+  const status=paid<=0.004?'open':open>0.004?'part':'paid';
+  return {status,paid:Math.min(paid,net),paidAll:paid,open,over,net,method:p.method||'',at:p.at||0}};
+function payBadge(l){const p=payOf(l);return el('span','pay '+p.status,PAY_AR[p.status]+(p.status==='part'?' · متبقٍ '+money(p.open):'')+(p.status==='paid'&&p.method?' · '+p.method:'')+(p.over>0.004?' · زيادة '+money(p.over):''))}
 function payRow(l){
   const r=el('div','payrow'),p=payOf(l);
   const sel=el('select');[['open','غير مدفوع'],['part','دفعة جزئية'],['paid','مدفوع بالكامل']].forEach(([val,t])=>{const o=el('option',null,t);o.value=val;sel.append(o)});sel.value=p.status;
-  const amt=el('input');amt.type='number';amt.step='0.01';amt.min='0';amt.inputMode='decimal';amt.placeholder='المبلغ المدفوع €';amt.value=p.status==='part'?p.paid:'';amt.hidden=p.status!=='part';
+  const amt=el('input');amt.type='number';amt.step='0.01';amt.min='0';amt.inputMode='decimal';amt.placeholder='المدفوع حتى الآن (الإجمالي) €';amt.value=p.status==='part'?p.paidAll:'';amt.hidden=p.status!=='part';
   const met=el('select');[['','طريقة الدفع…'],['Bar','نقداً (Bar)'],['Überweisung','تحويل (Überweisung)'],['PayPal','PayPal'],['Karte','بطاقة (Karte)']].forEach(([val,t])=>{const o=el('option',null,t);o.value=val;met.append(o)});met.value=p.method;
-  const save=async()=>{const pay={status:sel.value,paid:sel.value==='part'?(+amt.value||0):(sel.value==='paid'?p.net:0),method:met.value,at:Date.now(),cashId:(l.pay&&l.pay.cashId)||''};try{pay.cashId=await syncCash(l,pay);await docOf(l).update({pay})}catch(e){}};
+  const save=async()=>{const pa=r2(+String(amt.value).replace(',','.')||0);const st=sel.value==='part'&&pa>=p.net-0.004?'paid':sel.value;const pay={status:st,paid:st==='part'?pa:(st==='paid'?Math.max(p.net,pa):0),method:met.value,at:Date.now(),cashId:(l.pay&&l.pay.cashId)||''};try{pay.cashId=await syncCash(l,pay);await docOf(l).update({pay})}catch(e){}};
   sel.onchange=()=>{amt.hidden=sel.value!=='part';if(sel.value!=='part')save();else amt.focus()};amt.onchange=save;met.onchange=save;
   r.append(payBadge(l),sel,amt,met);if(p.at)r.append(el('span','time',new Date(p.at).toLocaleDateString('de-DE')));return r;
 }
@@ -2065,6 +2074,31 @@ function makeDb(){
     async delete(){store[a[0]]=(store[a[0]]||[]).filter(x=>x.id!==a[1]);persist(a[0]);setTimeout(()=>emit(a[0]),0);
       enqueue({op:'del',n:a[0],id:a[1]})}}}};
 }
+/* Repairs customer numbers once data is fresh: two different customers must never share one number
+   (their accounts would be mixed), and the same customer saved twice is merged into the first record. */
+let fixedNos=false;
+async function fixCustNos(){
+  if(fixedNos||!db||db.pending())return;fixedNos=true;
+  try{
+    const num=x=>+String(x||'').replace(/\D/g,'')||0;
+    const recs=customers.slice().sort((a,b)=>(a.at||0)-(b.at||0));
+    /* same name saved twice → keep the first, move missing details into it, delete the copy */
+    const byName={};for(const c of recs){const k=custKey(c.name);if(!byName[k]){byName[k]=c;continue}
+      const keep=byName[k],patch={};['street','city','country','phone','email','note','clpLogo','clpAddr'].forEach(f=>{if(!keep[f]&&c[f])patch[f]=c[f]});if(c.kg&&!keep.kg)patch.kg=true;
+      if(Object.keys(patch).length){await db.doc('customers/'+keep.id).update(patch);Object.assign(keep,patch)}
+      for(const l of lists.filter(l=>l.custNo===c.no&&custKey(l.customer)===k&&c.no!==keep.no))await db.doc('lists/'+l.id).update({custNo:keep.no});
+      await db.doc('customers/'+c.id).delete();customers=customers.filter(x=>x!==c)}
+    /* one number used by two different customers → the later customer gets a new number (also on its orders and debts) */
+    let max=Math.max(1000,...customers.map(c=>num(c.no)),...lists.map(l=>num(l.custNo)),...debts.map(d=>num(d.custNo)));
+    const seen={};for(const c of customers.slice().sort((a,b)=>(a.at||0)-(b.at||0))){if(!c.no)continue;
+      if(!seen[c.no]){seen[c.no]=c;continue}
+      const old=c.no,nn='K-'+(++max),k=custKey(c.name);
+      await db.doc('customers/'+c.id).update({no:nn});c.no=nn;
+      for(const l of lists.filter(l=>l.custNo===old&&custKey(l.customer)===k))await db.doc('lists/'+l.id).update({custNo:nn});
+      for(const d of debts.filter(d=>d.custNo===old&&custKey(d.customer)===k))await db.doc('customers/'+d.id).update({custNo:nn});
+      console.info('Kundennummer korrigiert',c.name,old,'→',nn)}
+  }catch(e){console.warn('fixCustNos',e);fixedNos=false}
+}
 function start(){
   if(started)return;started=true;sndUnlock();try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission()}catch(e){}
   $('gate').hidden=true;
@@ -2079,7 +2113,7 @@ function start(){
     listSig=sig;lists=next;renderLists();if(!$('drawer').hidden)renderDrawer();if(!$('view-home').hidden)renderHome();
   });
   db.collection('cash').onSnapshot(snap=>{const next=snap.docs.map(d=>Object.assign({id:d.id},d.data())),sig=JSON.stringify(next);if(sig===cashSig)return;cashSig=sig;cash=next;if(!$('view-cash').hidden)renderCash();if(!$('view-home').hidden)renderHome()});
-  db.loaded.then(()=>{db.dot();db.flush();db.pull()});
+  db.loaded.then(()=>{db.dot();db.flush();db.pull().then(()=>setTimeout(fixCustNos,1500))});
   setInterval(()=>{if(!document.hidden)db.pull()},10000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){db.pull();keepAwake()}});
   keepAwake();
