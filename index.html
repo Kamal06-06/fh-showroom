@@ -1470,7 +1470,9 @@ async function directPrint(kind,l,btn){const o=btn.innerHTML;btn.disabled=true;b
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
     if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
     if(kind==='ls'||kind==='lso')await prepImgs(lo);
-    const blob=KINDS[kind].make(lo).output('blob');btn.textContent='جاري فتح الطباعة…';await printPdf(blob)}
+    if(kind==='clp'){const r=await clpMake(lo);if(r.fehlend&&r.fehlend.length)alert('بدون ملصق CLP: '+r.fehlend.join('، '));
+      if(!r.files.length)throw new Error('لا يوجد ملصق CLP لهذه الأصناف');btn.textContent='جاري فتح الطباعة…';for(const f of r.files)await printPdf(f.blob)}
+    else{const blob=KINDS[kind].make(lo).output('blob');btn.textContent='جاري فتح الطباعة…';await printPdf(blob)}}
   catch(e){alert('تعذّرت الطباعة: '+(e.message||e))}
   btn.disabled=false;btn.innerHTML=o}
 function docsPanel(l){
@@ -1480,8 +1482,7 @@ function docsPanel(l){
   const hasOil=(l.items||[]).some(isOil),sec=t=>box.append(el('div','dsec',t));
   const row=(ic,title,sub,kind,opt)=>{opt=opt||{};const r=el('div','drow');const i=el('span','dic',ic);const tx=el('div','dt');tx.append(el('b',null,title),el('small',null,sub));r.append(i,tx);
     const bs=el('div','dbtn');
-    if(opt.clp){const b=el('button','btn small primary',clpReady(l)?'✓ جاهزة · فتح':'إنشاء');b.onclick=()=>savePdf('clp',l,b,out);bs.append(b)}
-    else{const p=el('button','btn small primary','🖨️ طباعة');p.onclick=()=>directPrint(kind,l,p);const s2=el('button','btn small','📤 إرسال');s2.title='ملف PDF · واتساب · تنزيل';s2.onclick=()=>savePdf(kind,l,s2,out);bs.append(p,s2)}
+    {const p=el('button','btn small primary','🖨️ طباعة');p.onclick=()=>directPrint(kind,l,p);const s2=el('button','btn small','📤 إرسال');s2.title='ملف PDF · واتساب · تنزيل';s2.onclick=()=>savePdf(kind,l,s2,out);bs.append(p,s2)}
     r.append(bs);box.append(r)};
   sec('📄 المستندات');
   row('💶','عرض السعر · Angebot','بالأسعار والخصم ومجموع الكيلو','ls');
@@ -1489,7 +1490,7 @@ function docsPanel(l){
   row('📋','قائمة التحضير · Packliste','بدون أسعار – للموظف أو لإرسالها للعميل','pl');
   row('📋','قائمة التحضير بالأسماء الأصلية','Packliste – Originalnamen · بدون أسعار','plo');
   if(hasOil){sec('🏷️ الملصقات');
-    row('⚠️','ملصقات CLP','102 × 52 مم · Epson ColorWorks','clp',{clp:1});
+    row('⚠️','ملصقات CLP','102 × 51 مم · Epson ColorWorks · وعيّنات 40 × 30','clp');clpWarm(l);
     row('🏷️','ملصقات بسيطة','40 × 30 مم · الاسم والكود والجودة','lab');
     row('🏷️','ملصقات بالأسماء الأصلية','40 × 30 مم · Originalnamen','labo');
     box.append(labPicker(l))}
@@ -1532,6 +1533,194 @@ async function clpFetch(l){
   const files=[];for(const f of (r.files||[]))files.push({name:l._part?f.name.replace(/\.pdf$/i,'-Auswahl.pdf'):f.name,blob:await expandPdf(f.b64,f.rep),url:f.rep?'':(f.url||'')});
   return {files,fehlend:r.fehlend||[]};
 }
+/* ---------- CLP-Etiketten direkt im Gerät (in 1–2 Sekunden statt Minuten) – gleiches Layout wie bisher (v6c) ----------
+   Daten (Fabrik-Codes, CLP-Daten, Sätze, Piktogramme) kommen einmal vom Server und werden im Gerät gespeichert. */
+const CLP_L={
+  DE:{i:1,sig:{Gefahr:'Gefahr',Achtung:'Achtung'},enth:'Enthält',menge:'Nettofüllmenge',typ:'Duftöl · Fragrance Oil',qr:'Nachbestellen'},
+  EN:{i:2,sig:{Gefahr:'Danger',Achtung:'Warning'},enth:'Contains',menge:'Net quantity',typ:'Fragrance Oil',qr:'Reorder'},
+  NL:{i:3,sig:{Gefahr:'Gevaar',Achtung:'Waarschuwing'},enth:'Bevat',menge:'Nettohoeveelheid',typ:'Geurolie · Fragrance Oil',qr:'Nabestellen'},
+  FR:{i:4,sig:{Gefahr:'Danger',Achtung:'Attention'},enth:'Contient',menge:'Quantité nette',typ:'Huile parfumée · Fragrance Oil',qr:'Recommander'},
+  IT:{i:5,sig:{Gefahr:'Pericolo',Achtung:'Attenzione'},enth:'Contiene',menge:'Quantità netta',typ:'Olio profumato · Fragrance Oil',qr:'Riordina'},
+  ES:{i:6,sig:{Gefahr:'Peligro',Achtung:'Atención'},enth:'Contiene',menge:'Cantidad neta',typ:'Aceite aromático · Fragrance Oil',qr:'Volver a pedir'},
+  PL:{i:7,sig:{Gefahr:'Niebezpieczeństwo',Achtung:'Uwaga'},enth:'Zawiera',menge:'Ilość netto',typ:'Olejek zapachowy · Fragrance Oil',qr:'Zamów ponownie'}};
+const CLP_TAG={
+  DE:'Hochkonzentriertes Premium-Duftöl · Qualitätsgeprüft & chargenrückverfolgbar. Nicht unverdünnt auf die Haut auftragen. Sicherheitsdatenblatt auf Anfrage.',
+  EN:'Highly concentrated premium fragrance oil · Quality-tested & batch-traceable. Do not apply undiluted to the skin. Safety data sheet available on request.',
+  NL:'Hooggeconcentreerde premium geurolie · Kwaliteitsgecontroleerd & traceerbaar per charge. Niet onverdund op de huid aanbrengen. Veiligheidsinformatieblad op aanvraag.',
+  FR:'Huile parfumée premium hautement concentrée · Qualité contrôlée & lot traçable. Ne pas appliquer pure sur la peau. Fiche de données de sécurité sur demande.',
+  IT:'Olio profumato premium altamente concentrato · Qualità controllata & lotto tracciabile. Non applicare puro sulla pelle. Scheda di dati di sicurezza su richiesta.',
+  ES:'Aceite aromático premium altamente concentrado · Calidad controlada y lote trazable. No aplicar sin diluir sobre la piel. Ficha de datos de seguridad bajo pedido.',
+  PL:'Wysoko skoncentrowany olejek zapachowy premium · Kontrola jakości i identyfikowalność partii. Nie stosować bezpośrednio na skórę. Karta charakterystyki na życzenie.'};
+const CLP_Q={Standard:{sym:'c',c:[154,95,40]},Premium:{sym:'s',c:[110,116,125]},Exklusiv:{sym:'ss',c:[176,138,46]}};
+const CLP_GOLD=[140,109,63],CLP_GRAU=[85,85,85],CLP_SW=[0,0,0],CLP_PT=0.35278,CLP_LH=1.25;
+const CLP_ADR='Fragrance Hub Germany, Am Alten Kirchplatz 10, 45665 Recklinghausen, Tel. +49 2361 4878835';
+const clpLangs=cc=>{cc=String(cc||'DE').toUpperCase();if(['DE','AT','CH'].includes(cc))return['DE'];if(cc==='BE')return['NL','FR'];if(['NL','FR','IT','ES','PL'].includes(cc))return[cc];return['EN']};
+const clpQual=q=>{const s=String(q||'').toLowerCase(),n=/premium/.test(s)?'Premium':/exklusiv/.test(s)?'Exklusiv':/standard/.test(s)?'Standard':'';return n?Object.assign({n},CLP_Q[n]):null};
+const clpCanon=k=>{const s=String(k||'').trim().toUpperCase().split('-').filter(Boolean),i=s.indexOf('SH');if(i<1)return null;return s.slice(0,i).filter(x=>x!=='PQ').join('-')+(s.includes('PQ')?'|PQ':'')};
+const clpName=it=>String(it.t||it.code||'').split(/\s+–\s+/)[0].trim();
+function clpCharge(l){
+  const p={};new Intl.DateTimeFormat('de-DE',{timeZone:'Europe/Berlin',year:'2-digit',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).forEach(x=>p[x.type]=x.value);
+  return 'FH-'+p.year+p.month+p.day+'-'+(String(l.custNo||'')+' '+String(l.customer||'Showroom')).replace(/\D/g,'')}
+/* Grunddaten: im Gerät gespeichert, alle 10 Min. im Hintergrund aktualisiert; fehlt ein Duft, wird sofort neu geladen */
+let clpB=null,clpBP=null;
+function clpLoad(){return clpBP||(clpBP=srv('clpbasis').then(t=>{const b=typeof t==='string'?JSON.parse(t):t;if(!b||!b.clp)throw new Error('CLP-Daten fehlen');b._got=Date.now();clpB=b;IDB.set('clpbasis',b);return b}).finally(()=>{clpBP=null}))}
+async function clpBasis(fresh){
+  if(!clpB){const c=await IDB.get('clpbasis');if(c&&c.clp)clpB=c}
+  if(fresh||!clpB){try{await clpLoad()}catch(e){if(!clpB)throw e}}
+  else if(Date.now()-(clpB._got||0)>10*60e3)clpLoad().catch(()=>{});
+  return clpB}
+const clpImgs={};
+const clpDims=src=>new Promise(ok=>{const i=new Image();i.onload=()=>ok({w:i.naturalWidth||1,h:i.naturalHeight||1});i.onerror=()=>ok(null);i.src=src});
+async function clpImg(id){
+  if(!id)return null;if(clpImgs[id])return clpImgs[id];
+  let v=await IDB.get('img-'+id);
+  if(!v){const r=await srv('img',id);if(!r||!r.b64)return null;v='data:'+(r.mime||'image/png')+';base64,'+r.b64;IDB.set('img-'+id,v)}
+  const d=await clpDims(v);if(!d)return null;
+  return clpImgs[id]=Object.assign({src:v,fmt:/jpe?g/i.test(v.slice(5,20))?'JPEG':'PNG',key:'i'+id},d)}
+async function clpUrlImg(url){
+  if(clpImgs[url])return clpImgs[url];
+  const b=await fetch(url).then(r=>{if(!r.ok)throw new Error('Logo');return r.blob()});
+  const v=await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=no;r.readAsDataURL(b)});
+  const d=await clpDims(v);return clpImgs[url]=Object.assign({src:v,fmt:'PNG',key:'fh'},d)}
+let clpFontP=null;
+function clpFonts(){return clpFontP||(clpFontP=Promise.all(['Regular','Bold','Italic'].map(n=>fetch('assets/arimo-'+n+'-1.ttf').then(r=>{if(!r.ok)throw new Error('Schrift fehlt');return r.arrayBuffer()}).then(b=>{const u=new Uint8Array(b);let s='';for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(s)}))).catch(e=>{clpFontP=null;throw e}))}
+function clpDoc(F,fmt){
+  const d=new window.jspdf.jsPDF({unit:'mm',format:fmt,orientation:'landscape',compress:true});
+  ['normal','bold','italic'].forEach((st,k)=>{const f='arimo-'+st+'.ttf';d.addFileToVFS(f,F[k]);d.addFont(f,'Arimo',st)});
+  d.setFont('Arimo','normal');d.setLineHeightFactor(1);return d}
+/* Text mit Zeilenumbruch und gemischten Stilen (fett / kursiv / Farbe) */
+function clpWrap(doc,runs,w,sz){
+  doc.setFontSize(sz);
+  const wd=(t,st)=>{doc.setFont('Arimo',st);return doc.getTextWidth(t)};
+  const lines=[];let cur=[],cw=0;
+  const add=(t,r)=>{const tw=wd(t,r.st),l=cur[cur.length-1];if(l&&l.st===r.st&&l.c===r.c){l.t+=t;l.w+=tw}else cur.push({t,st:r.st,c:r.c,w:tw});cw+=tw};
+  const push=()=>{const l=cur[cur.length-1];if(l){const tt=l.t.replace(/\s+$/,'');if(tt!==l.t){cw-=l.w;l.t=tt;l.w=wd(tt,l.st);cw+=l.w}}lines.push({parts:cur,w:cw});cur=[];cw=0};
+  runs.forEach(r=>{r.st=r.st||'normal';r.c=r.c||CLP_SW;
+    (String(r.t).match(/\S+?(?:[\/\-](?=\S)|\s+|$)|\s+/g)||[]).forEach(tk=>{
+      if(cw>0&&tk.trim()&&cw+wd(tk.replace(/\s+$/,''),r.st)>w+1e-6)push();
+      if(!cur.length){tk=tk.replace(/^\s+/,'');if(!tk)return}
+      while(tk.length>1&&cw+wd(tk.replace(/\s+$/,''),r.st)>w+1e-6){let n=tk.length-1;while(n>1&&cw+wd(tk.slice(0,n),r.st)>w)n--;add(tk.slice(0,n),r);push();tk=tk.slice(n)}
+      add(tk,r)})});
+  if(cur.length)push();
+  return lines}
+function clpPara(doc,runs,x,y,w,sz,align,draw){
+  const lines=clpWrap(doc,runs,w,sz),lh=sz*CLP_PT*CLP_LH;
+  if(draw)lines.forEach((ln,i)=>{let xx=align==='center'?x+(w-ln.w)/2:x;const by=y+i*lh+sz*CLP_PT*0.97;
+    ln.parts.forEach(p=>{doc.setFont('Arimo',p.st);doc.setFontSize(sz);doc.setTextColor(p.c[0],p.c[1],p.c[2]);doc.text(p.t,xx,by);xx+=p.w})});
+  return lines.length*lh}
+function clpStar(doc,cx,cy,r){const P=[];for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,q=i%2?r*0.4:r;P.push([cx+q*Math.cos(a),cy+q*Math.sin(a)])}
+  doc.lines(P.slice(1).map((p,i)=>[p[0]-P[i][0],p[1]-P[i][1]]),P[0][0],P[0][1],[1,1],'F',true)}
+/* "★★ Exklusiv" – Symbol als Vektor (die Schrift hat keinen Stern), Text fett und farbig */
+function clpQLine(doc,Q,x,y,w,sz,align,draw){
+  const lh=sz*CLP_PT*CLP_LH;if(!draw)return lh;
+  const em=sz*CLP_PT,n=Q.sym==='ss'?2:1,sw=(Q.sym==='c'?0.62:0.82)*em*n+0.28*em;
+  doc.setFont('Arimo','bold');doc.setFontSize(sz);const tw=doc.getTextWidth(Q.n);
+  let xx=align==='center'?x+(w-sw-tw)/2:x;const by=y+em*0.97,cy=by-em*0.34;
+  doc.setFillColor(Q.c[0],Q.c[1],Q.c[2]);doc.setTextColor(Q.c[0],Q.c[1],Q.c[2]);
+  if(Q.sym==='c')doc.circle(xx+em*0.31,cy,em*0.27,'F');
+  else for(let k=0;k<n;k++)clpStar(doc,xx+em*0.41+k*em*0.82,cy-em*0.03,em*0.4);
+  doc.text(Q.n,xx+sw,by);return lh}
+function clpPic(doc,img,x,y,w,h,draw){if(draw&&img)doc.addImage(img.src,img.fmt,x,y,w,h,img.key,'FAST')}
+function clpQr(doc,url,x,y,size){
+  if(!window.qrcode)return false;const q=qrcode(0,'M');q.addData(url);q.make();const n=q.getModuleCount(),m=size/n;doc.setFillColor(0,0,0);
+  for(let r=0;r<n;r++){let c=0;while(c<n){if(q.isDark(r,c)){let e=c;while(e<n&&q.isDark(r,e))e++;doc.rect(x+c*m,y+r*m,(e-c)*m,m*1.02,'F');c=e}else c++}}
+  return true}
+/* ein Etikett 102 × 51 mm: links Logo/Piktogramme/Signalwort/Menge/Charge/Adresse, rechts Name, Qualität, Text, H/P-Sätze, UFI, QR */
+function clpLabel(doc,e,s,oy,draw){
+  const W=102,mx=2,lw=35,pd=0.7,lx=mx+pd,lW=lw-2*pd,rx=mx+lw+1.5,rW=W-mx-pd-rx,L=CLP_L[e.lang],d=e.d,B=e.B;
+  /* ---- links */
+  let y=oy;const C='center';
+  if(e.cust){
+    if(e.logo){let h=16,w=e.logo.w*h/e.logo.h;if(w>lW-0.6){w=lW-0.6;h=w*e.logo.h/e.logo.w}clpPic(doc,e.logo,lx+(lW-w)/2,y,w,h,draw);y+=h+0.6}
+    e.cust.forEach((z,i)=>{y+=clpPara(doc,[{t:z,st:i?'normal':'bold'}],lx,y,lW,i?s-1:s-0.5,C,draw)});y+=0.7;
+  }else if(e.fhLogo){let h=6,w=e.fhLogo.w*h/e.fhLogo.h;if(w>24){w=24;h=w*e.fhLogo.h/e.fhLogo.w}clpPic(doc,e.fhLogo,lx+(lW-w)/2,y,w,h,draw);y+=h+0.9}
+  const pk=e.pik.slice(0,3),row=(arr,mm)=>{const g=0.6,tw=arr.length*mm+(arr.length-1)*g;let xx=lx+(lW-tw)/2;arr.forEach(im=>{if(im)clpPic(doc,im,xx,y,mm,mm,draw);xx+=mm+g});y+=mm+0.3};
+  if(pk.length){if(e.cust&&e.logo&&pk.length>2)row(pk,10);else{row(pk.slice(0,2),14);if(pk.length>2)row(pk.slice(2),14)}}
+  const sig=L.sig[d.s]||'';if(sig)y+=clpPara(doc,[{t:sig,st:'bold'}],lx,y,lW,s+3,C,draw);
+  y+=clpPara(doc,[{t:L.menge+': '},{t:e.size,st:'bold'}],lx,y,lW,s+0.5,C,draw);
+  y+=clpPara(doc,[{t:'Charge: '+e.charge,c:CLP_GRAU}],lx,y,lW,s-0.5,C,draw);
+  if(d.b)y+=clpPara(doc,[{t:'Batch: '+d.b,c:CLP_GRAU}],lx,y,lW,s-0.5,C,draw);
+  if(!e.cust){y+=0.7;String(B.adresse||CLP_ADR).split(/,\s*/).forEach(z=>{y+=clpPara(doc,[{t:z,c:CLP_GRAU}],lx,y,lW,s-1,C,draw)})}
+  const hl=y-oy;
+  /* ---- rechts: Kopf + QR */
+  y=oy;const qrW=e.url?16:0,hw=rW-qrW-(qrW?0.8:0);
+  y+=clpPara(doc,[{t:e.name,st:'bold'}],rx,y,hw,s+3,null,draw);
+  if(e.Q)y+=clpQLine(doc,e.Q,rx,y,hw,s+1.5,null,draw);
+  y+=clpPara(doc,[{t:[L.typ,e.sku].filter(Boolean).join('  ·  '),c:CLP_GRAU}],rx,y,hw,s-0.5,null,draw);
+  if(d.vorlage)y+=clpPara(doc,[{t:CLP_TAG[e.lang]||CLP_TAG.EN,st:'italic',c:CLP_GOLD}],rx,y,hw,s,null,draw);
+  else if(d.e)y+=clpPara(doc,[{t:L.enth+': ',st:'bold'},{t:d.e}],rx,y,hw,s,null,draw);
+  let kopf=y-oy;
+  if(e.url){const qx=rx+rW-15.5;let qh=15;if(draw)clpQr(doc,e.url,qx,oy,15);
+    qh+=0.3+clpPara(doc,[{t:L.qr,st:'bold',c:CLP_GOLD}],qx-1,oy+15.3,17,Math.max(s-0.5,3),C,draw);kopf=Math.max(kopf,qh)}
+  y=oy+kopf+0.8;
+  /* ---- H- und P-Sätze in zwei Spalten */
+  const immer=B.immerP||['P102'],ohne=B.ohneP||['P321'],sp=L.i-1,satz=c=>{const r=(B.saetze||{})[c];return (r&&r[sp])||'['+c+']'};
+  const pc=immer.concat((d.p||[]).filter(c=>!immer.includes(c)&&!ohne.includes(c)));
+  const cw=rW/2,col=(arr,x)=>{let yy=y;arr.forEach(c=>{yy+=clpPara(doc,[{t:satz(c)}],x,yy,cw-1.4,s,null,draw)});return yy-y};
+  y+=Math.max(col(d.h||[],rx+0.7),col(pc,rx+cw+0.7));
+  if(d.u)y+=0.3+clpPara(doc,[{t:'UFI: '+d.u,st:'bold'}],rx+0.7,y+0.3,rW-1.4,s+0.5,null,draw);
+  return Math.max(hl,y-oy)}
+const CLP_GR=[7,6.5,6,5.5,5,4.5,4,3.5,3.2,3];
+function clpFit(doc,e){const avail=46;for(const s of CLP_GR){const h=clpLabel(doc,e,s,0,false);if(h<=avail)return {s,oy:2.5+(avail-h)/2}}return {s:3,oy:2.5}}
+/* Probe-Etikett 40 × 30 mm */
+function clpProbe(doc,x,draw,f,oy){
+  const lx=1.5,w=37,C='center';let y=oy;
+  if(x.fhLogo){let h=4*f,lw=x.fhLogo.w*h/x.fhLogo.h;if(lw>w-1){lw=w-1;h=lw*x.fhLogo.h/x.fhLogo.w}clpPic(doc,x.fhLogo,lx+(w-lw)/2,y,lw,h,draw);y+=h+0.5*f}
+  y+=clpPara(doc,[{t:x.name,st:'bold'}],lx,y,w,7*f,C,draw);
+  if(x.Q)y+=clpQLine(doc,x.Q,lx,y,w,6.5*f,C,draw);
+  y+=clpPara(doc,[{t:[x.sku,x.size].filter(Boolean).join(' · ')}],lx,y,w,6*f,C,draw);
+  y+=clpPara(doc,[{t:'Charge: '+x.charge}],lx,y,w,5.5*f,C,draw);
+  y+=clpPara(doc,[{t:'Batch: '+x.batch}],lx,y,w,5.5*f,C,draw);
+  y+=clpPara(doc,[{t:'Probe / Sample',st:'bold'}],lx,y,w,6.5*f,C,draw);
+  return y-oy}
+function clpName_(l){return String(l.customer||'Showroom').replace(/[\\\/:*?"<>|]/g,'-')}
+async function clpLocal(l){
+  if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');
+  const [F,fhLogo]=await Promise.all([clpFonts(),clpUrlImg('assets/fh-logo.png').catch(()=>null)]);
+  let B=await clpBasis();
+  const oils=(l.items||[]).filter(it=>it.oil!=null?!!it.oil:!!it.tier);
+  const fab=it=>{const k=String(it.code||'').trim().toUpperCase();return (B.codes||{})[k]||(B.canon||{})[clpCanon(k)]||''};
+  const daten=it=>{const fc=fab(it),r=fc&&B.clp[fc];return r&&r.h&&r.h.length?r:null};
+  /* unbekannter Duft und Daten älter als 2 Min. → neu laden (gerade eingetragene Zertifikate) */
+  if(oils.some(it=>!daten(it))&&Date.now()-(B._got||0)>2*60e3){try{B=await clpBasis(true)}catch(_){}}
+  const langs=clpLangs(l.country),charge=clpCharge(l),eigen=String(l.clpAddr||'').trim();
+  const cust=eigen?eigen.split(/\s*[,;|\n]\s*/).filter(Boolean):null,logo=eigen&&l.clpLogo?await clpImg(l.clpLogo).catch(()=>null):null;
+  const anz=it=>it.unit==='kg'?1:Math.max(1,Math.round(+it.q||1));
+  const gross=[],proben=[],fehlend=[];
+  oils.forEach(it=>(/^6\s*g$/i.test(String(it.size||'').trim())?proben:gross).push(it));
+  const files=[],tag=(l._part?'-Auswahl':'')+'-'+clpName_(l)+'.pdf';
+  if(gross.length){
+    const pikIds={};const jobs=[];
+    gross.forEach(it=>{
+      let d=daten(it);const name=clpName(it);
+      if(!d){const v=B.clp.VORLAGE;if(!v||!(v.h||[]).length){fehlend.push(name+' ['+(fab(it)||'ohne Fabrik-Code')+'] – keine CLP-Daten und keine VORLAGE-Zeile');return}
+        d=Object.assign({},v,{e:'',b:'',u:'',vorlage:true})}
+      (d.g||[]).slice(0,3).forEach(g=>pikIds[g]=1);
+      langs.forEach(lang=>jobs.push({it,d,lang,n:anz(it),name}))});
+    const pik={};await Promise.all(Object.keys(pikIds).map(async g=>{pik[g]=await clpImg((B.pikto||{})[g]).catch(()=>null)}));
+    if(jobs.length){
+      const doc=clpDoc(F,[102,51]);let first=true;
+      jobs.forEach(j=>{
+        const e={B,d:j.d,lang:j.lang,name:j.name||j.d.produkt||j.it.code,Q:clpQual(j.it.tier),size:String(j.it.size||''),sku:String(j.it.code||''),charge,
+          url:cust?'':(B.qrShop||'https://fragranceshub.de')+'/search?q='+encodeURIComponent(j.it.code||'')+'&utm_source=etikett',
+          cust,logo,fhLogo,pik:(j.d.g||[]).slice(0,3).map(g=>pik[g]).filter(Boolean)};
+        const f=clpFit(doc,e);
+        for(let k=0;k<j.n;k++){if(!first)doc.addPage([102,51],'landscape');first=false;clpLabel(doc,e,f.s,f.oy,true)}});
+      files.push({name:'CLP-Etiketten'+tag,blob:doc.output('blob')})}
+  }
+  if(proben.length){
+    const doc=clpDoc(F,[40,30]);let first=true;
+    proben.forEach(it=>{const d=daten(it);
+      const x={name:clpName(it)||it.code,Q:clpQual(it.tier),sku:String(it.code||''),size:String(it.size||''),charge,batch:(d&&d.b)||'–',fhLogo};
+      let f=1;while(f>0.6&&clpProbe(doc,x,false,f,0)>28)f-=0.05;
+      for(let k=0;k<anz(it);k++){if(!first)doc.addPage([40,30],'landscape');first=false;clpProbe(doc,x,true,f,1.5)}});
+    files.push({name:'Proben-Etiketten'+tag,blob:doc.output('blob')})}
+  return {files,fehlend}}
+/* im Hintergrund vorbereiten, damit der Klick sofort fertig ist */
+function clpWarm(l){if(IN_GAS)return;clpFonts().catch(()=>{});clpUrlImg('assets/fh-logo.png').catch(()=>{});
+  clpBasis().then(B=>{Object.values(B.pikto||{}).forEach(id=>clpImg(id).catch(()=>{}));if(l&&l.clpAddr&&l.clpLogo)clpImg(l.clpLogo).catch(()=>{})}).catch(()=>{})}
+window.__clp={clpLocal:l=>clpLocal(l),blob64:b=>blob64(b)};
+async function clpMake(l){try{return await clpLocal(l)}catch(e){console.warn('CLP lokal → Server',e);return await clpFetch(l)}}
 async function orderFiles(l,which){
   const out={files:[],note:''},hasOil=(l.items||[]).some(isOil);
   if(['ls','lso','pl','plo','lab','labo'].includes(which)){if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF')}
@@ -1542,7 +1731,7 @@ async function orderFiles(l,which){
   if(which==='lab'&&hasOil)out.files.push({name:fname('lab',l),blob:labelsPdf(l).output('blob')});
   if(which==='labo'&&hasOil)out.files.push({name:fname('labo',l),blob:labelsPdfOrig(l).output('blob')});
   if(which==='clp'&&hasOil){
-    const r=await clpFetch(l);
+    const r=await clpMake(l);
     r.files.forEach(f=>out.files.push(f));
     if(r.fehlend&&r.fehlend.length)out.note='بدون ملصق CLP: '+r.fehlend.join('، ');
     if(!(r.files||[]).length&&!out.note)out.note='لم يُنشأ أي ملصق CLP.';
@@ -1660,7 +1849,7 @@ async function phomemoPrint(blob,progress){
 async function savePdf(kind,l,btn,out){
   if(LAB_KINDS.includes(kind)){const lo=labOrder(l);if(lo._part&&!lo.items.length){const o=document.querySelector('[data-files="'+orderKey(l)+'"]')||out;o.textContent='اختر صنفاً واحداً على الأقل من «اختيار أصناف للملصقات».';return}l=lo}
   const old=btn.textContent,key=orderKey(l);
-  btn.disabled=true;btn.textContent=kind==='clp'?'جاري إنشاء ملصقات CLP… قد يستغرق دقيقة':'جاري التجهيز…';
+  btn.disabled=true;btn.textContent=kind==='clp'?'جاري إنشاء ملصقات CLP…':'جاري التجهيز…';
   const live=()=>document.querySelector('[data-files="'+key+'"]')||out;
   try{
     const r=await orderFiles(l,kind);
@@ -1734,7 +1923,7 @@ try{const cc=findCust(rec.customer);if(cc&&cc.id&&rec.clpLogo&&(cc.clpLogo!==rec
       rec.clpFiles=[];rec.clpSig='';
       await db.doc('lists/'+editing.id).update(rec);newId=editing.id;
     }else{const r=await db.collection('lists').add(rec);newId=r&&r.id}
-    lastSentId=newId;if(newId)pregenClp(newId,rec);
+    lastSentId=newId;clpWarm(rec);
     const was=!!editing;setEditing(null);
     lastSent=rec;const la=$('last-actions');la.textContent='';la.append(docsPanel(rec));la.hidden=false;
     resetDraft();
@@ -2198,6 +2387,7 @@ function start(){
 /* keep the screen on while the app is open (showroom tablet) */
 let wakeLock=null;async function keepAwake(){try{if('wakeLock' in navigator&&!document.hidden&&(!wakeLock||wakeLock.released))wakeLock=await navigator.wakeLock.request('screen')}catch(e){}}
 if(!IN_GAS&&'serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+setTimeout(()=>{try{clpWarm()}catch(_){}},5000);
 async function tryPin(p,quiet){
   PIN=p;const m=$('pin-msg');
   try{await srv('check');LS.set('pin',p);start()}
