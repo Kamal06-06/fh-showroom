@@ -276,6 +276,15 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
 #om-b{overflow:auto;padding:14px;-webkit-overflow-scrolling:touch}
 #om-b .card{border:0;padding:0;background:none;box-shadow:none}
 @media (min-width:900px){#omodal{padding-inline-start:226px}}
+.docs{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:4px 12px 10px}
+.docs .dsec{font-weight:700;font-size:13px;color:var(--muted);letter-spacing:.02em;padding:10px 2px 4px}
+.docs .drow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-top:1px solid var(--line)}
+.docs .dsec+.drow{border-top:0}
+.docs .dic{width:34px;height:34px;flex:none;border-radius:10px;background:#f6efe0;display:grid;place-items:center;font-size:17px}
+.docs .dt{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}.docs .dt b{font-size:14.5px}.docs .dt small{font-size:12px;color:var(--muted)}
+.docs .dbtn{display:flex;gap:6px;flex:none}.docs .dbtn .btn{white-space:nowrap}
+.docs .labsel{margin-top:6px}.docs .filebox:not(:empty){margin-top:8px}
+@media (max-width:520px){.docs .drow{flex-wrap:wrap}.docs .dbtn{width:100%;padding-inline-start:44px}.docs .dbtn .btn{flex:1}}
 .qprint{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px;border:1px dashed var(--gold);border-radius:12px}
 .qprint .lbl{font-weight:700;font-size:14px}
 .hlogo{cursor:pointer}
@@ -673,6 +682,28 @@ const T={
  es:{oils:'solo aceites de perfume',ship:'Gastos de envío',title:'OFERTA DE PRECIO',nr:'N.º AP-',date:'Fecha: ',cust:'Cliente',custNo:'N.º cliente ',note:'Nota: ',pos:'Pos.',art:'Artículo / Código',q:'Calidad',m:'Formato',n:'Uds.',ep:'Precio unit.',g:'Total',sub:'Subtotal neto',rab:'Descuento',net:'Total neto',foot:'Todos los precios netos en EUR, más IVA. Este documento no es una factura.',miss:'Nota: {n} artículo(s) sin precio no están incluidos en el total.'},
  pl:{oils:'tylko olejki',ship:'Koszty wysylki',title:'OFERTA CENOWA',nr:'Nr AP-',date:'Data: ',cust:'Klient',custNo:'Nr klienta ',note:'Uwaga: ',pos:'Poz.',art:'Artykul / Kod',q:'Jakosc',m:'Ilosc',n:'Szt.',ep:'Cena jedn.',g:'Razem',sub:'Suma netto',rab:'Rabat',net:'Razem netto',foot:'Wszystkie ceny netto w EUR, plus VAT. Ten dokument nie jest faktura.',miss:'Uwaga: {n} pozycja/e bez ceny nie sa wliczone do sumy.'}
 };
+/* quantities of an order: oils in kg, liquids (alcohol) in litres, everything else in pieces */
+function itemAmount(it){const q=+it.q||1;if(it.unit==='kg')return {kind:'kg',v:q};if(it.unit==='Stk')return {kind:'pcs',v:q};
+  const m=SIZE_RX.exec(String(it.size||''));if(m){const n=+m[1].replace(',','.'),u=m[2].toLowerCase();
+    if(isOil(it)){if(u==='kg')return {kind:'kg',v:n*q};if(u==='g')return {kind:'kg',v:n*q/1000}}
+    else{if(u==='l')return {kind:'L',v:n*q,pcs:q};if(u==='ml'&&/alkohol|ethanol|alcohol/i.test(it.t||''))return {kind:'L',v:n*q/1000,pcs:q}}}
+  return isOil(it)?{kind:'kg',v:0}:{kind:'pcs',v:q}}
+function amounts(l){const s={kg:0,L:0,pcs:0,oilPos:0};(l.items||[]).forEach(it=>{const a=itemAmount(it);s[a.kind]+=a.v;if(isOil(it))s.oilPos++});s.kg=Math.round(s.kg*1000)/1000;s.L=Math.round(s.L*1000)/1000;return s}
+const numDE=n=>(+n).toLocaleString('de-DE',{maximumFractionDigits:3});
+const QT={de:{h:'Mengenübersicht',oil:'Duftöle gesamt',liq:'Alkohol / Flüssigkeiten',pcs:'Flakons & Zubehör',st:'Stk'},
+ en:{h:'Quantity summary',oil:'Fragrance oils total',liq:'Alcohol / liquids',pcs:'Bottles & accessories',st:'pcs'},
+ nl:{h:'Hoeveelheden',oil:'Parfumoliën totaal',liq:'Alcohol / vloeistoffen',pcs:'Flacons & toebehoren',st:'st.'},
+ fr:{h:'Récapitulatif des quantités',oil:'Huiles parfumées total',liq:'Alcool / liquides',pcs:'Flacons & accessoires',st:'pcs'},
+ it:{h:'Riepilogo quantità',oil:'Oli profumati totale',liq:'Alcol / liquidi',pcs:'Flaconi & accessori',st:'pz.'},
+ es:{h:'Resumen de cantidades',oil:'Aceites de perfume total',liq:'Alcohol / líquidos',pcs:'Frascos y accesorios',st:'uds.'},
+ pl:{h:'Podsumowanie ilosci',oil:'Olejki razem',liq:'Alkohol / plyny',pcs:'Flakony i akcesoria',st:'szt.'}};
+/* small box with total kg / litres / pieces, drawn on the left at height y */
+function drawAmounts(doc,l,x,y,w){const a=amounts(l),q=QT[LANG_OF(l.country)]||QT.de,rows=[];
+  if(a.kg>0)rows.push([q.oil,numDE(a.kg)+' kg']);if(a.L>0)rows.push([q.liq,numDE(a.L)+' L']);if(a.pcs>0)rows.push([q.pcs,numDE(a.pcs)+' '+q.st]);
+  if(!rows.length)return y;const h=7+rows.length*5.2;doc.setFillColor(246,243,236);doc.setDrawColor(210);doc.roundedRect(x,y-4.5,w,h,1.5,1.5,'FD');
+  doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(90);doc.text(q.h.toUpperCase(),x+3,y);doc.setTextColor(0);let yy=y+5.5;
+  rows.forEach(([k,v])=>{doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text(k,x+3,yy);doc.setFont('helvetica','bold');doc.text(v,x+w-3,yy,{align:'right'});yy+=5.2});
+  return y-4.5+h}
 const addrLines=l=>[l.street,l.city,(l.country&&l.country!=='XX')?(COUNTRIES[l.country]||l.country):''].map(x=>String(x||'').trim()).filter(Boolean);
 let size=LS.get('size2','100 g');
 let dim=LS.get('dim2',{w:40,h:30});
@@ -1289,7 +1320,7 @@ function labelsPdf(l,useOrig){
 }
 const p2=n=>String(n).padStart(2,'0');
 function stamp(l){const d=new Date(l.at||Date.now());return d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())+'-'+p2(d.getHours())+p2(d.getMinutes())}
-function custFile(l){return latin(l.customer).replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-')||'Kunde'}
+function custFile(l){return latin(String(l.customer||'').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/Ä/g,'Ae').replace(/Ö/g,'Oe').replace(/Ü/g,'Ue').replace(/ß/g,'ss').normalize('NFD').replace(/[\u0300-\u036f]/g,'')).replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-')||'Kunde'}
 /* Lieferschein: A4, net prices, Rabatt line */
 /* Arabic/other-script note → rendered via canvas (jsPDF core fonts are Latin-only) */
 function noteImg(text,widthMm){
@@ -1354,14 +1385,14 @@ function lieferscheinPdf(l,useOrig){
     if(!oil&&String(it.note||'').trim()){
       const raw=String(it.note).replace(/\s+/g,' ').trim();
       if(latin(raw)===raw){doc.setFont('helvetica','bolditalic');doc.setFontSize(9);doc.setTextColor(198,40,40);
-        const nt=doc.splitTextToSize('\u25B6 '+tr.note+raw,aw).slice(0,3);nt.forEach((ln,k)=>doc.text(ln,ax,yc+k*3.9));yc+=nt.length*3.9;doc.setTextColor(0)}
+        const nt=doc.splitTextToSize('> '+tr.note+raw,aw).slice(0,3);nt.forEach((ln,k)=>doc.text(ln,ax,yc+k*3.9));yc+=nt.length*3.9;doc.setTextColor(0)}
       else{const im2=noteImg('\u25B6 '+tr.note+raw,aw);if(im2){try{doc.addImage(im2.data,'PNG',ax,yc-3.2,im2.w,im2.h)}catch(_){}yc+=im2.h+0.6}}
     }
     doc.setFont('courier','normal');doc.setFontSize(8);doc.setTextColor(90);doc.text(latin(it.code)||'',ax,yc);doc.setTextColor(0);
     y=Math.max(yc+3,im?y0+9:0);doc.setDrawColor(210);doc.line(L,y,R,y);y+=5.5;
   });
   if(y>240){doc.addPage();y=25}
-  const t=totals(l);y+=3;
+  const t=totals(l);y+=3;const yBox=drawAmounts(doc,l,L,y,78);
   const line=(a,b,bold)=>{doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(bold?11:9.5);doc.text(a,R-62,y);doc.text(b,R-1,y,{align:'right'});y+=bold?7:5.5};
   line(tr.sub,money(t.sub));
   const rl=tr.rab+(t.oilOnly?' ('+tr.oils+')':'');
@@ -1372,6 +1403,7 @@ function lieferscheinPdf(l,useOrig){
   doc.setDrawColor(0);doc.line(R-62,y-2.5,R,y-2.5);y+=2.5;
   line(tr.net,money(t.net),true);
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(90);
+  y=Math.max(y,yBox+2);
   doc.text(tr.foot,L,y+4);
   if(t.missing)doc.text(tr.miss.replace('{n}',t.missing),L,y+8.5);
   doc.setTextColor(0);doc.setDrawColor(0);
@@ -1382,46 +1414,91 @@ function txtImg(text,widthMm,pt,color){try{const px=4,fs=Math.round(pt*px*1.33);
   g.font='bold '+fs+'px Arial, "Noto Naskh Arabic", sans-serif';const W=Math.min(Math.round(widthMm*px*3.78),Math.ceil(g.measureText(String(text)).width)+6);widthMm=W/(px*3.78);c.width=W;c.height=Math.round(fs*1.4);g.font='bold '+fs+'px Arial, "Noto Naskh Arabic", sans-serif';g.fillStyle=color||'#000';g.textBaseline='top';g.direction='rtl';g.textAlign='right';g.fillText(String(text),W-2,2);
   return {data:c.toDataURL('image/png'),w:widthMm,h:c.height/(px*3.78)}}catch(e){return null}}
 function putText(doc,text,x,y,pt,widthMm,opt){const t=String(text||'');if(latin(t)===t){doc.text(t||'-',x,y,opt)}else{const im=txtImg(t,widthMm,pt);if(im)try{doc.addImage(im.data,'PNG',opt&&opt.align==='right'?x-im.w:x,y-pt*0.3528,im.w,im.h)}catch(_){}}}
-/* A4 prep list for the warehouse (Brother printer): items grouped by quality, a box to tick, no prices */
-function prepListPdf(l){
-  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});const L=15,R=195,d=new Date(l.at||Date.now());let y=18;
-  doc.setFont('helvetica','bold');doc.setFontSize(15);doc.text('KOMMISSIONIERLISTE',L,y);doc.setFontSize(9);doc.setFont('helvetica','normal');
-  doc.text('FRAGRANCE HUB GERMANY',R,y,{align:'right'});y+=8;
-  doc.setFontSize(12);doc.setFont('helvetica','bold');putText(doc,custLabel(l),L,y,12,120);
-  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.'+d.getFullYear()+' '+p2(d.getHours())+':'+p2(d.getMinutes())+'  ·  AP-'+stamp(l),R,y,{align:'right'});y+=6;
-  if(String(l.note||'').trim()){putText(doc,'Notiz: '+l.note,L,y,9.5,180);y+=6}
-  doc.setDrawColor(0);doc.line(L,y,R,y);y+=7;
-  const ORD={standard:1,premium:2,exklusiv:3},grp={};(l.items||[]).forEach(i=>{const k=isOil(i)?(String(i.tier||'').trim()||'Duftöle'):'Flakons & Zubehör';(grp[k]=grp[k]||[]).push(i)});
-  let n=0;Object.keys(grp).sort((a,b)=>(ORD[a.toLowerCase()]||9)-(ORD[b.toLowerCase()]||9)||a.localeCompare(b)).forEach(k=>{
-    if(y>265){doc.addPage();y=20}
-    doc.setFillColor(240,236,226);doc.rect(L,y-4.5,R-L,7,'F');doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(latin(k).toUpperCase()+'  ('+grp[k].reduce((s,i)=>s+qn(i),0)+')',L+2,y);y+=8;
-    grp[k].slice().sort((a,b)=>String(a.t).localeCompare(String(b.t))).forEach(i=>{
-      if(y>275){doc.addPage();y=20}n++;
-      doc.setDrawColor(60);doc.rect(L+1,y-3.6,4.5,4.5);
-      doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text(i.unit?qtxt(i):((i.q||1)+' x'),L+9,y);
-      putText(doc,i.t,L+30,y,10.5,95);
-      doc.setFont('helvetica','normal');doc.setFontSize(9.5);if(isOil(i)&&i.size)doc.text(latin(i.size),R-48,y);
-      doc.setFont('courier','normal');doc.setFontSize(8.5);doc.text(latin(i.code)||'',R,y,{align:'right'});
-      let yy=y;if(!isOil(i)&&latin(i.size)){yy+=4;doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text(latin(i.size).slice(0,90),L+30,yy)}
-      if(String(i.note||'').trim()){yy+=4.2;doc.setTextColor(198,40,40);doc.setFont('helvetica','bold');doc.setFontSize(9);putText(doc,'> '+i.note,L+30,yy,9,120);doc.setTextColor(0)}
-      y=yy+3;doc.setDrawColor(215);doc.line(L,y,R,y);y+=6});
-    y+=2});
-  y+=4;doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(90);doc.text(n+' Positionen  ·  vorbereitet von: ____________________   Datum/Uhrzeit: ______________',L,y);doc.setTextColor(0);
+/* Packliste: A4, no prices – for the warehouse and to send to the customer (optionally with the original scent names) */
+const PLT={de:{t:'PACKLISTE',nr:'Nr. PL-',date:'Datum: ',cust:'Kunde',no:'Kundennr. ',note:'Notiz: ',pos:'Pos.',art:'Artikel',q:'Qualität',m:'Inhalt',n:'Menge',code:'Code',oils:'Duftöle',other:'Flakons & Zubehör',foot:'Diese Liste enthält keine Preise.',sig:'Kommissioniert von: ____________________     Datum / Uhrzeit: ______________'},
+ en:{t:'PACKING LIST',nr:'No. PL-',date:'Date: ',cust:'Customer',no:'Customer no. ',note:'Note: ',pos:'Pos.',art:'Item',q:'Quality',m:'Size',n:'Qty',code:'Code',oils:'Fragrance oils',other:'Bottles & accessories',foot:'This list contains no prices.',sig:'Picked by: ____________________     Date / time: ______________'},
+ nl:{t:'PAKLIJST',nr:'Nr. PL-',date:'Datum: ',cust:'Klant',no:'Klantnr. ',note:'Opmerking: ',pos:'Pos.',art:'Artikel',q:'Kwaliteit',m:'Inhoud',n:'Aantal',code:'Code',oils:'Parfumoliën',other:'Flacons & toebehoren',foot:'Deze lijst bevat geen prijzen.',sig:'Verzameld door: ____________________     Datum / tijd: ______________'},
+ fr:{t:'LISTE DE COLISAGE',nr:'N° PL-',date:'Date : ',cust:'Client',no:'N° client ',note:'Remarque : ',pos:'Pos.',art:'Article',q:'Qualité',m:'Format',n:'Qté',code:'Code',oils:'Huiles parfumées',other:'Flacons & accessoires',foot:'Cette liste ne contient pas de prix.',sig:'Préparé par : ____________________     Date / heure : ______________'},
+ it:{t:'PACKING LIST',nr:'N. PL-',date:'Data: ',cust:'Cliente',no:'N. cliente ',note:'Nota: ',pos:'Pos.',art:'Articolo',q:'Qualità',m:'Formato',n:'Pz.',code:'Codice',oils:'Oli profumati',other:'Flaconi & accessori',foot:'Questa lista non contiene prezzi.',sig:'Preparato da: ____________________     Data / ora: ______________'},
+ es:{t:'LISTA DE EMBALAJE',nr:'N.º PL-',date:'Fecha: ',cust:'Cliente',no:'N.º cliente ',note:'Nota: ',pos:'Pos.',art:'Artículo',q:'Calidad',m:'Formato',n:'Uds.',code:'Código',oils:'Aceites de perfume',other:'Frascos y accesorios',foot:'Esta lista no contiene precios.',sig:'Preparado por: ____________________     Fecha / hora: ______________'},
+ pl:{t:'LISTA PAKOWANIA',nr:'Nr PL-',date:'Data: ',cust:'Klient',no:'Nr klienta ',note:'Uwaga: ',pos:'Poz.',art:'Artykul',q:'Jakosc',m:'Ilosc',n:'Szt.',code:'Kod',oils:'Olejki',other:'Flakony i akcesoria',foot:'Ta lista nie zawiera cen.',sig:'Skompletowal: ____________________     Data / godzina: ______________'}};
+function prepListPdf(l,useOrig){
+  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});const L=15,R=195,d=new Date(l.at||Date.now()),k=PLT[LANG_OF(l.country)]||PLT.de;let y=20;
+  const X={cb:L,pos:L+8,art:L+17,q:L+104,m:L+126,n:L+146,code:R};
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('FRAGRANCE HUB GERMANY',L,y);doc.setFontSize(18);doc.text(k.t,R,y,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(90);
+  doc.text('Inh. Mohammad Kamal Al Masri',L,y+5);doc.text('Am Alten Kirchplatz 10, 45665 Recklinghausen',L,y+9);doc.text('fragranceshub.de',L,y+13);
+  doc.text(k.nr+stamp(l),R,y+5,{align:'right'});doc.text(k.date+p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.'+d.getFullYear(),R,y+9,{align:'right'});doc.setTextColor(0);y+=24;
+  doc.setFontSize(9);doc.setTextColor(90);doc.text(k.cust,L,y);doc.setTextColor(0);
+  doc.setFont('helvetica','bold');doc.setFontSize(12);putText(doc,l.customer,L,y+6,12,120);
+  if(l.custNo){doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(k.no+latin(l.custNo),R,y+6,{align:'right'})}
+  doc.setFont('helvetica','normal');doc.setFontSize(9);let ya=y+11;addrLines(l).map(latin).filter(Boolean).forEach(ln=>{doc.text(ln,L,ya);ya+=4.2});
+  if(String(l.note||'').trim()){if(latin(l.note)===String(l.note))doc.text(k.note+latin(l.note),L,ya+0.5);else{doc.text(k.note,L,ya+0.5);putText(doc,l.note,L+doc.getTextWidth(k.note)+1,ya+0.5,9,150)}ya+=4.5}
+  y=Math.max(y+20,ya+6);
+  const head=()=>{doc.setFillColor(20,33,31);doc.rect(L,y-5,R-L,7.5,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
+    doc.text(k.pos,X.pos,y);doc.text(k.art,X.art,y);doc.text(k.q,X.q,y);doc.text(k.m,X.m,y);doc.text(k.n,X.n,y);doc.text(k.code,X.code-1,y,{align:'right'});doc.setTextColor(0);y+=8};
+  head();
+  const ORD={standard:1,premium:2,exklusiv:3},grp={};(l.items||[]).forEach(i=>{const g=isOil(i)?(String(i.tier||'').trim()||k.oils):k.other;(grp[g]=grp[g]||[]).push(i)});
+  let pos=0;
+  Object.keys(grp).sort((a,b)=>(a===k.other)-(b===k.other)||(ORD[a.toLowerCase()]||8)-(ORD[b.toLowerCase()]||8)||a.localeCompare(b)).forEach(g=>{
+    if(y>262){doc.addPage();y=20;head()}
+    doc.setFillColor(246,243,236);doc.rect(L,y-4.3,R-L,6.4,'F');doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text(latin(g).toUpperCase(),X.art,y);y+=7;
+    grp[g].slice().sort((a,b)=>String(a.t).localeCompare(String(b.t))).forEach(i=>{
+      if(y>270){doc.addPage();y=20;head()}pos++;const oil=isOil(i);
+      doc.setDrawColor(90);doc.rect(X.cb+0.5,y-3.4,4,4);
+      doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(String(pos),X.pos,y);
+      const name=useOrig&&oil?(origName(i)||i.t):i.t;doc.setFont('helvetica','bold');doc.setFontSize(9.5);
+      const nm=latin(name)===String(name)?doc.splitTextToSize(String(name).replace(/\s+/g,' '),84).slice(0,2):null;
+      if(nm)nm.forEach((ln,j)=>doc.text(ln,X.art,y+j*4.1));else putText(doc,name,X.art,y,9.5,84);
+      doc.setFont('helvetica','normal');doc.setFontSize(9);
+      if(oil){doc.text(latin(i.tier)||'-',X.q,y);doc.text(latin(i.size)||'-',X.m,y)}
+      doc.setFont('helvetica','bold');doc.text(i.unit?qtxt(i):String(i.q||1),X.n,y);
+      doc.setFont('courier','normal');doc.setFontSize(8);doc.setTextColor(90);doc.text(latin(i.code)||'',X.code-1,y,{align:'right'});doc.setTextColor(0);
+      let yy=y+(nm?(nm.length-1)*4.1:0);
+      if(!oil&&latin(i.size)){yy+=3.9;doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text(doc.splitTextToSize(latin(i.size),84)[0],X.art,yy)}
+      if(!oil&&String(i.note||'').trim()){yy+=4.1;doc.setTextColor(198,40,40);doc.setFont('helvetica','bold');doc.setFontSize(9);putText(doc,'> '+i.note,X.art,yy,9,110);doc.setTextColor(0)}
+      y=yy+2.8;doc.setDrawColor(215);doc.line(L,y,R,y);y+=5.2});
+    y+=1.5});
+  if(y>245){doc.addPage();y=25}
+  y+=3;const yb=drawAmounts(doc,l,L,y,90);y=Math.max(y,yb)+8;
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(60);doc.text(k.sig,L,y);y+=6;
+  doc.setFontSize(8.5);doc.setTextColor(110);doc.text(k.foot+'  ·  '+pos+' '+k.pos.replace('.','')+'.',L,y);doc.setTextColor(0);
   return doc;
 }
-/* one-tap printing straight from the order (no Drive upload needed) */
-function quickPrint(l){
-  const w=el('div','qprint'),hasOil=(l.items||[]).some(isOil);w.append(el('span','lbl','🖨️ طباعة مباشرة:'));
-  const mk=(txt,make)=>{const b=el('button','btn small',txt);b.onclick=async()=>{const o=b.textContent;b.disabled=true;b.textContent='جاري التجهيز…';
-    try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');const blob=await make();b.textContent='جاري فتح الطباعة…';await printPdf(blob)}catch(e){alert('تعذّرت الطباعة: '+(e.message||e))}
-    b.disabled=false;b.textContent=o};w.append(b)};
-  mk('Angebotspreis',async()=>{await prepImgs(l);return lieferscheinPdf(l).output('blob')});
-  mk('قائمة التحضير (A4)',async()=>prepListPdf(l).output('blob'));
-  if(hasOil)mk('ملصقات بسيطة',async()=>{const lo=labOrder(l);return labelsPdf(lo).output('blob')});
-  if(hasOil){const b=el('button','btn small','ملصقات CLP');b.onclick=()=>{const t=w.parentElement&&w.parentElement.querySelector('.acts .btn');if(t)t.click()};w.append(b)}
-  return w;
+/* Documents & labels of an order – one tidy panel: each document with 🖨️ print (straight away) and 📤 send (file, WhatsApp, download) */
+async function directPrint(kind,l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري التجهيز…';
+  try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
+    if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
+    if(kind==='ls'||kind==='lso')await prepImgs(lo);
+    const blob=KINDS[kind].make(lo).output('blob');btn.textContent='جاري فتح الطباعة…';await printPdf(blob)}
+  catch(e){alert('تعذّرت الطباعة: '+(e.message||e))}
+  btn.disabled=false;btn.innerHTML=o}
+function docsPanel(l){
+  const box=el('div','docs'),out=el('div','filebox');out.setAttribute('data-files',orderKey(l));
+  if(clpReady(l)){const all=fileCache[orderKey(l)]||{files:[],note:''};l.clpFiles.forEach(f=>{if(!all.files.find(x=>x.name===f.name))all.files.push({name:f.name,url:f.url})});if(l.clpNote)all.note=l.clpNote;fileCache[orderKey(l)]=all}
+  if(fileCache[orderKey(l)])showFiles(l,fileCache[orderKey(l)],out);
+  const hasOil=(l.items||[]).some(isOil),sec=t=>box.append(el('div','dsec',t));
+  const row=(ic,title,sub,kind,opt)=>{opt=opt||{};const r=el('div','drow');const i=el('span','dic',ic);const tx=el('div','dt');tx.append(el('b',null,title),el('small',null,sub));r.append(i,tx);
+    const bs=el('div','dbtn');
+    if(opt.clp){const b=el('button','btn small primary',clpReady(l)?'✓ جاهزة · فتح':'إنشاء');b.onclick=()=>savePdf('clp',l,b,out);bs.append(b)}
+    else{const p=el('button','btn small primary','🖨️ طباعة');p.onclick=()=>directPrint(kind,l,p);const s2=el('button','btn small','📤 إرسال');s2.title='ملف PDF · واتساب · تنزيل';s2.onclick=()=>savePdf(kind,l,s2,out);bs.append(p,s2)}
+    r.append(bs);box.append(r)};
+  sec('📄 المستندات');
+  row('💶','عرض السعر · Angebot','بالأسعار والخصم ومجموع الكيلو','ls');
+  row('💶','عرض السعر بالأسماء الأصلية','Angebot – Originalnamen','lso');
+  row('📋','قائمة التحضير · Packliste','بدون أسعار – للموظف أو لإرسالها للعميل','pl');
+  row('📋','قائمة التحضير بالأسماء الأصلية','Packliste – Originalnamen · بدون أسعار','plo');
+  if(hasOil){sec('🏷️ الملصقات');
+    row('⚠️','ملصقات CLP','102 × 52 مم · Epson ColorWorks','clp',{clp:1});
+    row('🏷️','ملصقات بسيطة','40 × 30 مم · الاسم والكود والجودة','lab');
+    row('🏷️','ملصقات بالأسماء الأصلية','40 × 30 مم · Originalnamen','labo');
+    box.append(labPicker(l))}
+  box.append(out);
+  const ex=[];if(addrLines(l).length)ex.push(el('p','note',addrLines(l).join(', ')+' · '+LANG_NAME[LANG_OF(l.country)]));
+  if(l.clpAddr)ex.push(el('p','note','عنوان العميل على ملصق CLP: '+l.clpAddr+(l.clpLogo?' · مع لوغو العميل':'')));box.extra=ex;
+  return box;
 }
-const KINDS={lab:{name:'Etiketten',make:labelsPdf},labo:{name:'Etiketten-Original',make:labelsPdfOrig},ls:{name:'Angebotspreis',make:lieferscheinPdf},lso:{name:'Angebotspreis-Original',make:l=>lieferscheinPdf(l,true)}};
+const KINDS={pl:{name:'Packliste',make:l=>prepListPdf(l)},plo:{name:'Packliste-Original',make:l=>prepListPdf(l,true)},lab:{name:'Etiketten',make:labelsPdf},labo:{name:'Etiketten-Original',make:labelsPdfOrig},ls:{name:'Angebotspreis',make:lieferscheinPdf},lso:{name:'Angebotspreis-Original',make:l=>lieferscheinPdf(l,true)}};
 const fname=(kind,l)=>KINDS[kind].name+(l._part?'-Auswahl':'')+'-'+custFile(l)+'-'+stamp(l)+'.pdf';
 async function prepImgs(l){
   for(const it of (l.items||[])){
@@ -1457,9 +1534,11 @@ async function clpFetch(l){
 }
 async function orderFiles(l,which){
   const out={files:[],note:''},hasOil=(l.items||[]).some(isOil);
-  if(which==='ls'||which==='lso'||which==='lab'||which==='labo'){if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF')}
+  if(['ls','lso','pl','plo','lab','labo'].includes(which)){if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF')}
   if(which==='ls'){await prepImgs(l);out.files.push({name:fname('ls',l),blob:lieferscheinPdf(l).output('blob')})}
   if(which==='lso'){await prepImgs(l);out.files.push({name:fname('lso',l),blob:lieferscheinPdf(l,true).output('blob')})}
+  if(which==='pl')out.files.push({name:fname('pl',l),blob:prepListPdf(l).output('blob')});
+  if(which==='plo')out.files.push({name:fname('plo',l),blob:prepListPdf(l,true).output('blob')});
   if(which==='lab'&&hasOil)out.files.push({name:fname('lab',l),blob:labelsPdf(l).output('blob')});
   if(which==='labo'&&hasOil)out.files.push({name:fname('labo',l),blob:labelsPdfOrig(l).output('blob')});
   if(which==='clp'&&hasOil){
@@ -1482,7 +1561,7 @@ async function pregenClp(id,rec){
     const files=r.files.filter(f=>f.url).map(f=>({name:f.name,url:f.url}));
     const patch={clpFiles:files,clpSig:clpSig(rec),clpAt:Date.now(),clpNote:(r.fehlend&&r.fehlend.length)?'بدون ملصق CLP: '+r.fehlend.join('، '):''};
     if(files.length){await db.doc('lists/'+id).update(patch);Object.assign(rec,patch);
-      if(lastSent===rec){const la=$('last-actions');la.textContent='';la.append(actions(rec,'flat'))}}
+      if(lastSent===rec){const la=$('last-actions');la.textContent='';la.append(docsPanel(rec))}}
   }catch(e){console.warn('CLP pregen',e)}
 }
 let sheetPushed=false,skipPop=false;
@@ -1657,7 +1736,7 @@ try{const cc=findCust(rec.customer);if(cc&&cc.id&&rec.clpLogo&&(cc.clpLogo!==rec
     }else{const r=await db.collection('lists').add(rec);newId=r&&r.id}
     lastSentId=newId;if(newId)pregenClp(newId,rec);
     const was=!!editing;setEditing(null);
-    lastSent=rec;const la=$('last-actions');la.textContent='';la.append(actions(rec,'flat'));la.hidden=false;
+    lastSent=rec;const la=$('last-actions');la.textContent='';la.append(docsPanel(rec));la.hidden=false;
     resetDraft();
     sendStatus((was?'تم حفظ التعديلات على الطلب.':'تم الإرسال. الطلب يظهر الآن في «القوائم المرسلة».')+((rec.items||[]).some(isOil)?' ملصقات CLP تُجهَّز الآن في الخلفية وستظهر جاهزة خلال دقيقة.':''));
   }catch(e){sendStatus('لم يُحفظ الطلب: '+(e.message||e.code||e),true);$('send').disabled=false}
@@ -1919,12 +1998,10 @@ function buildCard(l,full){
         r.append(left,mid,sz,pr);odb.append(r)});
     });
     upd();odb.append(prog);od.append(odb);c.append(od);
-    c.append(quickPrint(l));
-    /* primary actions */
-    const acts=actions(l,!done);
-    const tog=el('button','btn tog'+(done?'':' primary'),done?'إعادة فتح':'✓ تم التحضير');
+    const tog=el('button','btn big tog'+(done?'':' primary'),done?'↩︎ إعادة فتح الطلب':'✓ تم التحضير');
     tog.onclick=async()=>{tog.disabled=true;try{await db.doc('lists/'+l.id).update({status:done?'new':'done',doneAt:Date.now()})}catch(e){tog.disabled=false}};
-    acts.firstChild.append(tog);c.append(acts);
+    c.append(tog);
+    const acts=docsPanel(l);c.append(acts);
     /* pricing & payment */
     const dp=el('details','od');dp.append(el('summary',null,'💶 التسعير والدفع'));const dpb=el('div','odb');
     dpb.append(payRow(l));
@@ -1944,8 +2021,8 @@ function buildCard(l,full){
     const kgb=el('button','btn',l.kg?'⚖️ إلغاء سعر الكيلو (السعر العادي)':'⚖️ احتساب بسعر الكيلو');kgb.onclick=async()=>{kgb.disabled=true;kgb.textContent='…';try{await repriceOrder(l,!l.kg);renderLists()}catch(e){kgb.disabled=false;kgb.textContent='فشل: '+(e.message||e)}};
     const kr=el('div','row grow');kr.append(kgb);dpb.append(kr);dp.append(dpb);c.append(dp);
     /* more */
-    const dm=el('details','od');dm.append(el('summary',null,'⋯ المزيد: ملصقات بسيطة · تعديل · حذف · العنوان'));const dmb=el('div','odb');
-    acts.extra.forEach(x=>dmb.append(x));dmb.append(acts.more);
+    const dm=el('details','od');dm.append(el('summary',null,'⋯ تعديل · حذف · العنوان'));const dmb=el('div','odb');
+    acts.extra.forEach(x=>dmb.append(x));
     const del=el('button','btn danger','حذف الطلب (ملغى)');let armed=0;
     del.onclick=async()=>{
       if(!armed){armed=1;del.textContent='اضغط مرة ثانية لتأكيد الحذف';setTimeout(()=>{armed=0;del.textContent='حذف الطلب (ملغى)'},4000);return}
