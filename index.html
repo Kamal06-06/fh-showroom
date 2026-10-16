@@ -547,6 +547,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
     <div class="panel">
       <div class="sec-title"><h2>👥 العملاء</h2><span id="cu-n" class="code"></span></div>
       <input type="search" id="cu-q" placeholder="بحث باسم العميل أو رقمه…" autocomplete="off">
+      <p class="hint" style="margin:6px 2px 0">اضغط مطوّلاً على العميل لحذفه.</p>
       <div id="cu-list" class="hlist"></div>
     </div>
   </section>
@@ -713,7 +714,27 @@ function renderCust(){
   if(!shown.length)box.append(el('p','hint','لا يوجد عميل مطابق.'));
   shown.forEach(g=>{const b=el('button','hrow');const left=el('div');left.append(el('b',null,g.name+(g.no?' ('+g.no+')':'')),el('div','time',g.orders.length+' طلب · الإجمالي '+money(g.net)));
     const rt=el('span');rt.style.display='flex';rt.style.flexDirection='column';rt.style.gap='4px';rt.style.alignItems='flex-end';rt.append(el('span','pay '+(g.open>0.004?'open':'paid'),g.open>0.004?'مفتوح '+money(g.open):(g.orders.length?'مسدَّد':'—')),kgToggle(g.name));b.append(left,rt);
-    b.onclick=()=>{focusId=null;focusCust=g.key;tab('wh');renderLists()};box.append(b)});
+    b.onclick=()=>{if(b._lp){b._lp=0;return}focusId=null;focusCust=g.key;tab('wh');renderLists()};longPress(b,()=>openCustDel(g));box.append(b)});
+}
+/* long press (≈0.6 s, or right click) */
+function longPress(node,fn){let t=0,x=0,y=0;const stop=()=>{clearTimeout(t);t=0};
+  node.addEventListener('pointerdown',e=>{x=e.clientX;y=e.clientY;stop();t=setTimeout(()=>{t=0;node._lp=1;try{navigator.vibrate&&navigator.vibrate(30)}catch(_){}fn()},600)});
+  node.addEventListener('pointermove',e=>{if(t&&(Math.abs(e.clientX-x)>10||Math.abs(e.clientY-y)>10))stop()});
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>node.addEventListener(ev,stop));
+  node.addEventListener('contextmenu',e=>{e.preventDefault();stop();node._lp=1;fn()})}
+function openCustDel(g){
+  const recs=customers.filter(c=>(c.no||custKey(c.name))===g.key||custKey(c.name)===custKey(g.name)),n=g.orders.length;
+  openSheet('🗑 حذف العميل',b=>{
+    b.append(el('p',null,g.name+(g.no?' ('+g.no+')':'')),el('p','note',n?('لهذا العميل '+n+' طلب'+(g.open>0.004?' · مفتوح '+money(g.open):'')+'.'):'لا توجد طلبات لهذا العميل.'));
+    const st=el('div','status');st.hidden=true;
+    const arm=(btn,label,run)=>{let a=0;btn.onclick=async()=>{if(!a){a=1;btn.textContent='اضغط مرة ثانية للتأكيد';setTimeout(()=>{a=0;btn.textContent=label},4000);return}
+      btn.disabled=true;st.hidden=false;st.textContent='جاري الحذف…';try{await run();st.textContent='✓ تم الحذف';setTimeout(()=>{closeSheet();renderCust()},600)}catch(e){st.textContent='فشل: '+(e.message||e);st.classList.add('err');btn.disabled=false}}};
+    const delRecs=async()=>{for(const c of recs)if(c.id)await db.doc('customers/'+c.id).delete()};
+    const row=el('div','row grow');
+    if(n){const l1='حذف العميل فقط (تبقى طلباته)',b1=el('button','btn',l1);arm(b1,l1,delRecs);if(recs.length)row.append(b1);
+      const l2='🗑 حذف العميل وكل طلباته ('+n+')',b2=el('button','btn danger',l2);arm(b2,l2,async()=>{for(const l of g.orders)await db.doc('lists/'+l.id).delete();await delRecs()});row.append(b2)}
+    else{const l1='🗑 حذف العميل',b1=el('button','btn danger',l1);arm(b1,l1,delRecs);row.append(b1)}
+    b.append(row,st)});
 }
 $('cu-q').oninput=renderCust;
 $('sb-send').onclick=()=>$('send').click();
