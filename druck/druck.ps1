@@ -111,7 +111,7 @@ while ($true) {
         if ($j.name -like 'A4-*') { $ziel = $DRUCKERA4; $opt = 'fit' }
         elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'fit,landscape' }
         else { $ziel = $DRUCKER; $opt = 'fit,landscape' }
-        if ($ziel -and $j.name -like '*.bin') {
+        if ($ziel -and $j.name -match '\.bin(\.pdf)?$') {  # Server haengt .pdf an den Namen an
           if ([FhRaw]::Send($ziel, [IO.File]::ReadAllBytes($f), $j.name)) { Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${ziel}: $($j.name)" -ForegroundColor Green }
           else { Write-Host "Fehler beim Senden an ${ziel}: $($j.name)" -ForegroundColor Red }
         } elseif ($ziel) {
