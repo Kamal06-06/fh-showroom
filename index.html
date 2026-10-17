@@ -1474,8 +1474,8 @@ async function epsonPrint(l,btn){const o=btn.innerHTML;btn.disabled=true;btn.tex
     const ep=r.files.filter(f=>!/^Proben/.test(f.name)),pr=r.files.filter(f=>/^Proben/.test(f.name));
     if(!ep.length&&!pr.length)throw new Error('لا يوجد ملصق CLP لهذه الأصناف');
     for(const f of ep)await srv('druck',f.name,await blob64(f.blob));
-    for(const f of pr)await pmQueue(f.blob,f.name);
-    let msg=(ep.length?'✓ أُرسلت إلى طابعة Epson':'')+(pr.length?(ep.length?' · ':'✓ ')+'ملصقات العيّنات 40 × 30 → طابعة Phomemo في المستودع':'')+(r.fehlend&&r.fehlend.length?' · بدون ملصق: '+r.fehlend.join('، '):'');
+    /* Proben 40 × 30: vorerst über «Phomemo بلوتوث» drucken (Phomemo am Mini-PC druckt noch falsch skaliert) */
+    let msg=(ep.length?'✓ أُرسلت إلى طابعة Epson':'')+(pr.length?(ep.length?' · ':'')+'ملصقات العيّنات 40 × 30: اطبعها من «📤 إرسال» ← «🏷️ Phomemo بلوتوث»':'')+(r.fehlend&&r.fehlend.length?' · بدون ملصق: '+r.fehlend.join('، '):'');
     if(st&&!st.online)msg+=' — ⚠️ جهاز الطباعة في المستودع غير متصل الآن، ستُطبع فور تشغيله';
     btn.textContent=st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';alert(msg)}
   catch(e){alert('تعذّر الإرسال إلى Epson: '+(e.message||e))}
@@ -1512,7 +1512,6 @@ function docsPanel(l){
     const bs=el('div','dbtn');
     if(kind==='clp'){const e=el('button','btn small primary','🏷️ Epson');e.title='يُطبع مباشرة على طابعة الملصقات في المستودع';e.onclick=()=>epsonPrint(l,e);bs.append(e)}
     if(['ls','lso','pl','plo'].includes(kind)){const a=el('button','btn small primary','🖨️ A4');a.title='يُطبع مباشرة على طابعة A4 (Brother) في المستودع';a.onclick=()=>a4Print(kind,l,a);bs.append(a)}
-    if(kind==='lab'||kind==='labo'){const a=el('button','btn small primary','🏷️ Phomemo');a.title='يُطبع مباشرة على طابعة Phomemo 40 × 30 في المستودع';a.onclick=()=>a4Print(kind,l,a,'P-');bs.append(a)}
     {const p=el('button','btn small','🖨️ طباعة');p.onclick=()=>directPrint(kind,l,p);const s2=el('button','btn small','📤 إرسال');s2.title='ملف PDF · واتساب · تنزيل';s2.onclick=()=>savePdf(kind,l,s2,out);bs.append(p,s2)}
     r.append(bs);box.append(r)};
   sec('📄 المستندات');
