@@ -1466,6 +1466,17 @@ function prepListPdf(l,useOrig){
   return doc;
 }
 /* Documents & labels of an order – one tidy panel: each document with 🖨️ print (straight away) and 📤 send (file, WhatsApp, download) */
+/* CLP → Druck-Warteschlange → Mini-PC im Lager druckt auf der Epson ColorWorks */
+async function epsonPrint(l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
+  try{const lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»');
+    const [r,st]=await Promise.all([clpMake(lo),srv('druckstatus').catch(()=>null)]);
+    if(!r.files.length)throw new Error('لا يوجد ملصق CLP لهذه الأصناف');
+    for(const f of r.files)await srv('druck',f.name,await blob64(f.blob));
+    let msg='✓ أُرسلت إلى طابعة Epson'+(r.fehlend&&r.fehlend.length?' · بدون ملصق: '+r.fehlend.join('، '):'');
+    if(st&&!st.online)msg+=' — ⚠️ جهاز الطباعة في المستودع غير متصل الآن، ستُطبع فور تشغيله';
+    btn.textContent=st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';alert(msg)}
+  catch(e){alert('تعذّر الإرسال إلى Epson: '+(e.message||e))}
+  setTimeout(()=>{btn.disabled=false;btn.innerHTML=o},2500)}
 async function directPrint(kind,l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري التجهيز…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
     if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
@@ -1482,7 +1493,8 @@ function docsPanel(l){
   const hasOil=(l.items||[]).some(isOil),sec=t=>box.append(el('div','dsec',t));
   const row=(ic,title,sub,kind,opt)=>{opt=opt||{};const r=el('div','drow');const i=el('span','dic',ic);const tx=el('div','dt');tx.append(el('b',null,title),el('small',null,sub));r.append(i,tx);
     const bs=el('div','dbtn');
-    {const p=el('button','btn small primary','🖨️ طباعة');p.onclick=()=>directPrint(kind,l,p);const s2=el('button','btn small','📤 إرسال');s2.title='ملف PDF · واتساب · تنزيل';s2.onclick=()=>savePdf(kind,l,s2,out);bs.append(p,s2)}
+    if(kind==='clp'){const e=el('button','btn small primary','🏷️ Epson');e.title='يُطبع مباشرة على طابعة الملصقات في المستودع';e.onclick=()=>epsonPrint(l,e);bs.append(e)}
+    {const p=el('button','btn small'+(kind==='clp'?'':' primary'),'🖨️ طباعة');p.onclick=()=>directPrint(kind,l,p);const s2=el('button','btn small','📤 إرسال');s2.title='ملف PDF · واتساب · تنزيل';s2.onclick=()=>savePdf(kind,l,s2,out);bs.append(p,s2)}
     r.append(bs);box.append(r)};
   sec('📄 المستندات');
   row('💶','عرض السعر · Angebot','بالأسعار والخصم ومجموع الكيلو','ls');
