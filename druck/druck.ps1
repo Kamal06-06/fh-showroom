@@ -9,6 +9,8 @@ $SUM  = Join-Path $DIR 'SumatraPDF.exe'
 $PINF = Join-Path $DIR 'pin.txt'
 $SUMURL = 'https://www.sumatrapdfreader.org/dl/rel/3.6.1/SumatraPDF-3.6.1-64.zip'
 New-Item -ItemType Directory -Force $DONE | Out-Null
+# Nur EIN Druckprogramm gleichzeitig - aeltere Instanzen beenden (sonst druckt eine alte Version mit)
+Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -like '*FH-Druck\druck.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 $Host.UI.RawUI.WindowTitle = 'FH Druck - Epson ColorWorks (Fenster offen lassen)'
 
 function Api($action, $a) {
