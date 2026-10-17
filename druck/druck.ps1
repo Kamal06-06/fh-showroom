@@ -31,10 +31,19 @@ if (-not (Test-Path $SUM)) {
 while ($true) {
   if (Test-Path $PINF) { $script:PIN = (Get-Content $PINF -Raw).Trim() }
   else { $script:PIN = (Read-Host 'Zugangscode (PIN) der Showroom-App eingeben').Trim() }
-  try { $r = Api 'check' ''; if ($r.val -eq $true) { Set-Content $PINF $script:PIN; break } } catch {}
-  Write-Host 'PIN falsch oder keine Internetverbindung - bitte nochmal.' -ForegroundColor Red
-  if (Test-Path $PINF) { Remove-Item $PINF }
-  Start-Sleep 2
+  $r = $null
+  try { $r = Api 'check' '' } catch {}
+  if ($r -and $r.val -eq $true) { Set-Content $PINF $script:PIN; break }
+  # Nur bei klarer Antwort "PIN falsch" neu fragen. Keine Verbindung (z. B. WLAN nach dem Einschalten noch nicht da) -> gespeicherte PIN behalten und warten.
+  if ($r -and ($r.val -eq $false -or "$($r.err)" -match 'pin|code|zugang')) {
+    Write-Host 'PIN falsch - bitte nochmal.' -ForegroundColor Red
+    if (Test-Path $PINF) { Remove-Item $PINF }
+    Start-Sleep 2
+  } else {
+    Write-Host 'Warte auf Internetverbindung ...' -ForegroundColor DarkGray
+    if (-not (Test-Path $PINF) -and $script:PIN) { Set-Content $PINF $script:PIN }
+    Start-Sleep 10
+  }
 }
 
 # 3) Epson-Drucker finden
