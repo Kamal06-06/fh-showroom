@@ -97,6 +97,14 @@ Write-Host 'Bereit. Etiketten und A4-Dokumente aus der App werden automatisch ge
 
 $n = 0
 while ($true) {
+  # Testordner: PDF in FH-Druck\test legen -> wird wie ein App-Auftrag gedruckt (Name bestimmt den Drucker: A4-..., P-..., sonst Epson)
+  $TEST = Join-Path $DIR 'test'; New-Item -ItemType Directory -Force $TEST | Out-Null
+  foreach ($t in @(Get-ChildItem $TEST -File -Filter *.pdf -ErrorAction SilentlyContinue)) {
+    if (-not $DRUCKERP) { $DRUCKERP = DruckerP }
+    if ($t.Name -like 'A4-*') { $z = $DRUCKERA4; $o = 'fit' } elseif ($t.Name -like 'P-*') { $z = $DRUCKERP; $o = $(if ($t.Name -match '__(.+)\.pdf$') { $Matches[1] -replace '_',',' } else { 'noscale,landscape' }) } else { $z = $DRUCKER; $o = 'fit,landscape' }
+    if ($z) { & $SUM -print-to $z -print-settings $o -silent $t.FullName | Out-Null; Write-Host "$(Get-Date -Format HH:mm:ss)  Test gedruckt auf ${z} ($o): $($t.Name)" -ForegroundColor Cyan }
+    Remove-Item $t.FullName -ErrorAction SilentlyContinue
+  }
   try {
     $r = Api 'druckholen' $(if ($n % 20 -eq 0) { '1' } else { '' })
     if ($r.err) { Write-Host "Fehler: $($r.err)" -ForegroundColor Red }
