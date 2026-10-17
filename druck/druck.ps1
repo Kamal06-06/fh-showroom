@@ -13,6 +13,27 @@ New-Item -ItemType Directory -Force $DONE | Out-Null
 Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -like '*FH-Druck\druck.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 $Host.UI.RawUI.WindowTitle = 'FH Druck - Epson ColorWorks (Fenster offen lassen)'
 
+# Rohdaten (RAW) direkt an einen Drucker schicken - fuer Phomemo: das App-Bild geht 1:1 an die Etikettenmaschine, ohne Windows-Skalierung
+Add-Type -TypeDefinition @"
+using System; using System.Runtime.InteropServices;
+public class FhRaw {
+  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] public class DI { public string pDocName; public string pOutputFile; public string pDataType; }
+  [DllImport("winspool.drv", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool OpenPrinter(string n, out IntPtr h, IntPtr d);
+  [DllImport("winspool.drv", SetLastError=true)] static extern bool ClosePrinter(IntPtr h);
+  [DllImport("winspool.drv", CharSet=CharSet.Unicode, SetLastError=true)] static extern int StartDocPrinter(IntPtr h, int l, [In] DI di);
+  [DllImport("winspool.drv", SetLastError=true)] static extern bool EndDocPrinter(IntPtr h);
+  [DllImport("winspool.drv", SetLastError=true)] static extern bool StartPagePrinter(IntPtr h);
+  [DllImport("winspool.drv", SetLastError=true)] static extern bool EndPagePrinter(IntPtr h);
+  [DllImport("winspool.drv", SetLastError=true)] static extern bool WritePrinter(IntPtr h, byte[] b, int n, out int w);
+  public static bool Send(string printer, byte[] data, string name) {
+    IntPtr h; if (!OpenPrinter(printer, out h, IntPtr.Zero)) return false;
+    var di = new DI { pDocName = name, pDataType = "RAW" }; bool ok = false;
+    if (StartDocPrinter(h, 1, di) > 0) { if (StartPagePrinter(h)) { int w; ok = WritePrinter(h, data, data.Length, out w); EndPagePrinter(h); } EndDocPrinter(h); }
+    ClosePrinter(h); return ok;
+  }
+}
+"@
+
 function Api($action, $a) {
   $body = @{ pin = $script:PIN; action = $action; a = $a } | ConvertTo-Json -Compress
   return Invoke-RestMethod -Uri $URL -Method Post -Body $body -ContentType 'text/plain; charset=utf-8' -TimeoutSec 60
@@ -90,7 +111,10 @@ while ($true) {
         if ($j.name -like 'A4-*') { $ziel = $DRUCKERA4; $opt = 'fit' }
         elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'fit,landscape' }
         else { $ziel = $DRUCKER; $opt = 'fit,landscape' }
-        if ($ziel) {
+        if ($ziel -and $j.name -like '*.bin') {
+          if ([FhRaw]::Send($ziel, [IO.File]::ReadAllBytes($f), $j.name)) { Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${ziel}: $($j.name)" -ForegroundColor Green }
+          else { Write-Host "Fehler beim Senden an ${ziel}: $($j.name)" -ForegroundColor Red }
+        } elseif ($ziel) {
           & $SUM -print-to $ziel -print-settings $opt -silent $f | Out-Null
           Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${ziel}: $($j.name)" -ForegroundColor Green
         } else { Write-Host "Kein passender Drucker - Datei gespeichert: $f" -ForegroundColor Yellow }

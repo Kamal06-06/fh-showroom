@@ -1474,7 +1474,7 @@ async function epsonPrint(l,btn){const o=btn.innerHTML;btn.disabled=true;btn.tex
     const ep=r.files.filter(f=>!/^Proben/.test(f.name)),pr=r.files.filter(f=>/^Proben/.test(f.name));
     if(!ep.length&&!pr.length)throw new Error('لا يوجد ملصق CLP لهذه الأصناف');
     for(const f of ep)await srv('druck',f.name,await blob64(f.blob));
-    for(const f of pr)await srv('druck','P-'+f.name,await blob64(f.blob));
+    for(const f of pr)await pmQueue(f.blob,f.name);
     let msg=(ep.length?'✓ أُرسلت إلى طابعة Epson':'')+(pr.length?(ep.length?' · ':'✓ ')+'ملصقات العيّنات 40 × 30 → طابعة Phomemo في المستودع':'')+(r.fehlend&&r.fehlend.length?' · بدون ملصق: '+r.fehlend.join('، '):'');
     if(st&&!st.online)msg+=' — ⚠️ جهاز الطباعة في المستودع غير متصل الآن، ستُطبع فور تشغيله';
     btn.textContent=st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';alert(msg)}
@@ -1488,7 +1488,7 @@ async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phome
     if(kind==='ls'||kind==='lso')await prepImgs(lo);
     const st=await srv('druckstatus').catch(()=>null);
     const blob=KINDS[kind].make(lo).output('blob');
-    await srv('druck',pre+fname(kind,lo),await blob64(blob));
+    if(pre==='P-')await pmQueue(blob,fname(kind,lo));else await srv('druck',pre+fname(kind,lo),await blob64(blob));
     let msg='✓ أُرسلت إلى طابعة '+nm+' في المستودع';
     if(st&&!st.online)msg+=' — ⚠️ جهاز الطباعة في المستودع غير متصل الآن، ستُطبع فور تشغيله';
     btn.textContent=st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';alert(msg)}
@@ -1860,10 +1860,10 @@ async function pmConnect(){
 const pmSleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function pmSend(ch,bytes){for(let i=0;i<bytes.length;i+=128){const part=bytes.slice(i,i+128);
   if(ch.properties.writeWithoutResponse&&ch.writeValueWithoutResponse){await ch.writeValueWithoutResponse(part);await pmSleep(20)}else await ch.writeValue(part)}}
-async function phomemoPrint(blob,progress){
-  const lib=await loadPdfJs(),doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer())}).promise,ch=await pmConnect();
+/* PDF → Phomemo-Rohdaten (1 Eintrag je Seite) – für Bluetooth und für den USB-Drucker im Lager (RAW, ohne Windows-Skalierung) */
+async function pmRaw(blob){
+  const lib=await loadPdfJs(),doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer())}).promise,pages=[];
   for(let i=1;i<=doc.numPages;i++){
-    progress&&progress(i+'/'+doc.numPages);
     const pg=await doc.getPage(i),v1=pg.getViewport({scale:1});
     let W=Math.min(384,Math.round(v1.width*25.4/72*8));W=Math.ceil(W/8)*8;const sc=W/v1.width,vp=pg.getViewport({scale:sc}),H=Math.round(vp.height);
     const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);
@@ -1873,10 +1873,20 @@ async function phomemoPrint(blob,progress){
     const head=[0x1b,0x4e,0x0d,0x05, 0x1b,0x4e,0x04,0x0a, 0x1f,0x11,0x0a, 0x1d,0x76,0x30,0x00,bpr&255,bpr>>8,H&255,H>>8];
     const foot=[0x1f,0xf0,0x05,0x00, 0x1f,0xf0,0x03,0x00];
     const all=new Uint8Array(head.length+data.length+foot.length);all.set(head,0);all.set(data,head.length);all.set(foot,head.length+data.length);
-    await pmSend(ch,all);await pmSleep(400);
+    pages.push(all);
   }
-  return doc.numPages;
+  return pages;
 }
+async function phomemoPrint(blob,progress){
+  const pages=await pmRaw(blob),ch=await pmConnect();
+  for(let i=0;i<pages.length;i++){progress&&progress((i+1)+'/'+pages.length);await pmSend(ch,pages[i]);await pmSleep(400)}
+  return pages.length;
+}
+/* an die Phomemo im Lager (Mini-PC druckt die .bin-Datei RAW per USB) */
+async function pmQueue(blob,name){
+  const pages=await pmRaw(blob);
+  await srv('druck','P-'+String(name).replace(/\.pdf$/i,'')+'.bin',await blob64(new Blob(pages,{type:'application/octet-stream'})));
+  return pages.length}
 async function savePdf(kind,l,btn,out){
   if(LAB_KINDS.includes(kind)){const lo=labOrder(l);if(lo._part&&!lo.items.length){const o=document.querySelector('[data-files="'+orderKey(l)+'"]')||out;o.textContent='اختر صنفاً واحداً على الأقل من «اختيار أصناف للملصقات».';return}l=lo}
   const old=btn.textContent,key=orderKey(l);
