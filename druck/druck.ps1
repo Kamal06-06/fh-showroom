@@ -1,5 +1,5 @@
 ﻿# Fragrance Hub - Etiketten-Drucker (Mini-PC im Lager)
-# Holt alle 3 Sekunden neue Druckauftraege aus der Showroom-App: CLP-Etiketten -> Epson ColorWorks, Angebot/Packliste (A4-...) -> Brother A4.
+# Holt alle 3 Sekunden neue Druckauftraege aus der Showroom-App: CLP-Etiketten -> Epson ColorWorks, Angebot/Packliste (A4-...) -> Brother A4, Etiketten 40x30 (P-...) -> Phomemo.
 $ErrorActionPreference = 'Continue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $URL  = 'https://script.google.com/macros/s/AKfycbzU9YIR7tzx1VBzVAVNni93eBBBwGphyzTErrAUOveD2YmvAmiQO81QkyzVcUB5FAUd/exec?app=sr'
@@ -61,6 +61,14 @@ function DruckerA4 {
 $DRUCKER = Drucker
 if (-not $DRUCKER) { Write-Host 'WARNUNG: Kein Epson ColorWorks Drucker gefunden - bitte Epson-Treiber installieren.' -ForegroundColor Yellow }
 else { Write-Host "Drucker: $DRUCKER" -ForegroundColor Green }
+# Phomemo M110 (40 x 30) - Dateiname beginnt mit "P-"
+function DruckerP {
+  $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'Phomemo|M110' } | Select-Object -First 1
+  if ($p) { return $p.Name } else { return $null }
+}
+$DRUCKERP = DruckerP
+if (-not $DRUCKERP) { Write-Host 'Hinweis: Kein Phomemo-Drucker (40 x 30) gefunden.' -ForegroundColor DarkGray }
+else { Write-Host "Phomemo-Drucker: $DRUCKERP" -ForegroundColor Green }
 $DRUCKERA4 = DruckerA4
 if (-not $DRUCKERA4) { Write-Host 'WARNUNG: Kein A4-Drucker (Brother) gefunden.' -ForegroundColor Yellow }
 else { Write-Host "A4-Drucker: $DRUCKERA4" -ForegroundColor Green }
@@ -74,11 +82,14 @@ while ($true) {
     elseif ($r.val) {
       if (-not $DRUCKER) { $DRUCKER = Drucker }
       if (-not $DRUCKERA4) { $DRUCKERA4 = DruckerA4 }
+      if (-not $DRUCKERP) { $DRUCKERP = DruckerP }
       foreach ($j in @($r.val)) {
         $f = Join-Path $DONE ((Get-Date -Format 'yyMMdd-HHmmss') + '-' + $j.name)
         [IO.File]::WriteAllBytes($f, [Convert]::FromBase64String($j.b64))
         # Etiketten 102x51 brauchen 'landscape', sonst dreht SumatraPDF sie um 90 Grad und verkleinert sie
-        if ($j.name -like 'A4-*') { $ziel = $DRUCKERA4; $opt = 'fit' } else { $ziel = $DRUCKER; $opt = 'fit,landscape' }
+        if ($j.name -like 'A4-*') { $ziel = $DRUCKERA4; $opt = 'fit' }
+        elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'fit,landscape' }
+        else { $ziel = $DRUCKER; $opt = 'fit,landscape' }
         if ($ziel) {
           & $SUM -print-to $ziel -print-settings $opt -silent $f | Out-Null
           Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${ziel}: $($j.name)" -ForegroundColor Green
