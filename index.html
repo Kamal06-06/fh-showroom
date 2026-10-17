@@ -1882,11 +1882,10 @@ async function phomemoPrint(blob,progress){
   for(let i=0;i<pages.length;i++){progress&&progress((i+1)+'/'+pages.length);await pmSend(ch,pages[i]);await pmSleep(400)}
   return pages.length;
 }
-/* an die Phomemo im Lager (Mini-PC druckt die .bin-Datei RAW per USB) */
+/* an die Phomemo im Lager (Mini-PC druckt das PDF über den Windows-Treiber, Format 40 × 30) */
 async function pmQueue(blob,name){
-  const pages=await pmRaw(blob);
-  await srv('druck','P-'+String(name).replace(/\.pdf$/i,'')+'.bin',await blob64(new Blob(pages,{type:'application/octet-stream'})));
-  return pages.length}
+  await srv('druck','P-'+String(name),await blob64(blob));
+  return 1}
 async function savePdf(kind,l,btn,out){
   if(LAB_KINDS.includes(kind)){const lo=labOrder(l);if(lo._part&&!lo.items.length){const o=document.querySelector('[data-files="'+orderKey(l)+'"]')||out;o.textContent='اختر صنفاً واحداً على الأقل من «اختيار أصناف للملصقات».';return}l=lo}
   const old=btn.textContent,key=orderKey(l);
