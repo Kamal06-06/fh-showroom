@@ -109,7 +109,7 @@ while ($true) {
         [IO.File]::WriteAllBytes($f, [Convert]::FromBase64String($j.b64))
         # Etiketten 102x51 brauchen 'landscape', sonst dreht SumatraPDF sie um 90 Grad und verkleinert sie
         if ($j.name -like 'A4-*') { $ziel = $DRUCKERA4; $opt = 'fit' }
-        elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'fit,landscape' }
+        elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'noscale,landscape' }  # Phomemo-Treiber skaliert sonst falsch: 1:1 drucken
         else { $ziel = $DRUCKER; $opt = 'fit,landscape' }
         if ($ziel -and $j.name -match '\.bin(\.pdf)?$') {  # Server haengt .pdf an den Namen an
           if ([FhRaw]::Send($ziel, [IO.File]::ReadAllBytes($f), $j.name)) { Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${ziel}: $($j.name)" -ForegroundColor Green }
