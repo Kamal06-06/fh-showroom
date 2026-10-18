@@ -798,29 +798,109 @@ function openCustSheet(c,after){
     setTimeout(()=>{if(!c)nm.focus()},150)});
 }
 const ymd=t=>{const d=new Date(t||Date.now());return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())};
+/* Deutsche Zahlen & deutsches Datum – unabhängig von der Sprache des Laptops (arabische Ziffern werden umgewandelt) */
+const AR_DIG_RE=/[٠-٩۰-۹٫٬]/;
+const latinDigits=s=>String(s==null?'':s).replace(/[٠-٩۰-۹٫٬]/g,c=>c==='٫'?',':c==='٬'?'.':String(('٠١٢٣٤٥٦٧٨٩'.indexOf(c)+1||'۰۱۲۳۴۵۶۷۸۹'.indexOf(c)+1)-1));
+const parseDE=v=>{let x=latinDigits(v).replace(/eur|€|\s/gi,'');if(!x)return NaN;if(x.indexOf(',')>-1)x=x.replace(/\./g,'').replace(',','.');else if(/^\d{1,3}(\.\d{3})+$/.test(x))x=x.replace(/\./g,'');return +x};
+const fmtDE=n=>(+n||0).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const dmy=t=>{const d=new Date(t||Date.now());return p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.'+d.getFullYear()};
+const parseDMY=v=>{const m=latinDigits(v).trim().match(/^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2}|\d{4})$/);if(!m)return null;let y=+m[3];if(y<100)y+=2000;const d=new Date(y,+m[2]-1,+m[1],12);return d.getMonth()===+m[2]-1&&d.getDate()===+m[1]?d.getTime():null};
+function moneyInput(inp){inp.type='text';inp.inputMode='decimal';inp.lang='de';inp.dir='ltr';inp.autocomplete='off';inp.style.textAlign='left';
+  inp.addEventListener('input',()=>{const v=latinDigits(inp.value).replace(/[^\d.,]/g,'');if(v!==inp.value)inp.value=v});
+  inp.addEventListener('blur',()=>{const n=parseDE(inp.value);if(n>=0)inp.value=fmtDE(n)});return inp}
+function dateInput(inp,t){inp.type='text';inp.inputMode='numeric';inp.lang='de';inp.dir='ltr';inp.placeholder='TT.MM.JJJJ';inp.autocomplete='off';inp.style.textAlign='left';inp.value=t===null?'':dmy(t);
+  inp.addEventListener('input',e=>{let v=latinDigits(inp.value).replace(/[^\d.]/g,'');
+    const parts=v.split('.');
+    if(!(e.inputType||'').startsWith('delete')&&parts.every((x,i)=>i===parts.length-1||x.length===2)){const d=v.replace(/\D/g,'');v=d.slice(0,2)+(d.length>2?'.'+d.slice(2,4):'')+(d.length>4?'.'+d.slice(4,8):'')}
+    inp.value=v.slice(0,10)});return inp}
+/* Datumsfeld mit Schnellwahl und Kalender (Kalender schreibt immer TT.MM.JJJJ zurück) */
+function dateField(box,label,t){const inp=field(box,label,dateInput(el('input'),t));const row=el('div','row');row.style.gap='6px';row.style.flexWrap='wrap';
+  const set=x=>{inp.value=dmy(x);inp.dispatchEvent(new Event('change'))};
+  const today=el('button','btn small','اليوم');today.type='button';today.onclick=()=>set(Date.now());
+  const n=new Date(),eom=new Date(n.getFullYear(),n.getMonth(),0,12);const lm=el('button','btn small','آخر الشهر الماضي ('+dmy(eom)+')');lm.type='button';lm.onclick=()=>set(eom.getTime());
+  const cal=el('button','btn small','📅 التقويم');cal.type='button';const hid=el('input');hid.type='date';hid.tabIndex=-1;hid.style.cssText='position:absolute;opacity:0;width:1px;height:1px;pointer-events:none';
+  hid.onchange=()=>{if(hid.value)set(new Date(hid.value+'T12:00:00').getTime())};cal.onclick=()=>{const t0=parseDMY(inp.value);hid.value=ymd(t0||Date.now());try{hid.showPicker()}catch(_){hid.focus();hid.click()}};
+  row.append(today,lm,cal,hid);inp.parentNode.append(row);return inp}
+/* jede Zahlung einzeln merken (Datum, Betrag, Art) – für den Kontoauszug */
+function nextPay(l,pay){const old=l.pay||{},po=payOf(l);
+  let h=Array.isArray(old.hist)?old.hist.slice():(po.paidAll>0.004?[{a:po.paidAll,m:old.method||'',at:old.at||l.at||Date.now()}]:[]);
+  const newPaid=pay.status==='open'?0:(pay.status==='paid'&&!(+pay.paid>0)?po.net:r2(+pay.paid||0));
+  const sum=r2(h.reduce((x,y)=>x+(+y.a||0),0)),d=r2(newPaid-sum);
+  if(pay.status==='open')h=[];else if(Math.abs(d)>0.004)h.push({a:d,m:pay.method||'',at:pay.payAt||Date.now(),who:WHO()});
+  delete pay.payAt;pay.hist=h;return pay}
+function payHist(l){const p=l.pay||{},po=payOf(l);if(po.paidAll<=0.004)return [];
+  const h=(Array.isArray(p.hist)?p.hist:[]).filter(x=>Math.abs(+x.a||0)>0.004).map(x=>({a:r2(+x.a),m:x.m||'',at:x.at||p.at||l.at}));
+  const sum=r2(h.reduce((x,y)=>x+y.a,0));if(Math.abs(po.paidAll-sum)>0.004)h.push({a:r2(po.paidAll-sum),m:p.method||'',at:p.at||l.at});
+  return h.sort((a,b)=>(a.at||0)-(b.at||0))}
+const PAY_M_AR={Bar:'نقداً',Überweisung:'تحويل',PayPal:'PayPal',Karte:'بطاقة'};
+/* arabische Ziffern in allen Textfeldern sofort in normale Ziffern umwandeln */
+document.addEventListener('input',e=>{const t=e.target;if(!t||!(t.tagName==='TEXTAREA'||t.tagName==='INPUT'&&/^(text|search|tel|email|)$/.test(t.type||'')))return;
+  if(AR_DIG_RE.test(t.value)){const pos=t.selectionStart;t.value=latinDigits(t.value);try{t.setSelectionRange(pos,pos)}catch(_){}}},true);
 function openDebtSheet(d,presetName){
   openSheet(d?'💳 دين سابق — '+d.customer:'💳 إضافة دين قديم على عميل',b=>{
-    const g=el('div');g.style.display='grid';g.style.gap='10px';b.append(g);
-    if(!d)g.append(el('p','hint','لتسجيل مبالغ قديمة على العميل (من واتساب أو الدفتر) حتى يكون كل حسابه في مكان واحد. يظهر في «حسابات العملاء» وفي كشف الحساب باسم Saldovortrag.'));
+    const g=el('div');g.style.display='grid';g.style.gap='12px';b.append(g);
+    if(!d)g.append(el('p','hint','لتسجيل مبلغ قديم على العميل (من الدفتر أو واتساب) حتى يكون كل حسابه في مكان واحد. يظهر في «حسابات العملاء» وفي كشف الحساب باسم Saldovortrag.'));
+    /* 1 · Kunde */
     const dlId='dl-cust-'+Date.now(),dl=el('datalist');dl.id=dlId;customers.slice().sort((a,b)=>String(a.name).localeCompare(b.name,'de')).forEach(c=>{const o=el('option');o.value=c.name;o.label=c.no||'';dl.append(o)});g.append(dl);
-    const nm=field(g,'العميل *',el('input'),'ابحث أو اكتب اسم العميل');nm.setAttribute('list',dlId);nm.autocomplete='off';nm.value=d?d.customer:(presetName||'');
-    const hint=el('div','code');g.append(hint);const sh=()=>{const c=findCust(nm.value);hint.textContent=nm.value.trim()?(c?'✓ '+c.name+' ('+c.no+')':'عميل جديد — سيُسجَّل تلقائياً'):''};nm.oninput=sh;sh();
-    const am=field(g,'المبلغ € (netto كما في حسابك)',el('input'),'0,00');am.type='number';am.step='0.01';am.min='0';am.inputMode='decimal';am.value=d?d.amount:'';
-    const dt=field(g,'تاريخ الدين',el('input'));dt.type='date';dt.value=ymd(d?d.at:Date.now());
-    const nt=field(g,'ملاحظة (اختياري)',el('input'),'مثال: رصيد قديم من واتساب حتى 30.09.2026');nt.value=d&&d.note||'';
-    const msg=el('div','status');msg.hidden=true;const sv=el('button','btn primary big',d?'حفظ التغييرات':'حفظ الدين');g.append(sv);
-    sv.onclick=async()=>{const name=nm.value.trim(),a=Math.round((+String(am.value).replace(',','.')||0)*100)/100;msg.hidden=false;msg.classList.remove('err');
+    const nm=field(g,'① العميل *',el('input'),'ابحث بالاسم أو اكتب اسماً جديداً');nm.type='text';nm.setAttribute('list',dlId);nm.autocomplete='off';nm.value=d?d.customer:(presetName||'');
+    const hint=el('div','note');hint.style.marginTop='-6px';g.append(hint);
+    const sh=()=>{const v=nm.value.trim(),c=findCust(v);if(!v){hint.textContent='';return}
+      if(!c){hint.textContent='➕ عميل جديد — سيُسجَّل تلقائياً برقم عميل جديد';return}
+      const gg=custGroups().find(x=>x.key===(c.no||custKey(c.name)));hint.textContent='✓ '+c.name+(c.no?' · رقم العميل '+c.no:'')+(gg?' · المفتوح حالياً '+money(gg.open):' · لا يوجد عليه شيء حالياً')};
+    nm.oninput=()=>{sh();upd()};sh();
+    /* 2 · Betrag */
+    const am=moneyInput(field(g,'② المبلغ (EUR netto، كما في دفترك) *',el('input'),'مثال: 1.250,00'));if(d)am.value=fmtDE(d.amount);
+    am.style.fontSize='20px';am.style.fontWeight='700';
+    /* 3 · Datum */
+    const dt=dateField(g,'③ تاريخ الدين (بالألماني: يوم.شهر.سنة) *',d?d.at:Date.now());
+    /* 4 · Notiz */
+    const nt=field(g,'④ ملاحظة (اختياري)',el('input'),'مثال: رصيد قديم من الدفتر حتى '+dmy(new Date(new Date().getFullYear(),new Date().getMonth(),0)));nt.type='text';nt.value=d&&d.note||'';
+    /* 5 · schon bezahlt? (nur bei neuem Eintrag) */
+    let pState='open',pAm=null,pMet=null,pDt=null;
+    if(!d){const box=el('div','card');box.style.padding='10px 12px';box.style.display='grid';box.style.gap='10px';
+      box.append(el('b',null,'⑤ هل دفع العميل شيئاً من هذا المبلغ؟'));
+      const seg=el('div','row');seg.style.gap='6px';seg.style.flexWrap='wrap';
+      const opts=[['open','لا — المبلغ كله مفتوح'],['part','نعم — دفع جزءاً منه']];const btns={};
+      const pb=el('div');pb.style.display='grid';pb.style.gap='10px';pb.hidden=true;
+      opts.forEach(([v,t])=>{const x=el('button','btn small',t);x.type='button';x.onclick=()=>{pState=v;Object.keys(btns).forEach(k=>btns[k].classList.toggle('primary',k===v));pb.hidden=v!=='part';if(v==='part')pAm.focus();upd()};btns[v]=x;seg.append(x)});
+      btns.open.classList.add('primary');box.append(seg,pb);
+      pAm=moneyInput(field(pb,'المبلغ المدفوع (EUR)',el('input'),'0,00'));
+      pMet=field(pb,'طريقة الدفع',el('select'));pMet.style.cssText='width:100%;font:inherit;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink)';[['Bar','💵 نقداً (Bar)'],['Überweisung','🏦 تحويل (Überweisung)'],['PayPal','PayPal'],['Karte','💳 بطاقة (Karte)']].forEach(([v,t])=>{const o=el('option',null,t);o.value=v;pMet.append(o)});
+      pDt=dateField(pb,'تاريخ الدفع',Date.now());
+      [pAm,pDt].forEach(x=>x.addEventListener('input',()=>upd()));pMet.onchange=upd;
+      g.append(box)}
+    /* Zusammenfassung vor dem Speichern */
+    const sum=el('div','note');sum.style.cssText='padding:10px 12px;border-radius:10px;background:var(--surface);border:1px dashed var(--line);font-size:14px;line-height:1.6';g.append(sum);
+    function upd(){const a=parseDE(am.value),t=parseDMY(dt.value),name=nm.value.trim();
+      if(!name||!(a>0)||!t){sum.textContent='اكتب العميل والمبلغ والتاريخ — سيظهر هنا ملخص قبل الحفظ.';return}
+      let txt='سيُسجَّل على «'+name+'» مبلغ '+money(a)+' بتاريخ '+dmy(t)+'.';
+      if(pState==='part'){const pa=parseDE(pAm.value);if(pa>0)txt+=' مدفوع منه '+money(Math.min(pa,a))+' ('+(PAY_M_AR[pMet.value]||pMet.value)+(parseDMY(pDt.value)?' · '+dmy(parseDMY(pDt.value)):'')+') — المتبقي '+money(Math.max(0,r2(a-pa)))+'.'}
+      sum.textContent=txt}
+    [am,dt].forEach(x=>{x.addEventListener('input',upd);x.addEventListener('change',upd);x.addEventListener('blur',upd)});upd();
+    const msg=el('div','status');msg.hidden=true;const sv=el('button','btn primary big',d?'حفظ التغييرات':'✓ حفظ الدين');g.append(sv);
+    sv.onclick=async()=>{const name=nm.value.trim(),a=r2(parseDE(am.value)||0),at=parseDMY(dt.value);msg.hidden=false;msg.classList.remove('err');
       if(!name){msg.textContent='اختر العميل.';msg.classList.add('err');nm.focus();return}
-      if(!(a>0)){msg.textContent='اكتب المبلغ.';msg.classList.add('err');am.focus();return}
-      const at=dt.value?new Date(dt.value+'T12:00:00').getTime():Date.now();
+      if(!(a>0)){msg.textContent='اكتب المبلغ، مثال: 1.250,00';msg.classList.add('err');am.focus();return}
+      if(!at){msg.textContent='التاريخ غير صحيح — اكتبه هكذا: 30.09.2026';msg.classList.add('err');dt.focus();return}
+      let pay=null;
+      if(!d&&pState==='part'){const pa=r2(parseDE(pAm.value)||0),pt=parseDMY(pDt.value);
+        if(!(pa>0)){msg.textContent='اكتب المبلغ المدفوع.';msg.classList.add('err');pAm.focus();return}
+        if(!pt){msg.textContent='تاريخ الدفع غير صحيح — مثال: 15.10.2026';msg.classList.add('err');pDt.focus();return}
+        pay={status:pa>=a-0.004?'paid':'part',paid:pa,method:pMet.value,at:pt,cashId:'',hist:[{a:pa,m:pMet.value,at:pt,who:WHO()}]}}
       sv.disabled=true;msg.textContent='جاري الحفظ…';
       try{const no=await ensureCustomer(name,{});const c=findCust(name);
         const rec={kind:'debt',customer:c?c.name:name,custNo:no||'',amount:a,at,note:nt.value.trim()};
-        if(d&&d.id)await db.doc('customers/'+d.id).update(rec);else{rec.createdAt=Date.now();rec.who=WHO();await db.collection('customers').add(rec)}
+        if(d&&d.id)await db.doc('customers/'+d.id).update(rec);
+        else{rec.createdAt=Date.now();rec.who=WHO();if(pay)rec.pay=pay;const ref=await db.collection('customers').add(rec);
+          if(pay&&pay.method==='Bar'){try{const cid=await syncCash(Object.assign({id:ref.id,kind:'debt',items:[]},rec),pay);if(cid)await ref.update({'pay.cashId':cid})}catch(_){}}}
         msg.textContent='✓ تم الحفظ';setTimeout(()=>{closeSheet();try{renderAcc()}catch(_){}try{renderCust()}catch(_){}},600)}
       catch(e){msg.textContent='فشل: '+(e.message||e);msg.classList.add('err');sv.disabled=false}};
-    if(d){const p=payOf(Object.assign({},d,{kind:'debt'}));const r=el('div','row grow');
-      const pb=el('button','btn','💶 الدفع: '+PAY_AR[p.status]+(p.status==='part'?' · متبقٍ '+money(p.open):''));pb.onclick=()=>{closeSheet();setTimeout(()=>openPaySheet(debtLists().find(x=>x.id===d.id)||Object.assign({},d,{kind:'debt',items:[]})),50)};
+    if(d){const L0=debtLists().find(x=>x.id===d.id)||Object.assign({},d,{kind:'debt',items:[]});const p=payOf(L0);
+      const hs=payHist(L0);if(hs.length){const hb=el('div','card');hb.style.padding='10px 12px';hb.append(el('b',null,'الدفعات المسجّلة'));
+        hs.forEach(x=>hb.append(el('div','note',dmy(x.at)+' · '+money(x.a)+(x.m?' · '+(PAY_M_AR[x.m]||x.m):''))));
+        hb.append(el('div','note','المتبقي: '+money(p.open)));g.append(hb)}
+      const r=el('div','row grow');
+      const pb=el('button','btn','💶 تسجيل دفعة · '+PAY_AR[p.status]+(p.status==='part'?' · متبقٍ '+money(p.open):''));pb.onclick=()=>{closeSheet();setTimeout(()=>openPaySheet(L0),50)};
       const del=el('button','btn danger','🗑 حذف هذا الدين');let armed=0;del.onclick=async()=>{if(!armed){armed=1;del.textContent='اضغط مرة ثانية للتأكيد';setTimeout(()=>{armed=0;del.textContent='🗑 حذف هذا الدين'},4000);return}
         del.disabled=true;try{if(d.pay&&d.pay.cashId){try{await db.doc('cash/'+d.pay.cashId).delete()}catch(_){}}await db.doc('customers/'+d.id).delete();closeSheet()}catch(e){del.disabled=false;del.textContent='فشل: '+(e.message||e)}};
       r.append(pb,del);g.append(r)}
@@ -2006,16 +2086,19 @@ function openPaySheet(l){
     const w=el('div','paysh');b.append(w);
     const t=el('div','tot',money(p.net));t.append(el('small',null,'الحالي: '+PAY_AR[p.status]+(p.paidAll>0?' · مدفوع حتى الآن '+money(p.paidAll):'')+(p.open>0.004&&p.paidAll>0?' · المتبقي '+money(p.open):'')+(p.method?' · '+p.method:'')+(p.over>0.004?' · دُفع زيادة '+money(p.over):'')));w.append(t);
     const st=el('div','status');st.hidden=true;
-    const save=async(status,paid,method)=>{st.hidden=false;st.classList.remove('err');st.textContent='جاري الحفظ…';
-      const pay={status,paid:r2(status==='part'?paid:(status==='paid'?Math.max(p.net,status==='paid'&&paid>0?paid:0):0)),method:status==='open'?'':method,at:Date.now(),cashId:(l.pay&&l.pay.cashId)||''};
-      try{pay.cashId=await syncCash(l,pay);await docOf(l).update({pay});l.pay=pay;st.textContent='✓ تم الحفظ';setTimeout(()=>closeSheet(),500);try{renderLists()}catch(_){}}
+    const dbx=el('div');dbx.style.margin='4px 0 8px';const pdt=dateField(dbx,'تاريخ الدفع',Date.now());w.append(dbx);
+    const save=async(status,paid,method)=>{st.hidden=false;st.classList.remove('err');
+      const pt=parseDMY(pdt.value);if(status!=='open'&&!pt){st.textContent='تاريخ الدفع غير صحيح — مثال: 15.10.2026';st.classList.add('err');pdt.focus();return}
+      st.textContent='جاري الحفظ…';
+      const pay={status,paid:r2(status==='part'?paid:(status==='paid'?Math.max(p.net,status==='paid'&&paid>0?paid:0):0)),method:status==='open'?'':method,at:pt||Date.now(),payAt:pt||Date.now(),cashId:(l.pay&&l.pay.cashId)||''};
+      try{nextPay(l,pay);pay.cashId=await syncCash(l,pay);await docOf(l).update({pay});l.pay=pay;st.textContent='✓ تم الحفظ';setTimeout(()=>closeSheet(),500);try{renderLists()}catch(_){}}
       catch(e){st.textContent='فشل: '+(e.message||e);st.classList.add('err')}};
     const q=el('div','pq');
     [['Bar','💵 مدفوع نقداً'],['Überweisung','🏦 مدفوع بتحويل'],['PayPal','PayPal'],['Karte','💳 بطاقة']].forEach(([m,txt])=>{const x=el('button','btn ok',txt);x.onclick=()=>save('paid',0,m);q.append(x)});
     w.append(q);
-    const pr=el('div','part'),la=el('label',null,p.paidAll>0?'دفعة إضافية € (تُضاف إلى '+money(p.paidAll)+')':'دفعة جزئية €'),amt=el('input');amt.type='text';amt.inputMode='decimal';amt.placeholder='0,00';amt.value='';la.append(amt);
+    const pr=el('div','part'),la=el('label',null,p.paidAll>0?'دفعة إضافية € (تُضاف إلى '+money(p.paidAll)+')':'دفعة جزئية €'),amt=moneyInput(el('input'));amt.placeholder='0,00';amt.value='';la.append(amt);
     const lm=el('label',null,'الطريقة'),met=el('select');[['Bar','نقداً (Bar)'],['Überweisung','تحويل'],['PayPal','PayPal'],['Karte','بطاقة']].forEach(([v,x])=>{const o=el('option',null,x);o.value=v;met.append(o)});met.value=p.method||'Bar';lm.append(met);
-    const sp=el('button','btn','حفظ الدفعة');sp.onclick=()=>{const a=r2(+String(amt.value).replace(',','.')||0);if(!(a>0)){amt.focus();return}const tot=r2(p.paidAll+a);save(tot>=p.net-0.004?'paid':'part',tot,met.value)};
+    const sp=el('button','btn','حفظ الدفعة');sp.onclick=()=>{const a=r2(parseDE(amt.value)||0);if(!(a>0)){amt.focus();return}const tot=r2(p.paidAll+a);save(tot>=p.net-0.004?'paid':'part',tot,met.value)};
     pr.append(la,lm,sp);w.append(pr);
     const un=el('button','btn danger','↩︎ غير مدفوع');un.onclick=()=>save('open',0,'');w.append(un,st);
   });
@@ -2105,9 +2188,9 @@ function payBadge(l){const p=payOf(l);return el('span','pay '+p.status,PAY_AR[p.
 function payRow(l){
   const r=el('div','payrow'),p=payOf(l);
   const sel=el('select');[['open','غير مدفوع'],['part','دفعة جزئية'],['paid','مدفوع بالكامل']].forEach(([val,t])=>{const o=el('option',null,t);o.value=val;sel.append(o)});sel.value=p.status;
-  const amt=el('input');amt.type='number';amt.step='0.01';amt.min='0';amt.inputMode='decimal';amt.placeholder='المدفوع حتى الآن (الإجمالي) €';amt.value=p.status==='part'?p.paidAll:'';amt.hidden=p.status!=='part';
+  const amt=moneyInput(el('input'));amt.placeholder='المدفوع حتى الآن (الإجمالي) €';amt.value=p.status==='part'?fmtDE(p.paidAll):'';amt.hidden=p.status!=='part';
   const met=el('select');[['','طريقة الدفع…'],['Bar','نقداً (Bar)'],['Überweisung','تحويل (Überweisung)'],['PayPal','PayPal'],['Karte','بطاقة (Karte)']].forEach(([val,t])=>{const o=el('option',null,t);o.value=val;met.append(o)});met.value=p.method;
-  const save=async()=>{const pa=r2(+String(amt.value).replace(',','.')||0);const st=sel.value==='part'&&pa>=p.net-0.004?'paid':sel.value;const pay={status:st,paid:st==='part'?pa:(st==='paid'?Math.max(p.net,pa):0),method:met.value,at:Date.now(),cashId:(l.pay&&l.pay.cashId)||''};try{pay.cashId=await syncCash(l,pay);await docOf(l).update({pay})}catch(e){}};
+  const save=async()=>{const pa=r2(parseDE(amt.value)||0);const st=sel.value==='part'&&pa>=p.net-0.004?'paid':sel.value;const pay={status:st,paid:st==='part'?pa:(st==='paid'?Math.max(p.net,pa):0),method:met.value,at:Date.now(),cashId:(l.pay&&l.pay.cashId)||''};try{nextPay(l,pay);pay.cashId=await syncCash(l,pay);await docOf(l).update({pay})}catch(e){}};
   sel.onchange=()=>{amt.hidden=sel.value!=='part';if(sel.value!=='part')save();else amt.focus()};amt.onchange=save;met.onchange=save;
   r.append(payBadge(l),sel,amt,met);if(p.at)r.append(el('span','time',new Date(p.at).toLocaleDateString('de-DE')));return r;
 }
@@ -2132,9 +2215,20 @@ const KT={
  nl:{title:'REKENINGOVERZICHT',intro:'Overzicht van uw bestellingen en betalingen',date:'Datum',doc:'Document',amount:'Bedrag netto',paid:'Betaald',open:'Open',status:'Status',sum:'Totaal',balance:'Openstaand saldo',st:{open:'open',part:'deels',paid:'betaald'},foot:'Alle bedragen netto in EUR, excl. btw. Gelieve het openstaande saldo te voldoen.',asOf:'Per: ',old:'Vorig saldo',cust:'Klant',no:'Klantnr. ',nr:'Nr. KA-'},
  pl:{title:'WYCIAG Z KONTA',intro:'Zestawienie zamowien i platnosci',date:'Data',doc:'Dokument',amount:'Kwota netto',paid:'Zaplacono',open:'Do zaplaty',status:'Status',sum:'Suma',balance:'Saldo do zaplaty',st:{open:'otwarte',part:'czesciowo',paid:'zaplacone'},foot:'Wszystkie kwoty netto w EUR, plus VAT. Prosimy o uregulowanie salda.',asOf:'Stan na: ',old:'Saldo poprzednie',cust:'Klient',no:'Nr klienta ',nr:'Nr KA-'}
 };
+/* Kontoauszug als Kontoblatt: jede Belastung (Auftrag / Saldovortrag) und jede Zahlung als eigene Zeile, mit laufendem Saldo */
+const KT2={
+ de:{text:'Buchungstext',debit:'Belastung',credit:'Zahlung',saldo:'Saldo',order:'Auftrag',pay:'Zahlung',for:'zu',sumD:'Summe Belastungen',sumC:'Summe Zahlungen',credBal:'Guthaben',m:{Bar:'bar',Überweisung:'Überweisung',PayPal:'PayPal',Karte:'Karte'},corr:'Korrektur'},
+ en:{text:'Description',debit:'Charge',credit:'Payment',saldo:'Balance',order:'Order',pay:'Payment',for:'for',sumD:'Total charges',sumC:'Total payments',credBal:'Credit balance',m:{Bar:'cash',Überweisung:'bank transfer',PayPal:'PayPal',Karte:'card'},corr:'Correction'},
+ fr:{text:'Libellé',debit:'Débit',credit:'Paiement',saldo:'Solde',order:'Commande',pay:'Paiement',for:'pour',sumD:'Total débits',sumC:'Total paiements',credBal:'Avoir',m:{Bar:'espèces',Überweisung:'virement',PayPal:'PayPal',Karte:'carte'},corr:'Correction'},
+ it:{text:'Descrizione',debit:'Addebito',credit:'Pagamento',saldo:'Saldo',order:'Ordine',pay:'Pagamento',for:'per',sumD:'Totale addebiti',sumC:'Totale pagamenti',credBal:'Credito',m:{Bar:'contanti',Überweisung:'bonifico',PayPal:'PayPal',Karte:'carta'},corr:'Rettifica'},
+ es:{text:'Concepto',debit:'Cargo',credit:'Pago',saldo:'Saldo',order:'Pedido',pay:'Pago',for:'de',sumD:'Total cargos',sumC:'Total pagos',credBal:'Saldo a favor',m:{Bar:'efectivo',Überweisung:'transferencia',PayPal:'PayPal',Karte:'tarjeta'},corr:'Corrección'},
+ nl:{text:'Omschrijving',debit:'Debet',credit:'Betaling',saldo:'Saldo',order:'Bestelling',pay:'Betaling',for:'voor',sumD:'Totaal debet',sumC:'Totaal betalingen',credBal:'Tegoed',m:{Bar:'contant',Überweisung:'overboeking',PayPal:'PayPal',Karte:'kaart'},corr:'Correctie'},
+ pl:{text:'Opis',debit:'Obciazenie',credit:'Wplata',saldo:'Saldo',order:'Zamowienie',pay:'Wplata',for:'do',sumD:'Suma obciazen',sumC:'Suma wplat',credBal:'Nadplata',m:{Bar:'gotowka',Überweisung:'przelew',PayPal:'PayPal',Karte:'karta'},corr:'Korekta'}
+};
 function statementPdf(g){
   const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});const L=15,R=195,now=new Date();
-  const k=KT[LANG_OF(g.country)]||KT.de;const dstr=d=>{const x=new Date(d);return p2(x.getDate())+'.'+p2(x.getMonth()+1)+'.'+x.getFullYear()};
+  const lg=LANG_OF(g.country),k=KT[lg]||KT.de,k2=KT2[lg]||KT2.en;const dstr=d=>{const x=new Date(d);return p2(x.getDate())+'.'+p2(x.getMonth()+1)+'.'+x.getFullYear()};
+  const eur=n=>(+n).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
   let y=20;
   doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('FRAGRANCE HUB GERMANY',L,y);
   doc.setFontSize(18);doc.text(k.title,R,y,{align:'right'});
@@ -2148,23 +2242,31 @@ function statementPdf(g){
   doc.setFont('helvetica','normal');doc.setFontSize(9);let ya=y+11;
   addrLines({street:g.street,city:g.city,country:g.country}).map(latin).filter(Boolean).forEach(ln=>{doc.text(ln,L,ya);ya+=4.2});
   y=Math.max(y+20,ya+4);doc.setFontSize(9.5);doc.setTextColor(90);doc.text(k.intro,L,y);doc.setTextColor(0);y+=8;
-  const X={d:L+1,doc:L+26,amt:L+98,paid:L+128,open:L+158,st:L+163};
+  /* Buchungen sammeln */
+  const ev=[];
+  g.orders.forEach(l=>{const net=totals(l).net,ref=l.kind==='debt'?'':'AP-'+stamp(l);
+    ev.push({at:l.at||0,o:0,txt:l.kind==='debt'?(k.old+(latin(l.note)?' - '+latin(l.note):'')):k2.order+' '+ref,d:net,c:0});
+    payHist(l).forEach(h=>{const m=k2.m[h.m]||latin(h.m);ev.push({at:h.at||l.at||0,o:1,txt:(h.a<0?k2.corr:k2.pay)+(m?' ('+m+')':'')+(ref?' '+k2.for+' '+ref:(l.kind==='debt'?' '+k2.for+' '+k.old:'')),d:h.a<0?-h.a:0,c:h.a>0?h.a:0})})});
+  ev.sort((a,b)=>(a.at-b.at)||(a.o-b.o));
+  const X={d:L+1,t:L+24,deb:L+124,cr:L+152,sal:R-1};
   const head=()=>{doc.setFillColor(20,33,31);doc.rect(L,y-5,R-L,7.5,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
-    doc.text(k.date,X.d,y);doc.text(k.doc,X.doc,y);doc.text(k.amount,X.amt,y,{align:'right'});doc.text(k.paid,X.paid,y,{align:'right'});doc.text(k.open,X.open,y,{align:'right'});doc.text(k.status,X.st,y);doc.setTextColor(0);y+=8};
+    doc.text(k.date,X.d,y);doc.text(k2.text,X.t,y);doc.text(k2.debit+' EUR',X.deb,y,{align:'right'});doc.text(k2.credit+' EUR',X.cr,y,{align:'right'});doc.text(k2.saldo+' EUR',X.sal,y,{align:'right'});doc.setTextColor(0);y+=8};
   head();
-  const rows=g.orders.slice().sort((a,b)=>(a.at||0)-(b.at||0));
-  rows.forEach(l=>{if(y>262){doc.addPage();y=20;head()}const p=payOf(l);
-    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(dstr(l.at),X.d,y);doc.text(l.kind==='debt'?(k.old+(latin(l.note)?' - '+latin(l.note).slice(0,28):'')):'AP-'+stamp(l),X.doc,y);
-    doc.text(money(p.net),X.amt,y,{align:'right'});doc.text(money(p.paid),X.paid,y,{align:'right'});
-    doc.setFont('helvetica',p.open>0.004?'bold':'normal');doc.text(money(p.open),X.open,y,{align:'right'});
-    doc.setFont('helvetica','normal');if(p.status==='paid')doc.setTextColor(30,122,60);else if(p.status==='part')doc.setTextColor(154,91,0);else doc.setTextColor(179,38,30);
-    doc.text(k.st[p.status]||'',X.st,y);doc.setTextColor(0);
+  let bal=0,sd=0,sc=0;
+  ev.forEach(e=>{if(y>262){doc.addPage();y=20;head()}
+    bal=r2(bal+e.d-e.c);sd=r2(sd+e.d);sc=r2(sc+e.c);
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(dstr(e.at),X.d,y);
+    const tl=doc.splitTextToSize(e.txt,X.deb-X.t-22)[0]||'';doc.text(tl,X.t,y);
+    if(e.d>0.004)doc.text(eur(e.d),X.deb,y,{align:'right'});
+    if(e.c>0.004){doc.setTextColor(30,122,60);doc.text(eur(e.c),X.cr,y,{align:'right'});doc.setTextColor(0)}
+    doc.setFont('helvetica','bold');doc.text(eur(bal),X.sal,y,{align:'right'});doc.setFont('helvetica','normal');
     doc.setDrawColor(215);doc.line(L,y+2.5,R,y+2.5);y+=7});
-  if(y>240){doc.addPage();y=25}
+  if(y>235){doc.addPage();y=25}
   y+=2;doc.setDrawColor(0);doc.line(L,y-1,R,y-1);y+=5;
-  doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.text(k.sum,X.doc,y);doc.text(money(g.net),X.amt,y,{align:'right'});doc.text(money(g.paid),X.paid,y,{align:'right'});doc.text(money(g.open),X.open,y,{align:'right'});y+=10;
-  doc.setFillColor(g.open>0.004?253:230,g.open>0.004?236:244,g.open>0.004?234:234);doc.rect(R-80,y-6,80,10,'F');
-  doc.setFontSize(11);doc.setTextColor(g.open>0.004?179:30,g.open>0.004?38:122,g.open>0.004?30:60);doc.text(k.balance,R-77,y+0.5);doc.text(money(g.open),R-3,y+0.5,{align:'right'});doc.setTextColor(0);y+=12;
+  doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.text(k.sum,X.t,y);doc.text(eur(sd),X.deb,y,{align:'right'});doc.text(eur(sc),X.cr,y,{align:'right'});doc.text(eur(bal),X.sal,y,{align:'right'});y+=11;
+  const due=bal>0.004,cred=bal<-0.004;
+  doc.setFillColor(due?253:230,due?236:244,due?234:234);doc.rect(R-86,y-6,86,10,'F');
+  doc.setFontSize(11);doc.setTextColor(due?179:30,due?38:122,due?30:60);doc.text(cred?k2.credBal:k.balance,R-83,y+0.5);doc.text(eur(Math.abs(bal))+' EUR',R-3,y+0.5,{align:'right'});doc.setTextColor(0);y+=12;
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(90);doc.text(doc.splitTextToSize(k.foot,R-L),L,y);doc.setTextColor(0);
   return doc;
 }
