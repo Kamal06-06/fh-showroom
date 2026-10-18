@@ -810,7 +810,8 @@ function moneyInput(inp){inp.type='text';inp.inputMode='decimal';inp.lang='de';i
   inp.addEventListener('blur',()=>{const n=parseDE(inp.value);if(n>=0)inp.value=fmtDE(n)});return inp}
 function dateInput(inp,t){inp.type='text';inp.inputMode='numeric';inp.lang='de';inp.dir='ltr';inp.placeholder='TT.MM.JJJJ';inp.autocomplete='off';inp.style.textAlign='left';inp.value=t===null?'':dmy(t);
   inp.addEventListener('input',e=>{let v=latinDigits(inp.value).replace(/[^\d.]/g,'');
-    if(!(e.inputType||'').startsWith('delete')&&v.indexOf('.')<0){const d=v.replace(/\D/g,'');v=d.slice(0,2)+(d.length>2?'.'+d.slice(2,4):'')+(d.length>4?'.'+d.slice(4,8):'')}
+    const parts=v.split('.');
+    if(!(e.inputType||'').startsWith('delete')&&parts.every((x,i)=>i===parts.length-1||x.length===2)){const d=v.replace(/\D/g,'');v=d.slice(0,2)+(d.length>2?'.'+d.slice(2,4):'')+(d.length>4?'.'+d.slice(4,8):'')}
     inp.value=v.slice(0,10)});return inp}
 /* Datumsfeld mit Schnellwahl und Kalender (Kalender schreibt immer TT.MM.JJJJ zurück) */
 function dateField(box,label,t){const inp=field(box,label,dateInput(el('input'),t));const row=el('div','row');row.style.gap='6px';row.style.flexWrap='wrap';
@@ -841,8 +842,8 @@ function openDebtSheet(d,presetName){
     if(!d)g.append(el('p','hint','لتسجيل مبلغ قديم على العميل (من الدفتر أو واتساب) حتى يكون كل حسابه في مكان واحد. يظهر في «حسابات العملاء» وفي كشف الحساب باسم Saldovortrag.'));
     /* 1 · Kunde */
     const dlId='dl-cust-'+Date.now(),dl=el('datalist');dl.id=dlId;customers.slice().sort((a,b)=>String(a.name).localeCompare(b.name,'de')).forEach(c=>{const o=el('option');o.value=c.name;o.label=c.no||'';dl.append(o)});g.append(dl);
-    const nm=field(g,'① العميل *',el('input'),'ابحث بالاسم أو اكتب اسماً جديداً');nm.setAttribute('list',dlId);nm.autocomplete='off';nm.value=d?d.customer:(presetName||'');
-    const hint=el('div','code');g.append(hint);
+    const nm=field(g,'① العميل *',el('input'),'ابحث بالاسم أو اكتب اسماً جديداً');nm.type='text';nm.setAttribute('list',dlId);nm.autocomplete='off';nm.value=d?d.customer:(presetName||'');
+    const hint=el('div','note');hint.style.marginTop='-6px';g.append(hint);
     const sh=()=>{const v=nm.value.trim(),c=findCust(v);if(!v){hint.textContent='';return}
       if(!c){hint.textContent='➕ عميل جديد — سيُسجَّل تلقائياً برقم عميل جديد';return}
       const gg=custGroups().find(x=>x.key===(c.no||custKey(c.name)));hint.textContent='✓ '+c.name+(c.no?' · رقم العميل '+c.no:'')+(gg?' · المفتوح حالياً '+money(gg.open):' · لا يوجد عليه شيء حالياً')};
@@ -853,7 +854,7 @@ function openDebtSheet(d,presetName){
     /* 3 · Datum */
     const dt=dateField(g,'③ تاريخ الدين (بالألماني: يوم.شهر.سنة) *',d?d.at:Date.now());
     /* 4 · Notiz */
-    const nt=field(g,'④ ملاحظة (اختياري)',el('input'),'مثال: رصيد قديم من الدفتر حتى '+dmy(new Date(new Date().getFullYear(),new Date().getMonth(),0)));nt.value=d&&d.note||'';
+    const nt=field(g,'④ ملاحظة (اختياري)',el('input'),'مثال: رصيد قديم من الدفتر حتى '+dmy(new Date(new Date().getFullYear(),new Date().getMonth(),0)));nt.type='text';nt.value=d&&d.note||'';
     /* 5 · schon bezahlt? (nur bei neuem Eintrag) */
     let pState='open',pAm=null,pMet=null,pDt=null;
     if(!d){const box=el('div','card');box.style.padding='10px 12px';box.style.display='grid';box.style.gap='10px';
@@ -864,7 +865,7 @@ function openDebtSheet(d,presetName){
       opts.forEach(([v,t])=>{const x=el('button','btn small',t);x.type='button';x.onclick=()=>{pState=v;Object.keys(btns).forEach(k=>btns[k].classList.toggle('primary',k===v));pb.hidden=v!=='part';if(v==='part')pAm.focus();upd()};btns[v]=x;seg.append(x)});
       btns.open.classList.add('primary');box.append(seg,pb);
       pAm=moneyInput(field(pb,'المبلغ المدفوع (EUR)',el('input'),'0,00'));
-      pMet=field(pb,'طريقة الدفع',el('select'));[['Bar','💵 نقداً (Bar)'],['Überweisung','🏦 تحويل (Überweisung)'],['PayPal','PayPal'],['Karte','💳 بطاقة (Karte)']].forEach(([v,t])=>{const o=el('option',null,t);o.value=v;pMet.append(o)});
+      pMet=field(pb,'طريقة الدفع',el('select'));pMet.style.cssText='width:100%;font:inherit;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink)';[['Bar','💵 نقداً (Bar)'],['Überweisung','🏦 تحويل (Überweisung)'],['PayPal','PayPal'],['Karte','💳 بطاقة (Karte)']].forEach(([v,t])=>{const o=el('option',null,t);o.value=v;pMet.append(o)});
       pDt=dateField(pb,'تاريخ الدفع',Date.now());
       [pAm,pDt].forEach(x=>x.addEventListener('input',()=>upd()));pMet.onchange=upd;
       g.append(box)}
@@ -2702,7 +2703,7 @@ $('lg-scan-file').onchange=async e=>{
   }catch(err){lgStatus('تعذّرت قراءة الصورة: '+(err.message||err),true)}
 };
 function openFromUrl(){const c=window.SR_CODE;if(!c||!catalog.length)return;window.SR_CODE='';drawer(false);tab('lg');if(!lgHandleCode(c)){$('lg-q').value=c;lgSearch()}}
-try{window.__dbg={custGroups,statementPdf,payHist,openDebtSheet,openPaySheet,parseDE,parseDMY,latinDigits,nextPay,payOf}}catch(e){window.__dbgErr=String(e)}
+try{window.__dbg={custGroups,statementPdf,payHist,openDebtSheet,openPaySheet,parseDE,parseDMY,latinDigits,nextPay,payOf,debtLists}}catch(e){window.__dbgErr=String(e)}
 })();
 </script>
 
