@@ -1482,7 +1482,7 @@ function lieferscheinPdf(l,useOrig){
     doc.text(it.unit?qtxt(it):String(it.q||1),X.n,y);
     const has=!(it.price==null||it.price==='');
     const skL=!!(it.skAuto&&itRab(it));
-    doc.text(has?money(it.price):'-',X.ep,y,{align:'right'});doc.text(has?money(skL?r2((+it.price)*(+it.q||1)):lineTot(it)):'-',X.g-1,y,{align:'right'});
+    doc.text(has?money(skL?r2((+it.price)*(1-itRab(it)/100)):it.price):'-',X.ep,y,{align:'right'});doc.text(has?money(lineTot(it)):'-',X.g-1,y,{align:'right'});
     let yc=y+nm.length*4.2;
     if(itRab(it)&&!skL){doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(198,40,40);doc.text(tr.rab+' '+String(itRab(it)).replace('.',',')+' %',ax,yc);doc.setTextColor(0);doc.setFont('helvetica','normal');doc.setFontSize(9);yc+=3.9}
     if(!oil&&latin(it.size)){
@@ -1505,8 +1505,7 @@ function lieferscheinPdf(l,useOrig){
   const skG={};(l.items||[]).forEach(it=>{if(!(it.skAuto&&itRab(it))||it.price==null||it.price==='')return;const r=itRab(it),gross=r2((+it.price)*(+it.q||1)),d=r2(gross-lineTot(it));
     const k=String(r);(skG[k]=skG[k]||{r,sizes:[],sum:0,gross:0});const sz=latin(it.size)||'';if(sz&&!skG[k].sizes.includes(sz))skG[k].sizes.push(sz);skG[k].sum=r2(skG[k].sum+d);skG[k].gross=r2(skG[k].gross+gross)});
   const skList=Object.values(skG).sort((a,b)=>b.r-a.r),skSum=r2(skList.reduce((x,g)=>x+g.sum,0));
-  line(tr.sub,money(r2(t.sub+skSum)));
-  skList.forEach(g=>{const sz=g.sizes.sort((a,b)=>sizeG(a)-sizeG(b)).join(', ');line(tr.rab+' '+sz+' '+String(g.r).replace('.',',')+' %','- '+money(g.sum))});
+  line(tr.sub,money(t.sub));
   const rl=tr.rab+(t.oilOnly?' ('+tr.oils+')':'');
   if(t.r)line(rl+' '+String(t.r).replace('.',',')+' %','- '+money(t.pd));
   if(t.fix)line(rl,'- '+money(t.fix));
@@ -1516,6 +1515,9 @@ function lieferscheinPdf(l,useOrig){
   line(tr.net,money(t.net),true);
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(90);
   y=Math.max(y,yBox+2);
+  if(skList.length){const SKI={de:['Ihre Sonderkonditionen sind in den Preisen bereits enthalten','Ersparnis'],en:['Your special terms are already included in the prices','Savings'],nl:['Uw speciale voorwaarden zijn al in de prijzen verwerkt','Besparing'],fr:['Vos conditions spéciales sont déjà incluses dans les prix','Économie'],it:['Le sue condizioni speciali sono già incluse nei prezzi','Risparmio'],es:['Sus condiciones especiales ya están incluidas en los precios','Ahorro'],pl:['Specjalne warunki sa juz uwzglednione w cenach','Oszczednosc']}[LANG_OF(l.country)]||['Your special terms are already included in the prices','Savings'];
+    const txt=SKI[0]+': '+skList.map(g=>tr.rab+' '+g.sizes.sort((a,b)=>sizeG(a)-sizeG(b)).join(', ')+' '+String(g.r).replace('.',',')+' %').join(' · ')+' · '+SKI[1]+' '+money(skSum);
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(30,122,60);const sl=doc.splitTextToSize(txt,R-L);doc.text(sl,L,y+4);y+=sl.length*4.3+1;doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(90)}
   doc.text(tr.foot,L,y+4);
   if(t.missing)doc.text(tr.miss.replace('{n}',t.missing),L,y+8.5);
   doc.setTextColor(0);doc.setDrawColor(0);
