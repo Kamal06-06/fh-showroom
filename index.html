@@ -758,7 +758,7 @@ $('h-acc').onclick=()=>{drawer(false);tab('acc')};
 $('h-cash').onclick=()=>{drawer(false);tab('cash')};
 $('h-cust').onclick=()=>{drawer(false);tab('cust');$('cu-q').focus()};
 let focusCust=null,onlyDone=false;
-async function repriceOrder(l,on){const items=JSON.parse(JSON.stringify(l.items||[]));applyKg(items,on);await db.doc('lists/'+l.id).update({items,kg:!!on});l.items=items;l.kg=!!on;delete fileCache[orderKey(l)]}
+async function repriceOrder(l,on){const items=JSON.parse(JSON.stringify(l.items||[]));applyKg(items,on);if(items.some(i=>i.skAuto||i.skHint))applySK(items,skOf(l.customer));await db.doc('lists/'+l.id).update({items,kg:!!on});l.items=items;l.kg=!!on;delete fileCache[orderKey(l)]}
 function kgToggle(name,after){const c=findCust(name);const s=el('span','pay '+(c&&c.kg?'paid':'open'),'⚖️ سعر الكيلو: '+(c&&c.kg?'مفعّل':'لا'));s.title='تبديل تسعير الكيلو لهذا العميل';
   s.style.cursor='pointer';s.onclick=async e=>{e.stopPropagation();e.preventDefault();if(!c||!c.id){s.textContent='العميل غير مسجّل بعد';return}
     const nv=!c.kg;s.textContent='…';try{await db.doc('customers/'+c.id).update({kg:nv});c.kg=nv;
@@ -2376,7 +2376,11 @@ function buildCard(l,full){
     rr.append(rl,ri,sc,fl,fi,sl,si,el('span','total',money(t.net)+' netto'));dpb.append(rr);
     if(t.disc||t.ship)dpb.append(el('p','note','المجموع قبل الخصم '+money(t.sub)+(t.disc?' · الخصم −'+money(t.disc):'')+(t.ship?' · الشحن +'+money(t.ship):'')));
     const kgb=el('button','btn',l.kg?'⚖️ إلغاء سعر الكيلو (السعر العادي)':'⚖️ احتساب بسعر الكيلو');kgb.onclick=async()=>{kgb.disabled=true;kgb.textContent='…';try{await repriceOrder(l,!l.kg);renderLists()}catch(e){kgb.disabled=false;kgb.textContent='فشل: '+(e.message||e)}};
-    const kr=el('div','row grow');kr.append(kgb);dpb.append(kr);dp.append(dpb);c.append(dp);
+    const kr=el('div','row grow');kr.append(kgb);
+    {const cc=findCust(l.customer),sk=cc&&cc.sk&&cc.sk.on?cc.sk:null,has=(l.items||[]).some(i=>i.skAuto||i.skHint);
+     if(sk||has){const skb=el('button','btn',sk?'⭐ تطبيق خصم العميل الخاص على هذا الطلب':'⭐ إزالة خصم العميل الخاص');skb.onclick=async()=>{skb.disabled=true;skb.textContent='…';
+       try{const items=JSON.parse(JSON.stringify(l.items||[]));applySK(items,sk);await db.doc('lists/'+l.id).update({items});l.items=items;delete fileCache[orderKey(l)];renderLists()}catch(e){skb.disabled=false;skb.textContent='فشل: '+(e.message||e)}};kr.append(skb)}}
+    dpb.append(kr);dp.append(dpb);c.append(dp);
     /* more */
     const dm=el('details','od');dm.append(el('summary',null,'⋯ تعديل · حذف · العنوان'));const dmb=el('div','odb');
     acts.extra.forEach(x=>dmb.append(x));
