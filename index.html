@@ -784,11 +784,18 @@ function openCustSheet(c,after){
     const co=field(g,'الدولة',countrySel(c&&c.country));
     const nt=field(g,'ملاحظة (اختياري)',el('input'),'مثال: يدفع نقداً · صاحب محل في Essen');nt.value=c&&c.note||'';
     const kgl=el('label','clprow'),kg=el('input');kg.type='checkbox';kg.checked=!!(c&&c.kg);kgl.append(kg,' تسعير بالكيلو لهذا العميل');g.append(kgl);
+    const sk0=(c&&c.sk)||{on:false,small:25,kg:30,manualFrom:5};
+    const skl=el('label','clprow'),skc=el('input');skc.type='checkbox';skc.checked=!!sk0.on;skl.append(skc,' ⭐ خصم خاص على الزيوت لهذا العميل فقط');g.append(skl);
+    const skb=el('div');skb.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:8px';skb.hidden=!sk0.on;g.append(skb);
+    const skIn=(lbl,v)=>{const w=el('label');w.style.cssText='display:flex;flex-direction:column;gap:4px;font-size:13px';const i=el('input');i.type='text';i.inputMode='decimal';i.dir='ltr';i.value=String(v);w.append(el('span',null,lbl),i);skb.append(w);return i};
+    const skS=skIn('100–500 غ: خصم %',sk0.small),skK=skIn('1 كغ: خصم %',sk0.kg),skM=skIn('من كم كغ يدوي؟',sk0.manualFrom);
+    skc.onchange=()=>{skb.hidden=!skc.checked};
     const msg=el('div','status');msg.hidden=true;const sv=el('button','btn primary big',c?'حفظ التغييرات':'حفظ العميل');g.append(sv,msg);
     sv.onclick=async()=>{const name=nm.value.trim();msg.hidden=false;msg.classList.remove('err');
       if(!name){msg.textContent='اكتب اسم العميل.';msg.classList.add('err');nm.focus();return}
       const dup=findCust(name);if(dup&&(!c||dup.id!==c.id)){msg.textContent='يوجد عميل بهذا الاسم: '+dup.name+' ('+dup.no+')';msg.classList.add('err');return}
       const rec={name,phone:ph.value.trim(),email:em.value.trim(),street:st.value.trim(),city:ci.value.trim(),country:co.value,note:nt.value.trim(),kg:kg.checked};
+      {const n=x=>{const v=parseDE(x.value);return v>=0?v:0};rec.sk={on:skc.checked,small:Math.min(100,n(skS)),kg:Math.min(100,n(skK)),manualFrom:n(skM)||5}}
       sv.disabled=true;msg.textContent='جاري الحفظ…';
       try{let no;
         if(c&&c.id){await db.doc('customers/'+c.id).update(rec);Object.assign(c,rec);no=c.no}
@@ -1023,7 +1030,7 @@ function itemRow(it,ix){
   const pi=f('السعر €',el('input'));pi.type='number';pi.step='0.01';pi.min='0';pi.inputMode='decimal';pi.value=hasP?it.price:'';
   pi.onchange=()=>{it.price=pi.value===''?null:+pi.value;delete it.kg;saveDraft();renderItems()};
   const ri=f('خصم الصنف %',el('input'));ri.type='number';ri.step='0.5';ri.min='0';ri.max='100';ri.inputMode='decimal';ri.value=it.rab||'';
-  ri.onchange=()=>{it.rab=+ri.value||0;if(!it.rab)delete it.rab;saveDraft();renderItems()};
+  ri.onchange=()=>{it.rab=+ri.value||0;if(!it.rab)delete it.rab;it.skMan=1;delete it.skAuto;delete it.skHint;saveDraft();renderItems()};
   if(!it.sku&&!it.code){const us=f('الوحدة (Einheit)',el('select'));[['Stk','قطعة (Stück)'],['kg','كيلو (kg)']].forEach(([v,x])=>{const o=el('option',null,x);o.value=v;us.append(o)});us.value=it.unit||(isOil(it)?'kg':'Stk');
     us.onchange=()=>{it.unit=us.value;it.oil=us.value==='kg'?1:0;if(us.value==='Stk')it.q=Math.max(1,Math.round(+it.q||1));saveDraft();renderItems()}}
   if(!isOil(it)){const ni=f('ملاحظة (لون الغطاء، البخاخ…)',el('input','wide'));ni.type='text';ni.value=it.note||'';ni.oninput=()=>{it.note=ni.value;saveDraft()};ni.onchange=()=>renderItems()}
@@ -1047,8 +1054,10 @@ function labelTile(it,editable,ix){
     pi.onchange=()=>{it.price=pi.value===''?null:+pi.value;delete it.kg;saveDraft();renderItems()};
     w.append(pi,el('span',null,'EUR'));l.append(w);
     const wr=el('label','pr pe');const ri2=el('input');ri2.type='number';ri2.step='0.5';ri2.min='0';ri2.max='100';ri2.inputMode='decimal';ri2.id='ir-'+ix;ri2.value=it.rab||'';ri2.placeholder='خصم';ri2.setAttribute('aria-label','خصم الصنف %');
-    ri2.onchange=()=>{it.rab=+ri2.value||0;if(!it.rab)delete it.rab;saveDraft();renderItems()};wr.append(ri2,el('span',null,'% خصم'));l.append(wr);
+    ri2.onchange=()=>{it.rab=+ri2.value||0;if(!it.rab)delete it.rab;it.skMan=1;delete it.skAuto;delete it.skHint;saveDraft();renderItems()};wr.append(ri2,el('span',null,'% خصم'));l.append(wr);
   }else if(it.price!=null&&it.price!=='')l.append(el('div','pr',money(it.price)+(it.kg?' · kg':'')+(itRab(it)?' · −'+String(itRab(it)).replace('.',',')+' %':'')));
+  if(editable&&it.skAuto)l.append(el('div','lc','⭐ خصم العميل الخاص −'+itRab(it)+' %'));
+  if(editable&&it.skHint&&!it.rab)l.append(el('div','lc','⭐ 5 كغ أو أكثر من هذا الزيت — اكتب نسبة الخصم يدوياً'));
   if(editable&&it.kg)l.append(el('div','lc','سعر الكيلو'+(it.listPrice!=null?' (بدل '+money(it.listPrice)+')':'')));
   else if(editable&&draft.kg&&isOil(it)&&gramsOf(it.size)>=100&&kgPrice(it)==null)l.append(el('div','lc','لا سعر 1 كغ لهذه الجودة → السعر العادي'));
   if(!isOil(it))l.classList.add('nolab');
@@ -1098,7 +1107,9 @@ $('country').onchange=e=>{draft.country=e.target.value;saveDraft();showLang()}; 
 function showCust(){
   const c=findCust(draft.cust);$('cust-no').textContent=c?'· '+c.no:(draft.cust.trim()?'· عميل جديد':'');
   if(c&&c.kg&&!draft.kg&&!draft.kgOff){draft.kg=true;$('kgprice').checked=true;applyKg(draft.items,true);saveDraft();renderItems()}
-  $('kg-st').textContent=draft.kg?'· سعر الكيلو مفعّل':(c&&c.kg?'· محفوظ لهذا العميل':'')
+  $('kg-st').textContent=draft.kg?'· سعر الكيلو مفعّل':(c&&c.kg?'· محفوظ لهذا العميل':'');
+  {const sk=c&&c.sk&&c.sk.on?c.sk:null;$('cust-no').textContent+=sk?' · ⭐ '+skText(sk):'';
+   const had=draft.items.some(i=>i.skAuto||i.skHint);if((sk||had)&&draft.items.length){const b4=JSON.stringify(draft.items);applySK(draft.items,sk);if(JSON.stringify(draft.items)!==b4){saveDraft();renderItems()}}}
 }
 function suggest(){
   const box=$('cust-sug'),k=custKey($('cust').value);box.textContent='';
@@ -1140,6 +1151,7 @@ function addItem(o){
   saveDraft();renderItems();
 }
 function renderItems(){
+  {const sk=skOf(draft.cust);if(sk||draft.items.some(i=>i.skAuto||i.skHint)){const b4=JSON.stringify(draft.items);applySK(draft.items,sk);if(JSON.stringify(draft.items)!==b4)saveDraft()}}
   const box=$('items');box.textContent='';
   draft.items.forEach((it,ix)=>box.append(labelTile(it,true,ix)));
   $('empty').hidden=draft.items.length>0;
@@ -1321,6 +1333,17 @@ const gramsOf=s=>{const m=/^\s*(\d+(?:[.,]\d+)?)\s*g\b/i.exec(String(s||''));ret
 function kgPrice(it){const g=gramsOf(it.size);if(!isOil(it)||!(g>=100)||g>=1000)return null;const p=catalog.find(p=>p.t===it.t);if(!p)return null;
   const v=p.v.find(v=>{const a=(v[0]||'').split(' / ');return a.length>1&&a[a.length-1].trim()===it.tier&&/(^|[^0-9.,])1kg$/.test(nz(a[0]))});
   const kp=v?pnum(v[2]):null;return kp==null?null:Math.round(kp*g/1000*100)/100}
+/* Sonderkonditionen für einzelne Kunden (Kundenkarte → sk): Rabatt auf Duftöle je Größe; ab X kg pro Duftöl Rabatt manuell */
+const sizeG=s=>{const m=/(\d+(?:[.,]\d+)?)\s*(kg|g)\b/i.exec(String(s||''));if(!m)return 0;const n=+m[1].replace(',','.');return m[2].toLowerCase()==='kg'?n*1000:n};
+function skOf(name){const c=findCust(name);return c&&c.sk&&c.sk.on?c.sk:null}
+function skText(sk){return sk?'خصم خاص على الزيوت: 100–500 غ −'+sk.small+' % · 1 كغ −'+sk.kg+' % · من '+sk.manualFrom+' كغ للزيت الواحد يدوي':''}
+function applySK(items,sk){const kgOf=it=>it.unit==='kg'?(+it.q||1):sizeG(it.size)*(+it.q||1)/1000,grp={};
+  (items||[]).forEach(it=>{if(isOil(it))grp[it.t]=(grp[it.t]||0)+kgOf(it)});
+  (items||[]).forEach(it=>{if(!isOil(it)||it.skMan)return;let r=0,man=false;
+    if(sk){const g=it.unit==='kg'?1000:sizeG(it.size),tot=grp[it.t]||0;
+      if(tot>=(+sk.manualFrom||5)-1e-9)man=true;else if(g>=100&&g<=500)r=+sk.small||0;else if(g>=1000)r=+sk.kg||0}
+    if(man){if(it.skAuto){delete it.rab;delete it.skAuto}it.skHint=1}
+    else{delete it.skHint;if(r>0){it.rab=r;it.skAuto=1}else if(it.skAuto){delete it.rab;delete it.skAuto}}})}
 function applyKg(items,on){(items||[]).forEach(it=>{if(on){const kp=kgPrice(it);if(kp!=null){if(it.listPrice==null)it.listPrice=it.price;it.price=kp;it.kg=1}}else if(it.kg){it.price=it.listPrice!=null?it.listPrice:it.price;delete it.kg;delete it.listPrice}})}
 function options(p){
   if(!p.oil)return p.v.map(v=>({label:v[0],tier:'',size:v[0]||'',code:v[1]||'',sku:v[1]||'',price:pnum(v[2])}));
