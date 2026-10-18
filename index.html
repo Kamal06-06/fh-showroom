@@ -1481,9 +1481,10 @@ function lieferscheinPdf(l,useOrig){
     if(oil){doc.text(latin(it.tier)||'-',X.q,y);doc.text(latin(it.size)||'-',X.m,y)}
     doc.text(it.unit?qtxt(it):String(it.q||1),X.n,y);
     const has=!(it.price==null||it.price==='');
-    doc.text(has?money(it.price):'-',X.ep,y,{align:'right'});doc.text(has?money(lineTot(it)):'-',X.g-1,y,{align:'right'});
+    const skL=!!(it.skAuto&&itRab(it));
+    doc.text(has?money(it.price):'-',X.ep,y,{align:'right'});doc.text(has?money(skL?r2((+it.price)*(+it.q||1)):lineTot(it)):'-',X.g-1,y,{align:'right'});
     let yc=y+nm.length*4.2;
-    if(itRab(it)){doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(198,40,40);doc.text(tr.rab+' '+String(itRab(it)).replace('.',',')+' %',ax,yc);doc.setTextColor(0);doc.setFont('helvetica','normal');doc.setFontSize(9);yc+=3.9}
+    if(itRab(it)&&!skL){doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(198,40,40);doc.text(tr.rab+' '+String(itRab(it)).replace('.',',')+' %',ax,yc);doc.setTextColor(0);doc.setFont('helvetica','normal');doc.setFontSize(9);yc+=3.9}
     if(!oil&&latin(it.size)){
       doc.setFontSize(8.5);const vr=doc.splitTextToSize(latin(it.size).replace(/\s+/g,' '),aw).slice(0,2);
       vr.forEach((ln,k)=>doc.text(ln,ax,yc+k*3.8));yc+=vr.length*3.8;
@@ -1500,11 +1501,16 @@ function lieferscheinPdf(l,useOrig){
   if(y>240){doc.addPage();y=25}
   const t=totals(l);y+=3;const yBox=drawAmounts(doc,l,L,y,78);
   const line=(a,b,bold)=>{doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(bold?11:9.5);doc.text(a,R-62,y);doc.text(b,R-1,y,{align:'right'});y+=bold?7:5.5};
-  line(tr.sub,money(t.sub));
+  /* Sonderrabatt des Kunden: nicht in den Positionen, sondern unten je Größe (z. B. "Rabatt 1 kg 30 %") */
+  const skG={};(l.items||[]).forEach(it=>{if(!(it.skAuto&&itRab(it))||it.price==null||it.price==='')return;const r=itRab(it),gross=r2((+it.price)*(+it.q||1)),d=r2(gross-lineTot(it));
+    const k=String(r);(skG[k]=skG[k]||{r,sizes:[],sum:0,gross:0});const sz=latin(it.size)||'';if(sz&&!skG[k].sizes.includes(sz))skG[k].sizes.push(sz);skG[k].sum=r2(skG[k].sum+d);skG[k].gross=r2(skG[k].gross+gross)});
+  const skList=Object.values(skG).sort((a,b)=>b.r-a.r),skSum=r2(skList.reduce((x,g)=>x+g.sum,0));
+  line(tr.sub,money(r2(t.sub+skSum)));
+  skList.forEach(g=>{const sz=g.sizes.sort((a,b)=>sizeG(a)-sizeG(b)).join(', ');line(tr.rab+' '+sz+' '+String(g.r).replace('.',',')+' %','- '+money(g.sum))});
   const rl=tr.rab+(t.oilOnly?' ('+tr.oils+')':'');
   if(t.r)line(rl+' '+String(t.r).replace('.',',')+' %','- '+money(t.pd));
   if(t.fix)line(rl,'- '+money(t.fix));
-  if(!t.r&&!t.fix)line(tr.rab+' ____ %','____________');
+  if(!t.r&&!t.fix&&!skList.length)line(tr.rab+' ____ %','____________');
   if(t.ship)line(tr.ship,money(t.ship));
   doc.setDrawColor(0);doc.line(R-62,y-2.5,R,y-2.5);y+=2.5;
   line(tr.net,money(t.net),true);
