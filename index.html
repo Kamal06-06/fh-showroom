@@ -1225,7 +1225,10 @@ $('free-stk').onclick=()=>freeAdd('Stk');$('free-kg').onclick=()=>freeAdd('kg');
 const SIZE_RX=/(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)(?![a-z])/i,TIER_RX=/standard|premium|exklusiv|exclusive/i;
 function normSize(x){const m=SIZE_RX.exec(x||'');if(!m)return String(x||'').trim();const s=m[1]+' '+m[2].toLowerCase().replace(/^l$/,'L');return /probe|sample/i.test(x)?'Probe '+s:s}
 const normTier=x=>String(x||'').replace(/^[^A-Za-zÄÖÜäöü]+/,'').trim();
-function normVar(v){const a=String(v[0]||'').split(' / ').map(x=>x.trim()).filter(Boolean);if(a.length<2)return v;
+/* Proben pro Gramm (Shop seit 18.10.2026): im Showroom weiter als 6-g-Probe, Preis = 6 × Grammpreis */
+function gramProbe(v){if(!/pro\s*gramm/i.test(String(v[0]||'')))return v;const p=v[2]==null||v[2]===''?v[2]:(Number(v[2])*6).toFixed(2);
+  return [String(v[0]).replace(/Probe\s*pro\s*Gramm\s*(\([^)]*\))?/i,'Probe 6 g')].concat([v[1],p],v.slice(3))}
+function normVar(v){v=gramProbe(v);const a=String(v[0]||'').split(' / ').map(x=>x.trim()).filter(Boolean);if(a.length<2)return v;
   let si=a.findIndex(x=>SIZE_RX.test(x)&&!TIER_RX.test(x));if(si<0)si=0;
   const tier=a.filter((_,i)=>i!==si).map(normTier).join(' / ');return [normSize(a[si])+' / '+tier].concat(v.slice(1))}
 const fold=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’'`´]/g,'').replace(/ß/g,'ss').toLowerCase();
