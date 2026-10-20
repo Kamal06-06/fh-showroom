@@ -417,6 +417,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
 .ivlegend b{display:block;direction:ltr;font-size:18px;color:var(--gold)}
 .ivlegend span{display:block;font-size:12px}
 .ivlegend small{display:block;direction:ltr;font-size:11px;color:var(--muted)}
+.ipl{display:flex;gap:6px;align-items:center;margin-bottom:2px}.ipl b{font-size:15px;background:var(--gold-soft);border:1px solid var(--gold);border-radius:6px;padding:1px 7px;font-variant-numeric:tabular-nums}
 .ivtn{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ivcode{direction:ltr;text-align:start;font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .ivq{font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;color:#fff;background:#7a7f87}
@@ -477,6 +478,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
       <button class="btn primary" id="tab-new" hidden>+ طلب جديد</button>
       <button class="btn" id="tab-lg">📦 المخزون</button>
       <button class="btn" id="menu" aria-controls="drawer" aria-expanded="false">☰ الطلبات <span class="badge" id="open-count" hidden>0</span></button>
+ <span id="me-badge" hidden style="font-size:12px;color:var(--muted);align-self:center;white-space:nowrap"></span>
       <span id="syncdot" title="المزامنة" style="font-size:12px;color:var(--muted);align-self:center;white-space:nowrap"></span>
       <button class="btn small" id="tab-set" aria-label="الإعدادات" title="الإعدادات">⚙️</button>
     </div>
@@ -574,6 +576,9 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
         <label for="who">👤 اسم مستخدم هذا الجهاز (يُسجَّل مع القبض النقدي والمصروفات)</label><input type="text" id="who" autocomplete="off" placeholder="مثال: Ahmad" style="width:190px"><br>
         <label class="lbl"><input type="checkbox" id="snd" checked> 🔔 تنبيه صوتي عند وصول طلب جديد إلى المستودع</label> <button class="btn small" id="snd-test">تجربة الصوت</button>
       </div>
+      <div class="dim" id="users-sec" hidden>
+        <button class="btn" id="users-btn">👥 الموظفون ورموز الدخول · Mitarbeiter & PINs</button>
+      </div>
       <div class="dim" hidden>
         <label for="newpin">تغيير رمز الدخول (4–8 أرقام)</label><input type="password" id="newpin" inputmode="numeric" dir="ltr" autocomplete="new-password" style="width:150px">
         <button class="btn small" id="setpin">حفظ الرمز الجديد</button><span id="setpin-msg" class="code"></span>
@@ -588,7 +593,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
 
   <section id="view-lg" hidden dir="rtl" lang="ar">
     <div class="panel">
-      <div class="sec-title"><h2>📦 المخزون</h2><div class="row"><button class="btn small" id="lg-inv-open">📋 الجرد حسب الرفوف</button><button class="btn small" id="lg-low-btn">الأصناف الناقصة</button></div></div>
+      <div class="sec-title"><h2>📦 المخزون</h2><div class="row"><button class="btn small" id="lg-inv-open">📋 الجرد حسب الرفوف</button><button class="btn small" id="lg-low-btn">الأصناف الناقصة</button><button class="btn small" id="lg-order-btn">🧾 طلبية للمصنع · Bestellvorschlag</button><button class="btn small" id="lg-report-btn">📑 تقرير الجرد · Inventurliste</button></div></div>
       <div class="searchrow"><input type="search" id="lg-q" autocomplete="off" placeholder="ابحث أو امسح الباركود: الاسم، الاسم الأصلي، أو الكود" dir="auto" aria-label="بحث في المخزون"><button class="btn" id="lg-scan">مسح QR</button><label class="btn scanbtn" id="lg-scan-photo" for="lg-scan-file">📷 تصوير الكود<input type="file" id="lg-scan-file" accept="image/*" capture="environment"></label></div>
       <div id="lg-qr-row" class="row" hidden style="margin:6px 0"><button class="btn small" id="lg-qr-results">🏷️ ملصقات QR لهذه النتائج</button></div>
       <div class="results" id="lg-results"></div>
@@ -597,7 +602,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
           <div><div class="lbl">الكمية الحالية</div><div class="sum" id="lg-bestand">–</div><div class="note" id="lg-min"></div></div></div>
         <div class="row" style="margin-top:6px;align-items:center"><span class="lbl" style="margin:0">المكان في المستودع:</span><b id="lg-platz" style="direction:ltr">–</b><button class="btn small" id="lg-platz-btn">📍 تعيين / تغيير</button></div>
         <div class="row grow" style="margin-top:10px">
-          <div><label for="lg-ein">وصلت بضاعة (+) الكمية</label><input type="number" id="lg-ein" min="0" step="0.001" inputmode="decimal" placeholder="مثال: 5"><button class="btn primary" id="lg-ein-btn" style="margin-top:6px">تسجيل وارد</button></div>
+          <div><label for="lg-ein">وصلت بضاعة (+) الكمية · Wareneingang</label><input type="number" id="lg-ein" min="0" step="0.001" inputmode="decimal" placeholder="مثال: 5"><input type="text" id="lg-charge" autocomplete="off" dir="ltr" placeholder="رقم الدفعة · Charge / Lot" style="margin-top:6px"><button class="btn primary" id="lg-ein-btn" style="margin-top:6px">تسجيل وارد</button></div>
           <div><label for="lg-inv">جرد: الكمية الحقيقية الآن</label><input type="number" id="lg-inv" min="0" step="0.001" inputmode="decimal" placeholder="مثال: 3.25"><button class="btn" id="lg-inv-btn" style="margin-top:6px">تصحيح الجرد</button></div>
           <div><label for="lg-aus">صادر بدون طلب (−) الكمية</label><input type="number" id="lg-aus" min="0" step="0.001" inputmode="decimal" placeholder="مثال: 1"><button class="btn" id="lg-aus-btn" style="margin-top:6px">تسجيل صادر</button></div>
           <div><label for="lg-minv">الحد الأدنى للتنبيه</label><input type="number" id="lg-minv" min="0" step="0.1" inputmode="decimal"><button class="btn small" id="lg-min-btn" style="margin-top:6px">حفظ الحد</button></div>
@@ -697,6 +702,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
 const $=id=>document.getElementById(id);
 const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e};
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let ME=LS.get('me',{user:'',admin:false});
 const stem=sku=>{if(!sku)return'';const m=/^(.*?-SH)(?:-|$)/.exec(sku);return m?m[1]:sku};
 const SIZES=['6 g','100 g','250 g','500 g','1 kg','5 kg'];
 const SHEET='1dlZxa6K2XASqn0oRWImRM2YgM1x7wMM4mzH8DmNiD5A';
@@ -1301,7 +1307,7 @@ function handleCode(text){
 }
 $('q').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();if(handleCode($('q').value)){$('q').value='';search()}}};
 let camStream=null,camOn=false,scanMode='order';
-function camStop(){camOn=false;if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}$('cam').hidden=true}
+function camStop(){try{camMsg('')}catch(e){}camOn=false;if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}$('cam').hidden=true}
 $('cam-close').onclick=camStop;
 async function liveScan(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!(window.jsQR||('BarcodeDetector' in window)))return false;
@@ -1326,10 +1332,11 @@ async function liveScan(){
       }catch(e){}
       if(text&&(text!==last||Date.now()-lastAt>2500)){
         last=text;lastAt=Date.now();
+        if(scanMode==='pick'){pickHandle(text)}else{
         const ok=scanMode==='lg'?lgHandleCode(text):scanMode==='inv'?ivHandleCode(text):handleCode(text);
         if((scanMode==='lg'||scanMode==='inv')&&ok){camStop()}
         $('cam-msg').textContent=ok?(scanMode==='order'?$('cat-status').textContent:'تم'):'الكود «'+text+'» لا يطابق أي صنف';
-        if(navigator.vibrate)try{navigator.vibrate(ok?60:[40,60,40])}catch(e){}
+        if(navigator.vibrate)try{navigator.vibrate(ok?60:[40,60,40])}catch(e){}}
       }
     }
     setTimeout(tick,160);
@@ -2417,14 +2424,17 @@ function buildCard(l,full){
     const od=el('details','od');od.open=true;const sm=el('summary');const smt=el('span',null,'📦 قائمة التحضير ('+n+')');sm.append(smt);od.append(sm);
     const odb=el('div','odb');const chk=LS.get('chk-'+l.id,{});const prog=el('div','prog');
     const upd=()=>{const k=Object.keys(chk).filter(x=>chk[x]).length;prog.textContent=k?('جُهّز '+k+' من '+items.length+' سطر'):'';};
-    const ORD={standard:1,premium:2,exklusiv:3};const grp={};
-    items.forEach((i,ix)=>{const key=isOil(i)?(String(i.tier||'').trim()||'زيوت'):'فوارغ وإكسسوارات';(grp[key]=grp[key]||[]).push([i,ix])});
-    Object.keys(grp).sort((a,b)=>(ORD[a.toLowerCase()]||9)-(ORD[b.toLowerCase()]||9)||a.localeCompare(b)).forEach(k=>{
+    const OIL='🧭 الزيوت حسب مسار المستودع · Öle nach Laufweg',REST='فوارغ وإكسسوارات · Flakons & Zubehör',grp={};
+    items.forEach((i,ix)=>{const key=isOil(i)?OIL:REST;(grp[key]=grp[key]||[]).push([i,ix])});
+    if(!done&&grp[OIL]){const sb=el('button','btn primary','📷 تحضير بالمسح · Mit Scan prüfen');sb.onclick=()=>pickStart(l);odb.append(sb)}
+    [OIL,REST].filter(k=>grp[k]).forEach(k=>{
       odb.append(el('div','igrp',k+' · '+grp[k].reduce((s,x)=>s+qn(x[0]),0)));
-      grp[k].sort((a,b)=>String(a[0].t).localeCompare(String(b[0].t))).forEach(([i,ix])=>{
+      grp[k].sort((a,b)=>k===OIL?(ivSortKey(itPlatz(a[0])).localeCompare(ivSortKey(itPlatz(b[0])))||String(a[0].t).localeCompare(String(b[0].t))):String(a[0].t).localeCompare(String(b[0].t))).forEach(([i,ix])=>{
         const r=el('div','irow'+(chk[ix]?' ok':''));
         const cb=el('input');cb.type='checkbox';cb.checked=!!chk[ix];cb.title='تم تجهيزه';cb.onchange=()=>{chk[ix]=cb.checked;LS.set('chk-'+l.id,chk);r.classList.toggle('ok',cb.checked);upd()};
-        const q=el('div','iq',qtxt(i));const mid=el('div');mid.append(el('div','nm',i.t));if(i.code)mid.append(el('div','cd',i.code));
+        const q=el('div','iq',qtxt(i));const mid=el('div');
+        if(isOil(i)){const pl=itPlatz(i),tl=String(i.tier||'').trim();const tg=el('div','ipl');tg.append(el('b',null,pl||'—'));if(tl)tg.append(el('span','ivq '+tl.charAt(0).toUpperCase(),tl));mid.append(tg)}
+        mid.append(el('div','nm',i.t));if(i.code)mid.append(el('div','cd',i.code));
         if(!isOil(i)&&i.size)mid.append(el('div','cd',i.size));if(i.note)mid.append(el('div','nt','✎ '+i.note));
         const sz=el('div','isz',isOil(i)?(i.size||''):'');const pr=el('div','pr2',(i.price!=null&&i.price!=='')?money(i.price)+(itRab(i)?' −'+itRab(i)+'%':''):'');
         const left=el('div');left.style.display='flex';left.style.gap='6px';left.style.alignItems='center';left.append(cb,q);{const src=imgOf(i);if(src)mid.prepend(mkImg(src,'ithumb'))}
@@ -2617,6 +2627,7 @@ function start(){
   if(started)return;started=true;sndUnlock();try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission()}catch(e){}
   $('gate').hidden=true;
   db=makeDb();saveDraft();loadCatalog();
+  setTimeout(()=>{try{ivLoad(false).then(()=>{ivIndex();try{if(!$('omodal').hidden)renderOrderModal()}catch(e){}})}catch(e){}},2500);
   db.collection('customers').onSnapshot(snap=>{const all=snap.docs.map(d=>Object.assign({id:d.id},d.data()));customers=all.filter(c=>c&&c.name&&!c.kind);debts=all.filter(c=>c&&c.kind==='debt');showCust();
     if(!$('view-acc').hidden)renderAcc();if(!$('view-cust').hidden)renderCust();if(!$('view-wh').hidden&&focusCust)renderLists();if(!$('view-home').hidden)renderHome()});
   db.collection('lists').onSnapshot(snap=>{
@@ -2638,12 +2649,12 @@ if(!IN_GAS&&'serviceWorker' in navigator)window.addEventListener('load',()=>navi
 setTimeout(()=>{try{clpWarm()}catch(_){}},5000);
 async function tryPin(p,quiet){
   PIN=p;const m=$('pin-msg');
-  try{await srv('check');LS.set('pin',p);start()}
+  try{const v=await srv('check');LS.set('pin',p);setMe(v);start()}
   catch(e){PIN='';if(!quiet){m.hidden=false;m.classList.add('err');m.textContent=e.message==='PIN'?'رمز الدخول غير صحيح.':/Zu viele/.test(e.message)?'محاولات خاطئة كثيرة. انتظر 10 دقائق ثم حاول.':e.message}}
 }
 const pinDigits=s=>String(s||'').replace(/[\u0660-\u0669]/g,c=>c.charCodeAt(0)-0x660).replace(/[\u06F0-\u06F9]/g,c=>c.charCodeAt(0)-0x6F0).replace(/[^0-9]/g,'');
 $('gate-form').onsubmit=e=>{e.preventDefault();const p=pinDigits($('pin').value);if(p)tryPin(p,false);else{const m=$('pin-msg');m.hidden=false;m.classList.add('err');m.textContent='اكتب الرمز بالأرقام.'}};
-if(PIN){start();srv('check').catch(e=>{if(e.message==='PIN'){LS.set('pin','');location.reload()}})}
+if(PIN){start();srv('check').then(setMe).catch(e=>{if(e.message==='PIN'){LS.set('pin','');location.reload()}})}
 /* ---------- Lager / المخزون ---------- */
 let lgSel=null;
 const lgUnit=o=>o.oil?'kg':(/alkohol|alcohol|ethanol/i.test(o.t||'')?'L':'قطعة');
@@ -2692,13 +2703,13 @@ async function lgRefresh(){
     const b=await srv('lg_bew',lgSel.code,lgSel.tier,!!lgSel.oil);
     const box=$('lg-bew');box.textContent='';
     if(!b.length)box.append(el('p','hint','لا توجد حركات بعد.'));
-    b.forEach(x=>{const d=el('div','note',new Date(x.at).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})+' · '+x.quelle+(x.ref?' '+x.ref:'')+(x.kunde?' · '+x.kunde:'')+' · '+(x.menge>0?'+':'')+x.menge+' → '+x.danach+(x.notiz?' · '+x.notiz:''));box.append(d)});
+    b.forEach(x=>{const d=el('div','note',new Date(x.at).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})+' · '+x.quelle+(x.ref?' '+x.ref:'')+(x.kunde?' · '+x.kunde:'')+' · '+(x.menge>0?'+':'')+x.menge+' → '+x.danach+(x.notiz?' · '+x.notiz:'')+(x.user?' · 👤 '+x.user:''));box.append(d)});
   }catch(e){lgStatus('تعذّر قراءة المخزون: '+e.message,true)}
 }
 $('lg-ein-btn').onclick=async()=>{
   const m=+$('lg-ein').value;if(!lgSel||!(m>0))return lgStatus('اكتب الكمية الواردة.',true);
   $('lg-ein-btn').disabled=true;
-  try{const n=await srv('lg_ein',JSON.stringify({code:lgSel.code,tier:lgSel.tier,oil:!!lgSel.oil,menge:m,title:lgSel.t}));lgStatus('تم تسجيل الوارد. الرصيد الآن: '+n+' '+lgUnit(lgSel));$('lg-ein').value='';await lgRefresh()}
+  try{const n=await srv('lg_ein',JSON.stringify({code:lgSel.code,tier:lgSel.tier,oil:!!lgSel.oil,menge:m,title:lgSel.t,notiz:($('lg-charge').value.trim()?'Charge '+$('lg-charge').value.trim():'')}));lgStatus('تم تسجيل الوارد. الرصيد الآن: '+n+' '+lgUnit(lgSel));$('lg-ein').value='';$('lg-charge').value='';await lgRefresh()}
   catch(e){lgStatus('لم يُسجّل: '+e.message,true)}
   $('lg-ein-btn').disabled=false;
 };
@@ -2841,6 +2852,7 @@ function ivFiltered(){
     return true});
 }
 function ivRender(){
+  ivIndex();
   if($('view-inv').hidden&&!$('view-home').hidden){ivHomeCount();return}
   const tot=inv.items.length,done=inv.items.filter(ivDone).length;
   if(inv.start)ivSetProg(done,tot);else{$('iv-prog').textContent='لم يبدأ جرد بعد — اضغط «بدء جرد جديد»';$('iv-prog').append(el('span','de',' · Keine Inventur gestartet – «Neue Inventur starten» drücken'))}
@@ -2963,10 +2975,129 @@ $('iv-scan-file').onchange=async e=>{
 $('h-inv').onclick=()=>{drawer(false);tab('inv')};
 $('nv-inv').onclick=()=>$('h-inv').click();
 $('lg-inv-open').onclick=()=>tab('inv');
+$('lg-order-btn').onclick=orderProposal;$('lg-report-btn').onclick=e=>inventurReport(e.currentTarget);$('users-btn').onclick=usersOpen;setMe(ME);
 $('lg-platz-btn').onclick=()=>{if(!lgSel)return;const key=lgSel.oil?String(lgSel.code).toUpperCase()+'|'+lgTierLetter(lgSel.tier):String(lgSel.code).toUpperCase().replace(/-\d{4}$/,'');
   const x=inv.items.find(y=>y.key===key)||{key,code:lgSel.code,tier:lgSel.oil?lgSel.tier:'',oil:lgSel.oil?1:0,title:lgSel.t,unit:lgUnit(lgSel)==='قطعة'?'Stück':lgUnit(lgSel),platz:$('lg-platz').dataset.p||'',bestand:0};
   ivPlatzEdit(x,p=>{$('lg-platz').textContent=p||'–';$('lg-platz').dataset.p=p||''})};
-IDB.get('invplan').then(c=>{if(c&&c.items&&!inv.loaded){inv=Object.assign(c,{loaded:true});ivHomeCount()}});
+IDB.get('invplan').then(c=>{if(c&&c.items&&!inv.loaded){inv=Object.assign(c,{loaded:true});ivIndex();ivHomeCount()}});
+/* ---------- Lagerplatz-Index (für Kommissionierliste) ---------- */
+let ivByKey=new Map();
+function ivIndex(){ivByKey=new Map();(inv.items||[]).forEach(x=>ivByKey.set(x.key,x))}
+function itKey(i){if(!isOil(i))return '';const c=stem(String(i.code||i.sku||'')).toUpperCase();return c?c+'|'+String(i.tier||'S').trim().charAt(0).toUpperCase():''}
+function itPlatz(i){const x=ivByKey.get(itKey(i));return x&&x.platz||''}
+const ivSortKey=p=>{const m=/^([A-D])(\d{2})-(\d)-(\d)$/.exec(p||'');return m?m[1]+m[2]+m[3]+m[4]:'~'};
+
+/* ---------- Kommissionieren mit Scan (Prüfung der Qualität) ---------- */
+let pickId=null;
+function camMsg(t,kind){const m=$('cam-msg');m.textContent=t;m.style.background=kind==='ok'?'#1d6b3a':kind==='err'?'#a12c2c':kind==='warn'?'#a4560a':'';m.style.color=kind?'#fff':''}
+function pickStart(l){pickId=l.id;scanMode='pick';liveScan().then(ok=>{if(!ok)alert('الكاميرا غير متاحة · Kamera nicht verfügbar');else camMsg('امسح ملصق الرف لكل صنف · Regaletikett jedes Artikels scannen')})}
+function pickHandle(text){
+  const l=lists.find(x=>x.id===pickId);if(!l){camMsg('الطلب غير موجود · Auftrag nicht gefunden','err');return}
+  let t=String(text||'').trim();const m=/[?&#](?:code|sku)=([^&#]+)/i.exec(t);if(m)t=decodeURIComponent(m[1]);
+  const u=t.toUpperCase(),ts=/^(.*-SH)#([SPE])$/.exec(u);const code=ts?ts[1]:u,letter=ts?ts[2]:'';
+  const items=l.items||[],chk=LS.get('chk-'+l.id,{});
+  const same=items.map((it,ix)=>[it,ix]).filter(([it])=>isOil(it)&&stem(String(it.code||it.sku||'')).toUpperCase()===code);
+  const vib=p=>{try{if(navigator.vibrate)navigator.vibrate(p)}catch(e){}};
+  if(!same.length){camMsg('⛔ '+code+' — ليس في هذا الطلب · Nicht in diesem Auftrag','err');vib([80,60,80,60,80]);return}
+  const right=same.filter(([it])=>!letter||String(it.tier||'S').trim().charAt(0).toUpperCase()===letter);
+  if(!right.length){const need=[...new Set(same.map(([it])=>it.tier))].join(' / ');camMsg('⛔ جودة خطأ! المطلوب: '+need+' · Falsche Qualität! Benötigt: '+need,'err');vib([200,80,200]);return}
+  const open=right.filter(([,ix])=>!chk[ix]);
+  if(!open.length){camMsg('✓ تم مسحه من قبل · Bereits gescannt: '+right[0][0].t,'warn');vib(40);return}
+  const [it,ix]=open[0];chk[ix]=true;LS.set('chk-'+l.id,chk);vib(60);
+  const left=items.filter((x,i)=>isOil(x)&&!chk[i]).length;
+  camMsg('✓ '+it.t+' · '+(it.tier||'')+' · '+qtxt(it)+' — صحيح · korrekt'+(left?'  ('+left+' متبقٍ · offen)':''),'ok');
+  if(!$('omodal').hidden)try{renderOrderModal()}catch(e){}
+  if(!left)setTimeout(()=>{camMsg('✅ كل الزيوت جاهزة · Alle Öle bereit','ok');setTimeout(camStop,1600)},700);
+}
+
+/* ---------- Bestellvorschlag an das Werk ---------- */
+async function orderProposal(){
+  openSheet('🧾 طلبية للمصنع · Bestellvorschlag',async b=>{
+    const st=el('p','hint','جاري التحميل… · Wird geladen…');b.append(st);
+    let rows;try{rows=(await srv('lg_low')).filter(x=>x.unit==='kg'&&(+x.min||0)>0&&(+x.bestand||0)<(+x.min||0))}catch(e){st.textContent='تعذّر التحميل · Fehler: '+e.message;return}
+    st.textContent='الأصناف تحت الحد الأدنى · Unter Mindestbestand: '+rows.length+' — عدّل الكميات أو ألغِ التحديد · Mengen anpassen oder abwählen';
+    if(!rows.length)return;
+    rows.sort((a,c)=>String(a.code).localeCompare(String(c.code)));
+    const sel=rows.map(x=>({x,on:true,q:Math.max(1,Math.ceil(2*(+x.min)-Math.max(0,+x.bestand||0)))}));
+    const q=document.createElement('input');q.type='search';q.placeholder='بحث · Suche';q.dir='auto';
+    const all=el('button','btn small','تحديد / إلغاء الكل · Alle an/aus');
+    const list=el('div');list.style.maxHeight='50vh';list.style.overflow='auto';
+    const draw=()=>{list.textContent='';const f=fold(q.value);sel.forEach(s=>{if(f&&!fold(s.x.code+' '+s.x.title).includes(f))return;
+      const r=el('div','ivrow');r.style.gridTemplateColumns='auto 1fr auto';const cb=document.createElement('input');cb.type='checkbox';cb.checked=s.on;cb.onchange=()=>{s.on=cb.checked};
+      const inf=el('div','ivinfo');inf.append(el('div','ivname',s.x.code+' · '+(s.x.tier||'')),el('div','ivtn','الرصيد / Bestand '+ivFmt(s.x.bestand,'kg')+' · الحد / Min '+ivFmt(s.x.min,'kg')));
+      const i=document.createElement('input');i.type='number';i.min=0;i.step=1;i.value=s.q;i.style.width='80px';i.oninput=()=>{s.q=+i.value||0};
+      const w=el('div','ivin');w.append(i,el('span','u','kg'));r.append(cb,inf,w);list.append(r)})};
+    q.oninput=draw;all.onclick=()=>{const on=!sel.every(s=>s.on);sel.forEach(s=>s.on=on);draw()};
+    const go=el('button','btn primary big','📄 PDF للمصنع · PDF für das Werk');
+    go.onclick=()=>{const pick=sel.filter(s=>s.on&&s.q>0);if(!pick.length)return;
+      const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'}),W=210;let y=18;
+      doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('Bestellung / Purchase Order',14,y);y+=7;
+      doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text('Fragrance Hub Germany · Am Alten Kirchplatz 10 · 45665 Recklinghausen',14,y);y+=5;
+      doc.text('An / To: Aromabelle   ·   Datum / Date: '+new Date().toLocaleDateString('de-DE'),14,y);y+=5;
+      doc.text('Alle Öle in Alu-Flaschen 1 kg · All oils in 1 kg aluminium bottles',14,y);y+=8;
+      const hd=()=>{doc.setFont('helvetica','bold');doc.setFillColor(26,23,20);doc.setTextColor(255);doc.rect(14,y-5,W-28,7,'F');doc.text('Pos.',16,y);doc.text('Code',30,y);doc.text('Qualität / Quality',110,y);doc.text('Menge / Qty',W-16,y,{align:'right'});doc.setTextColor(0);doc.setFont('helvetica','normal');y+=7};
+      hd();let tot=0;pick.forEach((s,i)=>{if(y>280){doc.addPage();y=18;hd()}if(i%2){doc.setFillColor(243,239,230);doc.rect(14,y-4.6,W-28,6.4,'F')}
+        doc.text(String(i+1),16,y);doc.text(latin(s.x.code),30,y);doc.text(latin(s.x.tier||''),110,y);doc.text(s.q+' kg',W-16,y,{align:'right'});tot+=s.q;y+=6.4});
+      y+=3;doc.setFont('helvetica','bold');doc.text('Summe / Total: '+pick.length+' Pos. · '+tot+' kg',W-16,y,{align:'right'});
+      qrOut(doc,'Bestellung-Aromabelle-'+new Date().toISOString().slice(0,10)+'.pdf')};
+    b.append(q,all,list,go);draw();
+  });
+}
+
+/* ---------- Inventurliste (Stichtag) ---------- */
+async function inventurReport(btn){
+  const o=btn.textContent;btn.disabled=true;btn.textContent='… جاري التجهيز · wird erstellt';
+  try{
+    const r=await srv('lg_report');const rows=r.items.filter(x=>(+x.bestand||0)!==0);
+    const at=new Date(r.at),ds=at.toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'});
+    const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'landscape'}),W=297;let y=16,page=1;
+    const sum={kg:0,L:0,'Stück':0},val={sum:0,n:0,miss:0};
+    const head=()=>{doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('Inventurliste zum Stichtag '+ds,14,y);doc.setFontSize(9);doc.setFont('helvetica','normal');
+      doc.text('Fragrance Hub Germany · Am Alten Kirchplatz 10 · 45665 Recklinghausen · erstellt von: '+latin(r.user||'')+' · Seite '+page,14,y+5);y+=12;
+      doc.setFont('helvetica','bold');doc.setFillColor(26,23,20);doc.setTextColor(255);doc.rect(14,y-5,W-28,7,'F');
+      [['Fach',16],['Code',38],['Qualität',90],['Bezeichnung',115]].forEach(([t,x])=>doc.text(t,x,y));
+      doc.text('Menge',212,y,{align:'right'});doc.text('Einh.',216,y);doc.text('EK netto',252,y,{align:'right'});doc.text('Wert netto',W-16,y,{align:'right'});doc.setTextColor(0);doc.setFont('helvetica','normal');y+=6.5};
+    head();
+    rows.forEach((x,i)=>{if(y>196){doc.addPage();page++;y=16;head()}
+      if(i%2){doc.setFillColor(243,239,230);doc.rect(14,y-4.4,W-28,6,'F')}
+      const u=x.unit||'',v=x.ek!=null?(+x.bestand)*(+x.ek):null;sum[u]=(sum[u]||0)+(+x.bestand);if(v!=null){val.sum+=v;val.n++}else val.miss++;
+      doc.text(x.platz||'-',16,y);doc.text(latin(x.code).slice(0,30),38,y);doc.text(latin(x.tier||''),90,y);
+      let nm=latin(x.orig||x.title||'');while(nm.length>3&&doc.getTextWidth(nm)>90)nm=nm.slice(0,-2);doc.text(nm,115,y);
+      doc.text(numDE(x.bestand),212,y,{align:'right'});doc.text(u==='Stück'?'Stk':u,216,y);
+      doc.text(x.ek!=null?money(x.ek).replace(' EUR',''):'-',252,y,{align:'right'});doc.text(v!=null?money(v).replace(' EUR',''):'-',W-16,y,{align:'right'});y+=6});
+    if(y>180){doc.addPage();page++;y=20}
+    y+=4;doc.setFont('helvetica','bold');doc.setFontSize(10);
+    doc.text('Summen: '+rows.length+' Positionen · Öle '+numDE(sum.kg)+' kg · Alkohol '+numDE(sum.L||0)+' L · Flakons/Zubehör '+numDE(sum['Stück']||0)+' Stk',14,y);y+=6;
+    doc.text('Warenwert netto (EK): '+money(val.sum)+(val.miss?'   ('+val.miss+' Positionen ohne EK – Blatt "Liste", Spalte F)':''),14,y);y+=14;
+    doc.setFont('helvetica','normal');doc.text('Gezählt / geprüft: ______________________      Datum: ____________      Unterschrift: ______________________',14,y);
+    qrOut(doc,'Inventurliste-'+at.toISOString().slice(0,10)+'.pdf');
+    const csv=['Fach;Code;Qualität;Bezeichnung;Menge;Einheit;EK netto;Wert netto'].concat(rows.map(x=>[x.platz,x.code,x.tier,(x.orig||x.title||'').replace(/;/g,','),String(x.bestand).replace('.',','),x.unit,x.ek!=null?String(x.ek).replace('.',','):'',x.ek!=null?((+x.bestand)*(+x.ek)).toFixed(2).replace('.',','):''].join(';'))).join('\r\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'}));a.download='Inventurliste-'+at.toISOString().slice(0,10)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  }catch(e){alert('تعذّر إنشاء التقرير · Bericht fehlgeschlagen: '+e.message)}
+  btn.disabled=false;btn.textContent=o;
+}
+
+/* ---------- Mitarbeiter (nur Inhaber) ---------- */
+function setMe(v){if(v&&typeof v==='object'){ME={user:v.user||'',admin:!!v.admin};LS.set('me',ME);
+  if(!ME.admin&&ME.user){const w=$('who');if(w){w.value=ME.user;w.readOnly=true;try{w.dispatchEvent(new Event('input'))}catch(e){}}}
+  const u=$('me-badge');if(u){u.textContent=ME.user?'👤 '+ME.user:'';u.hidden=!ME.user}const sec=$('users-sec');if(sec)sec.hidden=!ME.admin}}
+async function usersOpen(){
+  openSheet('👥 الموظفون · Mitarbeiter',async b=>{
+    b.append(el('p','hint','لكل موظف رمز دخول خاص (4–8 أرقام). كل جرد ووارد وصادر وتغيير مكان يُسجَّل باسمه.'),el('p','hint de','Jeder Mitarbeiter bekommt einen eigenen PIN (4–8 Ziffern). Jede Zählung, Buchung und Fachänderung wird mit seinem Namen gespeichert.'));
+    const msg=el('div','status');msg.hidden=true;const box=el('div');b.append(box);
+    let list=[];try{list=await srv('users_get')||[]}catch(e){msg.hidden=false;msg.textContent=e.message;b.append(msg);return}
+    const draw=()=>{box.textContent='';list.forEach((u,i)=>{const r=el('div','row');r.style.alignItems='center';
+      const n=document.createElement('input');n.value=u.name||'';n.placeholder='الاسم · Name';n.style.width='150px';n.oninput=()=>u.name=n.value;
+      const p=document.createElement('input');p.value=u.pin||'';p.placeholder='PIN';p.inputMode='numeric';p.dir='ltr';p.style.width='100px';p.oninput=()=>u.pin=p.value;
+      const on=el('label','lbl');const c=document.createElement('input');c.type='checkbox';c.checked=u.on!==false;c.onchange=()=>u.on=c.checked;on.append(c,' فعّال · aktiv');
+      const d=el('button','btn small danger','حذف · Löschen');d.onclick=()=>{list.splice(i,1);draw()};r.append(n,p,on,d);box.append(r)})};
+    draw();
+    const add=el('button','btn','➕ موظف جديد · Neuer Mitarbeiter');add.onclick=()=>{list.push({name:'',pin:String(Math.floor(1000+Math.random()*9000)),on:true});draw()};
+    const save=el('button','btn primary','حفظ · Speichern');save.onclick=async()=>{save.disabled=true;msg.hidden=false;msg.classList.remove('err');msg.textContent='…';
+      try{list=await srv('users_set',JSON.stringify(list));draw();msg.textContent='تم الحفظ ✅ · Gespeichert'}catch(e){msg.classList.add('err');msg.textContent=e.message}save.disabled=false};
+    const br=el('div','row');br.append(add,save);b.append(br,msg);
+  });
+}
 function openFromUrl(){const c=window.SR_CODE;if(!c||!catalog.length)return;window.SR_CODE='';drawer(false);tab('lg');if(!lgHandleCode(c)){$('lg-q').value=c;lgSearch()}}
 })();
 </script>
