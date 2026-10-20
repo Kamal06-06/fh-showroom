@@ -614,7 +614,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
         <button class="btn small" id="iv-new">بدء جرد جديد</button>
       </div>
       <input type="search" id="iv-q" autocomplete="off" placeholder="بحث بالكود أو الاسم أو المكان (مثل A03-4)" dir="auto" aria-label="بحث في قائمة الجرد">
-      <div class="ivstands" id="iv-stands" role="tablist" aria-label="الستاندات"></div>
+      <div class="ivstands" id="iv-stands" role="tablist" aria-label="الرفوف"></div>
       <div id="iv-status" class="status" hidden></div>
       <div id="iv-list"></div>
       <p class="hint">اكتب الوزن الصافي واضغط Enter أو ✓ — ينتقل المؤشر تلقائياً للصنف التالي. اضغط على المكان لتغييره.</p>
@@ -2892,7 +2892,7 @@ function ivProgOnly(){
 }
 function ivPlatzEdit(x,after){
   openSheet('المكان: '+x.code+(x.tier?' · '+x.tier:''),b=>{
-    b.append(el('p','hint','الصيغة: الصف والستاند ثم الطابق ثم الخانة، مثل A03-4-2 (الطابق 1 = الأسفل، الخانة 1 = اليسار). اتركه فارغاً لإزالة المكان.'));
+    b.append(el('p','hint','الصيغة: الصف والرف ثم الطابق ثم المكان، مثل A03-4-2 = الصف A · الرف 3 · الطابق 4 · المكان 2 (الطابق 1 = الأسفل، المكان 1 = اليسار). اتركه فارغاً لإزالة المكان.'));
     const i=document.createElement('input');i.type='text';i.value=x.platz||'';i.placeholder='A01-1-1';i.dir='ltr';i.autocapitalize='characters';i.style.fontSize='20px';i.style.textAlign='center';
     const msg=el('div','status');msg.hidden=true;
     const ok=el('button','btn primary big','حفظ المكان');
