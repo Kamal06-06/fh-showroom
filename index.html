@@ -1312,7 +1312,7 @@ function search(){
     opts.forEach(o=>{
       const b=el('button','chip',(o.label||'إضافة')+(o.price!=null?' · '+money(o.price):''));
       if(o.off){b.disabled=true;b.textContent=o.label+' · لا يوجد '+size}
-      b.onclick=()=>{addItem({t:p.t,a:p.a||'',oil:p.oil?1:0,tier:o.tier,code:o.code,size:o.size,sku:o.sku,price:o.price});$('q').value='';search();$('q').focus()};c.append(b)});
+      b.onclick=()=>{addItem(Object.assign({t:p.t,a:p.a||'',oil:p.oil?1:0,tier:o.tier,code:o.code,size:o.size,sku:o.sku,price:o.price},o.src?{vk:o.vk,src:o.src}:{}));$('q').value='';search();$('q').focus()};c.append(b)});
     r.append(info,c);box.append(r);
   });
   listOnlyBlock(box,extra,x=>{const pr=listVk(x,size);const b=el('button','chip','إضافة '+size+' · '+(x.tier||'Standard')+(pr!=null?' · '+money(pr):''));
@@ -1457,6 +1457,9 @@ function options(p){
     const any=p.v.find(v=>(v[0]||'').split(' / ').pop().trim()===t);
     const hit=p.v.find(v=>{const a=(v[0]||'').split(' / ');return a.length>1&&a[a.length-1].trim()===t&&nz(a[0]).endsWith(nz(size))});
     const src=hit||any;
+    if(!hit){/* Größe fehlt im Shop → Preis aus der B2B-Liste (Shop-Preise bleiben unverändert) */
+      const code=stem(src[1]),x=(typeof ivByKey!=='undefined')&&ivByKey.get(String(code).toUpperCase()+'|'+String(t||'S').trim().charAt(0).toUpperCase());
+      const lp=x?listVk(x,size):null;if(lp!=null)return {label:t,tier:t,size,code,sku:'',price:lp,off:false,vk:x.vk,src:'liste'};}
     return {label:t,tier:t,size,code:stem(src[1]),sku:hit?hit[1]:'',price:hit?pnum(hit[2]):null,off:!hit};
   });
 }
