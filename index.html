@@ -426,7 +426,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
 .ivin input{width:104px;min-height:44px;font-size:17px;text-align:center;direction:ltr}
 .ivin .u{font-size:12px;color:var(--muted);min-width:22px}
 .ivok{min-width:46px;min-height:44px}
-.ivdone{color:var(--ok);font-weight:700;font-size:13px;direction:ltr}
+.ivdone{color:var(--ok);font-weight:700;font-size:13px;direction:ltr}.ivdone.pend{color:#a4560a}
 .ivdiff{font-size:12px;color:var(--warn)}
 @media (max-width:560px){.ivrow{grid-template-columns:auto 1fr}.ivin{grid-column:1/-1;justify-content:flex-end}}
 
@@ -647,7 +647,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
       </div>
       <input type="search" id="iv-q" autocomplete="off" placeholder="بحث: كود، اسم أو مكان · Suche: Code, Name oder Fach (z. B. A03-4)" dir="auto" aria-label="بحث · Suche">
       <div class="ivstands" id="iv-stands" role="tablist" aria-label="الرفوف · Regale"></div>
-      <div id="iv-status" class="status" hidden></div>
+      <div id="iv-status" class="status" hidden></div><div id="iv-sync" hidden style="font-size:12.5px;color:#a4560a;font-weight:700;margin:4px 2px"></div>
       <div id="iv-list"></div>
       <p class="hint">اكتب الوزن الصافي واضغط Enter أو ✓ — ينتقل المؤشر تلقائياً للصنف التالي. اضغط على المكان لتغييره.<br><span class="de">Nettogewicht eingeben und Enter oder ✓ drücken – der Cursor springt automatisch zum nächsten Artikel. Auf das Fach tippen, um es zu ändern.</span></p>
     </div>
@@ -2875,7 +2875,7 @@ async function ivLoad(force){
   if(!force&&inv.loaded&&Date.now()-inv.at<60000)return;
   if(!inv.loaded){const c=await IDB.get('invplan');if(c&&c.items){inv=Object.assign(c,{loaded:true});ivRender()}}
   ivStatus(inv.loaded?'':'جاري تحميل قائمة الجرد… · Zählliste wird geladen…');
-  try{const r=await srv('lg_plan');inv={start:r.start||0,items:r.items||[],at:Date.now(),loaded:true};IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});ivStatus('')}
+  try{const r=await srv('lg_plan');inv={start:r.start||0,items:r.items||[],at:Date.now(),loaded:true};ivQApply();IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});ivStatus('')}
   catch(e){ivStatus('تعذّر تحميل القائمة · Laden fehlgeschlagen: '+e.message+(inv.loaded?' — آخر نسخة محفوظة · letzte gespeicherte Version':''),true)}
   ivRender();
 }
@@ -2924,7 +2924,8 @@ function ivRow(x){
   const info=el('div','ivinfo');info.append(el('div','ivname',x.orig||x.title||x.code));if(x.orig&&x.title&&x.title!==x.orig)info.append(el('div','ivtn',x.title));
   const c=el('div','ivcode');c.append(el('span',null,x.code));if(x.tier)c.append(el('span','ivq '+ivLetter(x.tier),x.tier));
   c.append(el('span',null,'· الرصيد / Bestand '+ivFmt(x.bestand,x.unit)));info.append(c);
-  if(ivDone(x)){const d=el('div');d.append(el('span','ivdone','✓ '+ivFmt(x.gezMenge,x.unit)));if(x.vorher!=null&&Math.abs(x.vorher-x.gezMenge)>0.0005)d.append(el('span','ivdiff',' (كان / vorher '+ivFmt(x.vorher)+')'));
+  if(x.err&&!ivDone(x))info.append(el('div','ivdiff','⚠️ لم يُحفظ · nicht gespeichert: '+x.err));
+  if(ivDone(x)){const d=el('div');d.append(el('span','ivdone'+(x.pending?' pend':''),(x.pending?'⏳ ':'✓ ')+ivFmt(x.gezMenge,x.unit)));if(x.vorher!=null&&Math.abs(x.vorher-x.gezMenge)>0.0005)d.append(el('span','ivdiff',' (كان / vorher '+ivFmt(x.vorher)+')'));
     const ub=el('button','btn small ivundo','↺ إلغاء العدّ · Zählung zurücksetzen');ub.style.cssText='margin-inline-start:8px;padding:2px 8px;font-size:11.5px;min-height:0';ub.onclick=()=>ivReset(x,ub);d.append(ub);info.append(d)}
   const w=el('div','ivin'),inp=document.createElement('input');inp.type='text';inp.inputMode='decimal';inp.autocomplete='off';inp.placeholder=x.unit==='kg'?'0,000':'0';inp.setAttribute('aria-label','الكمية المعدودة · Gezählte Menge '+x.code+' '+(x.tier||''));
   const ok=el('button','btn primary ivok','✓');ok.setAttribute('aria-label','حفظ · Speichern');
@@ -2933,6 +2934,7 @@ function ivRow(x){
   r.append(a,info,w);return r;
 }
 async function ivReset(x,btn){
+  if(x.pending){ivStatus('انتظر ثانية حتى يُحفظ العدّ · Bitte kurz warten, Zählung wird gespeichert',true);ivFlush();return}
   if(!confirm('إلغاء عدّ هذا الصنف؟ يرجع الرصيد كما كان قبل الجرد ويعود الصنف «غير معدود».\nZählung zurücksetzen? Der Bestand wird wie vor der Zählung, der Artikel gilt wieder als nicht gezählt.\n\n'+(x.orig||x.title||x.code)+' · '+x.code+(x.tier?' · '+x.tier:'')))return;
   btn.disabled=true;
   try{const n=await srv('lg_zreset',JSON.stringify({code:x.code,tier:x.tier,oil:!!x.oil}));
@@ -2946,26 +2948,56 @@ async function ivSave(x,inp,btn){
   if(isNaN(v)||v<0){inp.focus();ivStatus('اكتب الكمية بالأرقام (مثال 2,350) · Menge als Zahl eingeben (z. B. 2,350)',true);return}
   if(!inv.start){ivStatus('ابدأ جرداً جديداً أولاً · Zuerst «Neue Inventur starten» drücken',true);return}
   if(x.unit==='kg'&&v>200&&!confirm(v+' kg?\nتأكد أنك كتبت الوزن بالكيلو (2,350 وليس 2350).\nBitte Gewicht in kg prüfen (2,350 statt 2350).'))return;
-  btn.disabled=true;inp.disabled=true;
-  try{
-    const vorher=x.bestand;
-    const n=await srv('lg_zaehl',JSON.stringify({code:x.code,tier:x.tier,oil:!!x.oil,ist:v,title:x.title}));
-    x.vorher=vorher;x.bestand=+n;x.gez=Date.now();x.gezMenge=+n;IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});
-    ivStatus('');try{if(navigator.vibrate)navigator.vibrate(30)}catch(e){}
-    const row=inp.closest('.ivrow'),next=row&&row.nextElementSibling;
-    const nr=ivRow(x);if(row)row.replaceWith(nr);
-    ivProgOnly();
-    let n2=nr.nextElementSibling;while(n2&&!(n2.classList.contains('ivrow')&&!n2.classList.contains('done')))n2=n2.nextElementSibling;
-    const ni=n2&&n2.querySelector('input');if(ni){ni.focus();try{n2.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}}
-    else if(ivStand!=='*'){/* Regal fertig → automatisch zum nächsten Regal mit offenen Artikeln */
-      const st=ivStands(),i=st.findIndex(([s])=>s===ivStand);
-      const nx=st.slice(i+1).concat(st.slice(0,Math.max(0,i))).find(([s,o])=>o.d<o.n);
-      if(nx){ivStand=nx[0];ivStatus('✓ انتقل إلى · weiter zu: '+(ivStand==='—'?'بدون مكان · ohne Fach':ivStand));setTimeout(()=>ivStatus(''),3000);ivRender();
-        setTimeout(()=>{const r=document.querySelector('#iv-list .ivrow:not(.done) input');if(r){r.focus();try{r.closest('.ivrow').scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}}},150)}
-      else setTimeout(ivRender,400)}
-    else if($('iv-show').value==='open')setTimeout(ivRender,400);
-  }catch(e){btn.disabled=false;inp.disabled=false;ivStatus('لم يُحفظ · Nicht gespeichert: '+e.message,true)}
+  /* sofort anzeigen + weiter; Speichern läuft im Hintergrund (Warteschlange, auch offline) */
+  if(!x.pending)x.vorher=x.bestand;
+  x.bestand=v;x.gez=Date.now();x.gezMenge=v;x.pending=true;x.err='';
+  ivQ.push({key:x.key,code:x.code,tier:x.tier,oil:!!x.oil,ist:v,title:x.title,start:inv.start});ivQSave();
+  IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});
+  try{if(navigator.vibrate)navigator.vibrate(30)}catch(e){}
+  const row=inp.closest('.ivrow');const nr=ivRow(x);if(row)row.replaceWith(nr);
+  ivProgOnly();
+  let n2=nr.nextElementSibling;while(n2&&!(n2.classList.contains('ivrow')&&!n2.classList.contains('done')))n2=n2.nextElementSibling;
+  const ni=n2&&n2.querySelector('input');if(ni){ni.focus();try{n2.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}}
+  else if(ivStand!=='*'){/* Regal fertig → automatisch zum nächsten Regal mit offenen Artikeln */
+    const st=ivStands(),i=st.findIndex(([s])=>s===ivStand);
+    const nx=st.slice(i+1).concat(st.slice(0,Math.max(0,i))).find(([s,o])=>o.d<o.n);
+    if(nx){ivStand=nx[0];ivStatus('✓ انتقل إلى · weiter zu: '+(ivStand==='—'?'بدون مكان · ohne Fach':ivStand));setTimeout(()=>ivStatus(''),3000);ivRender();
+      setTimeout(()=>{const r=document.querySelector('#iv-list .ivrow:not(.done) input');if(r){r.focus();try{r.closest('.ivrow').scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}}},150)}}
+  ivFlush();
 }
+/* ---------- Warteschlange der Zählungen (schnell, offline-fest) ---------- */
+let ivQ=LS.get('ivq',[]),ivQBusy=false,ivQTimer=null;
+function ivQSave(){LS.set('ivq',ivQ);ivQBadge()}
+function ivQBadge(){const n=ivQ.length,b=$('iv-sync');if(!b)return;b.hidden=!n;b.textContent=n?'⏳ '+n+' بانتظار الحفظ · '+n+' werden gespeichert':''}
+function ivQApply(){/* noch nicht gespeicherte Zählungen über die Serverliste legen */
+  if(!ivQ.length)return;const m=new Map(inv.items.map(x=>[x.key,x]));
+  ivQ.forEach(q=>{if(q.start!==inv.start)return;const x=m.get(q.key);if(!x)return;if(!x.pending)x.vorher=x.bestand;x.bestand=q.ist;x.gez=Date.now();x.gezMenge=q.ist;x.pending=true})}
+function ivRowRefresh(x){const r=document.querySelector('#iv-list .ivrow[data-key="'+(window.CSS&&CSS.escape?CSS.escape(x.key):x.key)+'"]');if(!r)return;
+  const a=document.activeElement,keep=a&&r.contains(a)?a.value:null;const nr=ivRow(x);r.replaceWith(nr);if(keep!=null){const i=nr.querySelector('input');if(i){i.value=keep;i.focus()}}}
+async function ivFlush(){
+  if(ivQBusy||!ivQ.length)return;if(!inv.loaded||!inv.start){clearTimeout(ivQTimer);ivQTimer=setTimeout(ivFlush,3000);return}
+  ivQBusy=true;clearTimeout(ivQTimer);
+  try{
+    while(ivQ.length){
+      const q=ivQ[0];
+      if(q.start!==inv.start){ivQ.shift();ivQSave();continue}
+      try{
+        const n=await srv('lg_zaehl',JSON.stringify({code:q.code,tier:q.tier,oil:q.oil,ist:q.ist,title:q.title}));
+        ivQ.shift();ivQSave();
+        const x=inv.items.find(i=>i.key===q.key);
+        if(x&&!ivQ.some(o=>o.key===q.key)){x.pending=false;x.bestand=+n;x.gezMenge=+n;ivRowRefresh(x)}
+      }catch(e){
+        if(e&&e.net){ivStatus('📶 بدون إنترنت – الكميات محفوظة في الجهاز وتُرسل تلقائياً · Offline – wird automatisch gesendet',true);ivQTimer=setTimeout(ivFlush,8000);return}
+        ivQ.shift();ivQSave();const x=inv.items.find(i=>i.key===q.key);
+        if(x){x.pending=false;x.err=e.message;x.gez=0;ivRowRefresh(x);ivProgOnly()}
+        ivStatus('لم يُحفظ · Nicht gespeichert: '+q.code+' – '+e.message,true);
+      }
+    }
+    ivStatus('');IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});
+  }finally{ivQBusy=false}
+}
+window.addEventListener('online',()=>ivFlush());
+setTimeout(()=>{ivQBadge();ivFlush()},3000);
 function ivProgOnly(){
   const tot=inv.items.length,done=inv.items.filter(ivDone).length;
   ivSetProg(done,tot);$('iv-bar').style.width=(tot?Math.round(done/tot*100):0)+'%';
