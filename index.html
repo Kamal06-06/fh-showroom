@@ -408,6 +408,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
 .ivaddr.none{color:var(--muted);font-weight:500;font-size:12px}
 .ivinfo{min-width:0}
 .ivname{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ivtn{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ivcode{direction:ltr;text-align:start;font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .ivq{font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;color:#fff;background:#7a7f87}
 .ivq.P{background:#b8913a}.ivq.E{background:#111;color:#d9b45a}
@@ -2855,7 +2856,7 @@ function ivRender(){
 function ivRow(x){
   const r=el('div','ivrow'+(ivDone(x)?' done':''));r.dataset.key=x.key;
   const a=el('button','ivaddr'+(x.platz?'':' none'),x.platz||'بدون مكان');a.title='تعيين / تغيير المكان';a.onclick=()=>ivPlatzEdit(x);
-  const info=el('div','ivinfo');info.append(el('div','ivname',x.title||x.code));
+  const info=el('div','ivinfo');info.append(el('div','ivname',x.orig||x.title||x.code));if(x.orig&&x.title&&x.title!==x.orig)info.append(el('div','ivtn',x.title));
   const c=el('div','ivcode');c.append(el('span',null,x.code));if(x.tier)c.append(el('span','ivq '+ivLetter(x.tier),x.tier));
   c.append(el('span',null,'· الرصيد '+ivFmt(x.bestand,x.unit)));info.append(c);
   if(ivDone(x)){const d=el('div');d.append(el('span','ivdone','✓ '+ivFmt(x.gezMenge,x.unit)));if(x.vorher!=null&&Math.abs(x.vorher-x.gezMenge)>0.0005)d.append(el('span','ivdiff',' (كان '+ivFmt(x.vorher)+')'));info.append(d)}
