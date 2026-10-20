@@ -2924,12 +2924,22 @@ function ivRow(x){
   const info=el('div','ivinfo');info.append(el('div','ivname',x.orig||x.title||x.code));if(x.orig&&x.title&&x.title!==x.orig)info.append(el('div','ivtn',x.title));
   const c=el('div','ivcode');c.append(el('span',null,x.code));if(x.tier)c.append(el('span','ivq '+ivLetter(x.tier),x.tier));
   c.append(el('span',null,'· الرصيد / Bestand '+ivFmt(x.bestand,x.unit)));info.append(c);
-  if(ivDone(x)){const d=el('div');d.append(el('span','ivdone','✓ '+ivFmt(x.gezMenge,x.unit)));if(x.vorher!=null&&Math.abs(x.vorher-x.gezMenge)>0.0005)d.append(el('span','ivdiff',' (كان / vorher '+ivFmt(x.vorher)+')'));info.append(d)}
+  if(ivDone(x)){const d=el('div');d.append(el('span','ivdone','✓ '+ivFmt(x.gezMenge,x.unit)));if(x.vorher!=null&&Math.abs(x.vorher-x.gezMenge)>0.0005)d.append(el('span','ivdiff',' (كان / vorher '+ivFmt(x.vorher)+')'));
+    const ub=el('button','btn small ivundo','↺ إلغاء العدّ · Zählung zurücksetzen');ub.style.cssText='margin-inline-start:8px;padding:2px 8px;font-size:11.5px;min-height:0';ub.onclick=()=>ivReset(x,ub);d.append(ub);info.append(d)}
   const w=el('div','ivin'),inp=document.createElement('input');inp.type='text';inp.inputMode='decimal';inp.autocomplete='off';inp.placeholder=x.unit==='kg'?'0,000':'0';inp.setAttribute('aria-label','الكمية المعدودة · Gezählte Menge '+x.code+' '+(x.tier||''));
   const ok=el('button','btn primary ivok','✓');ok.setAttribute('aria-label','حفظ · Speichern');
   const save=()=>ivSave(x,inp,ok);ok.onclick=save;inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();save()}};
   w.append(inp,el('span','u',x.unit==='kg'?'kg':x.unit==='L'?'L':'Stk'),ok);
   r.append(a,info,w);return r;
+}
+async function ivReset(x,btn){
+  if(!confirm('إلغاء عدّ هذا الصنف؟ يرجع الرصيد كما كان قبل الجرد ويعود الصنف «غير معدود».\nZählung zurücksetzen? Der Bestand wird wie vor der Zählung, der Artikel gilt wieder als nicht gezählt.\n\n'+(x.orig||x.title||x.code)+' · '+x.code+(x.tier?' · '+x.tier:'')))return;
+  btn.disabled=true;
+  try{const n=await srv('lg_zreset',JSON.stringify({code:x.code,tier:x.tier,oil:!!x.oil}));
+    x.bestand=+n;x.gez=0;x.gezMenge=null;x.vorher=null;IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});
+    const row=btn.closest('.ivrow'),nr=ivRow(x);if(row)row.replaceWith(nr);ivProgOnly();ivStatus('↺ تم إلغاء العدّ · Zählung zurückgesetzt: '+x.code);setTimeout(()=>ivStatus(''),3000);
+    const ni=nr.querySelector('input');if(ni)ni.focus()}
+  catch(e){btn.disabled=false;ivStatus('لم يتم · Fehler: '+e.message,true)}
 }
 async function ivSave(x,inp,btn){
   const v=ivNum(inp.value);
