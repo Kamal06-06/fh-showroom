@@ -408,6 +408,15 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
 .ivaddr.none{color:var(--muted);font-weight:500;font-size:12px}
 .ivinfo{min-width:0}
 .ivname{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.de{direction:ltr;unicode-bidi:isolate;font-size:.82em;opacity:.75;font-weight:500}
+.btn .de,.ivst .de{display:block;font-size:11px;line-height:1.1}
+.btn:has(.de){flex-direction:column;gap:2px}
+#iv-prog .de{display:block}
+.ivlegend{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:4px 0 2px}
+.ivlegend div{background:var(--soft);border-radius:8px;padding:6px 4px;text-align:center;line-height:1.2}
+.ivlegend b{display:block;direction:ltr;font-size:18px;color:var(--gold)}
+.ivlegend span{display:block;font-size:12px}
+.ivlegend small{display:block;direction:ltr;font-size:11px;color:var(--muted)}
 .ivtn{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ivcode{direction:ltr;text-align:start;font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .ivq{font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;color:#fff;background:#7a7f87}
@@ -452,7 +461,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
   <button class="nv" id="nv-wh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>الطلبات</span><b class="nb" id="nv-open" hidden></b></button>
   <button class="nv plus" id="nv-new"><span class="pl"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="lbl-plus">طلب جديد</span></button>
   <button class="nv" id="nv-lg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>المخزون</span></button>
-  <button class="nv side-only" id="nv-inv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9zM7 5H5v16h14V5h-2"/><path d="M8 12l2 2 4-4M8 17h8"/></svg><span>الجرد</span></button>
+  <button class="nv side-only" id="nv-inv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9zM7 5H5v16h14V5h-2"/><path d="M8 12l2 2 4-4M8 17h8"/></svg><span>الجرد · Inventur</span></button>
   <button class="nv" id="nv-cash"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg><span>الصندوق</span></button>
   <button class="nv side-only" id="nv-cust"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/></svg><span>العملاء</span></button>
   <button class="nv side-only" id="nv-acc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/></svg><span>حسابات العملاء</span></button>
@@ -482,7 +491,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
       <button class="tile" id="h-wh"><span class="ic">🗂️</span><b>الطلبات المفتوحة</b><span>قيد التحضير في المستودع</span><span class="cnt" id="h-open">0</span></button>
       <button class="tile" id="h-done"><span class="ic">✅</span><b>الطلبات المكتملة</b><span>تم تحضيرها وتسليمها</span><span class="cnt" id="h-done-n">0</span></button>
       <button class="tile" id="h-lg"><span class="ic">📦</span><b>المخزون</b><span>وارد · صادر · جرد · ملصقات QR</span></button>
-      <button class="tile" id="h-inv"><span class="ic">📋</span><b>الجرد حسب الرفوف</b><span>عدّ ستاند بستاند · مسح QR</span><span class="cnt" id="h-inv-n"></span></button>
+      <button class="tile" id="h-inv"><span class="ic">📋</span><b>الجرد حسب الرفوف</b><span>Inventur nach Regal · مسح QR</span><span class="cnt" id="h-inv-n"></span></button>
       <button class="tile" id="h-cust"><span class="ic">👥</span><b>العملاء</b><span>كل عميل وطلباته</span><span class="cnt" id="h-cust-n"></span></button>
       <button class="tile" id="h-cash"><span class="ic">🏦</span><b>الصندوق والمصروفات</b><span>نقد المستودع · مصروفات · فواتير</span><span class="cnt" id="h-cash-n"></span></button>
       <button class="tile" id="h-acc"><span class="ic">💶</span><b>حسابات العملاء</b><span>مدفوع · غير مدفوع · كشف حساب</span><span class="cnt" id="h-due"></span></button>
@@ -607,17 +616,18 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
   </section>
   <section id="view-inv" hidden dir="rtl" lang="ar">
     <div class="panel">
-      <div class="sec-title"><h2>📋 الجرد حسب الرفوف</h2><div class="row"><button class="btn primary" id="iv-scan">📷 مسح QR</button><label class="btn scanbtn" for="iv-scan-file">🖼️ صورة الكود<input type="file" id="iv-scan-file" accept="image/*" capture="environment" hidden></label><button class="btn small" id="iv-reload" title="تحديث">⟳</button></div></div>
+      <div class="sec-title"><h2>📋 الجرد حسب الرفوف <span class="de">· Inventur nach Regal</span></h2><div class="row"><button class="btn primary" id="iv-scan">📷 مسح QR<span class="de">QR scannen</span></button><label class="btn scanbtn" for="iv-scan-file">🖼️ صورة الكود<span class="de">Foto vom Code</span><input type="file" id="iv-scan-file" accept="image/*" capture="environment" hidden></label><button class="btn small" id="iv-reload" title="تحديث · Aktualisieren">⟳</button></div></div>
+      <div class="ivlegend" aria-label="شرح العنوان · Adresse"><div><b>A</b><span>الصف</span><small>Reihe</small></div><div><b>03</b><span>الرف</span><small>Regal</small></div><div><b>4</b><span>الطابق</span><small>Ebene · 1 = unten</small></div><div><b>2</b><span>المكان</span><small>Fach · 1 = links</small></div></div>
       <div class="ivtop">
         <div class="ivprog"><b id="iv-prog">–</b> <span class="hint" id="iv-since"></span><div class="ivbar"><i id="iv-bar"></i></div></div>
-        <select id="iv-show" aria-label="عرض"><option value="all">الكل</option><option value="open">غير معدود</option><option value="done">تم العد</option><option value="diff">فيه فرق</option></select>
-        <button class="btn small" id="iv-new">بدء جرد جديد</button>
+        <select id="iv-show" aria-label="عرض · Anzeige"><option value="all">الكل · Alle</option><option value="open">غير معدود · Offen</option><option value="done">تم العد · Gezählt</option><option value="diff">فيه فرق · Differenz</option></select>
+        <button class="btn small" id="iv-new">بدء جرد جديد<span class="de">Neue Inventur starten</span></button>
       </div>
-      <input type="search" id="iv-q" autocomplete="off" placeholder="بحث بالكود أو الاسم أو المكان (مثل A03-4)" dir="auto" aria-label="بحث في قائمة الجرد">
-      <div class="ivstands" id="iv-stands" role="tablist" aria-label="الرفوف"></div>
+      <input type="search" id="iv-q" autocomplete="off" placeholder="بحث: كود، اسم أو مكان · Suche: Code, Name oder Fach (z. B. A03-4)" dir="auto" aria-label="بحث · Suche">
+      <div class="ivstands" id="iv-stands" role="tablist" aria-label="الرفوف · Regale"></div>
       <div id="iv-status" class="status" hidden></div>
       <div id="iv-list"></div>
-      <p class="hint">اكتب الوزن الصافي واضغط Enter أو ✓ — ينتقل المؤشر تلقائياً للصنف التالي. اضغط على المكان لتغييره.</p>
+      <p class="hint">اكتب الوزن الصافي واضغط Enter أو ✓ — ينتقل المؤشر تلقائياً للصنف التالي. اضغط على المكان لتغييره.<br><span class="de">Nettogewicht eingeben und Enter oder ✓ drücken – der Cursor springt automatisch zum nächsten Artikel. Auf das Fach tippen, um es zu ändern.</span></p>
     </div>
   </section>
   <section id="view-cust" hidden dir="rtl" lang="ar">
@@ -2802,7 +2812,8 @@ let inv={start:0,items:[],at:0,loaded:false},ivStand=null,ivLimit=150,ivBusy=fal
 const IV_RX=/^[A-D]\d{2}-[1-6]-[1-9]$/;
 const ivStandOf=p=>p?p.split('-')[0]:'';
 const ivNum=v=>{const s=String(v==null?'':v).trim().replace(/[٠-٩]/g,c=>c.charCodeAt(0)-0x660).replace(/[۰-۹]/g,c=>c.charCodeAt(0)-0x6F0).replace(',','.');return s===''?NaN:Number(s)};
-const ivFmt=(n,u)=>(+n||0).toLocaleString('de-DE',{maximumFractionDigits:3})+(u?' '+(u==='Stück'?'قطعة':u):'');
+const ivFmt=(n,u)=>(+n||0).toLocaleString('de-DE',{maximumFractionDigits:3})+(u?' '+(u==='Stück'?'Stk':u):'');
+function ivSetProg(d,t){const p=$('iv-prog');p.textContent='';p.append(el('span',null,'تم عدّ '+d.toLocaleString('de-DE')+' من '+t.toLocaleString('de-DE')),el('span','de',' · '+d.toLocaleString('de-DE')+' von '+t.toLocaleString('de-DE')+' gezählt'))}
 const ivDone=x=>!!(x.gez&&x.gez>=inv.start&&inv.start);
 const ivLetter=t=>String(t||'').charAt(0).toUpperCase();
 function ivNorm(p){p=String(p||'').trim().toUpperCase().replace(/\s+/g,'').replace(/[–—_.\/]/g,'-');const m=/^([A-D])-?(\d{1,2})-(\d)-(\d)$/.exec(p);return m?m[1]+('0'+m[2]).slice(-2)+'-'+m[3]+'-'+m[4]:p}
@@ -2810,9 +2821,9 @@ function ivStatus(msg,err){const s=$('iv-status');s.hidden=!msg;s.textContent=ms
 async function ivLoad(force){
   if(!force&&inv.loaded&&Date.now()-inv.at<60000)return;
   if(!inv.loaded){const c=await IDB.get('invplan');if(c&&c.items){inv=Object.assign(c,{loaded:true});ivRender()}}
-  ivStatus(inv.loaded?'':'جاري تحميل قائمة الجرد…');
+  ivStatus(inv.loaded?'':'جاري تحميل قائمة الجرد… · Zählliste wird geladen…');
   try{const r=await srv('lg_plan');inv={start:r.start||0,items:r.items||[],at:Date.now(),loaded:true};IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});ivStatus('')}
-  catch(e){ivStatus('تعذّر تحميل القائمة: '+e.message+(inv.loaded?' — تُعرض آخر نسخة محفوظة.':''),true)}
+  catch(e){ivStatus('تعذّر تحميل القائمة · Laden fehlgeschlagen: '+e.message+(inv.loaded?' — آخر نسخة محفوظة · letzte gespeicherte Version':''),true)}
   ivRender();
 }
 function ivShow(){if(!inv.loaded)ivRender();ivLoad(false)}
@@ -2832,45 +2843,45 @@ function ivFiltered(){
 function ivRender(){
   if($('view-inv').hidden&&!$('view-home').hidden){ivHomeCount();return}
   const tot=inv.items.length,done=inv.items.filter(ivDone).length;
-  $('iv-prog').textContent=inv.start?('تم عدّ '+done.toLocaleString('de-DE')+' من '+tot.toLocaleString('de-DE')):'لم يبدأ جرد بعد — اضغط «بدء جرد جديد»';
-  $('iv-since').textContent=inv.start?'· منذ '+new Date(inv.start).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'}):'';
+  if(inv.start)ivSetProg(done,tot);else{$('iv-prog').textContent='لم يبدأ جرد بعد — اضغط «بدء جرد جديد»';$('iv-prog').append(el('span','de',' · Keine Inventur gestartet – «Neue Inventur starten» drücken'))}
+  $('iv-since').textContent=inv.start?'· منذ / seit '+new Date(inv.start).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'}):'';$('iv-since').dir='auto';
   $('iv-bar').style.width=(tot&&inv.start?Math.round(done/tot*100):0)+'%';
   const st=ivStands(),box=$('iv-stands');box.textContent='';
   if(ivStand==null){const first=st.find(([s,o])=>s!=='—'&&o.d<o.n);ivStand=first?first[0]:(st.length>1?st[0][0]:'*')}
-  const mk=(id,lbl,sub,full)=>{const b=el('button','ivst'+(ivStand===id?' on':'')+(full?' full':''));b.setAttribute('role','tab');b.setAttribute('aria-selected',ivStand===id);b.append(document.createTextNode(lbl));if(sub)b.append(el('small',null,sub));b.onclick=()=>{ivStand=id;ivLimit=150;$('iv-q').value='';ivRender();window.scrollTo(0,0)};return b};
-  box.append(mk('*','الكل',done+'/'+tot));
-  st.forEach(([s,o])=>box.append(mk(s,s==='—'?'بدون مكان':s,(inv.start?o.d:0)+'/'+o.n,inv.start&&o.d===o.n)));
+  const mk=(id,lbl,sub,full,de)=>{const b=el('button','ivst'+(ivStand===id?' on':'')+(full?' full':''));b.dataset.id=id;b.setAttribute('role','tab');b.setAttribute('aria-selected',ivStand===id);b.append(document.createTextNode(lbl));if(de)b.append(el('span','de',de));if(sub)b.append(el('small',null,sub));b.onclick=()=>{ivStand=id;ivLimit=150;$('iv-q').value='';ivRender();window.scrollTo(0,0)};return b};
+  box.append(mk('*','الكل',done+'/'+tot,false,'Alle'));
+  st.forEach(([s,o])=>box.append(mk(s,s==='—'?'بدون مكان':s,(inv.start?o.d:0)+'/'+o.n,inv.start&&o.d===o.n,s==='—'?'ohne Fach':'')));
   const sel=box.querySelector('.on');if(sel)try{sel.scrollIntoView({inline:'center',block:'nearest'})}catch(e){}
   const list=$('iv-list');list.textContent='';
-  if(!inv.loaded){list.append(el('p','hint','جاري التحميل…'));return}
+  if(!inv.loaded){list.append(el('p','hint','جاري التحميل… · Wird geladen…'));return}
   const rows=ivFiltered();
-  if(!rows.length){list.append(el('p','hint',tot?'لا توجد أصناف لهذا الاختيار.':'قائمة المخزون فارغة.'));return}
+  if(!rows.length){list.append(el('p','hint',tot?'لا توجد أصناف لهذا الاختيار · Keine Artikel für diese Auswahl':'قائمة المخزون فارغة · Bestandsliste leer'));return}
   let lastLv='';
   rows.slice(0,ivLimit).forEach(x=>{
     const lv=x.platz?x.platz.split('-').slice(0,2).join('-'):'';
-    if(lv!==lastLv&&x.platz&&!$('iv-q').value.trim()){lastLv=lv;const h=el('div','ivlv');h.append(el('span',null,'الطابق '+x.platz.split('-')[1]),el('span',null,lv));list.append(h)}
+    if(lv!==lastLv&&x.platz&&!$('iv-q').value.trim()){lastLv=lv;const h=el('div','ivlv');const pp=x.platz.split('-');h.append(el('span',null,'الرف '+pp[0].slice(1)+' · الطابق '+pp[1]),el('span','de','Regal '+pp[0]+' · Ebene '+pp[1]));list.append(h)}
     list.append(ivRow(x));
   });
-  if(rows.length>ivLimit){const b=el('button','btn','عرض المزيد ('+(rows.length-ivLimit)+')');b.onclick=()=>{ivLimit+=300;ivRender()};list.append(b)}
+  if(rows.length>ivLimit){const b=el('button','btn','عرض المزيد · Mehr anzeigen ('+(rows.length-ivLimit)+')');b.onclick=()=>{ivLimit+=300;ivRender()};list.append(b)}
 }
 function ivRow(x){
   const r=el('div','ivrow'+(ivDone(x)?' done':''));r.dataset.key=x.key;
-  const a=el('button','ivaddr'+(x.platz?'':' none'),x.platz||'بدون مكان');a.title='تعيين / تغيير المكان';a.onclick=()=>ivPlatzEdit(x);
+  const a=el('button','ivaddr'+(x.platz?'':' none'),x.platz||'بدون مكان');if(!x.platz)a.append(el('span','de',' ohne Fach'));a.title='تعيين / تغيير المكان · Fach festlegen / ändern';a.onclick=()=>ivPlatzEdit(x);
   const info=el('div','ivinfo');info.append(el('div','ivname',x.orig||x.title||x.code));if(x.orig&&x.title&&x.title!==x.orig)info.append(el('div','ivtn',x.title));
   const c=el('div','ivcode');c.append(el('span',null,x.code));if(x.tier)c.append(el('span','ivq '+ivLetter(x.tier),x.tier));
-  c.append(el('span',null,'· الرصيد '+ivFmt(x.bestand,x.unit)));info.append(c);
-  if(ivDone(x)){const d=el('div');d.append(el('span','ivdone','✓ '+ivFmt(x.gezMenge,x.unit)));if(x.vorher!=null&&Math.abs(x.vorher-x.gezMenge)>0.0005)d.append(el('span','ivdiff',' (كان '+ivFmt(x.vorher)+')'));info.append(d)}
-  const w=el('div','ivin'),inp=document.createElement('input');inp.type='text';inp.inputMode='decimal';inp.autocomplete='off';inp.placeholder=x.unit==='kg'?'0,000':'0';inp.setAttribute('aria-label','الكمية المعدودة '+x.code+' '+(x.tier||''));
-  const ok=el('button','btn primary ivok','✓');ok.setAttribute('aria-label','حفظ');
+  c.append(el('span',null,'· الرصيد / Bestand '+ivFmt(x.bestand,x.unit)));info.append(c);
+  if(ivDone(x)){const d=el('div');d.append(el('span','ivdone','✓ '+ivFmt(x.gezMenge,x.unit)));if(x.vorher!=null&&Math.abs(x.vorher-x.gezMenge)>0.0005)d.append(el('span','ivdiff',' (كان / vorher '+ivFmt(x.vorher)+')'));info.append(d)}
+  const w=el('div','ivin'),inp=document.createElement('input');inp.type='text';inp.inputMode='decimal';inp.autocomplete='off';inp.placeholder=x.unit==='kg'?'0,000':'0';inp.setAttribute('aria-label','الكمية المعدودة · Gezählte Menge '+x.code+' '+(x.tier||''));
+  const ok=el('button','btn primary ivok','✓');ok.setAttribute('aria-label','حفظ · Speichern');
   const save=()=>ivSave(x,inp,ok);ok.onclick=save;inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();save()}};
-  w.append(inp,el('span','u',x.unit==='kg'?'kg':x.unit==='L'?'L':'قطعة'),ok);
+  w.append(inp,el('span','u',x.unit==='kg'?'kg':x.unit==='L'?'L':'Stk'),ok);
   r.append(a,info,w);return r;
 }
 async function ivSave(x,inp,btn){
   const v=ivNum(inp.value);
-  if(isNaN(v)||v<0){inp.focus();ivStatus('اكتب الكمية بالأرقام (مثال 2,350).',true);return}
-  if(!inv.start){ivStatus('ابدأ جرداً جديداً أولاً (زر «بدء جرد جديد») حتى يُحسب التقدّم.',true);return}
-  if(x.unit==='kg'&&v>200&&!confirm(v+' kg؟ تأكد أنك كتبت الوزن بالكيلو (مثلاً 2,350 وليس 2350).'))return;
+  if(isNaN(v)||v<0){inp.focus();ivStatus('اكتب الكمية بالأرقام (مثال 2,350) · Menge als Zahl eingeben (z. B. 2,350)',true);return}
+  if(!inv.start){ivStatus('ابدأ جرداً جديداً أولاً · Zuerst «Neue Inventur starten» drücken',true);return}
+  if(x.unit==='kg'&&v>200&&!confirm(v+' kg?\nتأكد أنك كتبت الوزن بالكيلو (2,350 وليس 2350).\nBitte Gewicht in kg prüfen (2,350 statt 2350).'))return;
   btn.disabled=true;inp.disabled=true;
   try{
     const vorher=x.bestand;
@@ -2883,30 +2894,31 @@ async function ivSave(x,inp,btn){
     let n2=nr.nextElementSibling;while(n2&&!(n2.classList.contains('ivrow')&&!n2.classList.contains('done')))n2=n2.nextElementSibling;
     const ni=n2&&n2.querySelector('input');if(ni){ni.focus();try{n2.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}}
     else if($('iv-show').value==='open')setTimeout(ivRender,400);
-  }catch(e){btn.disabled=false;inp.disabled=false;ivStatus('لم يُحفظ: '+e.message,true)}
+  }catch(e){btn.disabled=false;inp.disabled=false;ivStatus('لم يُحفظ · Nicht gespeichert: '+e.message,true)}
 }
 function ivProgOnly(){
   const tot=inv.items.length,done=inv.items.filter(ivDone).length;
-  $('iv-prog').textContent='تم عدّ '+done.toLocaleString('de-DE')+' من '+tot.toLocaleString('de-DE');$('iv-bar').style.width=(tot?Math.round(done/tot*100):0)+'%';
-  const st=new Map(ivStands());$('iv-stands').querySelectorAll('.ivst').forEach(b=>{const lbl=b.firstChild&&b.firstChild.textContent;const id=lbl==='الكل'?'*':lbl==='بدون مكان'?'—':lbl;const o=id==='*'?{d:done,n:tot}:st.get(id);if(o){const s=b.querySelector('small');if(s)s.textContent=o.d+'/'+o.n;b.classList.toggle('full',o.d===o.n)}});
+  ivSetProg(done,tot);$('iv-bar').style.width=(tot?Math.round(done/tot*100):0)+'%';
+  const st=new Map(ivStands());$('iv-stands').querySelectorAll('.ivst').forEach(b=>{const id=b.dataset.id;const o=id==='*'?{d:done,n:tot}:st.get(id);if(o){const s=b.querySelector('small');if(s)s.textContent=o.d+'/'+o.n;b.classList.toggle('full',o.d===o.n)}});
 }
 function ivPlatzEdit(x,after){
-  openSheet('المكان: '+x.code+(x.tier?' · '+x.tier:''),b=>{
+  openSheet('المكان · Fach: '+x.code+(x.tier?' · '+x.tier:''),b=>{
     b.append(el('p','hint','الصيغة: الصف والرف ثم الطابق ثم المكان، مثل A03-4-2 = الصف A · الرف 3 · الطابق 4 · المكان 2 (الطابق 1 = الأسفل، المكان 1 = اليسار). اتركه فارغاً لإزالة المكان.'));
+    b.append(el('p','hint de','Format: Reihe+Regal-Ebene-Fach, z. B. A03-4-2 = Reihe A · Regal 3 · Ebene 4 · Fach 2 (Ebene 1 = unten, Fach 1 = links). Leer lassen = Fach entfernen.'));
     const i=document.createElement('input');i.type='text';i.value=x.platz||'';i.placeholder='A01-1-1';i.dir='ltr';i.autocapitalize='characters';i.style.fontSize='20px';i.style.textAlign='center';
     const msg=el('div','status');msg.hidden=true;
-    const ok=el('button','btn primary big','حفظ المكان');
+    const ok=el('button','btn primary big','حفظ المكان · Fach speichern');
     const go=async force=>{
-      const p=ivNorm(i.value);if(p&&!IV_RX.test(p)){msg.hidden=false;msg.classList.add('err');msg.textContent='صيغة غير صحيحة. مثال صحيح: A03-4-2';return}
-      ok.disabled=true;msg.hidden=false;msg.classList.remove('err');msg.textContent='جاري الحفظ…';
+      const p=ivNorm(i.value);if(p&&!IV_RX.test(p)){msg.hidden=false;msg.classList.add('err');msg.textContent='صيغة غير صحيحة · Ungültiges Format. مثال / Beispiel: A03-4-2';return}
+      ok.disabled=true;msg.hidden=false;msg.classList.remove('err');msg.textContent='جاري الحفظ… · Wird gespeichert…';
       try{const r=await srv('lg_platz',JSON.stringify({code:x.code,tier:x.tier,oil:!!x.oil,platz:p,force:!!force}));
         inv.items.forEach(y=>{if(force&&y.platz===r&&y.key!==x.key)y.platz=''});x.platz=r;
         if(inv.items.indexOf(x)<0&&x.key)inv.items.push(x);
         IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});closeSheet();if(after)after(r);if(!$('view-inv').hidden)ivRender();
       }catch(e){ok.disabled=false;msg.classList.add('err');
         const m=/^BELEGT:(.+)$/.exec(e.message);
-        if(m){const o=inv.items.find(y=>y.key===m[1]);msg.textContent='المكان '+p+' مشغول بـ '+(o?o.code+' '+(o.tier||''):m[1])+'. ';const f=el('button','btn small','نقل هذا الصنف إليه (الآخر يصبح بدون مكان)');f.onclick=()=>go(true);msg.append(f)}
-        else msg.textContent=e.message==='FORMAT'?'صيغة غير صحيحة. مثال صحيح: A03-4-2':'لم يُحفظ: '+e.message}
+        if(m){const o=inv.items.find(y=>y.key===m[1]);msg.textContent='المكان '+p+' مشغول بـ / Fach belegt mit: '+(o?o.code+' '+(o.tier||''):m[1])+'. ';const f=el('button','btn small','نقل هذا الصنف إليه · Hierher umlagern (anderer Artikel ohne Fach)');f.onclick=()=>go(true);msg.append(f)}
+        else msg.textContent=e.message==='FORMAT'?'صيغة غير صحيحة · Ungültiges Format. مثال / Beispiel: A03-4-2':'لم يُحفظ · Nicht gespeichert: '+e.message}
     };
     ok.onclick=()=>go(false);i.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go(false)}};
     b.append(i,ok,msg);setTimeout(()=>i.focus(),50);
@@ -2923,17 +2935,17 @@ function ivHandleCode(text){
   const m=/[?&#](?:code|sku)=([^&#]+)/i.exec(t);if(m)t=decodeURIComponent(m[1]);
   const u=t.toUpperCase();let code=u,letter='';
   const ts=/^(.*-SH)#([SPE])$/.exec(u)||/^(.*-SH)-([SPE])-\d+(?:[.,]\d+)?(?:KG|G|ML|L)$/.exec(u);if(ts){code=ts[1];letter=ts[2]}
-  if(IV_RX.test(ivNorm(u))){const p=ivNorm(u),x=inv.items.find(y=>y.platz===p);if(x){ivFocus(x);return true}ivStand=ivStandOf(p);ivRender();ivStatus('المكان '+p+' فارغ.',true);return true}
+  if(IV_RX.test(ivNorm(u))){const p=ivNorm(u),x=inv.items.find(y=>y.platz===p);if(x){ivFocus(x);return true}ivStand=ivStandOf(p);ivRender();ivStatus('المكان '+p+' فارغ · Fach '+p+' ist leer',true);return true}
   let hits=ivFind(code,letter);if(!hits.length)hits=ivFind(code.replace(/-\d{4}$/,''),'');
   if(hits.length===1){ivFocus(hits[0]);return true}
-  if(hits.length>1){openSheet('اختر الجودة: '+code,b=>{hits.forEach(x=>{const k=el('button','btn big',(x.tier||'')+(x.platz?' · '+x.platz:''));k.onclick=()=>{closeSheet();ivFocus(x)};b.append(k)})});return true}
-  if(lgHandleCode(text)){ivStatus('هذا الصنف غير موجود في قائمة المخزون بعد — فُتح في شاشة المخزون.',true);return true}
+  if(hits.length>1){openSheet('اختر الجودة · Qualität wählen: '+code,b=>{hits.forEach(x=>{const k=el('button','btn big',(x.tier||'')+(x.platz?' · '+x.platz:''));k.onclick=()=>{closeSheet();ivFocus(x)};b.append(k)})});return true}
+  if(lgHandleCode(text)){ivStatus('الصنف غير موجود في قائمة الجرد — فُتح في المخزون · Artikel nicht in der Zählliste – im Lager geöffnet',true);return true}
   return false;
 }
 async function ivNewRound(){
-  if(!confirm('بدء جرد جديد؟\nسيبدأ عدّاد التقدّم من الصفر. الأرصدة الحالية لا تتغير إلا عند إدخال الكميات المعدودة.'))return;
-  try{inv.start=await srv('lg_invstart');inv.items.forEach(x=>{x.gez=0;x.gezMenge=null;x.vorher=null});IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});ivStand=null;ivRender();ivStatus('بدأ جرد جديد ✅')}
-  catch(e){ivStatus('تعذّر البدء: '+e.message,true)}
+  if(!confirm('بدء جرد جديد؟ · Neue Inventur starten?\nسيبدأ عدّاد التقدّم من الصفر، والأرصدة لا تتغير إلا عند إدخال الكميات.\nDer Zählfortschritt beginnt bei 0; Bestände ändern sich erst beim Eintragen.'))return;
+  try{inv.start=await srv('lg_invstart');inv.items.forEach(x=>{x.gez=0;x.gezMenge=null;x.vorher=null});IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});ivStand=null;ivRender();ivStatus('بدأ جرد جديد · Neue Inventur gestartet ✅')}
+  catch(e){ivStatus('تعذّر البدء · Start fehlgeschlagen: '+e.message,true)}
 }
 function ivHomeCount(){const b=$('h-inv-n');if(!b)return;if(!inv.start||!inv.items.length){b.textContent='';return}const d=inv.items.filter(ivDone).length;b.textContent=Math.round(d/inv.items.length*100)+'%'}
 $('iv-show').onchange=()=>{ivLimit=150;ivRender()};
@@ -2941,12 +2953,12 @@ let ivQT=null;$('iv-q').oninput=()=>{clearTimeout(ivQT);ivQT=setTimeout(()=>{ivL
 $('iv-q').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=$('iv-q').value;if(ivHandleCode(v))$('iv-q').value=''}};
 $('iv-new').onclick=ivNewRound;
 $('iv-reload').onclick=()=>ivLoad(true);
-$('iv-scan').onclick=async()=>{if(!inv.loaded)await ivLoad(false);scanMode='inv';if(!(await liveScan()))ivStatus('الكاميرا المباشرة غير متاحة في هذا المتصفح. استخدم زر «صورة الكود».',true)};
+$('iv-scan').onclick=async()=>{if(!inv.loaded)await ivLoad(false);scanMode='inv';if(!(await liveScan()))ivStatus('الكاميرا غير متاحة · Kamera nicht verfügbar — «صورة الكود / Foto vom Code»',true)};
 $('iv-scan-file').onchange=async e=>{
-  const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;ivStatus('جاري قراءة الكود…');
-  try{const text=await decodeQrFile(f);if(!text){ivStatus('لم أجد كود QR في الصورة. قرّب الكاميرا وأعد المحاولة.',true);return}
-    if(!ivHandleCode(text))ivStatus('الكود «'+text+'» لا يطابق أي صنف في القائمة.',true);else if(!$('iv-status').classList.contains('err'))ivStatus('')}
-  catch(err){ivStatus('تعذّرت قراءة الصورة: '+(err.message||err),true)}
+  const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;ivStatus('جاري قراءة الكود… · Code wird gelesen…');
+  try{const text=await decodeQrFile(f);if(!text){ivStatus('لم أجد كود QR · Kein QR-Code gefunden',true);return}
+    if(!ivHandleCode(text))ivStatus('الكود «'+text+'» غير موجود · Code nicht gefunden',true);else if(!$('iv-status').classList.contains('err'))ivStatus('')}
+  catch(err){ivStatus('تعذّرت قراءة الصورة · Bild nicht lesbar: '+(err.message||err),true)}
 };
 $('h-inv').onclick=()=>{drawer(false);tab('inv')};
 $('nv-inv').onclick=()=>$('h-inv').click();
