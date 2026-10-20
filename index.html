@@ -429,6 +429,23 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
 .ivdone{color:var(--ok);font-weight:700;font-size:13px;direction:ltr}
 .ivdiff{font-size:12px;color:var(--warn)}
 @media (max-width:560px){.ivrow{grid-template-columns:auto 1fr}.ivin{grid-column:1/-1;justify-content:flex-end}}
+
+/* Kopfzeile kompakt (Handy) – 20.10.2026 */
+@media (max-width:899px){
+ header{flex-wrap:nowrap;gap:8px;align-items:center;margin-bottom:6px}
+ header h1{margin:0;min-width:0;flex:0 1 auto}
+ header .bn{font-size:14px;letter-spacing:.14em;white-space:nowrap}header .bn small{font-size:7px}
+ header .row{flex-wrap:nowrap;gap:6px;margin-inline-start:auto;align-items:center;min-width:0}
+ #tab-back,#tab-homebtn,#tab-set{min-height:38px;min-width:40px;padding:6px 10px;font-size:15px;border-radius:12px}
+ #tab-back .tl,#tab-homebtn .tl{display:none}
+ #me-badge{font-size:11.5px!important;max-width:90px;overflow:hidden;text-overflow:ellipsis}
+ #syncdot{font-size:11.5px!important;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+ #syncdot[data-ok="1"]{font-size:0!important}#syncdot[data-ok="1"]::before{content:"🟢";font-size:11px}
+ #me-badge{flex-shrink:0}
+ header:has(#tab-back:not([hidden])) h1{display:none}
+ header:has(#tab-back:not([hidden])) .row{margin-inline-start:0;width:100%;justify-content:flex-start}
+ header:has(#tab-back:not([hidden])) #tab-set{margin-inline-start:auto}
+}
 </style>
 </head>
 <body>
@@ -472,8 +489,8 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
   <header>
     <h1><span class="bn hlogo" role="button" tabindex="0" title="الصفحة الرئيسية">FRAGRANCE HUB<small>GERMANY</small></span><span class="bs">صالة العرض · نظام الطلبات والمخزون</span></h1>
     <div class="row">
-      <button class="btn" id="tab-back" hidden aria-label="رجوع">→ رجوع</button>
-      <button class="btn" id="tab-homebtn" hidden aria-label="الصفحة الرئيسية">⌂ الرئيسية</button>
+      <button class="btn" id="tab-back" hidden aria-label="رجوع" title="رجوع">→<span class="tl"> رجوع</span></button>
+      <button class="btn" id="tab-homebtn" hidden aria-label="الصفحة الرئيسية" title="الرئيسية">⌂<span class="tl"> الرئيسية</span></button>
       <button class="btn" id="tab-home">⌂ الرئيسية</button>
       <button class="btn primary" id="tab-new" hidden>+ طلب جديد</button>
       <button class="btn" id="tab-lg">📦 المخزون</button>
@@ -573,7 +590,7 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
         <label for="wa-num">رقم واتساب الذي تُرسل إليه الطلبات (اختياري، مع رمز الدولة)</label><input type="text" id="wa-num" inputmode="tel" dir="ltr" placeholder="+49…" style="width:190px">
       </div>
       <div class="dim">
-        <label for="who">👤 اسم مستخدم هذا الجهاز (يُسجَّل مع القبض النقدي والمصروفات)</label><input type="text" id="who" autocomplete="off" placeholder="مثال: Ahmad" style="width:190px"><br>
+        <input type="hidden" id="who">
         <label class="lbl"><input type="checkbox" id="snd" checked> 🔔 تنبيه صوتي عند وصول طلب جديد إلى المستودع</label> <button class="btn small" id="snd-test">تجربة الصوت</button>
       </div>
       <div class="dim" id="users-sec" hidden>
@@ -2556,7 +2573,7 @@ function makeDb(){
     if(n==='lists')docs.sort((a,b)=>(b.data().at||0)-(a.data().at||0));
     (subs[n]||[]).forEach(f=>{try{f({docs})}catch(e){console.error(e)}})}
   function dot(){const s=$('syncdot');if(!s)return;const n=box.length;
-    s.textContent=!navigator.onLine?'⚪ بدون إنترنت'+(n?' · '+n+' بانتظار الإرسال':''):n?'🟡 جاري الحفظ ('+n+')':lastErr?'🔴 '+lastErr:'🟢 متزامن';}
+    s.textContent=!navigator.onLine?'⚪ بدون إنترنت'+(n?' · '+n+' بانتظار الإرسال':''):n?'🟡 جاري الحفظ ('+n+')':lastErr?'🔴 '+lastErr:'🟢 متزامن';s.dataset.ok=(navigator.onLine&&!n&&!lastErr)?'1':'';s.title=s.textContent;}
   window.addEventListener('online',()=>{dot();flush();pull()});window.addEventListener('offline',dot);
   function enqueue(op){box.push(op);LS.set('outbox',box);dot();setTimeout(flush,0)}
   async function flush(){
@@ -3087,7 +3104,7 @@ async function inventurReport(btn){
 
 /* ---------- Mitarbeiter (nur Inhaber) ---------- */
 function setMe(v){if(v&&typeof v==='object'){ME={user:v.user||'',admin:!!v.admin};LS.set('me',ME);
-  if(!ME.admin&&ME.user){const w=$('who');if(w){w.value=ME.user;w.readOnly=true;try{w.dispatchEvent(new Event('input'))}catch(e){}}}
+  if(ME.user){const w=$('who');if(w){w.value=ME.user;LS.set('who',ME.user)}}
   const u=$('me-badge');if(u){u.textContent=ME.user?'👤 '+ME.user:'';u.hidden=!ME.user}const sec=$('users-sec');if(sec)sec.hidden=!ME.admin}}
 async function usersOpen(){
   openSheet('👥 الموظفون · Mitarbeiter',async b=>{
