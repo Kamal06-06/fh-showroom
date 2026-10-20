@@ -49,7 +49,18 @@ header{padding-bottom:10px;border-bottom:2px solid var(--gold)}
 #gate{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px}
 #gate form{width:min(360px,100%)}
 #cam{position:fixed;inset:0;z-index:40;background:#000;display:flex;flex-direction:column;gap:10px;padding:12px;align-items:stretch}
-#cam video{flex:1;min-height:0;width:100%;object-fit:cover;border-radius:10px;background:#111}
+#cam-wrap{position:relative;flex:1;min-height:0;border-radius:12px;overflow:hidden;background:#111}
+#cam video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#cam-frame{position:absolute;left:50%;top:50%;width:var(--fs,62vmin);height:var(--fs,62vmin);transform:translate(-50%,-50%);border-radius:14px;box-shadow:0 0 0 200vmax rgba(0,0,0,.55);transition:box-shadow .15s,background .15s;pointer-events:none}
+#cam-frame b{position:absolute;width:34px;height:34px;border:4px solid #c9a24a}
+#cam-frame .c1{top:-2px;left:-2px;border-right:0;border-bottom:0;border-top-left-radius:14px}#cam-frame .c2{top:-2px;right:-2px;border-left:0;border-bottom:0;border-top-right-radius:14px}
+#cam-frame .c3{bottom:-2px;left:-2px;border-right:0;border-top:0;border-bottom-left-radius:14px}#cam-frame .c4{bottom:-2px;right:-2px;border-left:0;border-top:0;border-bottom-right-radius:14px}
+#cam-frame i{position:absolute;left:8%;right:8%;height:2px;background:linear-gradient(90deg,transparent,#e8c56a,transparent);top:10%;animation:camline 1.8s ease-in-out infinite alternate}
+@keyframes camline{to{top:88%}}
+#cam-frame.ok{background:rgba(29,107,58,.35)}#cam-frame.ok b{border-color:#3ecf7a}
+#cam-frame.err{background:rgba(161,44,44,.35)}#cam-frame.err b{border-color:#ff6b6b}
+#cam-torch{position:absolute;bottom:12px;inset-inline-end:12px;width:50px;height:50px;border-radius:50%;border:0;background:rgba(255,255,255,.18);font-size:22px;color:#fff}
+#cam-torch.on{background:#c9a24a}
 #cam-msg{color:#fff;text-align:center;font-weight:600;min-height:1.5em}
 .clprow{display:flex;gap:8px;align-items:center;font-size:14.5px}
 #scrim{position:fixed;inset:0;background:#0007;z-index:20}
@@ -461,7 +472,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
   </form>
 </div>
 <div id="cam" hidden dir="rtl" lang="ar">
-  <video id="cam-v" playsinline muted></video>
+  <div id="cam-wrap"><video id="cam-v" playsinline muted></video><div id="cam-frame"><i></i><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></div><button type="button" id="cam-torch" hidden aria-label="الإضاءة · Licht">🔦</button></div>
   <div id="cam-msg">وجّه الكاميرا نحو كود QR</div>
   <button class="btn big" id="cam-close">إغلاق الكاميرا</button>
 </div>
@@ -1351,39 +1362,55 @@ function handleCode(text){
 }
 $('q').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();if(handleCode($('q').value)){$('q').value='';search()}}};
 let camStream=null,camOn=false,scanMode='order';
-function camStop(){try{camMsg('')}catch(e){}camOn=false;if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}$('cam').hidden=true}
+/* Signalton + Rahmen-Feedback beim Scannen */
+let camAC=null;
+function camBeep(ok){try{camAC=camAC||new (window.AudioContext||window.webkitAudioContext)();if(camAC.state==='suspended')camAC.resume();
+  const tone=(f,t0,d)=>{const o=camAC.createOscillator(),g=camAC.createGain();o.type='square';o.frequency.value=f;g.gain.setValueAtTime(.0001,camAC.currentTime+t0);g.gain.exponentialRampToValueAtTime(.25,camAC.currentTime+t0+.01);g.gain.exponentialRampToValueAtTime(.0001,camAC.currentTime+t0+d);o.connect(g);g.connect(camAC.destination);o.start(camAC.currentTime+t0);o.stop(camAC.currentTime+t0+d+.02)};
+  if(ok)tone(2100,0,.11);else{tone(420,0,.12);tone(420,.17,.12)}}catch(e){}
+  const f=$('cam-frame');if(f){f.classList.remove('ok','err');void f.offsetWidth;f.classList.add(ok?'ok':'err');clearTimeout(f._t);f._t=setTimeout(()=>f.classList.remove('ok','err'),650)}
+  try{if(navigator.vibrate)navigator.vibrate(ok?60:[40,60,40])}catch(e){}}
+function camStop(){try{camMsg('')}catch(e){}camOn=false;if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}$('cam').hidden=true;const tb=$('cam-torch');if(tb){tb.hidden=true;tb.classList.remove('on')}}
 $('cam-close').onclick=camStop;
 async function liveScan(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!(window.jsQR||('BarcodeDetector' in window)))return false;
-  try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false})}catch(e){return false}
-  const v=$('cam-v');v.srcObject=camStream;$('cam').hidden=false;$('cam-msg').textContent='وجّه الكاميرا نحو كود QR';
+  try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false})}catch(e){return false}
+  /* Ton freischalten (Nutzergeste) */
+  try{camAC=camAC||new (window.AudioContext||window.webkitAudioContext)();camAC.resume()}catch(e){}
+  const v=$('cam-v');v.srcObject=camStream;$('cam').hidden=false;$('cam-msg').textContent='ضع الكود داخل الإطار · Code in den Rahmen halten';
   try{await v.play()}catch(e){}
   camOn=true;
+  /* Taschenlampe, falls die Kamera sie anbietet */
+  try{const tr=camStream.getVideoTracks()[0],cap=tr.getCapabilities?tr.getCapabilities():{};const tb=$('cam-torch');
+    if(cap.torch){tb.hidden=false;tb.onclick=async()=>{const on=!tb.classList.contains('on');try{await tr.applyConstraints({advanced:[{torch:on}]});tb.classList.toggle('on',on)}catch(e){}}}}catch(e){}
   const c=document.createElement('canvas'),x=c.getContext('2d',{willReadFrequently:true});
   const det=('BarcodeDetector' in window)?new BarcodeDetector({formats:['qr_code']}):null;
   let last='',lastAt=0;
+  /* nur der Bereich im Rahmen (+12 % Rand) wird gelesen */
+  const crop=()=>{const w=$('cam-wrap'),W=w.clientWidth,H=w.clientHeight,vw=v.videoWidth,vh=v.videoHeight;
+    const fs=Math.min(W,H)*0.62;w.style.setProperty('--fs',Math.round(fs)+'px');
+    const sc=Math.max(W/vw,H/vh),ox=(W-vw*sc)/2,oy=(H-vh*sc)/2,m=fs*0.12;
+    let sx=((W-fs)/2-m-ox)/sc,sy=((H-fs)/2-m-oy)/sc,sw=(fs+2*m)/sc;sx=Math.max(0,sx);sy=Math.max(0,sy);
+    return [sx,sy,Math.min(sw,vw-sx),Math.min(sw,vh-sy)]};
   const tick=async()=>{
     if(!camOn)return;
     if(v.readyState>=2&&v.videoWidth){
       let text='';
       try{
-        if(det){const r=await det.detect(v);if(r&&r[0])text=r[0].rawValue}
-        if(!text&&window.jsQR){
-          const k=Math.min(1,900/Math.max(v.videoWidth,v.videoHeight));c.width=Math.round(v.videoWidth*k);c.height=Math.round(v.videoHeight*k);
-          x.drawImage(v,0,0,c.width,c.height);const d=x.getImageData(0,0,c.width,c.height),r=window.jsQR(d.data,c.width,c.height,{inversionAttempts:'dontInvert'});
-          if(r&&r.data)text=r.data;
-        }
+        const [sx,sy,sw,sh]=crop(),k=Math.min(1,640/Math.max(sw,sh));c.width=Math.round(sw*k);c.height=Math.round(sh*k);
+        x.drawImage(v,sx,sy,sw,sh,0,0,c.width,c.height);
+        if(det){const r=await det.detect(c);if(r&&r[0])text=r[0].rawValue}
+        if(!text&&window.jsQR){const d=x.getImageData(0,0,c.width,c.height),r=window.jsQR(d.data,c.width,c.height,{inversionAttempts:'dontInvert'});if(r&&r.data)text=r.data}
       }catch(e){}
       if(text&&(text!==last||Date.now()-lastAt>2500)){
         last=text;lastAt=Date.now();
         if(scanMode==='pick'){pickHandle(text)}else{
         const ok=scanMode==='lg'?lgHandleCode(text):scanMode==='inv'?ivHandleCode(text):handleCode(text);
-        if((scanMode==='lg'||scanMode==='inv')&&ok){camStop()}
-        $('cam-msg').textContent=ok?(scanMode==='order'?$('cat-status').textContent:'تم'):'الكود «'+text+'» لا يطابق أي صنف';
-        if(navigator.vibrate)try{navigator.vibrate(ok?60:[40,60,40])}catch(e){}}
+        camBeep(!!ok);
+        $('cam-msg').textContent=ok?(scanMode==='order'?'✓ '+$('cat-status').textContent:'✓ تم · OK'):'الكود «'+text+'» لا يطابق أي صنف · kein Artikel';
+        if((scanMode==='lg'||scanMode==='inv')&&ok){setTimeout(camStop,350)}}
       }
     }
-    setTimeout(tick,160);
+    setTimeout(tick,110);
   };
   tick();return true;
 }
@@ -3097,7 +3124,7 @@ const ivSortKey=p=>{const m=/^([A-D])(\d{2})-(\d)-(\d)$/.exec(p||'');return m?m[
 
 /* ---------- Kommissionieren mit Scan (Prüfung der Qualität) ---------- */
 let pickId=null;
-function camMsg(t,kind){const m=$('cam-msg');m.textContent=t;m.style.background=kind==='ok'?'#1d6b3a':kind==='err'?'#a12c2c':kind==='warn'?'#a4560a':'';m.style.color=kind?'#fff':''}
+function camMsg(t,kind){if(kind==='ok'||kind==='err')camBeep(kind==='ok');const m=$('cam-msg');m.textContent=t;m.style.background=kind==='ok'?'#1d6b3a':kind==='err'?'#a12c2c':kind==='warn'?'#a4560a':'';m.style.color=kind?'#fff':''}
 function pickStart(l){pickId=l.id;scanMode='pick';liveScan().then(ok=>{if(!ok)alert('الكاميرا غير متاحة · Kamera nicht verfügbar');else camMsg('امسح ملصق الرف لكل صنف · Regaletikett jedes Artikels scannen')})}
 function pickHandle(text){
   const l=lists.find(x=>x.id===pickId);if(!l){camMsg('الطلب غير موجود · Auftrag nicht gefunden','err');return}
