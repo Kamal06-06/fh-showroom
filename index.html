@@ -3022,24 +3022,30 @@ async function orderProposal(){
     const q=document.createElement('input');q.type='search';q.placeholder='بحث · Suche';q.dir='auto';
     const all=el('button','btn small','تحديد / إلغاء الكل · Alle an/aus');
     const list=el('div');list.style.maxHeight='50vh';list.style.overflow='auto';
-    const draw=()=>{list.textContent='';const f=fold(q.value);sel.forEach(s=>{if(f&&!fold(s.x.code+' '+s.x.title).includes(f))return;
+    const draw=()=>{list.textContent='';const f=fold(q.value);sel.forEach(s=>{if(f&&!fold(s.x.code+' '+s.x.title+' '+(s.x.orig||'')+' '+(s.x.werk||'')).includes(f))return;
       const r=el('div','ivrow');r.style.gridTemplateColumns='auto 1fr auto';const cb=document.createElement('input');cb.type='checkbox';cb.checked=s.on;cb.onchange=()=>{s.on=cb.checked};
-      const inf=el('div','ivinfo');inf.append(el('div','ivname',s.x.code+' · '+(s.x.tier||'')),el('div','ivtn','الرصيد / Bestand '+ivFmt(s.x.bestand,'kg')+' · الحد / Min '+ivFmt(s.x.min,'kg')));
+      const inf=el('div','ivinfo');inf.append(el('div','ivname',s.x.code+' · '+(s.x.tier||'')),el('div','ivtn',(s.x.orig||'–')+' · '+(s.x.werk?'Zert. '+s.x.werk:'⚠️ بدون رقم شهادة · ohne Zert.-Nr.')),el('div','ivtn','الرصيد / Bestand '+ivFmt(s.x.bestand,'kg')+' · الحد / Min '+ivFmt(s.x.min,'kg')));
       const i=document.createElement('input');i.type='number';i.min=0;i.step=1;i.value=s.q;i.style.width='80px';i.oninput=()=>{s.q=+i.value||0};
       const w=el('div','ivin');w.append(i,el('span','u','kg'));r.append(cb,inf,w);list.append(r)})};
     q.oninput=draw;all.onclick=()=>{const on=!sel.every(s=>s.on);sel.forEach(s=>s.on=on);draw()};
     const go=el('button','btn primary big','📄 PDF للمصنع · PDF für das Werk');
     go.onclick=()=>{const pick=sel.filter(s=>s.on&&s.q>0);if(!pick.length)return;
       const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'}),W=210;let y=18;
-      doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('Bestellung / Purchase Order',14,y);y+=7;
+      const fit=(t,w)=>{t=latin(t||'');if(doc.getTextWidth(t)<=w)return t;while(t.length>1&&doc.getTextWidth(t+'…')>w)t=t.slice(0,-1);return t+'…'};
+      doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('Bestellung an das Werk / Purchase Order',14,y);y+=7;
       doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text('Fragrance Hub Germany · Am Alten Kirchplatz 10 · 45665 Recklinghausen',14,y);y+=5;
-      doc.text('An / To: Aromabelle   ·   Datum / Date: '+new Date().toLocaleDateString('de-DE'),14,y);y+=5;
+      doc.text('Datum / Date: '+new Date().toLocaleDateString('de-DE'),14,y);y+=5;
       doc.text('Alle Öle in Alu-Flaschen 1 kg · All oils in 1 kg aluminium bottles',14,y);y+=8;
-      const hd=()=>{doc.setFont('helvetica','bold');doc.setFillColor(26,23,20);doc.setTextColor(255);doc.rect(14,y-5,W-28,7,'F');doc.text('Pos.',16,y);doc.text('Code',30,y);doc.text('Qualität / Quality',110,y);doc.text('Menge / Qty',W-16,y,{align:'right'});doc.setTextColor(0);doc.setFont('helvetica','normal');y+=7};
-      hd();let tot=0;pick.forEach((s,i)=>{if(y>280){doc.addPage();y=18;hd()}if(i%2){doc.setFillColor(243,239,230);doc.rect(14,y-4.6,W-28,6.4,'F')}
-        doc.text(String(i+1),16,y);doc.text(latin(s.x.code),30,y);doc.text(latin(s.x.tier||''),110,y);doc.text(s.q+' kg',W-16,y,{align:'right'});tot+=s.q;y+=6.4});
-      y+=3;doc.setFont('helvetica','bold');doc.text('Summe / Total: '+pick.length+' Pos. · '+tot+' kg',W-16,y,{align:'right'});
-      qrOut(doc,'Bestellung-Aromabelle-'+new Date().toISOString().slice(0,10)+'.pdf')};
+      doc.setFontSize(8.5);
+      const X={pos:15,code:23,orig:62,werk:136,tier:155,qty:W-15};
+      const hd=()=>{doc.setFont('helvetica','bold');doc.setFillColor(26,23,20);doc.setTextColor(255);doc.rect(13,y-5,W-26,7,'F');doc.text('Pos.',X.pos,y);doc.text('Code',X.code,y);doc.text('Originalname / Original name',X.orig,y);doc.text('Zert.-Nr.',X.werk,y);doc.text('Qualität',X.tier,y);doc.text('Menge',X.qty,y,{align:'right'});doc.setTextColor(0);doc.setFont('helvetica','normal');y+=7};
+      hd();let tot=0,ohne=0;pick.forEach((s,i)=>{if(y>280){doc.addPage();y=18;hd()}if(i%2){doc.setFillColor(243,239,230);doc.rect(13,y-4.6,W-26,6.4,'F')}
+        doc.text(String(i+1),X.pos,y);doc.text(fit(s.x.code,38),X.code,y);doc.text(fit(s.x.orig||'',72),X.orig,y);
+        doc.setFont('helvetica','bold');doc.text(s.x.werk||'—',X.werk,y);doc.setFont('helvetica','normal');if(!s.x.werk)ohne++;
+        doc.text(fit(s.x.tier||'',22),X.tier,y);doc.text(s.q+' kg',X.qty,y,{align:'right'});tot+=s.q;y+=6.4});
+      y+=3;doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text('Summe / Total: '+pick.length+' Pos. · '+tot+' kg',W-15,y,{align:'right'});
+      if(ohne){y+=6;doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text(ohne+' Position(en) ohne Zertifikatsnummer – bitte prüfen / without certificate number – please check',14,y)}
+      qrOut(doc,'Bestellung-Werk-'+new Date().toISOString().slice(0,10)+'.pdf')};
     b.append(q,all,list,go);draw();
   });
 }
