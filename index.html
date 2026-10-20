@@ -2947,6 +2947,12 @@ async function ivSave(x,inp,btn){
     ivProgOnly();
     let n2=nr.nextElementSibling;while(n2&&!(n2.classList.contains('ivrow')&&!n2.classList.contains('done')))n2=n2.nextElementSibling;
     const ni=n2&&n2.querySelector('input');if(ni){ni.focus();try{n2.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}}
+    else if(ivStand!=='*'){/* Regal fertig → automatisch zum nächsten Regal mit offenen Artikeln */
+      const st=ivStands(),i=st.findIndex(([s])=>s===ivStand);
+      const nx=st.slice(i+1).concat(st.slice(0,Math.max(0,i))).find(([s,o])=>o.d<o.n);
+      if(nx){ivStand=nx[0];ivStatus('✓ انتقل إلى · weiter zu: '+(ivStand==='—'?'بدون مكان · ohne Fach':ivStand));setTimeout(()=>ivStatus(''),3000);ivRender();
+        setTimeout(()=>{const r=document.querySelector('#iv-list .ivrow:not(.done) input');if(r){r.focus();try{r.closest('.ivrow').scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}}},150)}
+      else setTimeout(ivRender,400)}
     else if($('iv-show').value==='open')setTimeout(ivRender,400);
   }catch(e){btn.disabled=false;inp.disabled=false;ivStatus('لم يُحفظ · Nicht gespeichert: '+e.message,true)}
 }
