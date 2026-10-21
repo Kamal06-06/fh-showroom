@@ -62,6 +62,9 @@ header{padding-bottom:10px;border-bottom:2px solid var(--gold)}
 #cam-torch{position:absolute;bottom:12px;inset-inline-end:12px;width:50px;height:50px;border-radius:50%;border:0;background:rgba(255,255,255,.18);font-size:22px;color:#fff}
 #cam-torch.on{background:#c9a24a}
 #cam-msg{color:#fff;text-align:center;font-weight:600;min-height:1.5em}
+#cam-pick{background:var(--surface);color:var(--ink);border-radius:10px;padding:10px;max-height:45vh;overflow:auto;flex:none}
+#cam-pick .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+#cam-pick .chip{font-size:16px;padding:10px 14px}
 .clprow{display:flex;gap:8px;align-items:center;font-size:14.5px}
 #scrim{position:fixed;inset:0;background:#0007;z-index:20}
 #drawer{position:fixed;top:0;bottom:0;inset-inline-start:0;width:min(340px,88vw);background:var(--surface);border-inline-end:1px solid var(--line);z-index:21;padding:calc(14px + env(safe-area-inset-top,0px)) 14px 14px;display:flex;flex-direction:column;gap:10px;overflow:auto}
@@ -474,6 +477,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
 <div id="cam" hidden dir="rtl" lang="ar">
   <div id="cam-wrap"><video id="cam-v" playsinline muted></video><div id="cam-frame"><i></i><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></div><button type="button" id="cam-torch" hidden aria-label="الإضاءة · Licht">🔦</button></div>
   <div id="cam-msg">وجّه الكاميرا نحو كود QR</div>
+  <div id="cam-pick" hidden></div>
   <button class="btn big" id="cam-close">إغلاق الكاميرا</button>
 </div>
 <div id="scrim" hidden></div>
@@ -1343,12 +1347,27 @@ function variantItem(p,v){
   const a=(v[0]||'').split(' / ');
   return {t:p.t,oil:1,tier:a.length>1?a[a.length-1].trim():'',size:a[0].replace(/^Probe\s*/i,'').trim(),code:stem(v[1]),sku:v[1]||'',price:pnum(v[2])};
 }
+/* QR scan (CODE#T): show all sizes of that quality, the user picks one; camera stays open */
+function showSizePick(p,tier){
+  const vs=p.v.filter(v=>{const a=(v[0]||'').split(' / ');return a.length>1&&a[a.length-1].trim()===tier});
+  const inCam=camOn&&!$('cam').hidden;
+  const box=inCam?$('cam-pick'):$('results');box.textContent='';box.hidden=false;
+  const r=el('div','res'),info=el('div','info');
+  info.append(el('div','name',p.t));if(p.a)info.append(el('div','alias',p.a));info.append(el('div','code',(vs[0]?stem(vs[0][1]):'')+' · '+tier));
+  const c=el('div','chips');
+  vs.forEach(v=>{const a=(v[0]||'').split(' / '),pr=pnum(v[2]);const b=el('button','chip',a[0].trim()+(pr!=null?' · '+money(pr):''));
+    b.onclick=()=>{const it=variantItem(p,v);it.a=p.a||'';addItem(it);const msg='✓ أُضيف: '+p.t+' · '+tier+' · '+a[0].trim();catStatus(msg);box.textContent='';
+      if(inCam){box.hidden=true;$('cam-msg').textContent=msg+' — امسح الصنف التالي'}else $('q').focus()};c.append(b)});
+  r.append(info,c);box.append(r);
+  catStatus('اختر الحجم: '+p.t+' · '+tier);
+  if(!inCam)r.scrollIntoView({block:'center',behavior:'smooth'});
+}
 function handleCode(text){
   let t=String(text||'').trim();if(!t)return false;
   const m=/[?&#](?:code|sku)=([^&#]+)/i.exec(t);if(m)t=decodeURIComponent(m[1]);
   const u=t.toUpperCase();
   const ts=/^(.*-SH)#([SPE])$/.exec(u);
-  if(ts){const hit=lgFindByCodeTier(ts[1],ts[2]);if(!hit)return false;const p=hit.p,o=options(p).find(o=>o.tier===hit.tier);if(!o)return false;if(o.off){catStatus(p.t+' · '+o.label+': لا يوجد بكمية '+size,true);return true}addItem({t:p.t,a:p.a||'',oil:1,tier:o.tier,code:o.code,size:o.size,sku:o.sku,price:o.price});catStatus('أُضيف: '+p.t+' · '+o.label+' · '+size);return true}
+  if(ts){const hit=lgFindByCodeTier(ts[1],ts[2]);if(!hit)return false;showSizePick(hit.p,hit.tier);return true}
   for(const p of catalog){const v=p.v.find(v=>v[1]&&v[1].toUpperCase()===u);if(v){addItem(variantItem(p,v));catStatus('أُضيف: '+p.t+' · '+(v[0]||''));return true}}
   for(const p of catalog){
     if(!p.oil)continue;
@@ -1369,7 +1388,7 @@ function camBeep(ok){try{camAC=camAC||new (window.AudioContext||window.webkitAud
   if(ok)tone(2100,0,.11);else{tone(420,0,.12);tone(420,.17,.12)}}catch(e){}
   const f=$('cam-frame');if(f){f.classList.remove('ok','err');void f.offsetWidth;f.classList.add(ok?'ok':'err');clearTimeout(f._t);f._t=setTimeout(()=>f.classList.remove('ok','err'),650)}
   try{if(navigator.vibrate)navigator.vibrate(ok?60:[40,60,40])}catch(e){}}
-function camStop(){try{camMsg('')}catch(e){}camOn=false;if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}$('cam').hidden=true;const tb=$('cam-torch');if(tb){tb.hidden=true;tb.classList.remove('on')}}
+function camStop(){try{camMsg('')}catch(e){}camOn=false;if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}$('cam').hidden=true;$('cam-pick').hidden=true;$('cam-pick').textContent='';const tb=$('cam-torch');if(tb){tb.hidden=true;tb.classList.remove('on')}}
 $('cam-close').onclick=camStop;
 async function liveScan(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!(window.jsQR||('BarcodeDetector' in window)))return false;
