@@ -303,6 +303,12 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
 .qprint .lbl{font-weight:700;font-size:14px}
 .hlogo{cursor:pointer}
 #tab-homebtn{font-weight:700}
+.custdd{margin-top:4px;border:1px solid var(--line);border-radius:12px;background:var(--surface);max-height:280px;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.12)}
+.custdd button{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:12px 14px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--ink);font:inherit;font-size:16px;text-align:start;cursor:pointer}
+.custdd button:last-child{border-bottom:0}
+.custdd button:active,.custdd button:hover{background:var(--soft)}
+.custdd .op{font-size:13px;color:var(--danger);white-space:nowrap}
+.custdd .ok0{font-size:13px;color:var(--muted)}
 .debt-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .unitpick{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .ir-unit{font-weight:700;color:var(--gold)}
@@ -692,7 +698,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
         <div><label for="cs-amt">المبلغ €</label><input type="number" id="cs-amt" min="0" step="0.01" inputmode="decimal" placeholder="0,00"></div>
       </div>
       <div class="row grow" id="cs-cust-row" hidden>
-        <div><label for="cs-cust">العميل</label><input type="text" id="cs-cust" list="cs-cust-dl" autocomplete="off" placeholder="اكتب اسم العميل أو رقمه"><datalist id="cs-cust-dl"></datalist><div id="cs-cust-info" class="hint" style="margin-top:4px"></div></div>
+        <div><label for="cs-cust">العميل</label><input type="text" id="cs-cust" autocomplete="off" placeholder="اكتب اسم العميل أو رقمه"><div id="cs-cust-dd" class="custdd" hidden></div><div id="cs-cust-info" class="hint" style="margin-top:4px"></div></div>
       </div>
       <div class="row grow" id="cs-exp-row">
         <div><label for="cs-cat">الفئة</label><select id="cs-cat"><option>قهوة وضيافة</option><option>مواد تنظيف</option><option>بنزين / مواصلات</option><option>مستلزمات تغليف</option><option>أدوات ومعدات</option><option>بريد وشحن</option><option>أخرى</option></select></div>
@@ -2337,14 +2343,22 @@ $('cs-save').onclick=async()=>{
 /* cash receipt from a customer: pick the customer, the amount is booked into the cash box AND paid off the customer's oldest open orders/debts */
 function csCustFind(v){v=String(v||'').trim();if(!v)return null;const lv=v.toLowerCase(),gs=custGroups();
   return gs.find(g=>(g.name+(g.no?' ('+g.no+')':'')).toLowerCase()===lv)||gs.find(g=>g.no&&g.no.toLowerCase()===lv)||gs.find(g=>String(g.name||'').toLowerCase()===lv)||null}
-function csCustFill(){const dl=$('cs-cust-dl');dl.textContent='';const seen={};
-  custGroups().forEach(g=>{const t=g.name+(g.no?' ('+g.no+')':'');if(seen[t])return;seen[t]=1;const o=el('option');o.value=t;if(g.open>0.004)o.label='مفتوح '+money(g.open);dl.append(o)});
-  customers.forEach(c=>{const t=c.name+(c.no?' ('+c.no+')':'');if(seen[t])return;seen[t]=1;const o=el('option');o.value=t;dl.append(o)});csCustInfo()}
+let csCustAll=[];
+function csCustFill(){const seen={};csCustAll=[];
+  custGroups().forEach(g=>{const t=g.name+(g.no?' ('+g.no+')':'');if(seen[t])return;seen[t]=1;csCustAll.push({t,open:g.open})});
+  customers.forEach(c=>{const t=c.name+(c.no?' ('+c.no+')':'');if(seen[t])return;seen[t]=1;csCustAll.push({t,open:0})});
+  csCustAll.sort((a,b)=>b.open-a.open||a.t.localeCompare(b.t));$('cs-cust-dd').hidden=true;csCustInfo()}
+function csCustDD(){const dd=$('cs-cust-dd'),q=$('cs-cust').value.trim().toLowerCase();dd.textContent='';
+  const hits=csCustAll.filter(c=>!q||c.t.toLowerCase().includes(q)).slice(0,30);
+  if(!hits.length||(hits.length===1&&hits[0].t.toLowerCase()===q)){dd.hidden=true;return}
+  hits.forEach(c=>{const b=el('button');b.type='button';b.append(el('span',null,c.t),el('span',c.open>0.004?'op':'ok0',c.open>0.004?'مفتوح '+money(c.open):'لا رصيد'));
+    b.onmousedown=e=>e.preventDefault();b.onclick=()=>{$('cs-cust').value=c.t;dd.hidden=true;csCustInfo();$('cs-amt').focus()};dd.append(b)});
+  dd.hidden=false}
 function csCustInfo(){const v=$('cs-cust').value.trim(),inf=$('cs-cust-info');if(!v){inf.textContent='';return}
-  const g=csCustFind(v);if(!g){inf.textContent='عميل غير موجود في الحسابات — يُسجَّل المبلغ في الصندوق باسمه فقط';return}
+  const g=csCustFind(v);if(!g){inf.textContent=csCustAll.some(c=>c.t.toLowerCase().includes(v.toLowerCase()))?'اختر العميل من القائمة':'عميل غير موجود في الحسابات — يُسجَّل المبلغ في الصندوق باسمه فقط';return}
   const n=g.orders.filter(l=>payOf(l).open>0.004).length;
   inf.textContent=g.open>0.004?'الرصيد المفتوح: '+money(g.open)+' · '+n+' طلب/دين غير مسدّد — يُخصم المبلغ من الأقدم أولاً':'لا يوجد رصيد مفتوح لهذا العميل — يُسجَّل المبلغ في الصندوق كرصيد له';}
-$('cs-cust').oninput=csCustInfo;
+$('cs-cust').oninput=()=>{csCustInfo();csCustDD()};$('cs-cust').onfocus=csCustDD;$('cs-cust').onblur=()=>setTimeout(()=>{$('cs-cust-dd').hidden=true},150);
 {const _t=$('cs-type').onchange;$('cs-type').onchange=()=>{_t();const isIn=$('cs-type').value==='in';$('cs-cust-row').hidden=!isIn;if(isIn)csCustFill()}}
 {const _save=$('cs-save').onclick;$('cs-save').onclick=async()=>{
   if($('cs-type').value!=='in'||!$('cs-cust').value.trim())return _save();
@@ -2365,7 +2379,7 @@ $('cs-cust').oninput=csCustInfo;
       await docOf(l).update({pay});l.pay=pay;rest=r2(rest-use);n++}
     if(rest>0.004)await db.collection('cash').add({type:'in',amount:rest,who,holder:who,note:(g?g.name+(g.no?' ('+g.no+')':''):nm)+' · رصيد للعميل'+(note?' · '+note:''),custNo:g?g.no||'':'',at:Date.now()});
     msg.textContent='✓ تم: '+money(a)+' من '+(g?g.name:nm)+(n?' · سُدّد '+n+' طلب/دين':'')+(rest>0.004?' · '+money(rest)+' رصيد له':'');
-    $('cs-amt').value='';$('cs-note').value='';$('cs-cust').value='';$('cs-cust-info').textContent='';$('cs-file').value='';
+    $('cs-amt').value='';$('cs-note').value='';$('cs-cust').value='';$('cs-cust-info').textContent='';$('cs-cust-dd').hidden=true;$('cs-file').value='';
     try{renderLists()}catch(_){}try{renderAcc()}catch(_){}
     setTimeout(()=>{msg.hidden=true},3500);setTimeout(()=>{if($('sheet-b').contains($('cs-form')))closeSheet()},1500);
   }catch(e){msg.textContent='فشل: '+(e.message||e);msg.classList.add('err')}
