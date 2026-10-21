@@ -113,8 +113,8 @@ var M={
    '50':{n:'50 ml',dim:'Höhe 73 mm · Ø 50 mm',pcs:80,body:1,parts:1,sep:null,
     muster:{id:58899823296895,p:2.20},t:[{min:1,id:58899823329663,p:76.00},{min:2,id:58899823362431,p:68.00},{min:10,id:58899823395199,p:56.00},{min:20,id:58899823427967,p:44.00}],
     plain:null}}},
- octavia:{n:'True Jewel',mode:'full',showPrem:0,def:{spr:'Gold',cap:'Kugel Gold'},
-  L:{base_tube:{f:'okt50-base-tube.webp'},base_notube:{f:'okt50-base-leer.webp'},
+ octavia:{n:'True Jewel',mode:'full',showPrem:0,sh:650,def:{spr:'Gold',cap:'Kugel Gold'},
+  L:{base_tube:{f:'okt50-base-tube.webp'},base_notube:{f:'okt50-base-leer.webp'},base_tube_100:{f:'okt100-base-tube.webp'},base_notube_100:{f:'okt100-base-leer.webp'},
    spr_Silber:{f:'spr-fea15-silber-o.webp',x:[586,222]},spr_Gold:{f:'spr-fea15-gold-o.webp',x:[586,207]},spr_Schwarz:{f:'spr-fea15-schwarz-o.webp',x:[586,158]},
    'cap_Eckig Schwarz':{f:'kappe-eckig-schwarz.webp',x:[525,173]},'cap_Zylinder Weiss-Gold':{f:'kappe-zylinder-weiss-gold.webp',x:[513,84]},
    'cap_Kugel Gold':{f:'kappe-kugel-gold.webp',x:[492,153]},'cap_Kugel Weiss':{f:'kappe-kugel-weiss.webp',x:[492,147]},'cap_Kugel Schwarz':{f:'kappe-kugel-schwarz.webp',x:[492,151]},
@@ -130,8 +130,11 @@ var M={
    {k:'Ribbed Gold',n:'Ribbed · Gold',sw:'repeating-linear-gradient(#e7c66f 0 3px,#a8802f 3px 5px)',id:58900197343615,p:0.70},
    {k:'Ribbed Schwarz',n:'Ribbed · Schwarz',sw:'repeating-linear-gradient(#444 0 3px,#0b0b0b 3px 5px)',id:58900197376383,p:0.70}],
   sizes:{
-   '50':{n:'50 ml',dim:'88 × 52 × 29 mm',pcs:80,body:1,parts:1,sep:null,
+   '50':{n:'50 ml',dim:'88 × 52 × 29 mm',pcs:80,body:0.835,parts:0.835,sep:null,
     muster:{id:58900196458879,p:2.25},t:[{min:1,id:58900196491647,p:80.00},{min:2,id:58900196524415,p:72.00},{min:10,id:58900196557183,p:60.00},{min:20,id:58900196589951,p:48.00}],
+    plain:null},
+   '100':{n:'100 ml',dim:'104,5 × 60 × 32 mm',pcs:70,body:1,parts:0.835,sh:637.8,bsuf:'_100',sep:null,
+    muster:{id:58900494516607,p:2.35},t:[{min:1,id:58900494549375,p:77.00},{min:2,id:58900494582143,p:70.00},{min:10,id:58900494614911,p:59.50},{min:20,id:58900494647679,p:49.00}],
     plain:null}}}};
 var q=new URLSearchParams(location.search);
 var st={model:M[q.get('m')]?q.get('m'):'sqg',size:q.get('ml')==='100'?'100':'50',spr:'Gold',cap:'',mode:'karton'};
@@ -142,10 +145,10 @@ function int(i,min){var v=parseInt($(i).value,10);return isNaN(v)?min:Math.max(m
 var IMG={};function load(md,k){var o=M[md].L[k];if(!o)return Promise.resolve(null);var key=md+k;return IMG[key]||(IMG[key]=new Promise(function(r){var i=new Image();i.onload=function(){r(i)};i.onerror=function(){r(null)};i.src=CDN+o.f}))}
 function CAPS(){return [{k:'ohne',n:'Ohne Kappe'}].concat(M[st.model].caps)}
 var dId=0;
-function draw(){var id=++dId,md=st.model,Mo=M[md],S=Mo.sizes[st.size],noS=st.spr==='ohne',cap=st.cap!=='ohne';var bk=noS?'base_notube':'base_tube',hk=cap?'cap_'+st.cap:(noS?(Mo.mode==='cut'?'neck':null):'spr_'+st.spr);
+function draw(){var id=++dId,md=st.model,Mo=M[md],S=Mo.sizes[st.size],noS=st.spr==='ohne',cap=st.cap!=='ohne';var bk=(noS?'base_notube':'base_tube')+(S.bsuf||''),hk=cap?'cap_'+st.cap:(noS?(Mo.mode==='cut'?'neck':null):'spr_'+st.spr);
  Promise.all([load(md,bk),hk?load(md,hk):null]).then(function(a){if(id!==dId||!a[0])return;var c=$('cv').getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,1540,2002);
   var f=S.body,k=S.parts;c.drawImage(a[0],XC-XC*f,YB-YB*f,1540*f,2002*f);
-  if(a[1]){var p=Mo.L[hk].x;if(Mo.mode==='cut'){var cut=YB-(YB-CUT)*f;c.drawImage(a[1],XC-(XC-p[0])*k,cut-(CUT-p[1])*k,a[1].width*k,a[1].height*k)}else c.drawImage(a[1],p[0],p[1])}});
+  if(a[1]){var p=Mo.L[hk].x;if(Mo.mode==='cut'){var cut=YB-(YB-CUT)*f;c.drawImage(a[1],XC-(XC-p[0])*k,cut-(CUT-p[1])*k,a[1].width*k,a[1].height*k)}else{var ref=Mo.sh||YB,sh=S.sh!=null?S.sh:YB-(YB-ref)*f;c.drawImage(a[1],XC-(XC-p[0])*k,sh-(ref-p[1])*k,a[1].width*k,a[1].height*k)}}});
  Object.keys(Mo.L).forEach(function(k){load(md,k)});}
 function btns(box,list,key,showSw,prem){var el=$(box);el.innerHTML='';list.forEach(function(o){var b=document.createElement('button');b.type='button';b.className='o';b.setAttribute('aria-pressed',st[key]===o.k);
  b.innerHTML=(showSw?'<span class="sw'+(o.sw?'':' n')+'"'+(o.sw?' style="background:'+o.sw+'"':'')+'></span>':'')+o.n+(prem&&o.prem?' <small>+0,20 €</small>':'');
