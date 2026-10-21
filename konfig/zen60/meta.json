@@ -1,0 +1,27 @@
+{
+ "shoulder": 730,
+ "kappe-zen-matt": [
+  445,
+  340
+ ],
+ "kappe-zen-glanz": [
+  444,
+  330
+ ],
+ "kappe-zen-gold": [
+  445,
+  329
+ ],
+ "spr-fea15-gold-b": [
+  619,
+  366
+ ],
+ "spr-fea15-silber-b": [
+  619,
+  379
+ ],
+ "spr-fea15-schwarz-b": [
+  619,
+  326
+ ]
+}
