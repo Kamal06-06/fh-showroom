@@ -1,0 +1,35 @@
+{
+ "shoulder": 702,
+ "spr-fea15-gold-b": [
+  619,
+  338
+ ],
+ "spr-fea15-silber-b": [
+  619,
+  351
+ ],
+ "spr-fea15-schwarz-b": [
+  619,
+  298
+ ],
+ "kappe-zylinder-weiss-gold-b": [
+  559,
+  237
+ ],
+ "kappe-polo-weiss-gold-b": [
+  563,
+  292
+ ],
+ "kappe-polo-schwarz-gold-b": [
+  563,
+  285
+ ],
+ "kappe-ribbed-gold-b": [
+  529,
+  297
+ ],
+ "kappe-ribbed-schwarz-b": [
+  529,
+  314
+ ]
+}
