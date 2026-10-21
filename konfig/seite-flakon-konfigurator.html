@@ -47,6 +47,8 @@
 #fhk .tool p{margin:0 0 8px;font-size:13.5px}
 #fhk .tool .os{gap:6px}
 #fhk .tool .o{font-size:13px;padding:6px 12px}
+#fhk .tool .o{display:inline-flex;align-items:center;gap:8px}
+#fhk .tool .o .ti{width:34px;height:34px;object-fit:cover;border-radius:6px;background:#f4f1ea;flex:none}
 #fhk .msg{margin-top:10px;font-size:14px;color:#b3261e;min-height:1em}
 </style>
 <div id="fhk">
@@ -89,7 +91,7 @@ var XC=772.1,YB=1996.4,CUT=635.6;
 var SPR=[{k:'ohne',n:'Ohne Sprühkopf'},{k:'Silber',n:'Silber',sw:'linear-gradient(135deg,#f4f4f4,#8d8d8d 55%,#e9e9e9)',id:58899623805311},
  {k:'Gold',n:'Gold',sw:'linear-gradient(135deg,#f6e3a6,#b8913a 55%,#f1d98d)',id:58899623838079},{k:'Schwarz',n:'Schwarz',sw:'linear-gradient(135deg,#555,#0d0d0d 60%,#3a3a3a)',id:58899623870847}];
 var SP=0.55;
-var TOOLS=[{k:'ohne',n:'Kein Werkzeug'},{k:'ck',n:'Crimpkopf FEA 13 / 15',l:'Crimpkopf FEA 13 / FEA 15 – Handcrimper',id:58216807530879,p:12},{k:'hs',n:'Handcrimper FEA 15 · Schwarz',l:'Handcrimper FEA 15 · Schwarz',id:56562047648127,p:10},{k:'hw',n:'Handcrimper FEA 15 · Weiß',l:'Handcrimper FEA 15 · Weiß',id:56562047680895,p:10}];
+var TOOLS=[{k:'ohne',n:'Kein Werkzeug'},{k:'ck',n:'Crimpkopf FEA 13 / 15',l:'Crimpkopf FEA 13 / FEA 15 – Handcrimper',id:58216807530879,p:12,img:'https://cdn.shopify.com/s/files/1/0929/4571/1487/files/fh-produkt-15848083915135_ac7c4258-a3b1-4e48-8dc6-dd772dc42998.jpg?v=1791939109'},{k:'hs',n:'Handcrimper FEA 15 · Schwarz',l:'Handcrimper FEA 15 · Schwarz',id:56562047648127,p:10,img:'https://cdn.shopify.com/s/files/1/0929/4571/1487/files/fh-produkt-15445129888127_ce87616a-f5f5-4123-90b7-9d2a2b8e71e2.jpg?v=1791939047'},{k:'hw',n:'Handcrimper FEA 15 · Weiß',l:'Handcrimper FEA 15 · Weiß',id:56562047680895,p:10,img:'https://cdn.shopify.com/s/files/1/0929/4571/1487/files/fh-produkt-15445129888127_ce87616a-f5f5-4123-90b7-9d2a2b8e71e2.jpg?v=1791939047'}];
 var RIB_GO={k:'Ribbed Gold',n:'Ribbed · Gold',sw:'repeating-linear-gradient(#e7c66f 0 3px,#a8802f 3px 5px)',id:58899623969151,p:0.75,prem:1},
     RIB_SW={k:'Ribbed Schwarz',n:'Ribbed · Schwarz',sw:'repeating-linear-gradient(#444 0 3px,#0b0b0b 3px 5px)',id:58899624001919,p:0.75,prem:1};
 var M={
@@ -245,7 +247,7 @@ function draw(){var id=++dId,md=st.model,Mo=M[md],S=Mo.sizes[st.size],noS=st.spr
   if(a[1]){var p=Mo.L[hk].x;if(Mo.mode==='cut'){var cut=YB-(YB-CUT)*f;c.drawImage(a[1],XC-(XC-p[0])*k,cut-(CUT-p[1])*k,a[1].width*k,a[1].height*k)}else{var ref=Mo.sh||YB,sh=S.sh!=null?S.sh:YB-(YB-ref)*f;c.drawImage(a[1],XC-(XC-p[0])*k,sh-(ref-p[1])*k,a[1].width*k,a[1].height*k)}}});
  Object.keys(Mo.L).forEach(function(k){load(md,k)});}
 function btns(box,list,key,showSw,prem){var el=$(box);el.innerHTML='';list.forEach(function(o){var b=document.createElement('button');b.type='button';b.className='o';b.setAttribute('aria-pressed',st[key]===o.k);
- b.innerHTML=(showSw?'<span class="sw'+(o.sw?'':' n')+'"'+(o.sw?' style="background:'+o.sw+'"':'')+'></span>':'')+o.n+(prem&&o.prem?' <small>+0,20 €</small>':'');
+ b.innerHTML=(o.img?'<img class="ti" src="'+o.img+'&width=96" alt="" loading="lazy">':'')+(showSw?'<span class="sw'+(o.sw?'':' n')+'"'+(o.sw?' style="background:'+o.sw+'"':'')+'></span>':'')+o.n+(prem&&o.prem?' <small>+0,20 €</small>':'');
  b.onclick=function(){if(key==='model'&&st.model!==o.k){st.model=o.k;st.size='50';st.cap=M[o.k].def.cap}else st[key]=o.k;render()};el.appendChild(b)})}
 function tierOf(S,n){var r=S.t[0];S.t.forEach(function(t){if(n>=t.min)r=t});return r}
 function calc(){var Mo=M[st.model],S=Mo.sizes[st.size],s=SPR.find(function(x){return x.k===st.spr}),c=CAPS().find(function(x){return x.k===st.cap})||CAPS()[0];var plain=st.spr==='ohne'&&st.cap==='ohne';
