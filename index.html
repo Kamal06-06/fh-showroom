@@ -1632,7 +1632,7 @@ function lieferscheinPdf(l,useOrig){
   doc.setFont('helvetica','normal');doc.setFontSize(9);
   let ya=y+11;const al=addrLines(l).map(latin).filter(Boolean);
   al.forEach(ln=>{doc.text(ln,L,ya);ya+=4.2});
-  if(String(l.note||'').trim()){if(latin(l.note)===String(l.note))doc.text(doc.splitTextToSize(tr.note+latin(l.note),180),L,ya+0.5);else{doc.text(tr.note,L,ya+0.5);putText(doc,l.note,L+doc.getTextWidth(tr.note)+1,ya+0.5,9,150)}ya+=4.5}
+  if(String(l.note||'').trim()){const nt=String(l.note).replace(/[\u2013\u2014]/g,'-').replace(/[\u201c\u201d\u201e]/g,'"').replace(/[\u2018\u2019]/g,"'");if(latin(nt)===nt){const nl=doc.splitTextToSize(tr.note+nt,180);doc.text(nl,L,ya+0.5);ya+=4.5*nl.length}else{doc.text(tr.note,L,ya+0.5);putText(doc,l.note,L+doc.getTextWidth(tr.note)+1,ya+0.5,9,150);ya+=4.5}}
   y=Math.max(y+20,ya+6);
   const head=()=>{
     doc.setFillColor(20,33,31);doc.rect(L,y-5,R-L,7.5,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
