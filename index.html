@@ -691,6 +691,9 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
         <div><label for="cs-type">النوع</label><select id="cs-type"><option value="exp">🧾 مصروف (قهوة، تنظيف، بنزين…)</option><option value="in">💵 قبض نقدي من عميل</option><option value="withdraw">⬆️ سحب نقدي من الصندوق (كمال)</option><option value="deposit">⬇️ إيداع نقدي في الصندوق</option></select></div>
         <div><label for="cs-amt">المبلغ €</label><input type="number" id="cs-amt" min="0" step="0.01" inputmode="decimal" placeholder="0,00"></div>
       </div>
+      <div class="row grow" id="cs-cust-row" hidden>
+        <div><label for="cs-cust">العميل</label><input type="text" id="cs-cust" list="cs-cust-dl" autocomplete="off" placeholder="اكتب اسم العميل أو رقمه"><datalist id="cs-cust-dl"></datalist><div id="cs-cust-info" class="hint" style="margin-top:4px"></div></div>
+      </div>
       <div class="row grow" id="cs-exp-row">
         <div><label for="cs-cat">الفئة</label><select id="cs-cat"><option>قهوة وضيافة</option><option>مواد تنظيف</option><option>بنزين / مواصلات</option><option>مستلزمات تغليف</option><option>أدوات ومعدات</option><option>بريد وشحن</option><option>أخرى</option></select></div>
         <div><label for="cs-src">دُفع من</label><select id="cs-src"><option value="box">من صندوق المستودع</option><option value="own">من جيب الموظف (يُرد له لاحقاً)</option></select></div>
@@ -2331,6 +2334,43 @@ $('cs-save').onclick=async()=>{
   }catch(e){msg.textContent='فشل: '+(e.message||e);msg.classList.add('err')}
   $('cs-save').disabled=false;
 };
+/* cash receipt from a customer: pick the customer, the amount is booked into the cash box AND paid off the customer's oldest open orders/debts */
+function csCustFind(v){v=String(v||'').trim();if(!v)return null;const lv=v.toLowerCase(),gs=custGroups();
+  return gs.find(g=>(g.name+(g.no?' ('+g.no+')':'')).toLowerCase()===lv)||gs.find(g=>g.no&&g.no.toLowerCase()===lv)||gs.find(g=>String(g.name||'').toLowerCase()===lv)||null}
+function csCustFill(){const dl=$('cs-cust-dl');dl.textContent='';const seen={};
+  custGroups().forEach(g=>{const t=g.name+(g.no?' ('+g.no+')':'');if(seen[t])return;seen[t]=1;const o=el('option');o.value=t;if(g.open>0.004)o.label='مفتوح '+money(g.open);dl.append(o)});
+  customers.forEach(c=>{const t=c.name+(c.no?' ('+c.no+')':'');if(seen[t])return;seen[t]=1;const o=el('option');o.value=t;dl.append(o)});csCustInfo()}
+function csCustInfo(){const v=$('cs-cust').value.trim(),inf=$('cs-cust-info');if(!v){inf.textContent='';return}
+  const g=csCustFind(v);if(!g){inf.textContent='عميل غير موجود في الحسابات — يُسجَّل المبلغ في الصندوق باسمه فقط';return}
+  const n=g.orders.filter(l=>payOf(l).open>0.004).length;
+  inf.textContent=g.open>0.004?'الرصيد المفتوح: '+money(g.open)+' · '+n+' طلب/دين غير مسدّد — يُخصم المبلغ من الأقدم أولاً':'لا يوجد رصيد مفتوح لهذا العميل — يُسجَّل المبلغ في الصندوق كرصيد له';}
+$('cs-cust').oninput=csCustInfo;
+{const _t=$('cs-type').onchange;$('cs-type').onchange=()=>{_t();const isIn=$('cs-type').value==='in';$('cs-cust-row').hidden=!isIn;if(isIn)csCustFill()}}
+{const _save=$('cs-save').onclick;$('cs-save').onclick=async()=>{
+  if($('cs-type').value!=='in'||!$('cs-cust').value.trim())return _save();
+  const msg=$('cs-msg');msg.hidden=false;msg.classList.remove('err');
+  const a=r2(+$('cs-amt').value||0);if(!(a>0)){msg.textContent='اكتب المبلغ.';msg.classList.add('err');return}
+  const who=($('cs-who').value||WHO()).trim();if(!who){msg.textContent='اكتب اسم الموظف / الشخص.';msg.classList.add('err');$('cs-who').focus();return}
+  const nm=$('cs-cust').value.trim(),g=csCustFind(nm),note=($('cs-note').value||'').trim();
+  const ords=g?g.orders.filter(l=>payOf(l).open>0.004).sort((x,y)=>(x.at||0)-(y.at||0)):[];
+  $('cs-save').disabled=true;
+  try{
+    let rest=a,n=0;
+    for(const l of ords){if(rest<=0.004)break;const p=payOf(l),use=r2(Math.min(rest,p.open)),tot=r2(p.paidAll+use),om=(l.pay&&l.pay.method)||'';
+      msg.textContent='جاري الحفظ… '+(n+1)+'/'+ords.length;
+      const pay={status:tot>=p.net-0.004?'paid':'part',paid:tot,method:'Bar',at:Date.now(),payAt:Date.now(),cashId:(l.pay&&l.pay.cashId)||''};
+      nextPay(l,pay);
+      if(p.paidAll>0.004&&om&&om!=='Bar'){await db.collection('cash').add({type:'in',amount:use,note:custLabel(l)+(note?' · '+note:''),orderId:l.id,who,holder:who,at:Date.now()})}
+      else{const had=pay.cashId;pay.cashId=await syncCash(l,pay);if(pay.cashId&&!had){try{await db.doc('cash/'+pay.cashId).update({who,holder:who})}catch(_){}}}
+      await docOf(l).update({pay});l.pay=pay;rest=r2(rest-use);n++}
+    if(rest>0.004)await db.collection('cash').add({type:'in',amount:rest,who,holder:who,note:(g?g.name+(g.no?' ('+g.no+')':''):nm)+' · رصيد للعميل'+(note?' · '+note:''),custNo:g?g.no||'':'',at:Date.now()});
+    msg.textContent='✓ تم: '+money(a)+' من '+(g?g.name:nm)+(n?' · سُدّد '+n+' طلب/دين':'')+(rest>0.004?' · '+money(rest)+' رصيد له':'');
+    $('cs-amt').value='';$('cs-note').value='';$('cs-cust').value='';$('cs-cust-info').textContent='';$('cs-file').value='';
+    try{renderLists()}catch(_){}try{renderAcc()}catch(_){}
+    setTimeout(()=>{msg.hidden=true},3500);setTimeout(()=>{if($('sheet-b').contains($('cs-form')))closeSheet()},1500);
+  }catch(e){msg.textContent='فشل: '+(e.message||e);msg.classList.add('err')}
+  $('cs-save').disabled=false;
+}}
 $('cs-filter').onchange=$('cs-month-f').onchange=()=>renderCashList();
 {const CTT={exp:'➖ مصروف جديد',in:'➕ قبض نقدي من عميل',withdraw:'⬆️ سحب من الصندوق',deposit:'⬇️ إيداع في الصندوق'};
  document.querySelectorAll('.csq button').forEach(b=>b.onclick=()=>{$('cs-type').value=b.dataset.t;$('cs-type').onchange();$('cs-msg').hidden=true;
