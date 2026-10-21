@@ -647,9 +647,9 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
           <div><div class="lbl">الكمية الحالية</div><div class="sum" id="lg-bestand">–</div><div class="note" id="lg-min"></div></div></div>
         <div class="row" style="margin-top:6px;align-items:center"><span class="lbl" style="margin:0">المكان في المستودع:</span><b id="lg-platz" style="direction:ltr">–</b><button class="btn small" id="lg-platz-btn">📍 تعيين / تغيير</button></div>
         <div class="row grow" style="margin-top:10px">
-          <div><label for="lg-ein">وصلت بضاعة (+) الكمية · Wareneingang</label><input type="number" id="lg-ein" min="0" step="0.001" inputmode="decimal" placeholder="مثال: 5"><input type="text" id="lg-charge" autocomplete="off" dir="ltr" placeholder="رقم الدفعة · Charge / Lot" style="margin-top:6px"><button class="btn primary" id="lg-ein-btn" style="margin-top:6px">تسجيل وارد</button></div>
-          <div><label for="lg-inv">جرد: الكمية الحقيقية الآن</label><input type="number" id="lg-inv" min="0" step="0.001" inputmode="decimal" placeholder="مثال: 3.25"><button class="btn" id="lg-inv-btn" style="margin-top:6px">تصحيح الجرد</button></div>
-          <div><label for="lg-aus">صادر بدون طلب (−) الكمية</label><input type="number" id="lg-aus" min="0" step="0.001" inputmode="decimal" placeholder="مثال: 1"><button class="btn" id="lg-aus-btn" style="margin-top:6px">تسجيل صادر</button></div>
+          <div><label for="lg-ein">وصلت بضاعة (+) الكمية · Wareneingang</label><input type="text" id="lg-ein" inputmode="decimal" autocomplete="off" placeholder="مثال: 5"><input type="text" id="lg-charge" autocomplete="off" dir="ltr" placeholder="رقم الدفعة · Charge / Lot" style="margin-top:6px"><button class="btn primary" id="lg-ein-btn" style="margin-top:6px">تسجيل وارد</button></div>
+          <div><label for="lg-inv">جرد: الكمية الحقيقية الآن</label><input type="text" id="lg-inv" inputmode="decimal" autocomplete="off" placeholder="مثال: 3.25"><button class="btn" id="lg-inv-btn" style="margin-top:6px">تصحيح الجرد</button></div>
+          <div><label for="lg-aus">صادر بدون طلب (−) الكمية</label><input type="text" id="lg-aus" inputmode="decimal" autocomplete="off" placeholder="مثال: 1"><button class="btn" id="lg-aus-btn" style="margin-top:6px">تسجيل صادر</button></div>
           <div><label for="lg-minv">الحد الأدنى للتنبيه</label><input type="number" id="lg-minv" min="0" step="0.1" inputmode="decimal"><button class="btn small" id="lg-min-btn" style="margin-top:6px">حفظ الحد</button></div>
         </div>
         <div class="row" style="margin-top:8px"><button class="btn small" id="lg-qr-one">🏷️ ملصق QR لهذا الصنف (للرف)</button></div>
@@ -766,7 +766,9 @@ const IN_GAS=!!(window.google&&google.script&&google.script.run);
 if(!IN_GAS){const qs=new URLSearchParams(location.search);window.SR_URL=location.origin+location.pathname;window.SR_CODE=(qs.get('code')||'').slice(0,80)}
 function srv1(action,a,b,c){
   if(IN_GAS)return new Promise((ok,no)=>google.script.run.withSuccessHandler(r=>{if(r&&r.err)no(new Error(r.err));else ok(r?r.val:null)}).withFailureHandler(e=>no(new Error((e&&e.message)||String(e)))).srApi(PIN,action,a,b,c));
-  return fetch(API_URL+'?app=sr',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({pin:PIN,action,a,b,c}),redirect:'follow'})
+  const ac=window.AbortController&&/^(lg_|pull$)/.test(action)?new AbortController():null,tm=ac?setTimeout(()=>ac.abort(),45000):0;
+  return fetch(API_URL+'?app=sr',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({pin:PIN,action,a,b,c}),redirect:'follow',signal:ac?ac.signal:undefined})
+    .finally(()=>clearTimeout(tm))
     .then(r=>{if(!r.ok)throw Object.assign(new Error('NET '+r.status),{net:true});return r.json()},e=>{throw Object.assign(new Error('لا يوجد اتصال بالإنترنت'),{net:true})})
     .then(r=>{if(r&&r.err)throw new Error(r.err);return r?r.val:null});
 }
@@ -774,7 +776,7 @@ function srv1(action,a,b,c){
 const IDB=(()=>{let p=null;const open=()=>p||(p=new Promise((ok,no)=>{try{const r=indexedDB.open('fh-showroom',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}catch(e){no(e)}}));
   const tx=(m,f)=>open().then(d=>new Promise((ok,no)=>{const t=d.transaction('kv',m),s=t.objectStore('kv'),q=f(s);t.oncomplete=()=>ok(q&&q.result);t.onerror=()=>no(t.error)}));
   return {get:k=>tx('readonly',s=>s.get(k)).catch(()=>undefined),set:(k,v)=>tx('readwrite',s=>s.put(v,k)).catch(()=>{})}})();
-async function srv(action,a,b,c){let last;for(let i=0;i<4;i++){try{return await srv1(action,a,b,c)}catch(e){last=e;if(!/lock|تأمين|sperr|timeout/i.test(String(e.message||e))||i===3)throw e;await new Promise(r=>setTimeout(r,2500*(i+1)))}}throw last}
+async function srv(action,a,b,c){let last;for(let i=0;i<4;i++){try{return await srv1(action,a,b,c)}catch(e){last=e;if(!/lock|تأمين|sperr|time[d ]?out|zeitüber|exceeded|too many|Unexpected token|NET 5\d\d/i.test(String(e.message||e))||i===3)throw e;await new Promise(r=>setTimeout(r,2500*(i+1)))}}throw last}
 let db=null, mcp=null, dl=null, catalog=[], lists=[], lastSent=null, editing=null;
 let waNum=LS.get('wa','');
 let customers=[], debts=[], offers=[], focusId=null, imgs={};let editOffer=LS.get('editOffer',null);
@@ -826,10 +828,10 @@ let dim=LS.get('dim2',{w:40,h:30});
 let navCur=null;const navStack=[];
 function tab(which,fromBack){
   if(!$('omodal').hidden)closeOrder(true);
+  if(!$('sheet').hidden)closeSheet(true);
   const st={which,focusId,focusCust,onlyDone};
   if(!fromBack&&navCur&&JSON.stringify(navCur)!==JSON.stringify(st)){navStack.push(navCur);if(navStack.length>40)navStack.shift();if(!IN_GAS)try{history.pushState({fh:navStack.length},'')}catch(e){}}
   navCur=st;tabRaw(which);$('tab-back').hidden=!navStack.length;navMark(which);try{updSendbar()}catch(e){}
-  if(which==='inv'){try{ivRender()}catch(e){}if(!inv.loaded||Date.now()-(inv.at||0)>120000)try{ivLoad()}catch(e){}}
   if(which==='lg'&&$('lg-box').hidden&&!$('lg-q').value&&($('lg-low').hidden||Date.now()-(window._lgAt||0)>300000)){window._lgAt=Date.now();try{$('lg-low-btn').click()}catch(e){}}
 }
 function navMark(w){const m={home:'nv-home',wh:onlyDone?'nv-done':'nv-wh',new:'nv-new',lg:'nv-lg',inv:'nv-inv',cash:'nv-cash',cust:'nv-cust',acc:'nv-acc'};
@@ -1015,7 +1017,7 @@ function openDebtSheet(d,presetName){
         const rec={kind:'debt',customer:c?c.name:name,custNo:no||'',amount:a,at,note:nt.value.trim()};
         if(d&&d.id)await db.doc('customers/'+d.id).update(rec);
         else{rec.createdAt=Date.now();rec.who=WHO();if(pay)rec.pay=pay;const ref=await db.collection('customers').add(rec);
-          if(pay&&pay.method==='Bar'){try{const cid=await syncCash(Object.assign({id:ref.id,kind:'debt',items:[]},rec),pay);if(cid)await ref.update({'pay.cashId':cid})}catch(_){}}}
+          if(pay&&pay.method==='Bar'){try{const cid=await syncCash(Object.assign({id:ref.id,kind:'debt',items:[]},rec),pay);if(cid&&ref&&ref.id)await db.doc('customers/'+ref.id).update({pay:Object.assign({},pay,{cashId:cid})})}catch(_){}}}
         msg.textContent='✓ تم الحفظ';setTimeout(()=>{closeSheet();try{renderAcc()}catch(_){}try{renderCust()}catch(_){}},600)}
       catch(e){msg.textContent='فشل: '+(e.message||e);msg.classList.add('err');sv.disabled=false}};
     if(d){const L0=debtLists().find(x=>x.id===d.id)||Object.assign({},d,{kind:'debt',items:[]});const p=payOf(L0);
@@ -1134,10 +1136,10 @@ function itemRow(it,ix){
   const q=el('div','ir-q'),minus=el('button',null,it.q>1?'−':'×'),plus=el('button',null,'+'),num=el('input');
   const byKg=it.unit==='kg';num.type=byKg?'text':'number';num.inputMode=byKg?'decimal':'numeric';num.min=byKg?'0.001':'1';num.step=byKg?'0.001':'1';num.value=byKg?String(it.q).replace('.',','):it.q;num.setAttribute('aria-label',byKg?'الكمية بالكيلو':'الكمية');
   num.onfocus=()=>num.select();num.onkeydown=e=>{if(e.key==='Enter')num.blur()};
-  num.onchange=()=>{const raw=+String(num.value).replace(',','.');if(byKg){it.q=raw>0?Math.min(Math.round(raw*1000)/1000,100000):1}else{const v=Math.floor(raw);it.q=v>=1?Math.min(v,100000):1}saveDraft();renderItems()};
+  num.onchange=()=>{const raw=+String(num.value).replace(',','.');if(byKg){if(raw>0)it.q=Math.min(Math.round(raw*1000)/1000,100000)}else{const v=Math.floor(raw);it.q=v>=1?Math.min(v,100000):1}saveDraft();renderItems()};
   minus.setAttribute('aria-label',it.q>1?'أقل':'حذف');plus.setAttribute('aria-label','أكثر');
-  minus.onclick=()=>{if(it.q>1)it.q--;else{draft.items.splice(ix,1);irOpen.clear()}saveDraft();renderItems()};
-  plus.onclick=()=>{it.q++;saveDraft();renderItems()};
+  minus.onclick=()=>{if(it.q>1)it.q=Math.round((it.q-1)*1000)/1000;else{draft.items.splice(ix,1);irOpen.clear()}saveDraft();renderItems()};
+  plus.onclick=()=>{it.q=Math.round((it.q+1)*1000)/1000;saveDraft();renderItems()};
   q.append(plus,num,minus);if(it.unit)q.append(el('span','ir-unit',it.unit==='kg'?'kg':'Stk'));
   const more=el('button','ir-more','⋯');more.setAttribute('aria-label','السعر والخصم والملاحظة');
   top.append(m,q,more);w.append(top);
@@ -1190,8 +1192,8 @@ function labelTile(it,editable,ix){
     num.onfocus=()=>num.select();num.onkeydown=e=>{if(e.key==='Enter')num.blur()};
     num.onchange=()=>{const v=Math.floor(+String(num.value).replace(',','.'));it.q=v>=1?Math.min(v,100000):1;saveDraft();renderItems()};
     minus.setAttribute('aria-label',it.q>1?'أقل':'حذف');plus.setAttribute('aria-label','أكثر');
-    minus.onclick=()=>{if(it.q>1)it.q--;else draft.items.splice(ix,1);saveDraft();renderItems()};
-    plus.onclick=()=>{it.q++;saveDraft();renderItems()};
+    minus.onclick=()=>{if(it.q>1)it.q=Math.round((it.q-1)*1000)/1000;else draft.items.splice(ix,1);saveDraft();renderItems()};
+    plus.onclick=()=>{it.q=Math.round((it.q+1)*1000)/1000;saveDraft();renderItems()};
     c.append(minus,num,plus);l.append(c);
   }else if(it.q>1){
     const m=el('div','meta');m.append(el('span',null,''),el('strong',null,it.q+'×'));l.append(m);
@@ -1200,7 +1202,7 @@ function labelTile(it,editable,ix){
 }
 const isOil=it=>it.oil!=null?!!it.oil:!!it.tier;
 const qn=it=>it.unit==='kg'?1:(+it.q||1);
-const cntTxt=items=>{items=items||[];const a=items.length,b=items.reduce((s,i)=>s+qn(i),0);return a+' صنف'+(b!==a?' · '+b+' قطعة':'')};   /* pieces count (a line sold by kg counts as one) */
+const cntTxt=items=>{items=items||[];const a=items.length,pc=items.filter(i=>i.unit!=='kg'&&!(isOil(i)&&sizeG(i.size))),b=pc.reduce((s,i)=>s+qn(i),0),kg=Math.round(items.reduce((s,i)=>{if(pc.includes(i))return s;if(i.unit==='kg')return s+(+i.q||0);return s+sizeG(i.size)*(+i.q||1)/1000},0)*1000)/1000;return a+' صنف'+(kg?' · '+String(kg).replace('.',',')+' kg':'')+(b?' · '+b+' قطعة':'')};   /* pieces count (a line sold by kg counts as one) */
 const qtxt=it=>it.unit?(String(+it.q||1).replace('.',',')+' '+(it.unit==='kg'?'kg':'Stk')):((it.q||1)+'×');
 const imgOf=it=>{if(isOil(it))return '';const p=(catalog||[]).find(p=>p.t===it.t);return (p&&p.i)||''};
 const mkImg=(src,cls)=>{const im=el('img',cls);im.src=src;im.loading='lazy';im.alt='';im.onerror=()=>im.remove();return im};
@@ -1283,8 +1285,8 @@ function renderItems(){
   const stale=draft.items.length&&!editing&&(Date.now()-(draft.at||0))>15*60000;$('draftbar').hidden=!stale;
   if(stale)$('draft-txt').textContent='⚠️ مسودة غير مرسلة من '+new Date(draft.at||Date.now()).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})+' · '+n+' صنف'+(draft.cust?' · '+draft.cust:'')+' — هل تريد متابعتها أم البدء بطلب جديد؟';
 }
-function resetDraft(){try{$('cphone').value='';$('cemail').value=''}catch(e){}$('clp-addr').value='';$('cust-no').textContent='';draft={cust:'',note:'',rabatt:0,rabattFix:0,versand:0,kg:false,items:[],street:'',city:'',country:'DE',phone:'',email:''};$('cust').value='';$('versand').value='';$('rabscope').value='all';$('kgprice').checked=false;$('kg-st').textContent='';$('street').value='';$('city').value='';$('country').value='DE';showLang();$('note').value='';$('rab').value='';$('rabfix').value='';saveDraft();renderItems();showLogo()}
-$('clear').onclick=()=>{setEditOffer(null);resetDraft()};
+function resetDraft(){try{setEditOffer(null)}catch(e){}try{$('cphone').value='';$('cemail').value=''}catch(e){}$('clp-addr').value='';$('cust-no').textContent='';draft={cust:'',note:'',rabatt:0,rabattFix:0,versand:0,kg:false,items:[],street:'',city:'',country:'DE',phone:'',email:''};$('cust').value='';$('versand').value='';$('rabscope').value='all';$('kgprice').checked=false;$('kg-st').textContent='';$('street').value='';$('city').value='';$('country').value='DE';showLang();$('note').value='';$('rab').value='';$('rabfix').value='';saveDraft();renderItems();showLogo()}
+$('clear').onclick=resetDraft;
 function setEditing(l){
   editing=l?{id:l.id,customer:l.customer}:null;LS.set('edit3',editing);
   $('editbar').hidden=!editing;$('edit-txt').textContent=editing?'تعديل طلب: '+editing.customer+' — أضف أو أنقص (−) أو احذف (×) الأصناف ثم احفظ':'';
@@ -1293,7 +1295,7 @@ function setEditing(l){
 function editList(l){
   draft={phone:l.phone||'',email:l.email||'',clpLogo:l.clpLogo||'',clpAddr:l.clpAddr||'',street:l.street||'',city:l.city||'',country:l.country||'DE',cust:l.customer||'',note:l.note||'',rabatt:+l.rabatt||0,rabattFix:+l.rabattFix||0,versand:+l.versand||0,rabScope:l.rabScope||'all',kg:!!l.kg,kgOff:!l.kg,items:JSON.parse(JSON.stringify(l.items||[]))};$('kgprice').checked=!!l.kg;$('rabscope').value=l.rabScope||'all';
   $('cphone').value=draft.phone||'';$('cemail').value=draft.email||'';$('clp-addr').value=draft.clpAddr||'';$('street').value=draft.street;$('city').value=draft.city;$('country').value=draft.country;showLang();$('cust').value=draft.cust;showCust();$('note').value=draft.note;$('rab').value=draft.rabatt||'';$('rabfix').value=draft.rabattFix||'';$('versand').value=draft.versand||'';
-  showLogo();setEditing(l);saveDraft();renderItems();sendStatus('');$('last-actions').hidden=true;tab('new');$('q').focus();
+  showLogo();try{setEditOffer(null)}catch(e){}setEditing(l);saveDraft();renderItems();sendStatus('');$('last-actions').hidden=true;tab('new');$('q').focus();
 }
 $('edit-cancel').onclick=()=>{setEditing(null);resetDraft()};
 $('draft-keep').onclick=()=>{draft.at=Date.now();saveDraft();$('draftbar').hidden=true};
@@ -1402,7 +1404,7 @@ function camBeep(ok){try{camAC=camAC||new (window.AudioContext||window.webkitAud
   const f=$('cam-frame');if(f){f.classList.remove('ok','err');void f.offsetWidth;f.classList.add(ok?'ok':'err');clearTimeout(f._t);f._t=setTimeout(()=>f.classList.remove('ok','err'),650)}
   try{if(navigator.vibrate)navigator.vibrate(ok?60:[40,60,40])}catch(e){}}
 function camStop(){try{camMsg('')}catch(e){}camOn=false;if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}$('cam').hidden=true;$('cam-pick').hidden=true;$('cam-pick').textContent='';const tb=$('cam-torch');if(tb){tb.hidden=true;tb.classList.remove('on')}}
-$('cam-close').onclick=camStop;
+$('cam-close').onclick=()=>{try{ivScanLoop=false}catch(e){}camStop()};
 async function liveScan(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!(window.jsQR||('BarcodeDetector' in window)))return false;
   try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false})}catch(e){return false}
@@ -1599,7 +1601,7 @@ function labelsPdf(l,useOrig){
   return doc;
 }
 const p2=n=>String(n).padStart(2,'0');
-function stamp(l){const d=new Date(l.at||Date.now());return d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())+'-'+p2(d.getHours())+p2(d.getMinutes())}
+function stamp(l){const d=new Date(l.offerAt||l.at||Date.now());return d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())+'-'+p2(d.getHours())+p2(d.getMinutes())}
 function custFile(l){return latin(String(l.customer||'').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/Ä/g,'Ae').replace(/Ö/g,'Oe').replace(/Ü/g,'Ue').replace(/ß/g,'ss').normalize('NFD').replace(/[\u0300-\u036f]/g,'')).replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-')||'Kunde'}
 /* Lieferschein: A4, net prices, Rabatt line */
 /* Arabic/other-script note → rendered via canvas (jsPDF core fonts are Latin-only) */
@@ -2275,18 +2277,19 @@ async function offerToWarehouse(o,btn){
   if(!confirm('إرسال عرض السعر «'+o.customer+'» إلى المستودع للتجهيز؟'))return;
   btn.disabled=true;btn.textContent='جاري الإرسال…';
   try{
-    const rec=JSON.parse(JSON.stringify(o));delete rec.id;delete rec.kind;delete rec.editedAt;rec.offerAt=o.at;rec.at=Date.now();
-    const r=await db.collection('lists').add(rec);clpWarm(rec);
+    const rec=JSON.parse(JSON.stringify(o));delete rec.id;delete rec.kind;delete rec.editedAt;rec.offerAt=o.at;rec.at=Date.now();rec.status='new';
+    const r=await db.collection('lists').add(rec);lastSentId=r&&r.id;clpWarm(rec);
     await db.doc('customers/'+o.id).delete();offers=offers.filter(x=>x.id!==o.id);
-    if(editOffer&&editOffer.id===o.id)setEditOffer(null);
-    renderOffers();renderHome();
-    const m=$('sheet-b').querySelector('.offmsg');if(m)m.textContent='✓ أُرسل «'+o.customer+'» إلى المستودع — تجده في الطلبات المفتوحة.';
+    if(editOffer&&editOffer.id===o.id)resetDraft();
+    offMsg='✓ أُرسل «'+o.customer+'» إلى المستودع — تجده في الطلبات المفتوحة.';renderOffers();renderHome();
   }catch(e){btn.disabled=false;btn.textContent='📦 إرسال إلى المستودع';alert('لم يُرسل: '+(e.message||e))}
 }
+let offMsg='';
 function renderOffers(){
+  if(sheetFor==='offers'&&!$('sheet').hidden&&$('sheet-b').querySelector('button:disabled'))return;
   sheetFor='offers';
   openSheet('📄 عروض الأسعار ('+offers.length+')',b=>{
-    b.append(el('p','offmsg note',''));
+    b.append(el('p','offmsg note',offMsg));
     if(!offers.length){b.append(el('p','hint','لا توجد عروض أسعار مفتوحة. أنشئ عرضاً من «طلب جديد» بزر «حفظ كعرض سعر».'));return}
     offers.forEach(o=>{
       const c=el('div','panel');c.style.cssText='margin:0 0 10px;padding:12px';
@@ -2297,16 +2300,18 @@ function renderOffers(){
       const pdf=el('button','btn small','📄 PDF');pdf.onclick=()=>savePdf('ls',o,pdf,out);
       const ed=el('button','btn small','✏️ تعديل');ed.onclick=()=>offerToDraft(o);
       const go=el('button','btn small primary','📦 إرسال إلى المستودع');go.onclick=()=>offerToWarehouse(o,go);
-      const del=el('button','btn small danger','🗑 حذف');del.onclick=async()=>{if(!confirm('حذف عرض السعر «'+o.customer+'»؟'))return;await db.doc('customers/'+o.id).delete();offers=offers.filter(x=>x.id!==o.id);if(editOffer&&editOffer.id===o.id)setEditOffer(null);renderOffers();renderHome()};
+      const del=el('button','btn small danger','🗑 حذف');del.onclick=async()=>{if(!confirm('حذف عرض السعر «'+o.customer+'»؟'))return;try{await db.doc('customers/'+o.id).delete();offers=offers.filter(x=>x.id!==o.id);if(editOffer&&editOffer.id===o.id)resetDraft();offMsg='🗑 حُذف عرض «'+o.customer+'».';renderOffers();renderHome()}catch(e){alert('لم يُحذف: '+(e.message||e))}};
       row.append(go,pdf,ed,del);c.append(row,out);b.append(c)});
   });
 }
-$('h-off').onclick=()=>{drawer(false);renderOffers()};
+$('h-off').onclick=()=>{drawer(false);offMsg='';renderOffers()};
 $('send').onclick=async()=>{
   if(!db||!draft.items.length)return;
   if(!draft.cust.trim()){sendStatus('اكتب اسم العميل أولاً.',true);$('cust').focus();return}
   $('send').disabled=true;
+  const offId=editOffer&&editOffer.id,offAt=editOffer&&editOffer.at,was0=!!editing;
   const rec={customer:draft.cust.trim(),note:(draft.note||'').trim(),rabatt:+draft.rabatt||0,rabattFix:+draft.rabattFix||0,versand:+draft.versand||0,rabScope:draft.rabScope||'all',kg:!!draft.kg,clpAddr:(draft.clpAddr||'').trim(),clpLogo:draft.clpLogo||'',street:(draft.street||'').trim(),city:(draft.city||'').trim(),country:draft.country||'DE',phone:(draft.phone||'').trim(),email:(draft.email||'').trim(),items:draft.items,status:'new',at:Date.now()};
+  if(offId&&!was0)rec.offerAt=offAt;if(was0)delete rec.status;
   try{
     try{rec.custNo=await ensureCustomer(rec.customer,{street:rec.street,city:rec.city,country:rec.country})}catch(_){}
     try{const cp=findCust(rec.customer),up={};if(cp&&cp.id){if(rec.phone&&cp.phone!==rec.phone)up.phone=rec.phone;if(rec.email&&cp.email!==rec.email)up.email=rec.email;if(Object.keys(up).length){Object.assign(cp,up);await db.doc('customers/'+cp.id).update(up)}}}catch(_){}
@@ -2319,6 +2324,7 @@ try{const cc=findCust(rec.customer);if(cc&&cc.id&&rec.clpLogo&&(cc.clpLogo!==rec
       await db.doc('lists/'+editing.id).update(rec);newId=editing.id;
     }else{const r=await db.collection('lists').add(rec);newId=r&&r.id}
     lastSentId=newId;clpWarm(rec);
+    if(offId&&!was0){try{await db.doc('customers/'+offId).delete();offers=offers.filter(x=>x.id!==offId)}catch(_){}}
     const was=!!editing;setEditing(null);
     lastSent=rec;const la=$('last-actions');la.textContent='';la.append(docsPanel(rec));la.hidden=false;
     resetDraft();
@@ -2376,10 +2382,12 @@ function openPaySheet(l){
   });
 }
 async function syncCash(l,pay){
-  const isCash=pay.method==='Bar'&&pay.paid>0;
+  const hist=Array.isArray(pay.hist)&&pay.hist.length?pay.hist:null;
+  const cashAmt=hist?r2(hist.filter(h=>h.m==='Bar').reduce((t,h)=>t+(+h.a||0),0)):(pay.method==='Bar'?r2(pay.paid):0);
+  const isCash=cashAmt>0;
   if(!isCash){if(pay.cashId){try{await db.doc('cash/'+pay.cashId).delete()}catch(_){}}return ''}
-  const rec={type:'in',amount:r2(pay.paid),note:custLabel(l),orderId:l.id,who:WHO(),at:Date.now()};
-  if(pay.cashId){try{await db.doc('cash/'+pay.cashId).update({amount:rec.amount,note:rec.note});return pay.cashId}catch(_){}}
+  const rec={type:'in',amount:cashAmt,note:custLabel(l),orderId:l.id,who:WHO(),at:Date.now()};
+  if(pay.cashId&&cash.some(c=>c.id===pay.cashId)){await db.doc('cash/'+pay.cashId).update({amount:rec.amount,note:rec.note});return pay.cashId}
   rec.holder=WHO()||'box';const r=await db.collection('cash').add(rec);return (r&&r.id)||'';
 }
 const shrink=f=>new Promise((ok,no)=>{if(!/^image\//.test(f.type)){const r=new FileReader();r.onload=()=>ok({b64:String(r.result).split(',').pop(),mime:f.type||'application/pdf',name:f.name});r.onerror=no;r.readAsDataURL(f);return}
@@ -2928,16 +2936,16 @@ async function lgRefresh(){
   }catch(e){lgStatus('تعذّر قراءة المخزون: '+e.message,true)}
 }
 $('lg-ein-btn').onclick=async()=>{
-  const m=+$('lg-ein').value;if(!lgSel||!(m>0))return lgStatus('اكتب الكمية الواردة.',true);
+  const m=ivNum($('lg-ein').value);if(!lgSel||!(m>0))return lgStatus('اكتب الكمية الواردة.',true);
   $('lg-ein-btn').disabled=true;
-  try{const n=await srv('lg_ein',JSON.stringify({code:lgSel.code,tier:lgSel.tier,oil:!!lgSel.oil,menge:m,title:lgSel.t,notiz:($('lg-charge').value.trim()?'Charge '+$('lg-charge').value.trim():'')}));lgStatus('تم تسجيل الوارد. الرصيد الآن: '+n+' '+lgUnit(lgSel));$('lg-ein').value='';$('lg-charge').value='';await lgRefresh()}
+  try{const n=await srv('lg_ein',JSON.stringify({code:lgSel.code,tier:lgSel.tier,oil:!!lgSel.oil,menge:m,title:lgSel.t,notiz:($('lg-charge').value.trim()?'Charge '+$('lg-charge').value.trim():'')}));lgStatus('تم تسجيل الوارد. الرصيد الآن: '+n+' '+lgUnit(lgSel));ivSync(lgSel,+n,false);$('lg-ein').value='';$('lg-charge').value='';await lgRefresh()}
   catch(e){lgStatus('لم يُسجّل: '+e.message,true)}
   $('lg-ein-btn').disabled=false;
 };
 $('lg-inv-btn').onclick=async()=>{
-  const v=$('lg-inv').value;if(!lgSel||v==='')return lgStatus('اكتب الكمية الحقيقية.',true);
+  const v=ivNum($('lg-inv').value);if(!lgSel||isNaN(v)||v<0)return lgStatus('اكتب الكمية الحقيقية (مثال 2,5).',true);
   $('lg-inv-btn').disabled=true;
-  try{const n=await srv('lg_inv',JSON.stringify({code:lgSel.code,tier:lgSel.tier,oil:!!lgSel.oil,ist:+v,title:lgSel.t}));lgStatus('تم تصحيح الجرد. الرصيد الآن: '+n+' '+lgUnit(lgSel));$('lg-inv').value='';await lgRefresh()}
+  try{const n=await srv('lg_inv',JSON.stringify({code:lgSel.code,tier:lgSel.tier,oil:!!lgSel.oil,ist:v,title:lgSel.t}));lgStatus('تم تصحيح الجرد. الرصيد الآن: '+n+' '+lgUnit(lgSel));ivSync(lgSel,+n,true);$('lg-inv').value='';await lgRefresh()}
   catch(e){lgStatus('لم يُصحّح: '+e.message,true)}
   $('lg-inv-btn').disabled=false;
 };
@@ -2982,9 +2990,9 @@ function lgHandleCode(text){
 $('lg-q').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();if(lgHandleCode($('lg-q').value)){$('lg-q').value='';$('lg-results').textContent='';$('lg-qr-row').hidden=true}else lgStatus('الكود «'+$('lg-q').value+'» لا يطابق أي صنف',true)}};
 $('lg-scan').onclick=async()=>{if(!catalog.length)return;scanMode='lg';if(!(await liveScan()))alert('الكاميرا المباشرة غير متاحة في هذا المتصفح.')};
 $('lg-aus-btn').onclick=async()=>{
-  const m=+$('lg-aus').value;if(!lgSel||!(m>0))return lgStatus('اكتب الكمية الصادرة.',true);
+  const m=ivNum($('lg-aus').value);if(!lgSel||!(m>0))return lgStatus('اكتب الكمية الصادرة.',true);
   $('lg-aus-btn').disabled=true;
-  try{const n=await srv('lg_aus',JSON.stringify({code:lgSel.code,tier:lgSel.tier,oil:!!lgSel.oil,menge:m,title:lgSel.t}));lgStatus('تم تسجيل الصادر. الرصيد الآن: '+n+' '+lgUnit(lgSel));$('lg-aus').value='';await lgRefresh()}
+  try{const n=await srv('lg_aus',JSON.stringify({code:lgSel.code,tier:lgSel.tier,oil:!!lgSel.oil,menge:m,title:lgSel.t}));lgStatus('تم تسجيل الصادر. الرصيد الآن: '+n+' '+lgUnit(lgSel));ivSync(lgSel,+n,false);$('lg-aus').value='';await lgRefresh()}
   catch(e){lgStatus('لم يُسجّل: '+e.message,true)}
   $('lg-aus-btn').disabled=false;
 };
@@ -3043,21 +3051,42 @@ $('lg-scan-file').onchange=async e=>{
 let inv={start:0,items:[],at:0,loaded:false},ivStand=null,ivLimit=150,ivBusy=false;
 const IV_RX=/^[A-D]\d{2}-[1-6]-[1-9]$/;
 const ivStandOf=p=>p?p.split('-')[0]:'';
-const ivNum=v=>{const s=String(v==null?'':v).trim().replace(/[٠-٩]/g,c=>c.charCodeAt(0)-0x660).replace(/[۰-۹]/g,c=>c.charCodeAt(0)-0x6F0).replace(',','.');return s===''?NaN:Number(s)};
+const ivNum=v=>{const s=String(v==null?'':v).trim().replace(/[٠-٩]/g,c=>c.charCodeAt(0)-0x660).replace(/[۰-۹]/g,c=>c.charCodeAt(0)-0x6F0).replace(/\s/g,'').replace(/[٫،,]/g,'.');return s===''?NaN:Number(s)};
 const ivFmt=(n,u)=>(+n||0).toLocaleString('de-DE',{maximumFractionDigits:3})+(u?' '+(u==='Stück'?'Stk':u):'');
-function ivSetProg(d,t){const p=$('iv-prog');p.textContent='';p.append(el('span',null,'تم عدّ '+d.toLocaleString('de-DE')+' من '+t.toLocaleString('de-DE')),el('span','de',' · '+d.toLocaleString('de-DE')+' von '+t.toLocaleString('de-DE')+' gezählt'))}
+function ivSetProg(d,t,extra){const p=$('iv-prog');p.textContent='';p.append(el('span',null,'الرفوف: تم عدّ '+d.toLocaleString('de-DE')+' من '+t.toLocaleString('de-DE')),el('span','de',' · Regale: '+d.toLocaleString('de-DE')+' von '+t.toLocaleString('de-DE')+' gezählt'));
+  if(extra)p.append(el('span','hint',' · + '+extra.toLocaleString('de-DE')+' بدون مكان · ohne Fach'))}
 const ivDone=x=>!!(x.gez&&x.gez>=inv.start&&inv.start);
+/* progress counts the items that physically sit on a shelf (have a Fach); items without Fach are counted on top */
+function ivProg(){const placed=inv.items.filter(x=>x.platz),pd=placed.filter(ivDone).length,all=inv.items.filter(ivDone).length;return {tot:placed.length,done:pd,all,extra:all-pd}}
 const ivLetter=t=>String(t||'').charAt(0).toUpperCase();
-function ivNorm(p){p=String(p||'').trim().toUpperCase().replace(/\s+/g,'').replace(/[–—_.\/]/g,'-');const m=/^([A-D])-?(\d{1,2})-(\d)-(\d)$/.exec(p);return m?m[1]+('0'+m[2]).slice(-2)+'-'+m[3]+'-'+m[4]:p}
+function ivNorm(p){p=String(p||'').trim().replace(/[٠-٩]/g,c=>c.charCodeAt(0)-0x660).replace(/[۰-۹]/g,c=>c.charCodeAt(0)-0x6F0).toUpperCase().replace(/\s+/g,'').replace(/[–—_.\/]/g,'-');const m=/^([A-D])-?(\d{1,2})-(\d)-(\d)$/.exec(p);return m?m[1]+('0'+m[2]).slice(-2)+'-'+m[3]+'-'+m[4]:p}
 function ivStatus(msg,err){const s=$('iv-status');s.hidden=!msg;s.textContent=msg||'';s.classList.toggle('err',!!err)}
-async function ivLoad(force){
-  if(!force&&inv.loaded&&Date.now()-inv.at<60000)return;
-  if(!inv.loaded){const c=await IDB.get('invplan');if(c&&c.items){inv=Object.assign(c,{loaded:true});ivRender()}}
-  ivStatus(inv.loaded?'':'جاري تحميل قائمة الجرد… · Zählliste wird geladen…');
-  try{const r=await srv('lg_plan');inv={start:r.start||0,items:r.items||[],at:Date.now(),loaded:true};ivQApply();IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});ivStatus('')}
-  catch(e){ivStatus('تعذّر تحميل القائمة · Laden fehlgeschlagen: '+e.message+(inv.loaded?' — آخر نسخة محفوظة · letzte gespeicherte Version':''),true)}
-  ivRender();
+let ivLoading=null;const ivRecent=new Map();/* key → {ist,n,at}: counts confirmed by the server, re-applied over an older plan */
+function ivLoad(force,silent){
+  if(ivLoading)return ivLoading;
+  if(!force&&inv.loaded&&Date.now()-inv.at<60000)return Promise.resolve();
+  ivLoading=(async()=>{
+    if(!inv.loaded){const c=await IDB.get('invplan');if(c&&c.items){inv=Object.assign(c,{loaded:true});inv.items.forEach(x=>{x.pending=false});ivQApply();ivRender()}}
+    if(!silent)ivStatus(inv.loaded?'':'جاري تحميل قائمة الجرد… · Zählliste wird geladen…');
+    const t0=Date.now();
+    try{const r=await srv('lg_plan');const next={start:r.start||0,items:r.items||[],at:Date.now(),loaded:true};
+      /* counts confirmed while the plan was on its way are kept */
+      const m=new Map(next.items.map(x=>[x.key,x]));ivRecent.forEach((v,k)=>{if(Date.now()-v.at>600000){ivRecent.delete(k);return}const x=m.get(k);if(x&&next.start===v.start&&!(x.gez>=v.gez)){x.bestand=v.n;x.gez=v.gez;x.gezMenge=v.n}});
+      const old=new Map(inv.items.map(x=>[x.key,x]));next.items.forEach(x=>{const o=old.get(x.key);if(o&&o.vorher!=null&&x.vorher==null&&ivDoneIn(x,next.start))x.vorher=o.vorher});
+      const same=inv.loaded&&inv.start===next.start&&inv.items.length===next.items.length&&inv.items.every((x,i)=>x.key===next.items[i].key&&x.platz===next.items[i].platz);
+      if(same&&silent){/* only refresh the rows that changed, keep focus and typed text */
+        const ch=[];inv.items.forEach((x,i)=>{const y=next.items[i];if(x.pending)return;if(x.bestand!==y.bestand||x.gez!==y.gez||x.gezMenge!==y.gezMenge){Object.assign(x,{bestand:y.bestand,gez:y.gez,gezMenge:y.gezMenge,vorher:y.vorher!=null?y.vorher:x.vorher});ch.push(x)}});
+        inv.at=next.at;ch.forEach(ivRowRefresh);if(ch.length)ivProgOnly();
+      }else{inv=next;ivQApply();if(!$('view-inv').hidden&&document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#iv-list')&&silent){/* user is typing: wait for the next round */}else ivRender()}
+      IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});if(!silent)ivStatus('')}
+    catch(e){if(!silent)ivStatus('تعذّر تحميل القائمة · Laden fehlgeschlagen: '+e.message+(inv.loaded?' — آخر نسخة محفوظة · letzte gespeicherte Version':''),true)}
+    if(!silent)ivRender();
+  })().finally(()=>{ivLoading=null});
+  return ivLoading;
 }
+const ivDoneIn=(x,start)=>!!(x.gez&&start&&x.gez>=start);
+/* live: counts from other devices appear by themselves every 40 s while the list is open */
+setInterval(()=>{if(!document.hidden&&!$('view-inv').hidden&&inv.loaded&&!ivQ.length&&!ivQBusy)ivLoad(true,true)},40000);
 function ivShow(){if(!inv.loaded)ivRender();ivLoad(false)}
 function ivStands(){
   const m=new Map();inv.items.forEach(x=>{const s=ivStandOf(x.platz)||'—';if(!m.has(s))m.set(s,{n:0,d:0});const o=m.get(s);o.n++;if(ivDone(x))o.d++});
@@ -3075,15 +3104,15 @@ function ivFiltered(){
 function ivRender(){
   ivIndex();
   if($('view-inv').hidden&&!$('view-home').hidden){ivHomeCount();return}
-  const tot=inv.items.length,done=inv.items.filter(ivDone).length;
-  if(inv.start)ivSetProg(done,tot);else{$('iv-prog').textContent='لم يبدأ جرد بعد — اضغط «بدء جرد جديد»';$('iv-prog').append(el('span','de',' · Keine Inventur gestartet – «Neue Inventur starten» drücken'))}
+  const P=ivProg(),tot=P.tot,done=P.done,cnt=inv.items.filter(ivDone).length;
+  if(inv.start)ivSetProg(done,tot,P.extra);else{$('iv-prog').textContent='لم يبدأ جرد بعد — اضغط «بدء جرد جديد»';$('iv-prog').append(el('span','de',' · Keine Inventur gestartet – «Neue Inventur starten» drücken'))}
   $('iv-since').textContent=inv.start?'· منذ / seit '+new Date(inv.start).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'}):'';$('iv-since').dir='auto';
   $('iv-bar').style.width=(tot&&inv.start?Math.round(done/tot*100):0)+'%';
   const st=ivStands(),box=$('iv-stands');box.textContent='';
   if(ivStand==null){const first=st.find(([s,o])=>s!=='—'&&o.d<o.n);ivStand=first?first[0]:(st.length>1?st[0][0]:'*')}
   const mk=(id,lbl,sub,full,de)=>{const b=el('button','ivst'+(ivStand===id?' on':'')+(full?' full':''));b.dataset.id=id;b.setAttribute('role','tab');b.setAttribute('aria-selected',ivStand===id);b.append(document.createTextNode(lbl));if(de)b.append(el('span','de',de));if(sub)b.append(el('small',null,sub));b.onclick=()=>{ivStand=id;ivLimit=150;$('iv-q').value='';ivRender();window.scrollTo(0,0)};return b};
-  box.append(mk('*','الكل',done+'/'+tot,false,'Alle'));
-  st.forEach(([s,o])=>box.append(mk(s,s==='—'?'بدون مكان':s,(inv.start?o.d:0)+'/'+o.n,inv.start&&o.d===o.n,s==='—'?'ohne Fach':'')));
+  box.append(mk('*','الكل',cnt+' ✓',false,'Alle'));
+  st.forEach(([s,o])=>box.append(mk(s,s==='—'?'بدون مكان':s,s==='—'?(inv.start?o.d:0)+' ✓':(inv.start?o.d:0)+'/'+o.n,s!=='—'&&inv.start&&o.d===o.n,s==='—'?'ohne Fach':'')));
   const sel=box.querySelector('.on');if(sel)try{sel.scrollIntoView({inline:'center',block:'nearest'})}catch(e){}
   const list=$('iv-list');list.textContent='';
   if(!inv.loaded){list.append(el('p','hint','جاري التحميل… · Wird geladen…'));return}
@@ -3126,15 +3155,16 @@ async function ivSave(x,inp,btn){
   const v=ivNum(inp.value);
   if(isNaN(v)||v<0){inp.focus();ivStatus('اكتب الكمية بالأرقام (مثال 2,350) · Menge als Zahl eingeben (z. B. 2,350)',true);return}
   if(!inv.start){ivStatus('ابدأ جرداً جديداً أولاً · Zuerst «Neue Inventur starten» drücken',true);return}
-  if(x.unit==='kg'&&v>200&&!confirm(v+' kg?\nتأكد أنك كتبت الوزن بالكيلو (2,350 وليس 2350).\nBitte Gewicht in kg prüfen (2,350 statt 2350).'))return;
+  if(x.unit==='kg'&&(v>200||(v>=50&&Number.isInteger(v)&&v>10*Math.max(1,+x.bestand||0)))&&!confirm(v+' kg?\nتأكد أنك كتبت الوزن بالكيلو (2,350 وليس 2350).\nBitte Gewicht in kg prüfen (2,350 statt 2350).'))return;
   /* sofort anzeigen + weiter; Speichern läuft im Hintergrund (Warteschlange, auch offline) */
   if(!x.pending)x.vorher=x.bestand;
-  x.bestand=v;x.gez=Date.now();x.gezMenge=v;x.pending=true;x.err='';
+  x.bestand=v;x.gez=Math.max(Date.now(),inv.start+1);x.gezMenge=v;x.pending=true;x.err='';
   ivQ.push({key:x.key,code:x.code,tier:x.tier,oil:!!x.oil,ist:v,title:x.title,start:inv.start});ivQSave();
   IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});
   try{if(navigator.vibrate)navigator.vibrate(30)}catch(e){}
   const row=inp.closest('.ivrow');const nr=ivRow(x);if(row)row.replaceWith(nr);
   ivProgOnly();
+  if(ivScanLoop){ivStatus('✓ '+(x.orig||x.title||x.code)+' · '+ivFmt(v,x.unit)+' — امسح الصنف التالي · nächsten Artikel scannen');ivFlush();ivScanAgain();return}
   let n2=nr.nextElementSibling;while(n2&&!(n2.classList.contains('ivrow')&&!n2.classList.contains('done')))n2=n2.nextElementSibling;
   const ni=n2&&n2.querySelector('input');if(ni){ni.focus();try{n2.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}}
   else if(ivStand!=='*'){/* Regal fertig → automatisch zum nächsten Regal mit offenen Artikeln */
@@ -3145,12 +3175,14 @@ async function ivSave(x,inp,btn){
   ivFlush();
 }
 /* ---------- Warteschlange der Zählungen (schnell, offline-fest) ---------- */
-let ivQ=LS.get('ivq',[]),ivQBusy=false,ivQTimer=null;
+let ivQ=LS.get('ivq',[]),ivQBusy=false,ivQTimer=null,ivScanLoop=false;
+/* scan → type weight → Enter → camera opens again for the next item (until «إغلاق الكاميرا») */
+function ivScanAgain(){if(!ivScanLoop||$('view-inv').hidden)return;setTimeout(async()=>{if(!ivScanLoop||camOn)return;scanMode='inv';if(!(await liveScan()))ivScanLoop=false},450)}
 function ivQSave(){LS.set('ivq',ivQ);ivQBadge()}
 function ivQBadge(){const n=ivQ.length,b=$('iv-sync');if(!b)return;b.hidden=!n;b.textContent=n?'⏳ '+n+' بانتظار الحفظ · '+n+' werden gespeichert':''}
 function ivQApply(){/* noch nicht gespeicherte Zählungen über die Serverliste legen */
   if(!ivQ.length)return;const m=new Map(inv.items.map(x=>[x.key,x]));
-  ivQ.forEach(q=>{if(q.start!==inv.start)return;const x=m.get(q.key);if(!x)return;if(!x.pending)x.vorher=x.bestand;x.bestand=q.ist;x.gez=Date.now();x.gezMenge=q.ist;x.pending=true})}
+  ivQ.forEach(q=>{if(q.start!==inv.start)return;const x=m.get(q.key);if(!x)return;if(!x.pending&&x.vorher==null)x.vorher=x.bestand;x.bestand=q.ist;x.gez=Math.max(Date.now(),inv.start+1);x.gezMenge=q.ist;x.pending=true})}
 function ivRowRefresh(x){const r=document.querySelector('#iv-list .ivrow[data-key="'+(window.CSS&&CSS.escape?CSS.escape(x.key):x.key)+'"]');if(!r)return;
   const a=document.activeElement,keep=a&&r.contains(a)?a.value:null;const nr=ivRow(x);r.replaceWith(nr);if(keep!=null){const i=nr.querySelector('input');if(i){i.value=keep;i.focus()}}}
 async function ivFlush(){
@@ -3164,11 +3196,14 @@ async function ivFlush(){
         const n=await srv('lg_zaehl',JSON.stringify({code:q.code,tier:q.tier,oil:q.oil,ist:q.ist,title:q.title}));
         ivQ.shift();ivQSave();
         const x=inv.items.find(i=>i.key===q.key);
+        ivRecent.set(q.key,{n:+n,gez:x&&x.gez||Date.now(),start:q.start,at:Date.now()});
         if(x&&!ivQ.some(o=>o.key===q.key)){x.pending=false;x.bestand=+n;x.gezMenge=+n;ivRowRefresh(x)}
       }catch(e){
         if(e&&e.net){ivStatus('📶 بدون إنترنت – الكميات محفوظة في الجهاز وتُرسل تلقائياً · Offline – wird automatisch gesendet',true);ivQTimer=setTimeout(ivFlush,8000);return}
+        const fatal=/Menge|Code|PIN|nicht gefunden|unbekannt|FORMAT/i.test(String(e.message||''));
+        if(!fatal&&(q.tries=(q.tries||0)+1)<6){ivQSave();ivStatus('⏳ الخادم مشغول – إعادة المحاولة تلقائياً · Server beschäftigt – neuer Versuch…',true);ivQTimer=setTimeout(ivFlush,6000*q.tries);return}
         ivQ.shift();ivQSave();const x=inv.items.find(i=>i.key===q.key);
-        if(x){x.pending=false;x.err=e.message;x.gez=0;ivRowRefresh(x);ivProgOnly()}
+        if(x&&!ivQ.some(o=>o.key===q.key)){x.pending=false;x.err=e.message;x.gez=0;if(x.vorher!=null)x.bestand=x.vorher;x.gezMenge=null;ivRowRefresh(x);ivProgOnly()}
         ivStatus('لم يُحفظ · Nicht gespeichert: '+q.code+' – '+e.message,true);
       }
     }
@@ -3178,9 +3213,12 @@ async function ivFlush(){
 window.addEventListener('online',()=>ivFlush());
 setTimeout(()=>{ivQBadge();ivFlush()},3000);
 function ivProgOnly(){
-  const tot=inv.items.length,done=inv.items.filter(ivDone).length;
-  ivSetProg(done,tot);$('iv-bar').style.width=(tot?Math.round(done/tot*100):0)+'%';
-  const st=new Map(ivStands());$('iv-stands').querySelectorAll('.ivst').forEach(b=>{const id=b.dataset.id;const o=id==='*'?{d:done,n:tot}:st.get(id);if(o){const s=b.querySelector('small');if(s)s.textContent=o.d+'/'+o.n;b.classList.toggle('full',o.d===o.n)}});
+  const P=ivProg(),tot=P.tot,done=P.done;
+  ivSetProg(done,tot,P.extra);$('iv-bar').style.width=(tot?Math.round(done/tot*100):0)+'%';
+  const st=new Map(ivStands());$('iv-stands').querySelectorAll('.ivst').forEach(b=>{const id=b.dataset.id,s=b.querySelector('small');if(!s)return;
+    if(id==='*'){s.textContent=P.all+' ✓';return}const o=st.get(id);if(!o)return;
+    if(id==='—'){s.textContent=o.d+' ✓';return}s.textContent=o.d+'/'+o.n;b.classList.toggle('full',o.d===o.n)});
+  ivHomeCount();
 }
 function ivPlatzEdit(x,after){
   openSheet('المكان · Fach: '+x.code+(x.tier?' · '+x.tier:''),b=>{
@@ -3195,6 +3233,7 @@ function ivPlatzEdit(x,after){
       try{const r=await srv('lg_platz',JSON.stringify({code:x.code,tier:x.tier,oil:!!x.oil,platz:p,force:!!force}));
         inv.items.forEach(y=>{if(force&&y.platz===r&&y.key!==x.key)y.platz=''});x.platz=r;
         if(inv.items.indexOf(x)<0&&x.key)inv.items.push(x);
+        inv.items.sort((a,b)=>ivSortKey(a.platz).localeCompare(ivSortKey(b.platz)));
         IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});closeSheet();if(after)after(r);if(!$('view-inv').hidden)ivRender();
       }catch(e){ok.disabled=false;msg.classList.add('err');
         const m=/^BELEGT:(.+)$/.exec(e.message);
@@ -3205,6 +3244,7 @@ function ivPlatzEdit(x,after){
     b.append(i,ok,msg);setTimeout(()=>i.focus(),50);
   });
 }
+function ivSync(sel,n,counted){try{const x=inv.items.find(i=>i.code===sel.code&&(i.tier||'')===(sel.tier||''));if(!x||isNaN(n))return;if(counted&&inv.start){if(x.vorher==null)x.vorher=x.bestand;x.gez=Math.max(Date.now(),inv.start+1);x.gezMenge=n}x.bestand=n;IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at})}catch(e){}}
 function ivFind(code,letter){code=String(code||'').toUpperCase();return inv.items.filter(x=>x.code.toUpperCase()===code&&(!letter||!x.oil||ivLetter(x.tier)===letter))}
 function ivFocus(x){
   ivStand=ivStandOf(x.platz)||'—';$('iv-q').value='';if($('iv-show').value!=='all')$('iv-show').value='all';ivLimit=Math.max(ivLimit,2000);ivRender();
@@ -3220,21 +3260,23 @@ function ivHandleCode(text){
   let hits=ivFind(code,letter);if(!hits.length)hits=ivFind(code.replace(/-\d{4}$/,''),'');
   if(hits.length===1){ivFocus(hits[0]);return true}
   if(hits.length>1){openSheet('اختر الجودة · Qualität wählen: '+code,b=>{hits.forEach(x=>{const k=el('button','btn big',(x.tier||'')+(x.platz?' · '+x.platz:''));k.onclick=()=>{closeSheet();ivFocus(x)};b.append(k)})});return true}
-  if(lgHandleCode(text)){ivStatus('الصنف غير موجود في قائمة الجرد — فُتح في المخزون · Artikel nicht in der Zählliste – im Lager geöffnet',true);return true}
+  ivStatus('الكود «'+t+'» غير موجود في قائمة الجرد · Code nicht in der Zählliste',true);
+  {const s=$('iv-status'),b=el('button','btn small','فتح في المخزون · Im Lager öffnen');b.style.marginInlineStart='8px';b.onclick=()=>{ivScanLoop=false;lgHandleCode(text)};s.append(b)}
   return false;
 }
 async function ivNewRound(){
+  if(ivQ.length){await ivFlush();if(ivQ.length&&!confirm('⚠️ '+ivQ.length+' كمية لم تُرسل بعد للخادم وستضيع إذا بدأت جرداً جديداً. متابعة؟\n'+ivQ.length+' Zählung(en) noch nicht gespeichert – gehen verloren. Trotzdem fortfahren?'))return}
   if(!confirm('بدء جرد جديد؟ · Neue Inventur starten?\nسيبدأ عدّاد التقدّم من الصفر، والأرصدة لا تتغير إلا عند إدخال الكميات.\nDer Zählfortschritt beginnt bei 0; Bestände ändern sich erst beim Eintragen.'))return;
   try{inv.start=await srv('lg_invstart');inv.items.forEach(x=>{x.gez=0;x.gezMenge=null;x.vorher=null});IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at});ivStand=null;ivRender();ivStatus('بدأ جرد جديد · Neue Inventur gestartet ✅')}
   catch(e){ivStatus('تعذّر البدء · Start fehlgeschlagen: '+e.message,true)}
 }
-function ivHomeCount(){const b=$('h-inv-n');if(!b)return;if(!inv.start||!inv.items.length){b.textContent='';return}const d=inv.items.filter(ivDone).length;b.textContent=Math.round(d/inv.items.length*100)+'%'}
+function ivHomeCount(){const b=$('h-inv-n');if(!b)return;const P=ivProg();if(!inv.start||!P.tot){b.textContent=inv.start&&P.all?P.all+' ✓':'';return}b.textContent=Math.round(P.done/P.tot*100)+'%'}
 $('iv-show').onchange=()=>{ivLimit=150;ivRender()};
 let ivQT=null;$('iv-q').oninput=()=>{clearTimeout(ivQT);ivQT=setTimeout(()=>{ivLimit=150;ivRender()},180)};
 $('iv-q').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=$('iv-q').value;if(ivHandleCode(v))$('iv-q').value=''}};
 $('iv-new').onclick=ivNewRound;
 $('iv-reload').onclick=()=>ivLoad(true);
-$('iv-scan').onclick=async()=>{if(!inv.loaded)await ivLoad(false);scanMode='inv';if(!(await liveScan()))ivStatus('الكاميرا غير متاحة · Kamera nicht verfügbar — «صورة الكود / Foto vom Code»',true)};
+$('iv-scan').onclick=async()=>{if(!inv.loaded)await ivLoad(false);scanMode='inv';ivScanLoop=true;if(!(await liveScan()))ivStatus('الكاميرا غير متاحة · Kamera nicht verfügbar — «صورة الكود / Foto vom Code»',true)};
 $('iv-scan-file').onchange=async e=>{
   const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;ivStatus('جاري قراءة الكود… · Code wird gelesen…');
   try{const text=await decodeQrFile(f);if(!text){ivStatus('لم أجد كود QR · Kein QR-Code gefunden',true);return}
