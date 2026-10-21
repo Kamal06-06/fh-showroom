@@ -2,8 +2,8 @@ import cv2, numpy as np, json
 from PIL import Image
 PX=14.0; W,H=1540,2002; XC,YB=772.1,1996.4
 NECK=7.3708; SH50=YB-(100-NECK)*PX
-fx,fy=40/47,(82-NECK)/(100-NECK)
-SH=YB-(82-NECK)*PX
+fx,fy=37/47,(84-NECK)/(100-NECK)
+SH=YB-(84-NECK)*PX
 for n in ('leer','tube'):
     im=cv2.cvtColor(np.array(Image.open('b2050-base-'+n+'.webp').convert('RGB')),cv2.COLOR_RGB2BGR)
     c=np.full((H,W,3),255,np.uint8); y0=int(round(SH50))
@@ -17,7 +17,7 @@ for n in ('leer','tube'):
 a=np.array(Image.open('nbl30-base-tube.webp').convert('L'))<236
 for y in range(int(SH)-200,int(SH)+80):
     xs=np.where(a[y])[0]
-    if len(xs) and xs.max()-xs.min()>0.85*40*PX: edge=y;break
+    if len(xs) and xs.max()-xs.min()>0.85*37*PX: edge=y;break
 print('SH',SH,'edge',edge)
 m=json.load(open('meta.json'));ims=[]
 for b,hd in [('tube','kappe-polo-weiss-gold-b'),('tube','kappe-zylinder-weiss-gold-b'),('tube','spr-fea15-gold-b'),('leer',None)]:
