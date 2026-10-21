@@ -1,0 +1,52 @@
+{
+ "W": 1540,
+ "H": 2002,
+ "layers": {
+  "base_tube": {
+   "file": "sqg50-base-tube.webp"
+  },
+  "base_notube": {
+   "file": "sqg50-base-leer.webp"
+  },
+  "neck": {
+   "file": "sqg50-hals.webp",
+   "x": 555,
+   "y": 334
+  },
+  "spr_Silber": {
+   "file": "spr-fea15-silber.webp",
+   "x": 555,
+   "y": 99
+  },
+  "spr_Gold": {
+   "file": "spr-fea15-gold.webp",
+   "x": 555,
+   "y": 81
+  },
+  "spr_Schwarz": {
+   "file": "spr-fea15-schwarz.webp",
+   "x": 555,
+   "y": 0
+  },
+  "cap_Polo Weiss-Gold": {
+   "file": "kappe-polo-weiss-gold.webp",
+   "x": 476,
+   "y": 0
+  },
+  "cap_Polo Schwarz-Gold": {
+   "file": "kappe-polo-schwarz-gold.webp",
+   "x": 476,
+   "y": 1
+  },
+  "cap_Ribbed Gold": {
+   "file": "kappe-ribbed-gold.webp",
+   "x": 427,
+   "y": 22
+  },
+  "cap_Ribbed Schwarz": {
+   "file": "kappe-ribbed-schwarz.webp",
+   "x": 427,
+   "y": 36
+  }
+ }
+}
