@@ -3087,7 +3087,7 @@ function ivLoad(force,silent){
 const ivDoneIn=(x,start)=>!!(x.gez&&start&&x.gez>=start);
 /* live: counts from other devices appear by themselves every 40 s while the list is open */
 setInterval(()=>{if(!document.hidden&&!$('view-inv').hidden&&inv.loaded&&!ivQ.length&&!ivQBusy)ivLoad(true,true)},40000);
-function ivShow(){if(!inv.loaded)ivRender();ivLoad(false)}
+function ivShow(){ivRender();ivLoad(false)}
 function ivStands(){
   const m=new Map();inv.items.forEach(x=>{const s=ivStandOf(x.platz)||'—';if(!m.has(s))m.set(s,{n:0,d:0});const o=m.get(s);o.n++;if(ivDone(x))o.d++});
   return [...m.entries()].sort((a,b)=>a[0]==='—'?1:b[0]==='—'?-1:a[0].localeCompare(b[0]));
