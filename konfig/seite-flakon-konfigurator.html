@@ -195,10 +195,21 @@ var M={
     plain:null},
    '50':{n:'50 ml',dim:'100 × 47 × 30 mm',pcs:72,body:1,parts:1,sep:null,
     muster:{id:58901312110975,p:2.25},t:[{min:1,id:58901312143743,p:72.00},{min:2,id:58901312176511,p:64.80},{min:10,id:58901312209279,p:54.00},{min:20,id:58901312242047,p:43.20}],
+    plain:null}}},
+ zen:{n:'Zen Corel',mode:'full',showPrem:0,sh:730,def:{spr:'Gold',cap:'Gold'},
+  L:{base_tube:{f:'zen60-base-tube.webp'},base_notube:{f:'zen60-base-leer.webp'},
+   spr_Silber:{f:'spr-fea15-silber-b.webp',x:[619,379]},spr_Gold:{f:'spr-fea15-gold-b.webp',x:[619,366]},spr_Schwarz:{f:'spr-fea15-schwarz-b.webp',x:[619,326]},
+   'cap_Gold':{f:'kappe-zen-gold.webp',x:[445,329]},'cap_Schwarz matt':{f:'kappe-zen-matt.webp',x:[445,340]},'cap_Schwarz glaenzend':{f:'kappe-zen-glanz.webp',x:[444,330]}},
+  caps:[{k:'Gold',n:'Gold',sw:'linear-gradient(135deg,#f6e3a6,#b8913a 55%,#f1d98d)',id:58901527626111,p:1.15},
+   {k:'Schwarz matt',n:'Schwarz matt',sw:'#2a2a2a',id:58901527560575,p:1.15},
+   {k:'Schwarz glaenzend',n:'Schwarz glänzend',sw:'linear-gradient(135deg,#555,#0d0d0d 60%,#3a3a3a)',id:58901527593343,p:1.15}],
+  sizes:{
+   '60':{n:'60 ml',dim:'98 × 52 × 29 mm',pcs:72,body:1,parts:1,sep:null,
+    muster:{id:58901529493887,p:2.55},t:[{min:1,id:58901529526655,p:93.60},{min:2,id:58901529559423,p:86.40},{min:10,id:58901529592191,p:75.60},{min:20,id:58901529624959,p:64.80}],
     plain:null}}}};
 var q=new URLSearchParams(location.search);
-var st={model:M[q.get('m')]?q.get('m'):'sqg',size:(q.get('ml')==='100'||q.get('ml')==='30')?q.get('ml'):'50',spr:'Gold',cap:'',mode:'karton'};
-if(!M[st.model].sizes[st.size])st.size='50';st.cap=M[st.model].def.cap;
+var st={model:M[q.get('m')]?q.get('m'):'sqg',size:q.get('ml')||'50',spr:'Gold',cap:'',mode:'karton'};
+if(!M[st.model].sizes[st.size])st.size=M[st.model].sizes['50']?'50':Object.keys(M[st.model].sizes)[0];st.cap=M[st.model].def.cap;
 function $(i){return document.getElementById('fhk-'+i)}
 function eur(v){return v.toLocaleString('de-DE',{style:'currency',currency:'EUR'})}
 function int(i,min){var v=parseInt($(i).value,10);return isNaN(v)?min:Math.max(min,v)}
