@@ -112,9 +112,29 @@ var M={
   sizes:{
    '50':{n:'50 ml',dim:'Höhe 73 mm · Ø 50 mm',pcs:80,body:1,parts:1,sep:null,
     muster:{id:58899823296895,p:2.20},t:[{min:1,id:58899823329663,p:76.00},{min:2,id:58899823362431,p:68.00},{min:10,id:58899823395199,p:56.00},{min:20,id:58899823427967,p:44.00}],
+    plain:null}}},
+ octavia:{n:'True Jewel',mode:'full',showPrem:0,def:{spr:'Gold',cap:'Kugel Gold'},
+  L:{base_tube:{f:'okt50-base-tube.webp'},base_notube:{f:'okt50-base-leer.webp'},
+   spr_Silber:{f:'spr-fea15-silber-o.webp',x:[586,177]},spr_Gold:{f:'spr-fea15-gold-o.webp',x:[586,162]},spr_Schwarz:{f:'spr-fea15-schwarz-o.webp',x:[586,211]},
+   'cap_Eckig Schwarz':{f:'kappe-eckig-schwarz.webp',x:[525,135]},'cap_Zylinder Weiss-Gold':{f:'kappe-zylinder-weiss-gold.webp',x:[513,56]},
+   'cap_Kugel Gold':{f:'kappe-kugel-gold.webp',x:[492,131]},'cap_Kugel Weiss':{f:'kappe-kugel-weiss.webp',x:[492,125]},'cap_Kugel Schwarz':{f:'kappe-kugel-schwarz.webp',x:[492,129]},
+   'cap_Polo Weiss-Gold':{f:'kappe-polo-weiss-gold-o.webp',x:[518,94]},'cap_Polo Schwarz-Gold':{f:'kappe-polo-schwarz-gold-o.webp',x:[518,95]},
+   'cap_Ribbed Gold':{f:'kappe-ribbed-gold-o.webp',x:[477,113]},'cap_Ribbed Schwarz':{f:'kappe-ribbed-schwarz-o.webp',x:[477,125]}},
+  caps:[{k:'Kugel Gold',n:'Kugel · Gold',sw:'radial-gradient(circle at 35% 30%,#fff3c4,#d4a640 45%,#7a5a14)',id:58900197179775,p:1.15},
+   {k:'Kugel Weiss',n:'Kugel · Weiß',sw:'radial-gradient(circle at 35% 30%,#fff,#e6e6e6 55%,#b9b9b9)',id:58900197212543,p:0.80},
+   {k:'Kugel Schwarz',n:'Kugel · Schwarz',sw:'radial-gradient(circle at 35% 30%,#777,#141414 55%,#000)',id:58900197245311,p:0.80},
+   {k:'Eckig Schwarz',n:'Eckig · Schwarz',sw:'#1d1d1d',id:58900197114239,p:1.15},
+   {k:'Zylinder Weiss-Gold',n:'Zylinder · Weiß-Gold',sw:'linear-gradient(#f4f2ec 0 75%,#d9b25c 75%)',id:58900197147007,p:0.75},
+   {k:'Polo Weiss-Gold',n:'Polo · Weiß-Gold',sw:'linear-gradient(#d9b25c 0 22%,#fafafa 22% 80%,#d9b25c 80%)',id:58900197278079,p:0.55},
+   {k:'Polo Schwarz-Gold',n:'Polo · Schwarz-Gold',sw:'linear-gradient(#d9b25c 0 22%,#111 22% 80%,#d9b25c 80%)',id:58900197310847,p:0.55},
+   {k:'Ribbed Gold',n:'Ribbed · Gold',sw:'repeating-linear-gradient(#e7c66f 0 3px,#a8802f 3px 5px)',id:58900197343615,p:0.70},
+   {k:'Ribbed Schwarz',n:'Ribbed · Schwarz',sw:'repeating-linear-gradient(#444 0 3px,#0b0b0b 3px 5px)',id:58900197376383,p:0.70}],
+  sizes:{
+   '50':{n:'50 ml',dim:'88 × 52 × 29 mm',pcs:80,body:1,parts:1,sep:null,
+    muster:{id:58900196458879,p:2.25},t:[{min:1,id:58900196491647,p:80.00},{min:2,id:58900196524415,p:72.00},{min:10,id:58900196557183,p:60.00},{min:20,id:58900196589951,p:48.00}],
     plain:null}}}};
 var q=new URLSearchParams(location.search);
-var st={model:q.get('m')==='rund'?'rund':'sqg',size:q.get('ml')==='100'?'100':'50',spr:'Gold',cap:'',mode:'karton'};
+var st={model:M[q.get('m')]?q.get('m'):'sqg',size:q.get('ml')==='100'?'100':'50',spr:'Gold',cap:'',mode:'karton'};
 if(!M[st.model].sizes[st.size])st.size='50';st.cap=M[st.model].def.cap;
 function $(i){return document.getElementById('fhk-'+i)}
 function eur(v){return v.toLocaleString('de-DE',{style:'currency',currency:'EUR'})}
@@ -139,7 +159,7 @@ function calc(){var Mo=M[st.model],S=Mo.sizes[st.size],s=SPR.find(function(x){re
  if(c.id){rows.push(['Parfümkappe '+c.n+' (im Set)',(pcs+rc)+' Stück',pcs+rc,c.p]);items.push({id:c.id,quantity:pcs+rc})}
  var tot=rows.reduce(function(a,r){return a+r[2]*r[3]},0);return{Mo:Mo,S:S,rows:rows,items:items,tot:tot,pcs:pcs,n:n,mus:mus,plain:plain,s:s,c:c,rs:rs,rc:rc}}
 function render(){var Mo=M[st.model],sizes=Object.keys(Mo.sizes);
- btns('o-model',[{k:'sqg',n:'Square Grace'},{k:'rund',n:'Runder Flakon'}],'model',0);
+ btns('o-model',Object.keys(M).map(function(k){return{k:k,n:M[k].n}}),'model',0);
  btns('o-size',sizes.map(function(z){return{k:z,n:Mo.sizes[z].n}}),'size',0);$('st-size').style.display=sizes.length>1?'':'none';
  var nb=document.querySelectorAll('#fhk b.n'),num=sizes.length>1?3:2;for(var i=0;i<nb.length;i++)nb[i].textContent=num+i;
  btns('o-spr',SPR,'spr',1);btns('o-cap',CAPS(),'cap',1,Mo.showPrem);
