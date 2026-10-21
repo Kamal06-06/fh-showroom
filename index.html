@@ -3247,7 +3247,7 @@ function ivPlatzEdit(x,after){
 function ivSync(sel,n,counted){try{const x=inv.items.find(i=>i.code===sel.code&&(i.tier||'')===(sel.tier||''));if(!x||isNaN(n))return;if(counted&&inv.start){if(x.vorher==null)x.vorher=x.bestand;x.gez=Math.max(Date.now(),inv.start+1);x.gezMenge=n}x.bestand=n;IDB.set('invplan',{start:inv.start,items:inv.items,at:inv.at})}catch(e){}}
 function ivFind(code,letter){code=String(code||'').toUpperCase();return inv.items.filter(x=>x.code.toUpperCase()===code&&(!letter||!x.oil||ivLetter(x.tier)===letter))}
 function ivFocus(x){
-  ivStand=ivStandOf(x.platz)||'—';$('iv-q').value='';if($('iv-show').value!=='all')$('iv-show').value='all';ivLimit=Math.max(ivLimit,2000);ivRender();
+  ivStatus('');ivStand=ivStandOf(x.platz)||'—';$('iv-q').value='';if($('iv-show').value!=='all')$('iv-show').value='all';ivLimit=Math.max(ivLimit,2000);ivRender();
   const row=[...$('iv-list').querySelectorAll('.ivrow')].find(r=>r.dataset.key===x.key);
   if(row){row.classList.add('hl');setTimeout(()=>row.classList.remove('hl'),2500);try{row.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}const i=row.querySelector('input');if(i)setTimeout(()=>i.focus(),350)}
 }
