@@ -603,6 +603,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <div id="clp-addr-box" hidden><label for="clp-addr">عنوان العميل على ملصق CLP بدل عنواني (اختياري)</label><input type="text" id="clp-addr" autocomplete="off" dir="ltr" placeholder="Firma, Straße Nr., PLZ Ort, Tel."></div>
 <div id="clp-logo-box" style="display:flex;align-items:center;gap:10px;margin:8px 0;flex-wrap:wrap"><input type="file" id="clp-logo-file" accept="image/*" hidden><button type="button" class="btn" id="clp-logo-btn">＋ لوغو العميل فوق العنوان (اختياري)</button><img id="clp-logo-img" alt="" hidden style="height:40px;max-width:150px;object-fit:contain;background:#fff;border:1px solid #ccc;border-radius:6px;padding:2px"><button type="button" class="btn" id="clp-logo-del" hidden>× إزالة اللوغو</button><span id="clp-logo-st" class="note"></span></div>
       </details>
+      <button class="btn big" id="offer" disabled style="margin-bottom:8px">📄 عرض سعر فقط (Angebot PDF) — بدون إرسال للمستودع</button>
       <button class="btn primary big" id="send" disabled>إرسال إلى المستودع</button>
       <div id="send-status" class="status" hidden></div>
       <div id="last-actions" hidden></div>
@@ -1261,7 +1262,7 @@ $('rabfix').oninput=e=>{draft.rabattFix=+e.target.value||0;saveDraft();renderIte
 $('versand').oninput=e=>{draft.versand=+e.target.value||0;saveDraft();renderItems()};
 $('kgprice').checked=!!draft.kg;$('rabscope').value=draft.rabScope||'all';$('rabscope').onchange=e=>{draft.rabScope=e.target.value;saveDraft();renderItems()};
 $('kgprice').onchange=e=>{draft.kg=e.target.checked;draft.kgOff=!e.target.checked;applyKg(draft.items,draft.kg);saveDraft();renderItems();showCust()};
-function saveDraft(){draft.at=Date.now();LS.set('draft3',draft);$('send').disabled=!draft.items.length||!db}
+function saveDraft(){draft.at=Date.now();LS.set('draft3',draft);$('send').disabled=!draft.items.length||!db;$('offer').disabled=!draft.items.length}
 function addItem(o){
   const hit=draft.items.find(i=>i.t===o.t&&i.tier===o.tier&&i.code===o.code&&i.size===o.size&&(i.unit||'')===(o.unit||''));
   if(hit)hit.q++; else {const it=Object.assign({q:1},o);if(draft.kg)applyKg([it],true);draft.items.push(it)}
@@ -1275,6 +1276,7 @@ function renderItems(){
   const n=draft.items.reduce((s,i)=>s+qn(i),0),t=totals(draft);
   $('count').textContent=n?'('+n+')':'';$('sum').textContent=money(t.net)+(t.ship?' (شامل الشحن '+money(t.ship)+')':'');
   $('send').disabled=!draft.items.length||!db;
+  $('offer').disabled=!draft.items.length;
   {const t2=totals(draft);$('disc-sum').textContent=(t2.disc?' −'+money(t2.disc):'')+(t2.ship?' · شحن '+money(t2.ship):'')}
   updSendbar();
   const stale=draft.items.length&&!editing&&(Date.now()-(draft.at||0))>15*60000;$('draftbar').hidden=!stale;
@@ -2241,6 +2243,16 @@ function actions(l,primary){
 
 /* ---------- send ---------- */
 function sendStatus(msg,err){const s=$('send-status');s.hidden=!msg;s.textContent=msg||'';s.classList.toggle('err',!!err)}
+/* price offer only: builds the Angebotspreis PDF from the cart without creating a warehouse order */
+$('offer').onclick=async()=>{
+  if(!draft.items.length)return;
+  if(!draft.cust.trim()){sendStatus('اكتب اسم العميل أولاً.',true);$('cust').focus();return}
+  const b=$('offer');
+  const rec={customer:draft.cust.trim(),note:(draft.note||'').trim(),rabatt:+draft.rabatt||0,rabattFix:+draft.rabattFix||0,versand:+draft.versand||0,rabScope:draft.rabScope||'all',kg:!!draft.kg,street:(draft.street||'').trim(),city:(draft.city||'').trim(),country:draft.country||'DE',phone:(draft.phone||'').trim(),email:(draft.email||'').trim(),items:JSON.parse(JSON.stringify(draft.items)),at:Date.now(),offer:true};
+  try{if(db)rec.custNo=await ensureCustomer(rec.customer,{street:rec.street,city:rec.city,country:rec.country})}catch(_){}
+  const out=$('send-status');out.hidden=false;out.className='status';
+  await savePdf('ls',rec,b,out);
+};
 $('send').onclick=async()=>{
   if(!db||!draft.items.length)return;
   if(!draft.cust.trim()){sendStatus('اكتب اسم العميل أولاً.',true);$('cust').focus();return}
