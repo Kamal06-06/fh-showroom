@@ -530,6 +530,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
     <div class="home">
       <button class="tile primary" id="h-new"><span class="ic">＋</span><b>طلب جديد</b><span>تسجيل أصناف عميل في الصالة</span></button>
       <button class="tile" id="h-wh"><span class="ic">🗂️</span><b>الطلبات المفتوحة</b><span>قيد التحضير في المستودع</span><span class="cnt" id="h-open">0</span></button>
+      <button class="tile" id="h-off"><span class="ic">📄</span><b>عروض الأسعار</b><span>بدون تجهيز · إرسال للمستودع</span><span class="cnt" id="h-off-n">0</span></button>
       <button class="tile" id="h-done"><span class="ic">✅</span><b>الطلبات المكتملة</b><span>تم تحضيرها وتسليمها</span><span class="cnt" id="h-done-n">0</span></button>
       <button class="tile" id="h-lg"><span class="ic">📦</span><b>المخزون</b><span>وارد · صادر · جرد · ملصقات QR</span></button>
       <button class="tile" id="h-inv"><span class="ic">📋</span><b>الجرد حسب الرفوف</b><span>Inventur nach Regal · مسح QR</span><span class="cnt" id="h-inv-n"></span></button>
@@ -603,7 +604,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <div id="clp-addr-box" hidden><label for="clp-addr">عنوان العميل على ملصق CLP بدل عنواني (اختياري)</label><input type="text" id="clp-addr" autocomplete="off" dir="ltr" placeholder="Firma, Straße Nr., PLZ Ort, Tel."></div>
 <div id="clp-logo-box" style="display:flex;align-items:center;gap:10px;margin:8px 0;flex-wrap:wrap"><input type="file" id="clp-logo-file" accept="image/*" hidden><button type="button" class="btn" id="clp-logo-btn">＋ لوغو العميل فوق العنوان (اختياري)</button><img id="clp-logo-img" alt="" hidden style="height:40px;max-width:150px;object-fit:contain;background:#fff;border:1px solid #ccc;border-radius:6px;padding:2px"><button type="button" class="btn" id="clp-logo-del" hidden>× إزالة اللوغو</button><span id="clp-logo-st" class="note"></span></div>
       </details>
-      <button class="btn big" id="offer" disabled style="margin-bottom:8px">📄 عرض سعر فقط (Angebot PDF) — بدون إرسال للمستودع</button>
+      <button class="btn big" id="offer" disabled style="margin-bottom:8px">📄 حفظ كعرض سعر (بدون تجهيز)</button>
       <button class="btn primary big" id="send" disabled>إرسال إلى المستودع</button>
       <div id="send-status" class="status" hidden></div>
       <div id="last-actions" hidden></div>
@@ -776,7 +777,7 @@ const IDB=(()=>{let p=null;const open=()=>p||(p=new Promise((ok,no)=>{try{const 
 async function srv(action,a,b,c){let last;for(let i=0;i<4;i++){try{return await srv1(action,a,b,c)}catch(e){last=e;if(!/lock|تأمين|sperr|timeout/i.test(String(e.message||e))||i===3)throw e;await new Promise(r=>setTimeout(r,2500*(i+1)))}}throw last}
 let db=null, mcp=null, dl=null, catalog=[], lists=[], lastSent=null, editing=null;
 let waNum=LS.get('wa','');
-let customers=[], debts=[], focusId=null, imgs={};
+let customers=[], debts=[], offers=[], focusId=null, imgs={};let editOffer=LS.get('editOffer',null);
 let fileCache={}, listSig='', started=false;
 const orderKey=l=>l.id||('at'+l.at);
 const custKey=n=>String(n||'').trim().toLowerCase().replace(/\s+/g,' ');
@@ -1067,10 +1068,10 @@ $('tab-set').onclick=()=>openSheet('⚙️ الإعدادات',b=>b.append($('se
 $('nv-home').onclick=goHome;$('nv-wh').onclick=()=>$('h-wh').click();$('nv-new').onclick=()=>$('h-new').click();
 $('nv-lg').onclick=()=>{drawer(false);$('h-lg').click()};$('nv-cash').onclick=()=>$('h-cash').click();$('nv-cust').onclick=()=>$('h-cust').click();
 $('nv-acc').onclick=()=>$('h-acc').click();$('nv-done').onclick=()=>$('h-done').click();$('h-last-all').onclick=()=>$('h-wh').click();
-{const IC={'h-wh':'<path d="M3 7h6l2 2h10v10H3z"/>','h-done':'<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>','h-lg':'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>','h-cust':'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>','h-cash':'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/>','h-acc':'<path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/>','h-inv':'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM8.5 12l2 2 4-4M8.5 17h7"/>'};
+{const IC={'h-wh':'<path d="M3 7h6l2 2h10v10H3z"/>','h-done':'<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>','h-lg':'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>','h-cust':'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>','h-cash':'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/>','h-acc':'<path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/>','h-inv':'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM8.5 12l2 2 4-4M8.5 17h7"/>','h-off':'<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h5"/>'};
  Object.keys(IC).forEach(id=>{const t=$(id);if(!t)return;const ic=t.querySelector('.ic');if(ic)ic.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true">'+IC[id]+'</svg>';
   const b=t.querySelector('b'),s=t.querySelector('b+span');if(b){const w=el('span','tt');b.before(w);w.append(b);if(s&&!s.classList.contains('cnt'))w.append(s)}
-  const TT={'h-wh':['المفتوحة','قيد التحضير'],'h-done':['المكتملة','تم التسليم'],'h-lg':['المخزون','وارد · صادر · جرد'],'h-cust':['العملاء','كل عميل وطلباته'],'h-cash':['الصندوق','نقد · مصروفات'],'h-acc':['الحسابات','غير مدفوع · كشف'],'h-inv':['الجرد','حسب الرفوف · QR']};
+  const TT={'h-wh':['المفتوحة','قيد التحضير'],'h-done':['المكتملة','تم التسليم'],'h-lg':['المخزون','وارد · صادر · جرد'],'h-cust':['العملاء','كل عميل وطلباته'],'h-cash':['الصندوق','نقد · مصروفات'],'h-acc':['الحسابات','غير مدفوع · كشف'],'h-inv':['الجرد','حسب الرفوف · QR'],'h-off':['عروض الأسعار','بدون تجهيز']};
   if(TT[id]&&b){b.textContent=TT[id][0];if(s&&!s.classList.contains('cnt'))s.textContent=TT[id][1]}
   const c=t.querySelector('.cnt');if(c&&(id==='h-cash'||id==='h-acc')){c.classList.add('cnt2');t.querySelector('.tt').append(c)}})}
 $('h-low-all').onclick=()=>{tab('lg');$('lg-low-btn').click()};
@@ -1091,7 +1092,7 @@ async function renderHome(){
   const openL=lists.filter(l=>l.status!=='done');
   $('h-open').textContent=openL.length;$('h-done-n').textContent=lists.length-openL.length;$('h-cust-n').textContent=custAll().length;
   const due=lists.concat(debtLists()).reduce((s,l)=>s+payOf(l).open,0),eurS=n=>Math.round(n).toLocaleString('de-DE')+' €';$('h-due').textContent=due>0.004?eurS(due):'';$('h-cash-n').textContent=cash.length?eurS(cashSums().box):'';
-  homeTop(openL);
+  homeTop(openL);$('h-off-n').textContent=offers.length;
   const last=$('h-last');last.textContent='';
   if(!openL.length)last.append(el('p','hint',lists.length?'لا توجد طلبات للتحضير ✓':'لا توجد طلبات بعد.'));
   openL.slice().sort((a,b)=>(a.at||0)-(b.at||0)).slice(0,6).forEach(l=>{
@@ -1283,7 +1284,7 @@ function renderItems(){
   if(stale)$('draft-txt').textContent='⚠️ مسودة غير مرسلة من '+new Date(draft.at||Date.now()).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})+' · '+n+' صنف'+(draft.cust?' · '+draft.cust:'')+' — هل تريد متابعتها أم البدء بطلب جديد؟';
 }
 function resetDraft(){try{$('cphone').value='';$('cemail').value=''}catch(e){}$('clp-addr').value='';$('cust-no').textContent='';draft={cust:'',note:'',rabatt:0,rabattFix:0,versand:0,kg:false,items:[],street:'',city:'',country:'DE',phone:'',email:''};$('cust').value='';$('versand').value='';$('rabscope').value='all';$('kgprice').checked=false;$('kg-st').textContent='';$('street').value='';$('city').value='';$('country').value='DE';showLang();$('note').value='';$('rab').value='';$('rabfix').value='';saveDraft();renderItems();showLogo()}
-$('clear').onclick=resetDraft;
+$('clear').onclick=()=>{setEditOffer(null);resetDraft()};
 function setEditing(l){
   editing=l?{id:l.id,customer:l.customer}:null;LS.set('edit3',editing);
   $('editbar').hidden=!editing;$('edit-txt').textContent=editing?'تعديل طلب: '+editing.customer+' — أضف أو أنقص (−) أو احذف (×) الأصناف ثم احفظ':'';
@@ -1297,6 +1298,7 @@ function editList(l){
 $('edit-cancel').onclick=()=>{setEditing(null);resetDraft()};
 $('draft-keep').onclick=()=>{draft.at=Date.now();saveDraft();$('draftbar').hidden=true};
 $('draft-clear').onclick=()=>{setEditing(null);resetDraft()};
+try{setEditOffer(editOffer)}catch(e){}
 {const ed=LS.get('edit3',null);if(ed&&ed.id&&draft.items.length){setEditing(ed);renderItems()}else if(ed)LS.set('edit3',null)}
 function renderSizes(){
   const box=$('sizes');box.textContent='';
@@ -2243,16 +2245,63 @@ function actions(l,primary){
 
 /* ---------- send ---------- */
 function sendStatus(msg,err){const s=$('send-status');s.hidden=!msg;s.textContent=msg||'';s.classList.toggle('err',!!err)}
-/* price offer only: builds the Angebotspreis PDF from the cart without creating a warehouse order */
+/* price offers: saved without warehouse preparation (customers collection, kind 'offer'); can be sent to the warehouse later */
+function draftRec(){return {customer:draft.cust.trim(),note:(draft.note||'').trim(),rabatt:+draft.rabatt||0,rabattFix:+draft.rabattFix||0,versand:+draft.versand||0,rabScope:draft.rabScope||'all',kg:!!draft.kg,clpAddr:(draft.clpAddr||'').trim(),clpLogo:draft.clpLogo||'',street:(draft.street||'').trim(),city:(draft.city||'').trim(),country:draft.country||'DE',phone:(draft.phone||'').trim(),email:(draft.email||'').trim(),items:JSON.parse(JSON.stringify(draft.items))}}
+function setEditOffer(o){editOffer=o?{id:o.id,at:o.at,customer:o.customer}:null;LS.set('editOffer',editOffer);
+  $('offer').textContent=editOffer?'📄 حفظ التعديلات على عرض السعر':'📄 حفظ كعرض سعر (بدون تجهيز)'}
 $('offer').onclick=async()=>{
   if(!draft.items.length)return;
   if(!draft.cust.trim()){sendStatus('اكتب اسم العميل أولاً.',true);$('cust').focus();return}
-  const b=$('offer');
-  const rec={customer:draft.cust.trim(),note:(draft.note||'').trim(),rabatt:+draft.rabatt||0,rabattFix:+draft.rabattFix||0,versand:+draft.versand||0,rabScope:draft.rabScope||'all',kg:!!draft.kg,street:(draft.street||'').trim(),city:(draft.city||'').trim(),country:draft.country||'DE',phone:(draft.phone||'').trim(),email:(draft.email||'').trim(),items:JSON.parse(JSON.stringify(draft.items)),at:Date.now(),offer:true};
-  try{if(db)rec.custNo=await ensureCustomer(rec.customer,{street:rec.street,city:rec.city,country:rec.country})}catch(_){}
-  const out=$('send-status');out.hidden=false;out.className='status';
-  await savePdf('ls',rec,b,out);
+  if(editing){sendStatus('أنت تعدّل طلباً في المستودع — احفظ التعديلات أو ألغِها أولاً.',true);return}
+  const b=$('offer');b.disabled=true;
+  const rec=Object.assign(draftRec(),{kind:'offer'});
+  try{
+    try{rec.custNo=await ensureCustomer(rec.customer,{street:rec.street,city:rec.city,country:rec.country})}catch(_){}
+    let id;
+    if(editOffer&&offers.some(o=>o.id===editOffer.id)){rec.at=editOffer.at||Date.now();rec.editedAt=Date.now();await db.doc('customers/'+editOffer.id).update(rec);id=editOffer.id}
+    else{rec.at=Date.now();const r=await db.collection('customers').add(rec);id=r&&r.id}
+    const o=Object.assign({id},rec);setEditOffer(null);resetDraft();
+    const out=$('send-status');out.hidden=false;out.className='status';out.textContent='تم حفظ عرض السعر في «عروض الأسعار» (بدون تجهيز).';
+    await savePdf('ls',o,b,out);
+  }catch(e){sendStatus('لم يُحفظ عرض السعر: '+(e.message||e),true)}
+  b.disabled=!draft.items.length;
 };
+function offerToDraft(o){
+  draft={phone:o.phone||'',email:o.email||'',clpLogo:o.clpLogo||'',clpAddr:o.clpAddr||'',street:o.street||'',city:o.city||'',country:o.country||'DE',cust:o.customer||'',note:o.note||'',rabatt:+o.rabatt||0,rabattFix:+o.rabattFix||0,versand:+o.versand||0,rabScope:o.rabScope||'all',kg:!!o.kg,kgOff:!o.kg,items:JSON.parse(JSON.stringify(o.items||[]))};
+  $('kgprice').checked=!!o.kg;$('rabscope').value=draft.rabScope;$('cphone').value=draft.phone;$('cemail').value=draft.email;$('clp-addr').value=draft.clpAddr;$('street').value=draft.street;$('city').value=draft.city;$('country').value=draft.country;showLang();$('cust').value=draft.cust;showCust();$('note').value=draft.note;$('rab').value=draft.rabatt||'';$('rabfix').value=draft.rabattFix||'';$('versand').value=draft.versand||'';
+  showLogo();setEditing(null);setEditOffer(o);saveDraft();renderItems();sendStatus('تعديل عرض السعر: '+o.customer+' — عدّل الأصناف ثم اضغط «حفظ التعديلات على عرض السعر».');$('last-actions').hidden=true;closeSheet();tab('new');
+}
+async function offerToWarehouse(o,btn){
+  if(!confirm('إرسال عرض السعر «'+o.customer+'» إلى المستودع للتجهيز؟'))return;
+  btn.disabled=true;btn.textContent='جاري الإرسال…';
+  try{
+    const rec=JSON.parse(JSON.stringify(o));delete rec.id;delete rec.kind;delete rec.editedAt;rec.offerAt=o.at;rec.at=Date.now();
+    const r=await db.collection('lists').add(rec);clpWarm(rec);
+    await db.doc('customers/'+o.id).delete();offers=offers.filter(x=>x.id!==o.id);
+    if(editOffer&&editOffer.id===o.id)setEditOffer(null);
+    renderOffers();renderHome();
+    const m=$('sheet-b').querySelector('.offmsg');if(m)m.textContent='✓ أُرسل «'+o.customer+'» إلى المستودع — تجده في الطلبات المفتوحة.';
+  }catch(e){btn.disabled=false;btn.textContent='📦 إرسال إلى المستودع';alert('لم يُرسل: '+(e.message||e))}
+}
+function renderOffers(){
+  sheetFor='offers';
+  openSheet('📄 عروض الأسعار ('+offers.length+')',b=>{
+    b.append(el('p','offmsg note',''));
+    if(!offers.length){b.append(el('p','hint','لا توجد عروض أسعار مفتوحة. أنشئ عرضاً من «طلب جديد» بزر «حفظ كعرض سعر».'));return}
+    offers.forEach(o=>{
+      const c=el('div','panel');c.style.cssText='margin:0 0 10px;padding:12px';
+      const t=totals(o),d=new Date(o.at||Date.now());
+      c.append(el('b',null,custLabel(o)),el('div','note','AP-'+stamp(o)+' · '+d.toLocaleDateString('de-DE')+' · '+cntTxt(o.items)+' · '+money(t.net)+' netto'));
+      const row=el('div');row.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-top:10px';
+      const out=el('div','note');
+      const pdf=el('button','btn small','📄 PDF');pdf.onclick=()=>savePdf('ls',o,pdf,out);
+      const ed=el('button','btn small','✏️ تعديل');ed.onclick=()=>offerToDraft(o);
+      const go=el('button','btn small primary','📦 إرسال إلى المستودع');go.onclick=()=>offerToWarehouse(o,go);
+      const del=el('button','btn small danger','🗑 حذف');del.onclick=async()=>{if(!confirm('حذف عرض السعر «'+o.customer+'»؟'))return;await db.doc('customers/'+o.id).delete();offers=offers.filter(x=>x.id!==o.id);if(editOffer&&editOffer.id===o.id)setEditOffer(null);renderOffers();renderHome()};
+      row.append(go,pdf,ed,del);c.append(row,out);b.append(c)});
+  });
+}
+$('h-off').onclick=()=>{drawer(false);renderOffers()};
 $('send').onclick=async()=>{
   if(!db||!draft.items.length)return;
   if(!draft.cust.trim()){sendStatus('اكتب اسم العميل أولاً.',true);$('cust').focus();return}
@@ -2798,7 +2847,7 @@ function start(){
   $('gate').hidden=true;
   db=makeDb();saveDraft();loadCatalog();
   setTimeout(()=>{try{ivLoad(false).then(()=>{ivIndex();try{if(!$('omodal').hidden)renderOrderModal()}catch(e){}})}catch(e){}},2500);
-  db.collection('customers').onSnapshot(snap=>{const all=snap.docs.map(d=>Object.assign({id:d.id},d.data()));customers=all.filter(c=>c&&c.name&&!c.kind);debts=all.filter(c=>c&&c.kind==='debt');showCust();
+  db.collection('customers').onSnapshot(snap=>{const all=snap.docs.map(d=>Object.assign({id:d.id},d.data()));customers=all.filter(c=>c&&c.name&&!c.kind);debts=all.filter(c=>c&&c.kind==='debt');offers=all.filter(c=>c&&c.kind==='offer').sort((a,b)=>(b.at||0)-(a.at||0));showCust();if(!$('sheet').hidden&&sheetFor==='offers')renderOffers();
     if(!$('view-acc').hidden)renderAcc();if(!$('view-cust').hidden)renderCust();if(!$('view-wh').hidden&&focusCust)renderLists();if(!$('view-home').hidden)renderHome()});
   db.collection('lists').onSnapshot(snap=>{
     const next=snap.docs.map(d=>Object.assign({id:d.id},d.data())),sig=JSON.stringify(next);
