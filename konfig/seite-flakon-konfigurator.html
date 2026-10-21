@@ -159,7 +159,7 @@ var M={
     muster:{id:58900764524927,p:2.35},t:[{min:1,id:58900764557695,p:61.60},{min:2,id:58900764590463,p:56.00},{min:10,id:58900764623231,p:47.60},{min:20,id:58900764655999,p:39.20}],
     plain:null}}},
  sla:{n:'Slim Aura',mode:'full',showPrem:0,sh:725,def:{spr:'Gold',cap:'Eckig Schwarz'},
-  L:{base_tube:{f:'sla50-base-tube.webp'},base_notube:{f:'sla50-base-leer.webp'},
+  L:{base_tube:{f:'sla50-base-tube.webp'},base_notube:{f:'sla50-base-leer.webp'},base_tube_30:{f:'sla30-base-tube.webp'},base_notube_30:{f:'sla30-base-leer.webp'},base_tube_100:{f:'sla100-base-tube.webp'},base_notube_100:{f:'sla100-base-leer.webp'},
    spr_Silber:{f:'spr-fea15-silber-a.webp',x:[619,374]},spr_Gold:{f:'spr-fea15-gold-a.webp',x:[619,361]},spr_Schwarz:{f:'spr-fea15-schwarz-a.webp',x:[619,321]},
    'cap_Eckig Schwarz':{f:'kappe-eckig-schwarz-a.webp',x:[568,333]},'cap_Ribbed Gold':{f:'kappe-ribbed-gold-a.webp',x:[529,320]},'cap_Ribbed Schwarz':{f:'kappe-ribbed-schwarz-a.webp',x:[529,337]},
    'cap_Holz Natur':{f:'kappe-holz-natur-a.webp',x:[566,309]},'cap_Holz Dunkelbraun':{f:'kappe-holz-dunkelbraun-a.webp',x:[566,309]},'cap_Holz Schwarz':{f:'kappe-holz-schwarz-a.webp',x:[566,309]}},
@@ -170,8 +170,28 @@ var M={
    {k:'Holz Dunkelbraun',n:'Holz · Dunkelbraun',sw:'repeating-linear-gradient(90deg,#6b4429 0 3px,#4a2d1a 3px 5px)',id:58901145092479,p:0.90},
    {k:'Holz Schwarz',n:'Holz · Schwarz',sw:'repeating-linear-gradient(90deg,#2b2b2b 0 3px,#121212 3px 5px)',id:58901145125247,p:0.90}],
   sizes:{
+   '30':{n:'30 ml',dim:'89 × 32 × 32 mm',pcs:108,body:1,parts:1,sh:907,bsuf:'_30',sep:null,
+    muster:{id:58901190345087,p:2.40},t:[{min:1,id:58901190377855,p:124.20},{min:2,id:58901190410623,p:113.40},{min:10,id:58901190443391,p:97.20},{min:20,id:58901190476159,p:81.00}],
+    plain:null},
    '50':{n:'50 ml',dim:'102 × 41 × 41 mm',pcs:70,body:1,parts:1,sep:null,
     muster:{id:58901145321855,p:2.55},t:[{min:1,id:58901145354623,p:91.00},{min:2,id:58901145387391,p:84.00},{min:10,id:58901145420159,p:73.50},{min:20,id:58901145452927,p:63.00}],
+    plain:null},
+   '100':{n:'100 ml',dim:'104 × 49 × 49 mm',pcs:48,body:1,parts:1,sh:697,bsuf:'_100',sep:null,
+    muster:{id:58901208859007,p:2.65},t:[{min:1,id:58901208891775,p:67.20},{min:2,id:58901208924543,p:62.40},{min:10,id:58901208957311,p:55.20},{min:20,id:58901208990079,p:48.00}],
+    plain:null}}},
+ nbl:{n:'Noble Line',mode:'full',showPrem:0,sh:702,def:{spr:'Gold',cap:'Polo Weiss-Gold'},
+  L:{base_tube:{f:'nbl50-base-tube.webp'},base_notube:{f:'nbl50-base-leer.webp'},
+   spr_Silber:{f:'spr-fea15-silber-b.webp',x:[619,351]},spr_Gold:{f:'spr-fea15-gold-b.webp',x:[619,338]},spr_Schwarz:{f:'spr-fea15-schwarz-b.webp',x:[619,298]},
+   'cap_Zylinder Weiss-Gold':{f:'kappe-zylinder-weiss-gold-b.webp',x:[559,237]},'cap_Polo Weiss-Gold':{f:'kappe-polo-weiss-gold-b.webp',x:[563,292]},'cap_Polo Schwarz-Gold':{f:'kappe-polo-schwarz-gold-b.webp',x:[563,285]},
+   'cap_Ribbed Gold':{f:'kappe-ribbed-gold-b.webp',x:[529,297]},'cap_Ribbed Schwarz':{f:'kappe-ribbed-schwarz-b.webp',x:[529,314]}},
+  caps:[{k:'Polo Weiss-Gold',n:'Polo · Weiß-Gold',sw:'linear-gradient(#d9b25c 0 22%,#fafafa 22% 80%,#d9b25c 80%)',id:58901310538111,p:0.55},
+   {k:'Polo Schwarz-Gold',n:'Polo · Schwarz-Gold',sw:'linear-gradient(#d9b25c 0 22%,#111 22% 80%,#d9b25c 80%)',id:58901310570879,p:0.55},
+   {k:'Zylinder Weiss-Gold',n:'Zylinder · Weiß-Gold',sw:'linear-gradient(#f4f2ec 0 75%,#d9b25c 75%)',id:58901310505343,p:0.55},
+   {k:'Ribbed Gold',n:'Ribbed · Gold',sw:'repeating-linear-gradient(#e7c66f 0 3px,#a8802f 3px 5px)',id:58901310603647,p:0.70},
+   {k:'Ribbed Schwarz',n:'Ribbed · Schwarz',sw:'repeating-linear-gradient(#444 0 3px,#0b0b0b 3px 5px)',id:58901310636415,p:0.70}],
+  sizes:{
+   '50':{n:'50 ml',dim:'100 × 47 × 30 mm',pcs:72,body:1,parts:1,sep:null,
+    muster:{id:58901312110975,p:2.25},t:[{min:1,id:58901312143743,p:72.00},{min:2,id:58901312176511,p:64.80},{min:10,id:58901312209279,p:54.00},{min:20,id:58901312242047,p:43.20}],
     plain:null}}}};
 var q=new URLSearchParams(location.search);
 var st={model:M[q.get('m')]?q.get('m'):'sqg',size:(q.get('ml')==='100'||q.get('ml')==='30')?q.get('ml'):'50',spr:'Gold',cap:'',mode:'karton'};
