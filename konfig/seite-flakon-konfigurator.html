@@ -53,8 +53,8 @@
       <p class="sub" id="fhk-sub"></p>
       <div class="pr" id="fhk-unit"></div>
       <div class="sm">Preis pro komplettem Set (Flakon + Sprühkopf + Kappe) · alle Preise netto zzgl. MwSt.</div>
-      <div class="st"><h3><b>1</b>Modell</h3><div class="os" id="fhk-o-model"></div></div>
-      <div class="st" id="fhk-st-size"><h3><b>2</b>Größe</h3><div class="os" id="fhk-o-size"></div></div>
+      <div class="st" style="display:none"><h3>Modell</h3><div class="os" id="fhk-o-model"></div></div>
+      <div class="st" id="fhk-st-size"><h3><b>1</b>Größe</h3><div class="os" id="fhk-o-size"></div></div>
       <div class="st"><h3><b class="n"></b>Sprühkopf FEA 15</h3><div class="os" id="fhk-o-spr"></div></div>
       <div class="st"><h3><b class="n"></b>Kappe</h3><div class="os" id="fhk-o-cap"></div></div>
       <div class="st">
@@ -164,7 +164,7 @@ function calc(){var Mo=M[st.model],S=Mo.sizes[st.size],s=SPR.find(function(x){re
 function render(){var Mo=M[st.model],sizes=Object.keys(Mo.sizes);
  btns('o-model',Object.keys(M).map(function(k){return{k:k,n:M[k].n}}),'model',0);
  btns('o-size',sizes.map(function(z){return{k:z,n:Mo.sizes[z].n}}),'size',0);$('st-size').style.display=sizes.length>1?'':'none';
- var nb=document.querySelectorAll('#fhk b.n'),num=sizes.length>1?3:2;for(var i=0;i<nb.length;i++)nb[i].textContent=num+i;
+ var nb=document.querySelectorAll('#fhk b.n'),num=sizes.length>1?2:1;for(var i=0;i<nb.length;i++)nb[i].textContent=num+i;
  btns('o-spr',SPR,'spr',1);btns('o-cap',CAPS(),'cap',1,Mo.showPrem);
  var r=calc(),S=r.S;
  var mb=$('o-mode');mb.innerHTML='';[['muster','Muster (1 Set)'],['karton','Karton à '+S.pcs+' Sets']].forEach(function(m){var b=document.createElement('button');b.type='button';b.className='o';b.setAttribute('aria-pressed',st.mode===m[0]);b.textContent=m[1];b.onclick=function(){st.mode=m[0];render()};mb.appendChild(b)});
