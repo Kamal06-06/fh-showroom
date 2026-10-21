@@ -1,0 +1,39 @@
+{
+ "shoulder": 725,
+ "spr-fea15-gold-a": [
+  619,
+  361
+ ],
+ "spr-fea15-silber-a": [
+  619,
+  374
+ ],
+ "spr-fea15-schwarz-a": [
+  619,
+  321
+ ],
+ "kappe-eckig-schwarz-a": [
+  568,
+  333
+ ],
+ "kappe-ribbed-gold-a": [
+  529,
+  320
+ ],
+ "kappe-ribbed-schwarz-a": [
+  529,
+  337
+ ],
+ "kappe-holz-natur-a": [
+  566,
+  309
+ ],
+ "kappe-holz-dunkelbraun-a": [
+  566,
+  309
+ ],
+ "kappe-holz-schwarz-a": [
+  566,
+  309
+ ]
+}
