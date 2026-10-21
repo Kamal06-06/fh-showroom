@@ -2612,7 +2612,7 @@ function renderLists(){
   const showDone=$('show-done').checked,qq=($('wh-q').value||'').trim().toLowerCase();
   const openN=lists.filter(l=>l.status!=='done').length;
   $('open-count').hidden=!openN;$('open-count').textContent=openN;navBadge();
-  const shown0=focusId?lists.filter(l=>l.id===focusId):onlyDone?lists.filter(l=>l.status==='done').sort((a,b)=>(b.doneAt||b.at||0)-(a.doneAt||a.at||0)):focusCust?lists.filter(l=>(l.custNo||custKey(l.customer))===focusCust).sort((a,b)=>(b.at||0)-(a.at||0)):lists.filter(l=>showDone||l.status!=='done');
+  const shown0=focusId?lists.filter(l=>l.id===focusId):onlyDone?lists.filter(l=>l.status==='done').sort((a,b)=>(b.at||0)-(a.at||0)):focusCust?lists.filter(l=>(l.custNo||custKey(l.customer))===focusCust).sort((a,b)=>(b.at||0)-(a.at||0)):lists.filter(l=>showDone||l.status!=='done');
   const shown=qq?shown0.filter(l=>(custLabel(l)+' '+(l.note||'')).toLowerCase().includes(qq)):shown0;wtMark(openN);
   if(focusCust){const g=custAll().find(x=>x.key===focusCust);if(g){const s=el('div','card');const hd=el('div','sec-title');hd.append(el('span','cust','👤 '+g.name+(g.no?' ('+g.no+')':'')));
       const back=el('button','btn small','← كل الطلبات');back.onclick=()=>{focusCust=null;renderLists()};hd.append(back);s.append(hd);
