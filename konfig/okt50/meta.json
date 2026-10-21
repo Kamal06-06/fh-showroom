@@ -1,50 +1,50 @@
 {
  "kappe-eckig-schwarz": [
   525,
-  135
+  173
  ],
  "kappe-zylinder-weiss-gold": [
   513,
-  56
+  84
  ],
  "kappe-kugel-gold": [
   492,
-  131
+  153
  ],
  "kappe-kugel-weiss": [
   492,
-  125
+  147
  ],
  "kappe-kugel-schwarz": [
   492,
-  129
+  151
  ],
  "spr-fea15-silber-o": [
   586,
-  177
+  222
  ],
  "spr-fea15-gold-o": [
   586,
-  162
+  207
  ],
  "spr-fea15-schwarz-o": [
   586,
-  211
+  158
  ],
  "kappe-polo-weiss-gold-o": [
   518,
-  94
+  151
  ],
  "kappe-polo-schwarz-gold-o": [
   518,
-  95
+  142
  ],
  "kappe-ribbed-gold-o": [
   477,
-  113
+  157
  ],
  "kappe-ribbed-schwarz-o": [
   477,
-  125
+  178
  ]
 }
