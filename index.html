@@ -824,7 +824,7 @@ const prepN=l=>{const c=prepOf(l);return (l.items||[]).filter((_,i)=>c[i]).lengt
 const isReady=l=>l.status!=='done'&&!!l.readyAt;
 const myReady=new Set(),prepT={};
 function prepSet(l,chk){LS.set('chk-'+l.id,chk);const items=l.items||[],all=items.length>0&&items.every((_,i)=>chk[i]);
-  let lots=null;items.forEach((it,i)=>{if(chk[i]&&isOil(it)&&!(l.lots||{})[i]){const lo=lotNow(it);if(lo){lots=lots||lotsOf(l);lots[i]=Object.assign(lo,{at:Date.now(),by:WHO()})}}});if(lots)l.lots=lots;
+  let lots=null;items.forEach((it,i)=>{if(chk[i]&&isOil(it)&&!(l.lots||{})[i]){const lo=lotNow(it);if(lo){lots=lots||lotsOf(l);lots[i]=Object.assign(lo,{at:Date.now(),by:WHO()})}}});if(lots){l.lots=lots;try{delete fileCache[orderKey(l)]}catch(e){}}
   if(!clpB&&items.some((it,i)=>chk[i]&&isOil(it)&&!(l.lots||{})[i]))clpBasis().then(()=>{const ls=lotsOf(l);let ch=0;items.forEach((it,i)=>{if(chk[i]&&isOil(it)&&!ls[i]){const lo=lotNow(it);if(lo){ls[i]=Object.assign(lo,{at:Date.now(),by:WHO()});ch=1}}});if(ch){l.lots=ls;db.doc('lists/'+l.id).update({lots:ls})}}).catch(()=>{});
   const ra=all?(l.readyAt||Date.now()):0;if(all&&!l.readyAt)myReady.add(l.id);
   clearTimeout(prepT[l.id]);prepT[l.id]=setTimeout(()=>{try{db.doc('lists/'+l.id).update(Object.assign({prep:chk,readyAt:ra,readyBy:all?WHO():''},l.lots?{lots:l.lots}:{}))}catch(e){}},350);return all}
@@ -1308,11 +1308,32 @@ const stkFmt=(n,u)=>(+n||0).toLocaleString('de-DE',{maximumFractionDigits:3})+' 
 function stkEl(it){const i=stkInfo(it);if(!i)return null;if(i.unk){const d=el('div','stk');d.style.color='var(--muted)';d.textContent='⚪ لم يُجرد بعد';return d}const d=el('div','stk '+(i.empty?'bad':i.ok?'ok':'bad'));d.dir='rtl';
   d.textContent=i.empty?'🔴 غير متوفر في المخزون':i.ok?'✅ متوفر · الرصيد '+stkFmt(i.have,i.unit):'🔴 غير كافٍ · الرصيد '+stkFmt(i.have,i.unit)+' · المطلوب '+stkFmt(i.need,i.unit);return d}
 /* ---------- Chargen-Rückverfolgung: Werks-Charge je Öl-Position (aus den CLP-Daten, wie auf dem Etikett), beim Abhaken gespeichert ---------- */
-function lotNow(it){const B=clpB;if(!B||!B.clp||!isOil(it))return null;const k=String(it.code||'').trim().toUpperCase(),fc=(B.codes||{})[k]||(B.canon||{})[clpCanon(k)]||'',d=fc&&B.clp[fc];return d&&d.b?{b:String(d.b),fc}:null}
+const fcOf=it=>{const B=clpB;if(!B||!isOil(it))return '';const k=String(it.code||'').trim().toUpperCase();return (B.codes||{})[k]||(B.canon||{})[clpCanon(k)]||''};
+const lotsAkt=fc=>((clpB&&clpB.lots)||{})[fc]||[];
+/* FIFO: älteste aktive Charge zuerst; ohne Register → Charge aus den CLP-Daten */
+function lotNow(it){const B=clpB;if(!B||!B.clp||!isOil(it))return null;const fc=fcOf(it);if(!fc)return null;const ls=lotsAkt(fc);if(ls.length)return {b:String(ls[0].b),fc};const d=B.clp[fc];return d&&d.b?{b:String(d.b),fc}:null}
 const lotsOf=l=>Object.assign({},l.lots||{});
-function lotEdit(l,ix,after){const it=(l.items||[])[ix];const cur=(lotsOf(l)[ix]||{}).b||'';const v=prompt('رقم دفعة المصنع (Charge) لـ '+it.t+(it.tier?' · '+it.tier:''),cur);if(v==null)return;
-  const lots=lotsOf(l);if(v.trim())lots[ix]={b:v.trim(),fc:(lots[ix]||{}).fc||'',at:Date.now(),by:WHO()};else delete lots[ix];l.lots=lots;try{db.doc('lists/'+l.id).update({lots})}catch(e){}if(after)after()}
+function lotSet(l,ix,b,fc){try{delete fileCache[orderKey(l)]}catch(e){}const lots=lotsOf(l);if(b)lots[ix]={b,fc:fc||'',at:Date.now(),by:WHO()};else delete lots[ix];l.lots=lots;try{db.doc('lists/'+l.id).update({lots})}catch(e){}}
+async function lotEdit(l,ix,after){const it=(l.items||[])[ix];try{await clpBasis()}catch(e){}const fc=fcOf(it),cur=(lotsOf(l)[ix]||{}).b||'';
+  openSheet('Charge / Batch · '+it.t+(it.tier?' · '+it.tier:''),b=>{const draw=()=>{b.textContent='';const ls=lotsAkt(fc);
+    b.append(el('p','hint',fc?'كود المصنع '+fc+' · الدفعات الموجودة في المستودع، الأقدم أولاً (تُستعمل أولاً).':'لا يوجد كود مصنع لهذا الزيت — اكتب رقم الدفعة يدوياً.'));
+    ls.forEach((x,i)=>{const r=el('div','hrow');r.style.cursor='default';const left=el('div');left.append(el('b',null,(x.b===cur?'✓ ':'')+x.b+(i===0?'  · الأقدم':'')),el('div','ago',[x.p?'إنتاج '+x.p:'',x.r?'Retest '+x.r:'',x.m?x.m+' kg':''].filter(Boolean).join(' · ')||'—'));
+      const act=el('div');act.style.cssText='display:flex;gap:6px;flex-wrap:wrap';const pick=el('button','btn small primary','اختيار');pick.onclick=()=>{lotSet(l,ix,x.b,fc);closeSheet();if(after)after()};
+      const leer=el('button','btn small','انتهت العبوة');leer.onclick=async()=>{if(!confirm('الدفعة '+x.b+' انتهت في المستودع؟ لن تُقترح بعد الآن.'))return;leer.disabled=true;try{await srv('lot_done',JSON.stringify({fc,b:x.b,leer:true}));await clpBasis(true);draw()}catch(e){leer.disabled=false;alert('فشل: '+(e.message||e))}};
+      act.append(pick,leer);r.append(left,act);b.append(r)});
+    const f=el('div','claimbox');f.style.background='var(--gold-soft)';f.style.borderColor='var(--gold)';f.append(el('b',null,'+ دفعة أخرى (من الشهادة أو العبوة)'));
+    const bi=el('input');bi.placeholder='Batch Nr. مثال: NN-0133480';bi.dir='ltr';const pi=el('input');pi.placeholder='تاريخ الإنتاج (اختياري) TT.MM.JJJJ';pi.dir='ltr';const ri=el('input');ri.placeholder='Retest (اختياري) TT.MM.JJJJ';ri.dir='ltr';
+    [bi,pi,ri].forEach(x=>{x.style.cssText='width:100%;font:inherit;padding:9px;border:1px solid var(--line);border-radius:10px;margin-top:6px'});
+    const add=el('button','btn primary','حفظ واختيار');add.style.marginTop='8px';const st=el('div','status');st.hidden=true;
+    add.onclick=async()=>{const v=bi.value.trim().toUpperCase();if(!v){bi.focus();return}add.disabled=true;
+      try{if(fc){await srv('lot_add',JSON.stringify({fc,b:v,prod:pi.value.trim(),retest:ri.value.trim(),quelle:'App · '+(WHO()||'')}));await clpBasis(true)}lotSet(l,ix,v,fc);closeSheet();if(after)after()}
+      catch(e){add.disabled=false;st.hidden=false;st.classList.add('err');st.textContent='فشل: '+(e.message||e)}};
+    f.append(bi,pi,ri,add,st);b.append(f);
+    if(cur){const rm=el('button','btn small','إزالة الدفعة من هذا السطر');rm.onclick=()=>{lotSet(l,ix,'',fc);closeSheet();if(after)after()};b.append(rm)}};draw()})}
 function lotSheet(){openSheet('🔎 تتبّع الدفعة · Chargen-Rückverfolgung',b=>{
+  if(isAdmin()){const row=el('div','row');row.style.cssText='gap:8px;flex-wrap:wrap;margin-bottom:8px';const sc=el('button','btn small','🔄 قراءة الشهادات الجديدة الآن');const st=el('span','note');
+    sc.onclick=async()=>{sc.disabled=true;st.textContent='جاري قراءة الشهادات… (حتى 5 دقائق)';try{const r=await srv('lot_scan');await clpBasis(true);st.textContent=r&&r.neu&&r.neu.length?'✅ دفعات جديدة: '+r.neu.length:(r&&r.info)||'لا توجد دفعات جديدة'+(r&&r.fertig===false?' · يكمل تلقائياً كل ساعة':'')}catch(e){st.textContent='فشل: '+(e.message||e)}sc.disabled=false};
+    row.append(sc,st);b.append(row)}
   b.append(el('p','hint','اكتب رقم دفعة المصنع (أو جزءاً منه) أو كود الزيت، فتظهر كل الطلبات التي خرجت منها.'));
   const inp=el('input');inp.type='search';inp.placeholder='مثال: 25-0412 أو FHG-U-1001-SH';inp.dir='ltr';inp.style.cssText='width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px';const out=el('div');b.append(inp,out);
   const run=()=>{const q=inp.value.trim().toUpperCase();out.textContent='';if(q.length<2)return;const rows=[];
@@ -2083,6 +2104,9 @@ const CLP_L={
   IT:{i:5,sig:{Gefahr:'Pericolo',Achtung:'Attenzione'},enth:'Contiene',menge:'Quantità netta',typ:'Olio profumato · Fragrance Oil',qr:'Riordina'},
   ES:{i:6,sig:{Gefahr:'Peligro',Achtung:'Atención'},enth:'Contiene',menge:'Cantidad neta',typ:'Aceite aromático · Fragrance Oil',qr:'Volver a pedir'},
   PL:{i:7,sig:{Gefahr:'Niebezpieczeństwo',Achtung:'Uwaga'},enth:'Zawiera',menge:'Ilość netto',typ:'Olejek zapachowy · Fragrance Oil',qr:'Zamów ponownie'}};
+/* Rückverfolgung auf dem Etikett: EINE Charge (Werks-Batch) + Abfülldatum (= Auftragsdatum) + Auftragsnummer */
+const CLP_LOT={DE:{b:'Charge',f:'Abfülldatum',o:'Auftrag'},EN:{b:'Batch',f:'Filling date',o:'Order'},NL:{b:'Batch',f:'Vuldatum',o:'Bestelling'},FR:{b:'Lot',f:'Date de remplissage',o:'Commande'},IT:{b:'Lotto',f:'Data di riempimento',o:'Ordine'},ES:{b:'Lote',f:'Fecha de envasado',o:'Pedido'},PL:{b:'Partia',f:'Data napełnienia',o:'Zamówienie'}};
+const ordNr=l=>'AP-'+stamp(l),ordDatum=l=>new Date(l.offerAt||l.at||Date.now()).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Europe/Berlin'});
 const CLP_TAG={
   DE:'Hochkonzentriertes Premium-Duftöl · Qualitätsgeprüft & chargenrückverfolgbar. Nicht unverdünnt auf die Haut auftragen. Sicherheitsdatenblatt auf Anfrage.',
   EN:'Highly concentrated premium fragrance oil · Quality-tested & batch-traceable. Do not apply undiluted to the skin. Safety data sheet available on request.',
@@ -2178,8 +2202,8 @@ function clpLabel(doc,e,s,oy,draw){
   if(pk.length){if(e.cust&&e.logo&&pk.length>2)row(pk,10);else{row(pk.slice(0,2),14);if(pk.length>2)row(pk.slice(2),14)}}
   const sig=L.sig[d.s]||'';if(sig)y+=clpPara(doc,[{t:sig,st:'bold'}],lx,y,lW,s+3,C,draw);
   y+=clpPara(doc,[{t:L.menge+': '},{t:e.size,st:'bold'}],lx,y,lW,s+0.5,C,draw);
-  y+=clpPara(doc,[{t:'Charge: '+e.charge,c:CLP_GRAU}],lx,y,lW,s-0.5,C,draw);
-  if(d.b)y+=clpPara(doc,[{t:'Batch: '+d.b,c:CLP_GRAU}],lx,y,lW,s-0.5,C,draw);
+  {const LT=CLP_LOT[e.lang]||CLP_LOT.EN;if(e.batch)y+=clpPara(doc,[{t:LT.b+': '+e.batch,c:CLP_GRAU}],lx,y,lW,s-0.5,C,draw);
+   if(e.datum)y+=clpPara(doc,[{t:LT.f+': '+e.datum,c:CLP_GRAU}],lx,y,lW,s-0.5,C,draw);if(e.nr)y+=clpPara(doc,[{t:LT.o+': '+e.nr,c:CLP_GRAU}],lx,y,lW,s-0.5,C,draw)}
   if(!e.cust){y+=0.7;String(B.adresse||CLP_ADR).split(/,\s*/).forEach(z=>{y+=clpPara(doc,[{t:z,c:CLP_GRAU}],lx,y,lW,s-1,C,draw)})}
   const hl=y-oy;
   /* ---- rechts: Kopf + QR */
@@ -2209,8 +2233,9 @@ function clpProbe(doc,x,draw,f,oy){
   y+=clpPara(doc,[{t:x.name,st:'bold'}],lx,y,w,7*f,C,draw);
   if(x.Q)y+=clpQLine(doc,x.Q,lx,y,w,6.5*f,C,draw);
   y+=clpPara(doc,[{t:[x.sku,x.size].filter(Boolean).join(' · ')}],lx,y,w,6*f,C,draw);
-  y+=clpPara(doc,[{t:'Charge: '+x.charge}],lx,y,w,5.5*f,C,draw);
-  y+=clpPara(doc,[{t:'Batch: '+x.batch}],lx,y,w,5.5*f,C,draw);
+  y+=clpPara(doc,[{t:'Charge / Batch: '+x.batch}],lx,y,w,5.5*f,C,draw);
+  y+=clpPara(doc,[{t:'Abgefüllt / Filled: '+x.datum}],lx,y,w,5.5*f,C,draw);
+  y+=clpPara(doc,[{t:'Auftrag / Order: '+x.nr}],lx,y,w,5.5*f,C,draw);
   y+=clpPara(doc,[{t:'Probe / Sample',st:'bold'}],lx,y,w,6.5*f,C,draw);
   return y-oy}
 function clpName_(l){return String(l.customer||'Showroom').replace(/[\\\/:*?"<>|]/g,'-')}
@@ -2223,7 +2248,8 @@ async function clpLocal(l){
   const daten=it=>{const fc=fab(it),r=fc&&B.clp[fc];return r&&r.h&&r.h.length?r:null};
   /* unbekannter Duft und Daten älter als 2 Min. → neu laden (gerade eingetragene Zertifikate) */
   if(oils.some(it=>!daten(it))&&Date.now()-(B._got||0)>2*60e3){try{B=await clpBasis(true)}catch(_){}}
-  const langs=clpLangs(l.country),charge=clpCharge(l),eigen=String(l.clpAddr||'').trim();
+  const langs=clpLangs(l.country),charge=clpCharge(l),eigen=String(l.clpAddr||'').trim(),datum=ordDatum(l),nr=ordNr(l);
+  const batchOf=(it,d)=>{const ix=it._ix!=null?it._ix:(l.items||[]).indexOf(it),lo=ix>=0?(l.lots||{})[ix]:null;if(lo&&lo.b)return lo.b;const fc=fab(it),ls=fc&&(B.lots||{})[fc];return (ls&&ls[0]&&ls[0].b)||(d&&d.b)||''};
   const cust=eigen?eigen.split(/\s*[,;|\n]\s*/).filter(Boolean):null,logo=eigen&&l.clpLogo?await clpImg(l.clpLogo).catch(()=>null):null;
   const anz=it=>it.unit==='kg'?1:Math.max(1,Math.round(+it.q||1));
   const gross=[],proben=[],fehlend=[];
@@ -2241,7 +2267,7 @@ async function clpLocal(l){
     if(jobs.length){
       const doc=clpDoc(F,[102,51]);let first=true;
       jobs.forEach(j=>{
-        const e={B,d:j.d,lang:j.lang,name:j.name||j.d.produkt||j.it.code,Q:clpQual(j.it.tier),size:String(j.it.size||''),sku:String(j.it.code||''),charge,
+        const e={B,d:j.d,lang:j.lang,name:j.name||j.d.produkt||j.it.code,Q:clpQual(j.it.tier),size:String(j.it.size||''),sku:String(j.it.code||''),charge,datum,nr,batch:j.d.vorlage?'':batchOf(j.it,j.d),
           url:cust?'':(B.qrShop||'https://fragranceshub.de')+'/search?q='+encodeURIComponent(j.it.code||'')+'&utm_source=etikett',
           cust,logo,fhLogo,pik:(j.d.g||[]).slice(0,3).map(g=>pik[g]).filter(Boolean)};
         const f=clpFit(doc,e);
@@ -2251,7 +2277,7 @@ async function clpLocal(l){
   if(proben.length){
     const doc=clpDoc(F,[40,30]);let first=true;
     proben.forEach(it=>{const d=daten(it);
-      const x={name:clpName(it)||it.code,Q:clpQual(it.tier),sku:String(it.code||''),size:String(it.size||''),charge,batch:(d&&d.b)||'–',fhLogo};
+      const x={name:clpName(it)||it.code,Q:clpQual(it.tier),sku:String(it.code||''),size:String(it.size||''),charge,batch:batchOf(it,d)||'–',datum,nr,fhLogo};
       let f=1;while(f>0.6&&clpProbe(doc,x,false,f,0)>28)f-=0.05;
       for(let k=0;k<anz(it);k++){if(!first)doc.addPage([40,30],'landscape');first=false;clpProbe(doc,x,true,f,1.5)}});
     files.push({name:'Proben-Etiketten'+tag,blob:doc.output('blob')})}
@@ -2283,7 +2309,7 @@ async function withLinks(files){for(const f of files){if(!f.url)f.url=await srv(
 /* WhatsApp-Link zu einer Kundennummer: 0049…/0… (Deutschland) → internationales Format */
 function custWa(ph,msg){let d=String(ph||'').replace(/[^0-9+]/g,'');if(d.startsWith('+'))d=d.slice(1);else if(d.startsWith('00'))d=d.slice(2);else if(d.startsWith('0'))d='49'+d.slice(1);d=d.replace(/\D/g,'');return 'https://wa.me/'+d+(msg?'?text='+encodeURIComponent(msg):'')}
 function waHref(msg){const num=String(waNum||'').replace(/[^0-9]/g,'');return 'https://api.whatsapp.com/send?'+(num?'phone='+num+'&':'')+'text='+encodeURIComponent(msg)}
-const clpSig=l=>JSON.stringify([(l.items||[]).filter(isOil).map(i=>[i.code,i.tier,i.size,i.q||1,i.t]),l.clpAddr||'',l.country||'DE',l.custNo||''].concat(l.clpLogo?[l.clpLogo]:[]));
+const clpSig=l=>JSON.stringify([(l.items||[]).filter(isOil).map(i=>[i.code,i.tier,i.size,i.q||1,i.t]),l.clpAddr||'',l.country||'DE',l.custNo||'','v7',Object.values(l.lots||{}).map(x=>x&&x.b).join(',')].concat(l.clpLogo?[l.clpLogo]:[]));
 function clpReady(l){return l.clpFiles&&l.clpFiles.length&&l.clpSig===clpSig(l)}
 async function pregenClp(id,rec){
   if(!(rec.items||[]).some(isOil))return;
@@ -2417,7 +2443,7 @@ async function savePdf(kind,l,btn,out){
 }
 /* choose which oils (and how many labels each) are printed – for CLP, simple and original-name labels */
 const labSel={},LAB_KINDS=['clp','lab','labo'];
-function labOrder(l){const s=labSel[orderKey(l)];if(!s)return l;const items=[];(l.items||[]).forEach((it,i)=>{if(isOil(it)&&s[i]>0)items.push(Object.assign({},it,{q:s[i]}))});return Object.assign({},l,{items,_part:true})}
+function labOrder(l){const s=labSel[orderKey(l)];if(!s)return l;const items=[];(l.items||[]).forEach((it,i)=>{if(isOil(it)&&s[i]>0)items.push(Object.assign({},it,{q:s[i],_ix:i}))});return Object.assign({},l,{items,_part:true})}
 function labPicker(l){
   const k=orderKey(l),oils=(l.items||[]).map((it,i)=>[it,i]).filter(([it])=>isOil(it));
   const d=el('details','labsel'),sm=el('summary');d.append(sm);
@@ -2891,7 +2917,7 @@ function buildCard(l,full){
         const cb=el('input');cb.type='checkbox';cb.checked=!!chk[ix];cb.title='تم تجهيزه';cb.onchange=()=>{chk[ix]=cb.checked;r.classList.toggle('ok',cb.checked);upd();if(prepSet(l,chk))beepOk()};
         const q=el('div','iq',qtxt(i));const mid=el('div');
         if(isOil(i)){const pl=itPlatz(i),tl=String(i.tier||'').trim();const tg=el('div','ipl');tg.append(el('b',null,pl||'—'));if(tl)tg.append(el('span','ivq '+tl.charAt(0).toUpperCase(),tl));mid.append(tg)}
-        mid.append(el('div','nm',i.t));if(i.code)mid.append(el('div','cd',i.code));if(isOil(i)){const lo=lotsOf(l)[ix],cur=lo?null:lotNow(i),bt=el('button','lot',lo?'Charge '+lo.b+' ✎':cur?'Charge '+cur.b+' (حالية) ✎':'+ Charge');bt.title='رقم دفعة المصنع';bt.onclick=e=>{e.preventDefault();e.stopPropagation();lotEdit(l,ix,()=>{try{renderOrderModal()}catch(_){}})};mid.append(bt)}
+        mid.append(el('div','nm',i.t));if(i.code)mid.append(el('div','cd',i.code));if(isOil(i)){const lo=lotsOf(l)[ix],cur=lo?null:lotNow(i),bt=el('button','lot',lo?'Charge '+lo.b+' ✎':cur?'Charge '+cur.b+' (مقترحة) ✎':'+ Charge');bt.title='رقم دفعة المصنع (Charge / Batch)';bt.onclick=e=>{e.preventDefault();e.stopPropagation();lotEdit(l,ix,()=>{try{renderOrderModal()}catch(_){}})};mid.append(bt)}
         if(!isOil(i)&&i.size){const d=el('div','cd',i.size),cs=capOf(i);if(cs)d.prepend(mkImg(cs,'capi'));mid.append(d)}{const ad=arOf(i);if(ad)mid.append(arEl(ad))}if(i.note)mid.append(el('div','nt','✎ '+i.note));
         const sz=el('div','isz',isOil(i)?(i.size||''):'');const pr=el('div','pr2',(i.price!=null&&i.price!=='')?money(i.price)+(itRab(i)?' −'+itRab(i)+'%':''):'');
         const left=el('div');left.style.display='flex';left.style.gap='6px';left.style.alignItems='center';left.append(cb,q);{const src=imgOf(i);if(src)mid.prepend(mkImg(src,'ithumb'))}
@@ -3134,6 +3160,7 @@ async function fixCustNos(){
 }
 function start(){
   if(started)return;started=true;applyRole();
+  setTimeout(()=>{try{if(isAdmin()&&LS.get('lotSetup','')!==new Date().toDateString())srv('lot_setup').then(()=>LS.set('lotSetup',new Date().toDateString())).catch(()=>{})}catch(e){}},8000);
   $('lg-lot-btn').onclick=()=>{clpBasis().catch(()=>{});lotSheet()};$('lg-claim-btn').onclick=claimSheet;
   $('switch-user').onclick=()=>{if(!confirm('تسجيل الخروج وإدخال رمز موظف آخر؟'))return;LS.set('pin','');LS.set('me',{user:'',admin:false});LS.set('who','');location.reload()};sndUnlock();try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission()}catch(e){}
   $('gate').hidden=true;
