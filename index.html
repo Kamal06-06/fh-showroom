@@ -3667,6 +3667,25 @@ function plProfiles(){
   return out.filter(P=>P.o)}
 const PL_ST={stop:['⏸ متوقف','open'],late:['⏳ متأخر','part'],ok:['✅ نشط','paid'],new:['🆕 جديد','paid'],one:['1️⃣ مرة واحدة','part']};
 function plContact(){return LS.get('plContact',{})||{}}
+function plOptout(){return LS.get('plOptout',{})||{}}
+/* Empfänger für den Sammelversand: متوقفون mit E-Mail, nicht abgemeldet, nicht in den letzten 30 Tagen kontaktiert; wichtigste zuerst */
+function plBulkList(all){const ct=plContact(),oo=plOptout(),now=Date.now(),seen=new Set();
+  return all.filter(P=>P.st==='stop'&&P.e&&!oo[P.key]&&!(ct[P.key]&&now-ct[P.key]<30*864e5)).sort((a,c)=>c.u-a.u)
+    .filter(P=>{const e=String(P.e).toLowerCase();if(seen.has(e))return false;seen.add(e);return true})}
+async function plBulkSend(all,btn,msg,after){
+  const L=plBulkList(all);if(!L.length)return;msg.hidden=false;msg.classList.remove('err');msg.textContent='… فحص العدد المسموح اليوم';btn.disabled=true;
+  let q;try{q=await srv('pl_quota')}catch(e){msg.classList.add('err');msg.textContent='⚠️ '+e.message;btn.disabled=false;return}
+  if(!q.von){msg.classList.add('err');msg.textContent='⚠️ عنوان info@fragranceshub.de غير مفعّل للإرسال في Gmail – لم يُرسل شيء.';btn.disabled=false;return}
+  const n=Math.min(L.length,q.frei);
+  if(!n){msg.classList.add('err');msg.textContent='⚠️ وصلت لحد الإرسال اليومي في Gmail – جرّب غداً.';btn.disabled=false;return}
+  if(!confirm('سيتم إرسال '+n+' إيميل شخصي من info@fragranceshub.de إلى العملاء المتوقفين'+(n<L.length?' (الحد اليومي '+q.frei+' – الباقي '+(L.length-n)+' غداً)':'')+'.\n\nكل عميل يستلم رسالة باسمه. متابعة؟')){msg.hidden=true;btn.disabled=false;return}
+  const ct=plContact();let sent=0,err=0,todo=L.slice(0,n);
+  while(todo.length){const ch=todo.splice(0,10);msg.textContent='📨 جاري الإرسال… '+sent+' / '+n;
+    try{const r=await srv('pl_mail_bulk',JSON.stringify(ch.map(P=>{const m=plMail(P);return{k:P.key,to:P.e,s:m.s,b:m.b}})));
+      (r.ok||[]).forEach(k=>{ct[k]=Date.now()});sent+=(r.ok||[]).length;err+=(r.fehler||[]).length;LS.set('plContact',ct);if(!r.frei&&todo.length)break}
+    catch(e){err+=ch.length;msg.classList.add('err');msg.textContent='⚠️ توقف الإرسال: '+e.message;break}}
+  if(!msg.classList.contains('err'))msg.textContent='✅ أُرسل '+sent+' إيميل من info@fragranceshub.de'+(err?' · لم يُرسل '+err:'')+(sent<L.length?' · الباقي '+(L.length-sent)+' (غداً أو بعد فحصهم)':'');
+  toast('✅ أُرسل '+sent+' إيميل');btn.disabled=false;if(after)after()}
 /* E-Mail immer vom offiziellen Firmen-Absender info@fragranceshub.de (Server, Gmail „Senden als“) */
 function plMailSheet(P,done){const ml=plMail(P);
   openSheet('✉️ إيميل للعميل · E-Mail',b=>{
@@ -3698,7 +3717,7 @@ function plMail(P){const nm=String(P.person||P.name).trim(),firma=P.person?P.nam
     'Unser komplettes Sortiment finden Sie jederzeit online:\nhttps://fragranceshub.de\n\n'+
     'Bei Fragen erreichen Sie uns telefonisch oder per WhatsApp unter +49 2361 4878835.\n\n'+
     'Wir freuen uns, wieder von Ihnen zu hören.\n\n'+
-    'Mit freundlichen Grüßen\n\nFragrance Hub Germany\nAm Alten Kirchplatz 10 · 45665 Recklinghausen\nTel. / WhatsApp: +49 2361 4878835\nE-Mail: info@fragranceshub.de\nhttps://fragranceshub.de'};
+    'Mit freundlichen Grüßen\n\nFragrance Hub Germany\nAm Alten Kirchplatz 10 · 45665 Recklinghausen\nTel. / WhatsApp: +49 2361 4878835\nE-Mail: info@fragranceshub.de\nhttps://fragranceshub.de\n\nSie erhalten diese E-Mail als Kunde von Fragrance Hub Germany. Wenn Sie keine weiteren Informationen von uns wünschen, antworten Sie einfach mit „Abmelden“.'};
   return{s:'Exclusive special discount for business customers – Fragrance Hub Germany',b:'Dear '+nm+',\n\n'+
     'thank you for your trust in Fragrance Hub Germany'+(firma?' and for the cooperation with '+firma:'')+'.\n\n'+
     'It has been a while since your last order, so we would like to get in touch with you personally and introduce a special offer:\n\n'+
@@ -3714,7 +3733,7 @@ function plMail(P){const nm=String(P.person||P.name).trim(),firma=P.person?P.nam
     'You can find our complete range online at any time:\nhttps://fragranceshub.de\n\n'+
     'If you have any questions, you can reach us by phone or WhatsApp at +49 2361 4878835.\n\n'+
     'We look forward to hearing from you.\n\n'+
-    'Kind regards\n\nFragrance Hub Germany\nAm Alten Kirchplatz 10 · 45665 Recklinghausen · Germany\nPhone / WhatsApp: +49 2361 4878835\nE-mail: info@fragranceshub.de\nhttps://fragranceshub.de'}}
+    'Kind regards\n\nFragrance Hub Germany\nAm Alten Kirchplatz 10 · 45665 Recklinghausen · Germany\nPhone / WhatsApp: +49 2361 4878835\nE-mail: info@fragranceshub.de\nhttps://fragranceshub.de\n\nYou are receiving this e-mail as a customer of Fragrance Hub Germany. If you do not wish to receive further information from us, simply reply with “Unsubscribe”.'}}
 function plMsg(P){const first=String(P.person||P.name).trim().split(/\s+/)[0],t=P.topL[0]?String(P.topL[0]).replace(/\s*·.*$/,''):'';
   const de=['DE','AT','CH','LI','LU'].includes(String(P.c||'DE').toUpperCase())||!P.c;
   return de?'Hallo '+first+',\nhier ist Fragrance Hub Germany. Wir haben länger nichts von Ihnen gehört – ist alles in Ordnung?\n'+(t?'Falls Sie wieder Nachschub brauchen (z. B. '+t+'), ':'Falls Sie wieder Nachschub brauchen, ')+'melden Sie sich gern – wir stellen Ihnen sofort ein Angebot zusammen.\nFür Gewerbekunden mit USt-IdNr. haben wir einen exklusiven Sonderrabatt eingerichtet – senden Sie uns einfach Ihre USt-IdNr.\nUnser Sortiment: https://fragranceshub.de\nViele Grüße\nFragrance Hub Germany · +49 2361 4878835'
@@ -3746,15 +3765,21 @@ function plSheet(start){if(!isAdmin())return;
         const nm=el('div');nm.append(el('b',null,P.name),el('div','time',[P.person,P.c,[...P.src].map(x=>x==='shop'?'🛒 المتجر':'🏬 الصالة').join(' + ')].filter(Boolean).join(' · ')));
         h.append(nm,el('span','pay '+PL_ST[P.st][1],PL_ST[P.st][0]));r.append(h,el('div','note',plLine(P)));
         if(P.topL.length)r.append(el('div','time','يشتري عادةً: '+P.topL.join(' · ')));
-        const c=ct[P.key];if(c)r.append(el('div','time','✓ تم التواصل '+new Date(c).toLocaleDateString('de-DE')+(Date.now()-c<30*864e5?' (منذ '+Math.floor((Date.now()-c)/864e5)+' يوم)':'')));
+        const c=plContact()[P.key];if(c)r.append(el('div','time','✓ تم التواصل '+new Date(c).toLocaleDateString('de-DE')+(Date.now()-c<30*864e5?' (منذ '+Math.floor((Date.now()-c)/864e5)+' يوم)':'')));
         const a=el('div','row');a.style.cssText='gap:6px;flex-wrap:wrap;margin-top:6px';
-        const mark=()=>{ct[P.key]=Date.now();LS.set('plContact',ct);draw(true)};
+        const mark=()=>{const x=plContact();x[P.key]=Date.now();LS.set('plContact',x);draw(true)};
         if(P.p){const w=el('a','btn small ctc','💬 واتساب');w.href=custWa(P.p,plMsg(P));w.target='_blank';w.rel='noopener';w.onclick=mark;a.append(w)}
-        if(P.e){const m=el('button','btn small ctc','✉️ إيميل');m.onclick=()=>plMailSheet(P,()=>{ct[P.key]=Date.now();LS.set('plContact',ct)});a.append(m)}
+        if(P.e){const m=el('button','btn small ctc','✉️ إيميل');m.onclick=()=>plMailSheet(P,()=>{const x=plContact();x[P.key]=Date.now();LS.set('plContact',x)});a.append(m)}
         const g=custAll().find(x=>custKey(x.name)===P.key);if(g){const o=el('button','btn small','📂 طلبات الصالة');o.onclick=()=>{closeSheet();focusId=null;focusCust=g.key;tab('wh');renderLists()};a.append(o)}
-        const mk=el('button','btn small',c?'↺ تواصلت مجدداً':'✓ تم التواصل');mk.onclick=mark;a.append(mk);r.append(a);box.append(r)});
+        const mk=el('button','btn small',c?'↺ تواصلت مجدداً':'✓ تم التواصل');mk.onclick=mark;a.append(mk);
+        const oo=plOptout(),ob=el('button','btn small',oo[P.key]?'🔔 السماح بالرسائل':'🚫 لا يريد رسائل');ob.onclick=()=>{const x=plOptout();if(x[P.key])delete x[P.key];else x[P.key]=Date.now();LS.set('plOptout',x);draw(true)};a.append(ob);
+        if(oo[P.key])r.append(el('div','time','🚫 طلب عدم مراسلته – لا يُرسل له في الإرسال الجماعي'));
+        r.append(a);box.append(r)});
+      bulk.hidden=tabK!=='stop';if(tabK==='stop'){const n=plBulkList(all).length;bulk.textContent='📨 إرسال إيميل لكل المتوقفين ('+n+')';bulk.disabled=!n}
       more.hidden=L.length<=lim};
-    q.oninput=()=>draw();b.append(tabs,q,box,more);draw();
+    const bulk=el('button','btn primary','📨');bulk.style.cssText='width:100%;margin:6px 0';const bmsg=el('div','status');bmsg.hidden=true;
+    bulk.onclick=()=>plBulkSend(all,bulk,bmsg,()=>draw(true));
+    q.oninput=()=>draw();b.append(tabs,bulk,bmsg,q,box,more);draw();
     if(PLK&&Date.now()-(PLK.got||0)>600e3)plkLoad(true).then(()=>{all=plProfiles();info();draw(true)}).catch(()=>{});
   })}
 /* Profil-Zeile im Kundenkonto (Showroom-Ansicht) */

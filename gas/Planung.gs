@@ -179,22 +179,51 @@ function plSetup() {
   return plSync();
 }
 
+/** HTML-Fassung der Kunden-E-Mail (Firmenkopf, klickbare Links) */
+function plHtml_(text) {
+  var esc = function (s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+  var html = esc(String(text || ''))
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#9a7b2f">$1</a>')
+    .replace(/([\w.+-]+@[\w-]+\.[\w.]+)/g, '<a href="mailto:$1" style="color:#9a7b2f">$1</a>')
+    .replace(/\n/g, '<br>');
+  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#1a1714;max-width:620px">' +
+         '<div style="border-bottom:2px solid #b8975a;padding:0 0 10px;margin:0 0 18px;font-family:Georgia,serif;letter-spacing:2px;color:#9a7b2f;font-size:18px">FRAGRANCE HUB <span style="font-size:11px;letter-spacing:4px">GERMANY</span></div>' +
+         html + '</div>';
+}
+function plVon_() {
+  var von = fhAbsender_();
+  if (!von) throw new Error('ABSENDER_FEHLT: info@fragranceshub.de ist in Gmail nicht als „Senden als“-Adresse eingerichtet');
+  return von;
+}
+var PL_MAIL_RX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
 /** E-Mail an einen Kunden – immer vom offiziellen Firmen-Absender info@fragranceshub.de (Gmail „Senden als“). */
 function plMail_(o) {
   if (!SR_ADMIN) throw new Error('NUR_INHABER');
   var to = String(o && o.to || '').trim();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) throw new Error('E-Mail-Adresse ungültig');
-  var von = fhAbsender_();
-  if (!von) throw new Error('ABSENDER_FEHLT: info@fragranceshub.de ist in Gmail nicht als „Senden als“-Adresse eingerichtet');
-  var text = String(o.b || ''), betreff = String(o.s || 'Fragrance Hub Germany').slice(0, 200);
-  var esc = function (s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
-  var html = esc(text)
-    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#9a7b2f">$1</a>')
-    .replace(/([\w.+-]+@[\w-]+\.[\w.]+)/g, '<a href="mailto:$1" style="color:#9a7b2f">$1</a>')
-    .replace(/\n/g, '<br>');
-  html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#1a1714;max-width:620px">' +
-         '<div style="border-bottom:2px solid #b8975a;padding:0 0 10px;margin:0 0 18px;font-family:Georgia,serif;letter-spacing:2px;color:#9a7b2f;font-size:18px">FRAGRANCE HUB <span style="font-size:11px;letter-spacing:4px">GERMANY</span></div>' +
-         html + '</div>';
-  GmailApp.sendEmail(to, betreff, text, { from: von, name: 'Fragrance Hub Germany', replyTo: 'info@fragranceshub.de', htmlBody: html });
+  if (!PL_MAIL_RX.test(to)) throw new Error('E-Mail-Adresse ungültig');
+  var von = plVon_(), text = String(o.b || '');
+  GmailApp.sendEmail(to, String(o.s || 'Fragrance Hub Germany').slice(0, 200), text,
+    { from: von, name: 'Fragrance Hub Germany', replyTo: 'info@fragranceshub.de', htmlBody: plHtml_(text) });
   return { ok: true, von: von };
+}
+
+/** Tageskontingent für E-Mails (Gmail-Grenze) */
+function plQuota_() { if (!SR_ADMIN) throw new Error('NUR_INHABER'); return { frei: MailApp.getRemainingDailyQuota(), von: fhAbsender_() || '' }; }
+
+/** Sammelversand: liste = [{k, to, s, b}] – jede E-Mail einzeln (persönlich), stoppt beim Tageskontingent */
+function plMailBulk_(liste) {
+  if (!SR_ADMIN) throw new Error('NUR_INHABER');
+  var von = plVon_(), ok = [], fehler = [], frei = MailApp.getRemainingDailyQuota();
+  (liste || []).slice(0, 25).forEach(function (o) {
+    if (frei <= 0) return;
+    var to = String(o.to || '').trim();
+    if (!PL_MAIL_RX.test(to)) { fehler.push({ k: o.k, e: 'Adresse ungültig' }); return; }
+    try {
+      GmailApp.sendEmail(to, String(o.s || '').slice(0, 200), String(o.b || ''),
+        { from: von, name: 'Fragrance Hub Germany', replyTo: 'info@fragranceshub.de', htmlBody: plHtml_(o.b) });
+      ok.push(o.k); frei--;
+    } catch (e) { fehler.push({ k: o.k, e: e.message }); if (/limit|quota|kontingent/i.test(e.message)) frei = 0; }
+  });
+  return { ok: ok, fehler: fehler, frei: Math.max(0, frei) };
 }
