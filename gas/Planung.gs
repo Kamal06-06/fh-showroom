@@ -4,6 +4,7 @@
      (2) Kundenprofile & Reaktivierung (letzte Bestellung, Rhythmus, Umsatz)
    Blatt "Auftragsdaten" in der Lager-Tabelle: eine Zeile je Shopify-Bestellung (12 Monate),
    stündlich nachgeführt (plSync). Erstbefüllung läuft automatisch in mehreren Schritten.
+   Blatt "Kunden-Shop": alle Shop-Kunden mit Bestellungen (täglich, auch ältere Bestellungen).
    App-Aktionen (über srApi in Lagerplaetze.gs): pl_absatz, pl_kunden, pl_setup – nur Inhaber.
    ===================================================================== */
 
@@ -82,8 +83,36 @@ function plSync() {
       if (!props.getProperty('PL_AB')) props.setProperty('PL_AB', ab);
     }
     CacheService.getScriptCache().remove('PL_KUNDEN');
-    return { fertig: fertig, neu: neu, geaendert: geaendert, zeilen: rows.length };
+    var kd = null;
+    if (fertig && props.getProperty('PL_KD_TAG') !== Utilities.formatDate(new Date(), 'Europe/Berlin', 'yyyy-MM-dd')) {
+      try { kd = plKundenSync_(); } catch (e) { Logger.log('Kunden-Sync: ' + e.message); }
+    }
+    return { fertig: fertig, neu: neu, geaendert: geaendert, zeilen: rows.length, kunden: kd };
   } finally { lock.releaseLock(); }
+}
+
+/** täglich: alle Shop-Kunden mit Bestellungen (Anzahl, Umsatz, erste/letzte Bestellung – auch älter als 60 Tage) */
+var PL_KD_BLATT = 'Kunden-Shop';
+var PL_KD_KOPF = ['Kunde-ID', 'Name', 'Firma', 'E-Mail', 'Telefon', 'Land', 'Bestellungen', 'Umsatz gesamt', 'Kunde seit', 'Letzte Bestellung'];
+function plKundenSync_() {
+  var ss = lagerSS_(), sh = ss.getSheetByName(PL_KD_BLATT);
+  if (!sh) { sh = ss.insertSheet(PL_KD_BLATT); sh.getRange(1, 1, 1, PL_KD_KOPF.length).setValues([PL_KD_KOPF]).setFontWeight('bold'); sh.setFrozenRows(1); sh.getRange('A:F').setNumberFormat('@'); sh.getRange('I:J').setNumberFormat('@'); }
+  var rows = [], cursor = null;
+  do {
+    var d = shopifyGraphQL('query($c: String) { customers(first: 100, after: $c, query: "orders_count:>0") { pageInfo { hasNextPage endCursor } nodes { ' +
+      'id displayName email phone createdAt numberOfOrders amountSpent { amount } lastOrder { createdAt } defaultAddress { company phone countryCodeV2 } } } }', { c: cursor });
+    d.customers.nodes.forEach(function (k) {
+      var a = k.defaultAddress || {};
+      rows.push([String(k.id).split('/').pop(), k.displayName || k.email || '', String(a.company || '').trim(), k.email || '', String(k.phone || a.phone || '').trim(),
+                 a.countryCodeV2 || '', Number(k.numberOfOrders) || 0, Number(k.amountSpent && k.amountSpent.amount) || 0, k.createdAt || '', (k.lastOrder && k.lastOrder.createdAt) || '']);
+    });
+    cursor = d.customers.pageInfo.hasNextPage ? d.customers.pageInfo.endCursor : null;
+  } while (cursor);
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, PL_KD_KOPF.length).clearContent();
+  if (rows.length) sh.getRange(2, 1, rows.length, PL_KD_KOPF.length).setValues(rows);
+  PropertiesService.getScriptProperties().setProperty('PL_KD_TAG', Utilities.formatDate(new Date(), 'Europe/Berlin', 'yyyy-MM-dd'));
+  CacheService.getScriptCache().remove('PL_KUNDEN');
+  return rows.length;
 }
 
 function plZeilen_() {
@@ -99,8 +128,9 @@ function plStand_() {
 function plAbsatz_() {
   if (!SR_ADMIN) throw new Error('NUR_INHABER');
   var jetzt = Date.now(), g30 = new Date(jetzt - 30 * 864e5).toISOString(), g90 = new Date(jetzt - 90 * 864e5).toISOString();
-  var k30 = {}, k90 = {}, n90 = {};
+  var k30 = {}, k90 = {}, n90 = {}, von = '';
   plZeilen_().forEach(function (r) {
+    if (r[11] && (!von || String(r[2]) < von)) von = String(r[2]);
     if (r[3] !== 'ja' || String(r[2]) < g90 || !r[11]) return;
     var d = String(r[2]);
     String(r[11]).split(';').forEach(function (p) {
@@ -113,28 +143,29 @@ function plAbsatz_() {
   var r3 = function (o) { Object.keys(o).forEach(function (k) { o[k] = Math.round(o[k] * 1000) / 1000; }); return o; };
   var min = {};
   lagerBestandMap_().rows.forEach(function (r) { if (r[0] && r[5] === 'kg') min[String(r[0])] = Number(r[8]) || 0; });
-  return { at: jetzt, kg30: r3(k30), kg90: r3(k90), n90: n90, min: min, stand: plStand_() };
+  var tage = von ? Math.max(1, Math.min(90, Math.round((jetzt - new Date(von).getTime()) / 864e5))) : 90;
+  return { at: jetzt, kg30: r3(k30), kg90: r3(k90), n90: n90, min: min, tage: tage, stand: plStand_() };
 }
 
-/** Kundenprofile aus dem Shop (12 Monate): je Kunde Bestellungen, Umsatz, erste/letzte Bestellung, Rhythmus, Top-Artikel */
+/** Kundenprofile aus dem Shop: Anzahl/Umsatz/erste+letzte Bestellung aus "Kunden-Shop" (gesamt), Top-Artikel aus den Auftragsdaten */
 function plKunden_() {
   if (!SR_ADMIN) throw new Error('NUR_INHABER');
   var cache = CacheService.getScriptCache(), c = cache.get('PL_KUNDEN');
   if (c) return c;
-  var grenze = new Date(Date.now() - 365 * 864e5).toISOString(), m = {};
+  var sh = lagerSS_().getSheetByName(PL_KD_BLATT);
+  if (!sh || sh.getLastRow() < 2) { plKundenSync_(); sh = lagerSS_().getSheetByName(PL_KD_BLATT); }
+  var top = {};
   plZeilen_().forEach(function (r) {
-    if (r[3] !== 'ja' || String(r[2]) < grenze) return;
-    var key = r[4] ? 'S' + r[4] : 'E' + String(r[7] || r[5]).toLowerCase();
-    var k = m[key] = m[key] || { id: String(r[4] || ''), n: '', f: '', e: '', p: '', c: '', o: 0, u: 0, d: [], a: {} };
-    k.n = String(r[5] || k.n); if (r[6]) k.f = String(r[6]); if (r[7]) k.e = String(r[7]); if (r[8]) k.p = String(r[8]); if (r[9]) k.c = String(r[9]);
-    k.o++; k.u += Number(r[10]) || 0; k.d.push(String(r[2]).slice(0, 10));
-    String(r[12] || '').split('|').forEach(function (x) { var t = x.replace(/×\d+$/, '').trim(); if (t) k.a[t] = (k.a[t] || 0) + 1; });
+    if (r[3] !== 'ja' || !r[4]) return;
+    var a = top[r[4]] = top[r[4]] || {};
+    String(r[12] || '').split('|').forEach(function (x) { var t = x.replace(/\u00d7\d+$/, '').trim(); if (t) a[t] = (a[t] || 0) + 1; });
   });
-  var out = Object.keys(m).map(function (key) {
-    var k = m[key]; k.d.sort();
-    var top = Object.keys(k.a).sort(function (a, b) { return k.a[b] - k.a[a]; }).slice(0, 3);
-    return { id: k.id, n: k.n, f: k.f, e: k.e, p: k.p, c: k.c, o: k.o, u: Math.round(k.u * 100) / 100, d: k.d, t: top };
-  }).filter(function (k) { return k.u > 0; });
+  var out = sh.getRange(2, 1, sh.getLastRow() - 1, PL_KD_KOPF.length).getValues().filter(function (r) { return r[0] && Number(r[6]) > 0; }).map(function (r) {
+    var a = top[String(r[0])] || {};
+    return { id: String(r[0]), n: String(r[1]), f: String(r[2]), e: String(r[3]), p: String(r[4]), c: String(r[5]), o: Number(r[6]) || 0,
+             u: Math.round((Number(r[7]) || 0) * 100) / 100, a: String(r[8]).slice(0, 10), l: String(r[9]).slice(0, 10),
+             t: Object.keys(a).sort(function (x, y) { return a[y] - a[x]; }).slice(0, 3) };
+  });
   var s = JSON.stringify({ at: Date.now(), stand: plStand_(), k: out });
   try { cache.put('PL_KUNDEN', s, 1800); } catch (e) {}   // > 100 KB: ohne Cache
   return s;

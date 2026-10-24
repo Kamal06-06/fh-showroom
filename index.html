@@ -3650,15 +3650,17 @@ const plDay=t=>new Date(new Date(t).toDateString()).getTime();
 function plProfiles(){
   const now=Date.now(),yr=now-365*864e5,byName=new Map(),byTel=new Map(),out=[];
   const add=(name,o)=>{const k=custKey(name),t=plDigits(o.p);let P=(k&&byName.get(k))||(t&&byTel.get(t));
-    if(!P){P={name,person:'',e:'',p:'',c:'',src:new Set(),dates:[],u:0,top:new Map(),shopId:''};out.push(P)}
+    if(!P){P={name,person:'',e:'',p:'',c:'',src:new Set(),dates:[],u:0,top:new Map(),shopId:'',so:0,sa:0,sl:0};out.push(P)}
+    if(o.so){P.so+=o.so;P.sa=P.sa?Math.min(P.sa,o.sa):o.sa;P.sl=Math.max(P.sl,o.sl)}
     if(k&&!byName.has(k))byName.set(k,P);if(t&&!byTel.has(t))byTel.set(t,P);
     P.src.add(o.src);if(o.person&&!P.person&&custKey(o.person)!==custKey(P.name))P.person=o.person;if(o.e&&!P.e)P.e=o.e;if(o.p&&!P.p)P.p=o.p;if(o.c&&!P.c)P.c=o.c;if(o.id)P.shopId=o.id;
     P.dates.push(...o.dates);P.u+=o.u;(o.top||[]).forEach((x,i)=>P.top.set(x,(P.top.get(x)||0)+(3-i)))};
-  (PLK&&PLK.k||[]).forEach(k=>add(k.f||k.n,{src:'shop',person:k.f?k.n:'',e:k.e,p:k.p,c:k.c,id:k.id,dates:k.d.map(d=>new Date(d+'T12:00:00').getTime()),u:k.u,top:k.t}));
-  custAll().forEach(g=>{const ls=g.orders.filter(l=>l.kind!=='debt'&&l.kind!=='offer'&&(l.items||[]).length&&(l.at||0)>=yr);const cr=findCust(g.name);
+  const dt=d=>d?new Date(d+'T12:00:00').getTime():0;
+  (PLK&&PLK.k||[]).forEach(k=>add(k.f||k.n,{src:'shop',person:k.f?k.n:'',e:k.e,p:k.p,c:k.c,id:k.id,dates:[],so:k.o,sa:dt(k.a)||dt(k.l),sl:dt(k.l),u:k.u,top:k.t}));
+  custAll().forEach(g=>{const ls=g.orders.filter(l=>l.kind!=='debt'&&l.kind!=='offer'&&(l.items||[]).length);const cr=findCust(g.name);
     if(!ls.length&&!(cr&&cr.phone))return;const cnt=new Map();ls.forEach(l=>(l.items||[]).forEach(it=>cnt.set(it.t,(cnt.get(it.t)||0)+1)));
     add(g.name,{src:'room',e:cr&&cr.email||'',p:cr&&cr.phone||'',c:g.country||'',dates:ls.map(l=>l.at),u:ls.reduce((a,l)=>{try{return a+(totals(l).net||0)}catch(e){return a}},0),top:[...cnt].sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0])})});
-  out.forEach(P=>{const ds=[...new Set(P.dates.map(plDay))].sort((a,b)=>a-b);P.o=ds.length;P.first=ds[0]||0;P.last=ds[ds.length-1]||0;
+  out.forEach(P=>{const ds=[...new Set(P.dates.map(plDay))].sort((a,b)=>a-b);P.o=ds.length+P.so;P.first=Math.min(...[ds[0],P.sa&&plDay(P.sa)].filter(Boolean))||0;P.last=Math.max(...[ds[ds.length-1],P.sl&&plDay(P.sl)].filter(Boolean),0);
     P.iv=P.o>=2?Math.round((P.last-P.first)/864e5/(P.o-1)):0;P.since=P.last?Math.floor((plDay(now)-P.last)/864e5):9999;
     P.st=!P.o?'none':P.o===1?(P.since<=30?'new':'one'):P.since>Math.max(30,2*P.iv)?'stop':P.since>P.iv*1.3+7?'late':'ok';
     P.topL=[...P.top].sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);P.key=custKey(P.name)});
@@ -3670,14 +3672,14 @@ function plMsg(P){const first=String(P.person||P.name).trim().split(/\s+/)[0],t=
   return de?'Hallo '+first+',\nhier ist Fragrance Hub Germany. Wir haben länger nichts von Ihnen gehört – ist alles in Ordnung?\n'+(t?'Falls Sie wieder Nachschub brauchen (z. B. '+t+'), ':'Falls Sie wieder Nachschub brauchen, ')+'melden Sie sich gern – wir stellen Ihnen sofort ein Angebot zusammen.\nViele Grüße\nFragrance Hub Germany · +49 2361 4878835'
     :'Hello '+first+',\nthis is Fragrance Hub Germany. We have not heard from you for a while – is everything fine?\n'+(t?'If you need a restock (e.g. '+t+'), ':'If you need a restock, ')+'just let us know and we will prepare an offer for you right away.\nBest regards\nFragrance Hub Germany · +49 2361 4878835'}
 function plLine(P){const d=t=>t?new Date(t).toLocaleDateString('de-DE'):'–';
-  return 'آخر طلب '+d(P.last)+' (منذ '+P.since+' يوم)'+(P.iv?' · عادةً كل '+P.iv+' يوم':'')+' · '+P.o+' طلب · '+money(P.u)+' / 12 شهر'}
+  return 'آخر طلب '+d(P.last)+' (منذ '+P.since+' يوم)'+(P.iv?' · عادةً كل '+P.iv+' يوم':'')+' · '+P.o+' طلب · إجمالي '+money(P.u)}
 function plStopCount(){if(!PLK)return null;try{return plProfiles().filter(P=>P.st==='stop').length}catch(e){return null}}
 function plSheet(start){if(!isAdmin())return;
   openSheet('📈 ملفات العملاء · Kundenprofile',async b=>{
     const st=el('p','hint','جاري التحميل… · Wird geladen…');b.append(st);
     try{await plkLoad()}catch(e){st.textContent='تعذّر تحميل بيانات المتجر · '+e.message+' — تظهر عملاء الصالة فقط.'}
     let all=plProfiles(),tabK=start||'stop';const ct=plContact();
-    const info=()=>{const s=PLK&&PLK.stand||{};st.textContent=(s.laeuft?'⏳ بيانات المتجر للسنة الماضية ما زالت تُحمَّل – القائمة ستكتمل خلال ساعات. ':'')+'المتجر + الصالة · آخر 12 شهراً'+(PLK&&PLK.at?' · تحديث '+new Date(PLK.at).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'}):'')};info();
+    const info=()=>{const s=PLK&&PLK.stand||{};st.textContent=(s.laeuft?'⏳ بيانات المتجر ما زالت تُحمَّل – القائمة ستكتمل خلال ساعات. ':'')+'المتجر + الصالة · كل الطلبات'+(PLK&&PLK.at?' · تحديث '+new Date(PLK.at).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'}):'')};info();
     b.append(el('p','hint','⏸ متوقف = عميل اشترى مرتين أو أكثر ومرّ عليه أكثر من ضعف مدته المعتادة بين الطلبات (30 يوماً على الأقل) بدون طلب.'));
     const tabs=el('div','row');tabs.style.cssText='gap:6px;flex-wrap:wrap;margin:6px 0';
     const T=[['stop','⏸ متوقفون'],['late','⏳ متأخرون'],['top','⭐ الأفضل'],['new','🆕 جدد'],['one','1️⃣ مرة واحدة'],['all','الكل']];
@@ -3718,10 +3720,10 @@ function bvCfg(){return Object.assign({},BV_DEF,LS.get('bvCfg',{})||{})}
 function bvShowroom(t){const o={};lists.forEach(l=>{if(l.kind==='debt'||l.kind==='offer'||(l.at||0)<t)return;(l.items||[]).forEach(it=>{if(!isOil(it))return;const k=stkKey(it);if(k)o[k]=(o[k]||0)+stkQty(it)})});return o}
 /* Rechnet je Öl: Tagesverbrauch, Reichweite, Vorschlag. ab = pl_absatz vom Server */
 function bvRechne(ab,items,cfg){
-  const now=Date.now(),s30=bvShowroom(now-30*864e5),s90=bvShowroom(now-90*864e5),out=[];
+  const now=Date.now(),T=Math.max(7,Math.min(90,+ab.tage||90)),T30=Math.min(30,T),s30=bvShowroom(now-T30*864e5),s90=bvShowroom(now-T*864e5),out=[];
   (items||[]).forEach(x=>{if(x.unit!=='kg'&&!x.oil)return;const k=x.key;
     const k30=(ab.kg30[k]||0)+(s30[k]||0),k90=(ab.kg90[k]||0)+(s90[k]||0);
-    const rate=0.5*(k30/30)+0.5*(k90/90);                 /* kg pro Tag: letzter Monat und letzte 3 Monate je zur Hälfte */
+    const rate=0.5*(k30/T30)+0.5*(k90/T);                 /* kg pro Tag: letzter Monat und letzte 3 Monate (bzw. vorhandener Zeitraum) je zur Hälfte */
     const unk=stkUnk(x),have=Math.max(0,+x.bestand||0),min=+x.min||0;
     let need=rate>0?rate*(cfg.lead+cfg.cover)+min-have:(min>0&&!unk&&have<min?min-have:0);
     if(need<=0.0005)return;
@@ -3741,7 +3743,7 @@ async function orderProposal(){
     const mins=ab.min||{};inv.items.forEach(x=>{const m=lowMin.get(x.key);if(mins[x.key]!=null)x.min=+mins[x.key];else if(m)x.min=+m.min||0;else if(x.min==null)x.min=0;if(m&&!x.werk&&m.werk)x.werk=m.werk});
     let cfg=bvCfg();
     const stand=ab.stand||{};
-    st.textContent=(stand.laeuft?'⏳ بيانات المتجر للسنة الماضية ما زالت تُحمَّل – الأرقام ستكتمل خلال ساعات. · ':'')+'الحساب: متوسط استهلاك آخر شهر و آخر 3 أشهر (المتجر + الصالة) × (مدة التوريد + مدة الكفاية) + الحد الأدنى − الرصيد';
+    st.textContent=(stand.laeuft?'⏳ بيانات المتجر ما زالت تُحمَّل – الأرقام ستكتمل خلال ساعات. · ':'')+((+ab.tage||90)<90&&!ab.off?'ℹ️ بيانات المتجر متوفرة لآخر '+ab.tage+' يوماً فقط حتى الآن (تزداد تلقائياً). · ':'')+'الحساب: متوسط استهلاك آخر شهر و آخر 3 أشهر (المتجر + الصالة) × (مدة التوريد + مدة الكفاية) + الحد الأدنى − الرصيد';
     const cf=el('div');cf.style.cssText='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0';
     const num=(lbl,key)=>{const w=el('label');w.style.cssText='display:flex;flex-direction:column;gap:4px;font-size:12.5px';const i=el('input');i.type='number';i.min=0;i.value=cfg[key];i.dir='ltr';
       i.onchange=()=>{cfg[key]=Math.max(key==='step'?0.1:0,+i.value||0);LS.set('bvCfg',cfg);calc()};w.append(el('span',null,lbl),i);cf.append(w);return i};
@@ -3765,7 +3767,7 @@ async function orderProposal(){
         const per=s.rate*30,dl=s.unk?'⚪ لم يُجرد بعد – الرصيد غير معروف · ungezählt':!isFinite(s.days)?'لا مبيعات خلال 3 أشهر · kein Absatz':s.days<1?'⚠️ تحت الحد الأدنى الآن · unter Minimum':'يصل للحد الأدنى خلال ~'+Math.round(s.days)+' يوم · Minimum in ~'+Math.round(s.days)+' T.';
         const d2=el('div','ivtn',dl);d2.style.color=LV[s.lvl][1];d2.style.fontWeight='600';
         inf.append(nm,el('div','ivtn',(s.x.orig||s.x.title||'–')+' · '+(wk?'Zert. '+wk:'⚠️ بدون رقم شهادة · ohne Zert.-Nr.')),
-          el('div','ivtn','الرصيد '+fmt(s.have)+' kg · الحد '+fmt(s.min)+' · الاستهلاك ≈ '+fmt(per)+' kg/شهر (30 يوم: '+fmt(s.k30)+' · 90 يوم: '+fmt(s.k90)+')'),d2);
+          el('div','ivtn','الرصيد '+fmt(s.have)+' kg · الحد '+fmt(s.min)+' · الاستهلاك ≈ '+fmt(per)+' kg/شهر (آخر '+Math.min(30,+ab.tage||90)+' يوم: '+fmt(s.k30)+' · آخر '+Math.min(90,+ab.tage||90)+' يوم: '+fmt(s.k90)+')'),d2);
         const i=document.createElement('input');i.type='number';i.min=0;i.step=cfg.step;i.value=s.q;i.style.width='80px';i.oninput=()=>{s.q=+i.value||0;s.man=true;tot()};
         const w=el('div','ivin');w.append(i,el('span','u','kg'));r.append(cb,inf,w);list.append(r)});
       if(!n)list.append(el('p','hint','لا يوجد شيء يحتاج طلب حالياً ✅ · Nichts zu bestellen'));tot()};
