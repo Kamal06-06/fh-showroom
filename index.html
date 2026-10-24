@@ -3667,6 +3667,20 @@ function plProfiles(){
   return out.filter(P=>P.o)}
 const PL_ST={stop:['⏸ متوقف','open'],late:['⏳ متأخر','part'],ok:['✅ نشط','paid'],new:['🆕 جديد','paid'],one:['1️⃣ مرة واحدة','part']};
 function plContact(){return LS.get('plContact',{})||{}}
+/* E-Mail immer vom offiziellen Firmen-Absender info@fragranceshub.de (Server, Gmail „Senden als“) */
+function plMailSheet(P,done){const ml=plMail(P);
+  openSheet('✉️ إيميل للعميل · E-Mail',b=>{
+    {const v=el('p','note');v.append('من · ');const x=el('bdi',null,'Fragrance Hub Germany <info@fragranceshub.de>');x.dir='ltr';v.append(x);b.append(v)}
+    const to=el('input');to.type='email';to.dir='ltr';to.value=P.e;
+    const sj=el('input');sj.dir='ltr';sj.value=ml.s;
+    const tx=el('textarea');tx.dir='ltr';tx.value=ml.b;tx.style.cssText='width:100%;min-height:46vh;font:inherit;font-size:14px;line-height:1.5;padding:10px;box-sizing:border-box';
+    const f=(l,i)=>{const w=el('label');w.style.cssText='display:flex;flex-direction:column;gap:4px;margin:6px 0;font-size:13px';w.append(el('span',null,l),i);b.append(w)};
+    f('إلى · An',to);f('الموضوع · Betreff',sj);f('النص · Text (يمكنك التعديل)',tx);
+    const msg=el('div','status');msg.hidden=true;const go=el('button','btn primary big','📨 إرسال من info@fragranceshub.de');
+    go.onclick=async()=>{if(!confirm('إرسال الإيميل إلى '+to.value.trim()+' ؟'))return;go.disabled=true;msg.hidden=false;msg.classList.remove('err');msg.textContent='جاري الإرسال… · wird gesendet…';
+      try{await srv('pl_mail',JSON.stringify({to:to.value.trim(),s:sj.value,b:tx.value}));msg.textContent='✅ أُرسل من info@fragranceshub.de';if(done)done();toast('✅ أُرسل الإيميل');setTimeout(()=>{closeSheet()},900)}
+      catch(e){msg.classList.add('err');msg.textContent=/ABSENDER_FEHLT/.test(e.message)?'⚠️ لم يُرسل: عنوان info@fragranceshub.de غير مفعّل للإرسال في Gmail.':'⚠️ لم يُرسل: '+e.message;go.disabled=false}};
+    b.append(go,msg)})}
 function plMail(P){const nm=String(P.person||P.name).trim(),firma=P.person?P.name:'',t=P.topL.slice(0,2).map(x=>String(x).replace(/\s*·.*$/,'')).filter(Boolean);
   const de=['DE','AT','CH','LI','LU'].includes(String(P.c||'DE').toUpperCase())||!P.c;
   if(de)return{s:'Exklusiver Sonderrabatt für Gewerbekunden – Fragrance Hub Germany',b:'Guten Tag '+nm+',\n\n'+
@@ -3736,7 +3750,7 @@ function plSheet(start){if(!isAdmin())return;
         const a=el('div','row');a.style.cssText='gap:6px;flex-wrap:wrap;margin-top:6px';
         const mark=()=>{ct[P.key]=Date.now();LS.set('plContact',ct);draw(true)};
         if(P.p){const w=el('a','btn small ctc','💬 واتساب');w.href=custWa(P.p,plMsg(P));w.target='_blank';w.rel='noopener';w.onclick=mark;a.append(w)}
-        if(P.e){const m=el('a','btn small ctc','✉️ إيميل');const ml=plMail(P);m.href='mailto:'+P.e+'?subject='+encodeURIComponent(ml.s)+'&body='+encodeURIComponent(ml.b);m.onclick=mark;a.append(m)}
+        if(P.e){const m=el('button','btn small ctc','✉️ إيميل');m.onclick=()=>plMailSheet(P,()=>{ct[P.key]=Date.now();LS.set('plContact',ct)});a.append(m)}
         const g=custAll().find(x=>custKey(x.name)===P.key);if(g){const o=el('button','btn small','📂 طلبات الصالة');o.onclick=()=>{closeSheet();focusId=null;focusCust=g.key;tab('wh');renderLists()};a.append(o)}
         const mk=el('button','btn small',c?'↺ تواصلت مجدداً':'✓ تم التواصل');mk.onclick=mark;a.append(mk);r.append(a);box.append(r)});
       more.hidden=L.length<=lim};
