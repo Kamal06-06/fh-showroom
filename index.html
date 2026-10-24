@@ -329,6 +329,7 @@ details.sub[open]{padding-bottom:12px}
 /* Kappen-Miniaturen */
 .chip.has-cap{display:inline-flex;align-items:center;gap:10px;text-align:start}
 .chip .capi{width:46px;height:46px;flex:none}
+.ir-pack{margin-top:6px;font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--gold);border-radius:8px;background:var(--gold-soft);color:var(--ink);max-width:100%;direction:ltr}
 .chip .capi.seti{width:50px;height:64px;border-radius:6px;padding:1px}
 img.capi{width:34px;height:34px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:8px;flex:none;padding:2px;box-sizing:border-box}
 .cd img.capi,.ir-sub img.capi{width:30px;height:30px;vertical-align:middle;margin-inline-end:6px}
@@ -1136,6 +1137,8 @@ function itemRow(it,ix){
   {const src=imgOf(it);if(src)top.append(mkImg(src,'ir-img'))}
   const m=el('div','ir-main');m.append(el('div','ir-name',it.t));
   const sub=el('div','ir-sub');if(it.tier)sub.append(el('span','ir-tier',it.tier));{const cs=capOf(it);if(cs)sub.append(mkImg(cs,'capi'))}if(it.size)sub.append(el('span','ir-size',it.size));if(it.code)sub.append(el('span','ir-code',it.code));m.append(sub);
+  if(it.grp){const ks=packs(it);if(ks.length>1){const ps=el('select','ir-pack');ps.setAttribute('aria-label','العبوة');ks.forEach(k=>{const o=el('option',null,k);o.value=k;ps.append(o)});ps.value=it.gk;
+    ps.onchange=()=>{it.gk=ps.value;delete it.pm;grpApply(it);saveDraft();renderItems()};m.append(ps)}}
   const hasP=it.price!=null&&it.price!=='';
   m.append(el('div','ir-pr',hasP?money(it.price)+(it.unit==='kg'?' / kg':'')+' × '+qtxt(it).replace('×','')+' = '+money(lineTot(it))+(itRab(it)?' · −'+String(itRab(it)).replace('.',',')+' %':'')+(it.kg?' · سعر الكيلو':''):'بدون سعر — اضغط ⋯'));
   if(it.note)m.append(el('div','ir-note','✎ '+it.note));
@@ -1153,7 +1156,7 @@ function itemRow(it,ix){
   const ed=el('div','ir-edit');ed.hidden=!irOpen.has(ix);
   const f=(lab,inp)=>{const l=el('label',null,lab);l.append(inp);ed.append(l);return inp};
   const pi=f('السعر €',el('input'));pi.type='number';pi.step='0.01';pi.min='0';pi.inputMode='decimal';pi.value=hasP?it.price:'';
-  pi.onchange=()=>{it.price=pi.value===''?null:+pi.value;delete it.kg;saveDraft();renderItems()};
+  pi.onchange=()=>{it.price=pi.value===''?null:+pi.value;delete it.kg;if(it.grp){if(pi.value==='')delete it.pm;else it.pm=1}saveDraft();renderItems()};
   const ri=f('خصم الصنف %',el('input'));ri.type='number';ri.step='0.5';ri.min='0';ri.max='100';ri.inputMode='decimal';ri.value=it.rab||'';
   ri.onchange=()=>{it.rab=+ri.value||0;if(!it.rab)delete it.rab;it.skMan=1;delete it.skAuto;delete it.skHint;saveDraft();renderItems()};
   if(!it.sku&&!it.code){const us=f('الوحدة (Einheit)',el('select'));[['Stk','قطعة (Stück)'],['kg','كيلو (kg)']].forEach(([v,x])=>{const o=el('option',null,x);o.value=v;us.append(o)});us.value=it.unit||(isOil(it)?'kg':'Stk');
@@ -1286,12 +1289,31 @@ $('versand').oninput=e=>{draft.versand=+e.target.value||0;saveDraft();renderItem
 $('kgprice').checked=!!draft.kg;$('rabscope').value=draft.rabScope||'all';$('rabscope').onchange=e=>{draft.rabScope=e.target.value;saveDraft();renderItems()};
 $('kgprice').onchange=e=>{draft.kg=e.target.checked;draft.kgOff=!e.target.checked;applyKg(draft.items,draft.kg);saveDraft();renderItems();showCust()};
 function saveDraft(){draft.at=Date.now();LS.set('draft3',draft);$('send').disabled=!draft.items.length||!db;$('offer').disabled=!draft.items.length}
+/* Mengen-Staffeln intern: Varianten, die sich nur in der Menge unterscheiden (Muster / Karton … / N Stück), werden zu EINEM Eintrag.
+   Im Auftrag wählt man die Packung; bei Karton-Staffeln gilt der Preis automatisch nach der Kartonzahl. */
+const QRX=/^(muster\b|karton\b|\d[\d.]*\s*st(ü|u)ck\b)/i;
+function splitQ(label){const a=String(label||'').split(' / ');const i=a.findIndex(x=>QRX.test(x.trim()));if(i<0)return null;
+  return {base:a.filter((_,j)=>j!==i).join(' / ')||'·',q:a[i].trim(),i}}
+function grpOf(p,v){if(p.oil)return null;const me=splitQ(v[0]);if(!me)return null;
+  const g=p.v.map(x=>{const s=splitQ(x[0]);return s&&s.base===me.base?{q:s.q,sku:x[1]||'',price:pnum(x[2])}:null}).filter(Boolean);
+  return g.length>1?{gb:me.base,gi:me.i,grp:g}:null}
+const packKey=q=>{const m=/^(Karton\s*à\s*\d+\s*\S+)\s*·/i.exec(q);return m?m[1].trim():q};
+const tierMin=q=>{const t=String(q).split('·').pop();const m=/ab\s*(\d+)/i.exec(t)||/(\d+)/.exec(t);return m?+m[1]:1};
+function packs(it){const ks=[];(it.grp||[]).forEach(g=>{const k=packKey(g.q);if(!ks.includes(k))ks.push(k)});return ks}
+function grpApply(it){if(!it.grp||!it.grp.length)return false;const ks=packs(it);if(!ks.includes(it.gk))it.gk=ks[0];
+  const c=it.grp.filter(g=>packKey(g.q)===it.gk);const n=Math.max(1,Math.floor(+it.q||1));
+  const pick=c.length>1?c.reduce((b,g)=>tierMin(g.q)<=n&&tierMin(g.q)>=tierMin(b.q)?g:b,c.reduce((a,g)=>tierMin(g.q)<tierMin(a.q)?g:a)):c[0];
+  const a=it.gb&&it.gb!=='·'?it.gb.split(' / '):[];a.splice(it.gi||0,0,pick.q);const size=a.join(' / ');
+  if(it.size===size&&it.sku===pick.sku&&(it.pm||it.price===pick.price))return false;
+  it.size=size;it.sku=pick.sku;it.code=pick.sku;if(!it.pm)it.price=pick.price;return true}
 function addItem(o){
-  const hit=draft.items.find(i=>i.t===o.t&&i.tier===o.tier&&i.code===o.code&&i.size===o.size&&(i.unit||'')===(o.unit||''));
+  if(o.grp&&!o.gk){o.gk=packs(o)[0];grpApply(o)}
+  const hit=o.gb?draft.items.find(i=>i.gb===o.gb&&i.t===o.t&&i.gk===o.gk):draft.items.find(i=>i.t===o.t&&i.tier===o.tier&&i.code===o.code&&i.size===o.size&&(i.unit||'')===(o.unit||''));
   if(hit)hit.q++; else {const it=Object.assign({q:1},o);if(draft.kg)applyKg([it],true);draft.items.push(it)}
   saveDraft();renderItems();
 }
 function renderItems(){
+  if(draft.items.reduce((ch,it)=>grpApply(it)||ch,false))saveDraft();
   {const sk=skOf(draft.cust);if(sk||draft.items.some(i=>i.skAuto||i.skHint)){const b4=JSON.stringify(draft.items);applySK(draft.items,sk);if(JSON.stringify(draft.items)!==b4)saveDraft()}}
   const box=$('items');box.textContent='';
   draft.items.forEach((it,ix)=>box.append(labelTile(it,true,ix)));
@@ -1363,14 +1385,16 @@ function search(){
     const r=el('div','res');
     if(!p.oil&&p.i)r.append(mkImg(p.i,'thumb'));
     const info=el('div','info');
-    const opts=options(p);
+    let opts=options(p);
+    if(!p.oil){const seen=new Set();opts=opts.map((o,ix)=>{const g=grpOf(p,p.v[ix]);if(!g)return o;if(seen.has(g.gb))return null;seen.add(g.gb);
+      const ps=g.grp.map(x=>x.price).filter(x=>x!=null);return Object.assign({},o,g,{label:g.gb,price:null,from:ps.length?Math.min(...ps):null})}).filter(Boolean)}
     info.append(el('div','name',p.t));if(p.a)info.append(el('div','alias',p.a));info.append(el('div','code',opts[0]?opts[0].code:''));
     const c=el('div','chips');
     opts.forEach(o=>{
-      const b=el('button','chip',(o.label||'إضافة')+(o.price!=null?' · '+money(o.price):''));
+      const b=el('button','chip',(o.label||'إضافة')+(o.price!=null?' · '+money(o.price):o.from!=null?' · ab '+money(o.from):''));
       if(!p.oil){const ss=setSrc(o.sku),cs=ss||capSrc(p.t,o.label);if(cs){b.classList.add('has-cap');const sp=el('span',null,b.textContent);b.textContent='';b.append(mkImg(cs,ss?'capi seti':'capi'),sp)}}
       if(o.off){b.disabled=true;b.textContent=o.label+' · لا يوجد '+size}
-      b.onclick=()=>{addItem(Object.assign({t:p.t,a:p.a||'',oil:p.oil?1:0,tier:o.tier,code:o.code,size:o.size,sku:o.sku,price:o.price},o.src?{vk:o.vk,src:o.src}:{}));$('q').value='';search();$('q').focus()};c.append(b)});
+      b.onclick=()=>{addItem(Object.assign({t:p.t,a:p.a||'',oil:p.oil?1:0,tier:o.tier,code:o.code,size:o.size,sku:o.sku,price:o.price},o.src?{vk:o.vk,src:o.src}:{},o.grp?{gb:o.gb,gi:o.gi,grp:o.grp}:{}));$('q').value='';search();$('q').focus()};c.append(b)});
     r.append(info,c);box.append(r);
   });
   listOnlyBlock(box,extra,x=>{const pr=listVk(x,size);const b=el('button','chip','إضافة '+size+' · '+(x.tier||'Standard')+(pr!=null?' · '+money(pr):''));
@@ -1379,7 +1403,7 @@ function search(){
 $('q').oninput=search;
 /* a scanned or typed code: exact SKU adds that variant, a stem code adds its quality in the selected size */
 function variantItem(p,v){
-  if(!p.oil)return {t:p.t,oil:0,tier:'',size:v[0]||'',code:v[1]||'',sku:v[1]||'',price:pnum(v[2])};
+  if(!p.oil){const g=grpOf(p,v),o={t:p.t,oil:0,tier:'',size:v[0]||'',code:v[1]||'',sku:v[1]||'',price:pnum(v[2])};if(g){Object.assign(o,g);o.gk=packKey(splitQ(v[0]).q)}return o}
   const a=(v[0]||'').split(' / ');
   return {t:p.t,oil:1,tier:a.length>1?a[a.length-1].trim():'',size:a[0].replace(/^Probe\s*/i,'').trim(),code:stem(v[1]),sku:v[1]||'',price:pnum(v[2])};
 }
