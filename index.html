@@ -2846,6 +2846,9 @@ function buildCard(l,full){
     tog.onclick=async()=>{tog.disabled=true;try{await db.doc('lists/'+l.id).update({status:done?'new':'done',doneAt:Date.now()})}catch(e){tog.disabled=false}};
     c.append(tog);
     const acts=docsPanel(l);c.append(acts);
+    if(isAdmin()){const lx=el('div','row grow');lx.style.margin='8px 0';const lo=el('div');
+      if(l.lex&&l.lex.url){const a=el('a','btn','🧾 مسودة Lexware · '+new Date(l.lex.at).toLocaleDateString('de-DE'));a.href=l.lex.url;a.target='_blank';a.rel='noopener';lx.append(a)}
+      const lb=el('button','btn'+(l.lex?'':' primary'),l.lex?'🧾 مسودة فاتورة جديدة':'🧾 إنشاء مسودة فاتورة في Lexware');lb.onclick=()=>{if(l.lex&&!confirm('توجد مسودة سابقة لهذا الطلب. إنشاء مسودة أخرى؟'))return;lexDraft(l,lb,lo)};lx.append(lb);c.append(lx,lo)}
     /* pricing & payment */
     const dp=el('details','od');dp.append(el('summary',null,'💶 التسعير والدفع'));const dpb=el('div','odb');
     dpb.append(payRow(l));
@@ -2881,6 +2884,27 @@ function buildCard(l,full){
     const body=el('div','obody');while(h.nextSibling)body.append(h.nextSibling);c.append(body);
     return c;
 }
+/* ---------- Lexware: Rechnungsentwurf aus dem Auftrag (nur Inhaber) ----------
+   Einheiten wie im Shop gewünscht: Duftöle in kg, Alkohol in Liter, Flakons/Zubehör/Sets in Stück. Keine Angebotsnummer. */
+function lexPayload(l){const t=totals(l),r=t.r,li=[];
+  (l.items||[]).forEach(it=>{if(it.price==null||it.price==='')throw new Error('صنف بدون سعر: '+it.t);
+    const price=+it.price,q=+it.q||1;let qty=q,unit='Stück',unitP=price;
+    if(it.unit==='kg'){unit='kg'}else if(it.unit==='Stk'){unit='Stück'}
+    else if(isOil(it)){const g=sizeG(it.size);if(g>0){const kg=g/1000;qty=q*kg;unitP=price/kg;unit='kg'}}
+    else if(isAlk(it.t)){const m=/(\d+(?:[.,]\d+)?)\s*(l|liter)\b/i.exec(it.size||'');if(m){const L=+m[1].replace(',','.');qty=q*L;unitP=price/L;unit='Liter'}}
+    else{const s2=String(it.size||''),m=/Karton\s*à\s*(\d+)/i.exec(s2)||/(\d[\d.]*)\s*St(ü|u)ck/i.exec(s2);if(m&&!/^muster/i.test((splitQ(s2)||{}).q||'')){const N=+String(m[1]).replace(/\./g,'');if(N>1){qty=q*N;unitP=price/N}}}
+    const ord=(r&&(!t.oilOnly||isOil(it)))?r:0,ir=itRab(it),disc=100*(1-(1-ir/100)*(1-ord/100));
+    const code=isOil(it)?(it.code||stem(it.sku||'')):(it.sku||it.code||'');
+    const name=isOil(it)?it.t+(it.tier?' – '+it.tier:''):it.t;
+    const desc=[code?'Art.-Nr. '+code:'',it.size?'Variante: '+it.size+(isOil(it)&&it.tier?' / '+it.tier:''):''].filter(Boolean).join(' · ');
+    li.push({name,description:desc,quantity:Math.round(qty*10000)/10000,unitName:unit,netAmount:Math.round(unitP*10000)/10000,discountPercentage:disc>0.004?Math.round(disc*100)/100:0})});
+  if(t.ship>0)li.push({name:'Versandkosten',quantity:1,unitName:'pauschal',netAmount:t.ship});
+  const cr=findCust(l.customer)||{},city=String(l.city||cr.city||'').trim(),m=/^(\d{4,5})\s+(.+)$/.exec(city);
+  return {name:l.customer,street:l.street||cr.street||'',zip:m?m[1]:'',city:m?m[2]:city,country:l.country||cr.country||'DE',lineItems:li,totalDiscountAbsolute:t.fix||0}}
+async function lexDraft(l,btn,out){if(!isAdmin())return;const o=btn.textContent;btn.disabled=true;btn.textContent='جاري إنشاء المسودة في Lexware…';out.textContent='';
+  try{const r=await srv('lex_draft',JSON.stringify(lexPayload(l)));await db.doc('lists/'+l.id).update({lex:{id:r.id,url:r.url,at:Date.now(),by:WHO()}});
+    btn.textContent='✓ تم إنشاء المسودة';const a=el('a','btn primary','🧾 فتح المسودة في Lexware');a.href=r.url;a.target='_blank';a.rel='noopener';out.append(a,el('p','note',r.kontakt?'رُبطت بالعميل الموجود في Lexware.':'العميل غير موجود في Lexware بنفس الاسم — العنوان مكتوب يدوياً في المسودة. راجع الضريبة لعملاء خارج ألمانيا.'))}
+  catch(e){btn.disabled=false;btn.textContent=o;const m=String(e.message||e);out.append(el('p','status err',/LEXWARE_KEY_FEHLT/.test(m)?'مفتاح Lexware غير مضبوط بعد في الخادم.':/Unbekannte Aktion/.test(m)?'الخادم لم يُحدَّث بعد لميزة Lexware.':/NUR_INHABER/.test(m)?'هذه الميزة للمدير فقط.':'فشل: '+m))}}
 let omId=null,omPushed=false,omSig='';
 function openOrder(id){
   omId=id;renderOrderModal();
