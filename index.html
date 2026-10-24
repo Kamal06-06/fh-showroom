@@ -3667,10 +3667,44 @@ function plProfiles(){
   return out.filter(P=>P.o)}
 const PL_ST={stop:['⏸ متوقف','open'],late:['⏳ متأخر','part'],ok:['✅ نشط','paid'],new:['🆕 جديد','paid'],one:['1️⃣ مرة واحدة','part']};
 function plContact(){return LS.get('plContact',{})||{}}
+function plMail(P){const nm=String(P.person||P.name).trim(),firma=P.person?P.name:'',t=P.topL.slice(0,2).map(x=>String(x).replace(/\s*·.*$/,'')).filter(Boolean);
+  const de=['DE','AT','CH','LI','LU'].includes(String(P.c||'DE').toUpperCase())||!P.c;
+  if(de)return{s:'Exklusiver Sonderrabatt für Gewerbekunden – Fragrance Hub Germany',b:'Guten Tag '+nm+',\n\n'+
+    'vielen Dank für Ihr bisheriges Vertrauen in Fragrance Hub Germany'+(firma?' und die Zusammenarbeit mit '+firma:'')+'.\n\n'+
+    'Ihre letzte Bestellung liegt bereits eine Weile zurück – deshalb möchten wir uns persönlich bei Ihnen melden und Sie auf ein besonderes Angebot aufmerksam machen:\n\n'+
+    'Für Gewerbekunden mit gültiger Umsatzsteuer-Identifikationsnummer (USt-IdNr.) haben wir einen exklusiven Sonderrabatt eingerichtet.\n\n'+
+    'So einfach geht es:\n'+
+    '1. Antworten Sie auf diese E-Mail und senden Sie uns Ihre USt-IdNr.\n'+
+    '2. Teilen Sie uns mit, welche Produkte und Mengen Sie benötigen'+(t.length?' (z. B. '+t.join(', ')+')':'')+'.\n'+
+    '3. Sie erhalten umgehend Ihr persönliches Angebot inklusive Sonderrabatt.\n\n'+
+    'Selbstverständlich gilt weiterhin:\n'+
+    '• Frische Abfüllung für jeden Auftrag – von der Probe bis zur Großmenge\n'+
+    '• Versand am selben Tag bei Bestellung bis 12:00 Uhr (Mo–Fr)\n'+
+    '• Lieferung in Deutschland in 1–2 Werktagen, EU-weit in 1–3 Werktagen\n\n'+
+    'Unser komplettes Sortiment finden Sie jederzeit online:\nhttps://fragranceshub.de\n\n'+
+    'Bei Fragen erreichen Sie uns telefonisch oder per WhatsApp unter +49 2361 4878835.\n\n'+
+    'Wir freuen uns, wieder von Ihnen zu hören.\n\n'+
+    'Mit freundlichen Grüßen\n\nFragrance Hub Germany\nAm Alten Kirchplatz 10 · 45665 Recklinghausen\nTel. / WhatsApp: +49 2361 4878835\nE-Mail: info@fragranceshub.de\nhttps://fragranceshub.de'};
+  return{s:'Exclusive special discount for business customers – Fragrance Hub Germany',b:'Dear '+nm+',\n\n'+
+    'thank you for your trust in Fragrance Hub Germany'+(firma?' and for the cooperation with '+firma:'')+'.\n\n'+
+    'It has been a while since your last order, so we would like to get in touch with you personally and introduce a special offer:\n\n'+
+    'For business customers with a valid VAT identification number (VAT ID), we have set up an exclusive special discount.\n\n'+
+    'It is simple:\n'+
+    '1. Reply to this e-mail and send us your VAT ID.\n'+
+    '2. Let us know which products and quantities you need'+(t.length?' (e.g. '+t.join(', ')+')':'')+'.\n'+
+    '3. You will promptly receive your personal offer including the special discount.\n\n'+
+    'As always:\n'+
+    '• Freshly filled for every order – from sample to bulk quantities\n'+
+    '• Same-day shipping for orders placed by 12:00 (Mon–Fri, CET)\n'+
+    '• Delivery within the EU in 1–3 working days, worldwide shipping available\n\n'+
+    'You can find our complete range online at any time:\nhttps://fragranceshub.de\n\n'+
+    'If you have any questions, you can reach us by phone or WhatsApp at +49 2361 4878835.\n\n'+
+    'We look forward to hearing from you.\n\n'+
+    'Kind regards\n\nFragrance Hub Germany\nAm Alten Kirchplatz 10 · 45665 Recklinghausen · Germany\nPhone / WhatsApp: +49 2361 4878835\nE-mail: info@fragranceshub.de\nhttps://fragranceshub.de'}}
 function plMsg(P){const first=String(P.person||P.name).trim().split(/\s+/)[0],t=P.topL[0]?String(P.topL[0]).replace(/\s*·.*$/,''):'';
   const de=['DE','AT','CH','LI','LU'].includes(String(P.c||'DE').toUpperCase())||!P.c;
-  return de?'Hallo '+first+',\nhier ist Fragrance Hub Germany. Wir haben länger nichts von Ihnen gehört – ist alles in Ordnung?\n'+(t?'Falls Sie wieder Nachschub brauchen (z. B. '+t+'), ':'Falls Sie wieder Nachschub brauchen, ')+'melden Sie sich gern – wir stellen Ihnen sofort ein Angebot zusammen.\nViele Grüße\nFragrance Hub Germany · +49 2361 4878835'
-    :'Hello '+first+',\nthis is Fragrance Hub Germany. We have not heard from you for a while – is everything fine?\n'+(t?'If you need a restock (e.g. '+t+'), ':'If you need a restock, ')+'just let us know and we will prepare an offer for you right away.\nBest regards\nFragrance Hub Germany · +49 2361 4878835'}
+  return de?'Hallo '+first+',\nhier ist Fragrance Hub Germany. Wir haben länger nichts von Ihnen gehört – ist alles in Ordnung?\n'+(t?'Falls Sie wieder Nachschub brauchen (z. B. '+t+'), ':'Falls Sie wieder Nachschub brauchen, ')+'melden Sie sich gern – wir stellen Ihnen sofort ein Angebot zusammen.\nFür Gewerbekunden mit USt-IdNr. haben wir einen exklusiven Sonderrabatt eingerichtet – senden Sie uns einfach Ihre USt-IdNr.\nUnser Sortiment: https://fragranceshub.de\nViele Grüße\nFragrance Hub Germany · +49 2361 4878835'
+    :'Hello '+first+',\nthis is Fragrance Hub Germany. We have not heard from you for a while – is everything fine?\n'+(t?'If you need a restock (e.g. '+t+'), ':'If you need a restock, ')+'just let us know and we will prepare an offer for you right away.\nFor business customers with a VAT ID we have set up an exclusive special discount – simply send us your VAT ID.\nOur range: https://fragranceshub.de\nBest regards\nFragrance Hub Germany · +49 2361 4878835'}
 function plLine(P){const d=t=>t?new Date(t).toLocaleDateString('de-DE'):'–';
   return 'آخر طلب '+d(P.last)+' (منذ '+P.since+' يوم)'+(P.iv?' · عادةً كل '+P.iv+' يوم':'')+' · '+P.o+' طلب · إجمالي '+money(P.u)}
 function plStopCount(){if(!PLK)return null;try{return plProfiles().filter(P=>P.st==='stop').length}catch(e){return null}}
@@ -3702,7 +3736,7 @@ function plSheet(start){if(!isAdmin())return;
         const a=el('div','row');a.style.cssText='gap:6px;flex-wrap:wrap;margin-top:6px';
         const mark=()=>{ct[P.key]=Date.now();LS.set('plContact',ct);draw(true)};
         if(P.p){const w=el('a','btn small ctc','💬 واتساب');w.href=custWa(P.p,plMsg(P));w.target='_blank';w.rel='noopener';w.onclick=mark;a.append(w)}
-        if(P.e){const m=el('a','btn small ctc','✉️ إيميل');const de=plMsg(P);m.href='mailto:'+P.e+'?subject='+encodeURIComponent(/^Hallo/.test(de)?'Fragrance Hub Germany – alles in Ordnung?':'Fragrance Hub Germany – everything fine?')+'&body='+encodeURIComponent(de);m.onclick=mark;a.append(m)}
+        if(P.e){const m=el('a','btn small ctc','✉️ إيميل');const ml=plMail(P);m.href='mailto:'+P.e+'?subject='+encodeURIComponent(ml.s)+'&body='+encodeURIComponent(ml.b);m.onclick=mark;a.append(m)}
         const g=custAll().find(x=>custKey(x.name)===P.key);if(g){const o=el('button','btn small','📂 طلبات الصالة');o.onclick=()=>{closeSheet();focusId=null;focusCust=g.key;tab('wh');renderLists()};a.append(o)}
         const mk=el('button','btn small',c?'↺ تواصلت مجدداً':'✓ تم التواصل');mk.onclick=mark;a.append(mk);r.append(a);box.append(r)});
       more.hidden=L.length<=lim};
