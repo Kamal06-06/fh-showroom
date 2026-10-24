@@ -173,6 +173,7 @@ details.od>.odb{padding:4px 12px 12px;display:flex;flex-direction:column;gap:8px
 .qchip small{color:var(--muted);font-weight:500;direction:ltr;unicode-bidi:isolate}.qchip img{width:26px;height:26px;object-fit:contain;border-radius:6px;background:#fff}.qchip:active{background:var(--gold-soft)}
 .qrep{width:100%;justify-content:center;border-color:var(--gold);background:var(--gold-soft);padding:12px 14px;border-radius:12px;font-weight:700}
 .adm-hide .adm-only{display:none!important}
+.ar-d{font-size:12.5px;font-weight:600;color:#8a5a00;direction:rtl;text-align:right;line-height:1.5;margin-top:2px;font-family:inherit}.chip .ar-d{font-size:12px;color:#7a5200;margin-top:4px}.chip.has-cap>span{display:flex;flex-direction:column}
 .pc-row{border:1px solid var(--line);border-inline-start:4px solid #d4880f;border-radius:10px;padding:10px 12px;margin:8px 0;background:var(--card,#fff)}.pc-row b{display:block}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom));z-index:9999;background:#141210;color:#fff;border:1px solid #c9a24a;border-radius:14px;padding:14px 18px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.35);max-width:min(92vw,520px);cursor:pointer;text-align:center}
 .readybar{background:var(--ok);color:#fff;border-radius:10px;padding:10px 12px;font-weight:700;margin:6px 0;text-align:center}
@@ -1174,7 +1175,7 @@ function itemRow(it,ix){
   const w=el('div','ir'+((it.price==null||it.price==='')?' ir-noprice':'')),top=el('div','ir-top');
   {const src=imgOf(it);if(src)top.append(mkImg(src,'ir-img'))}
   const m=el('div','ir-main');m.append(el('div','ir-name',it.t));
-  const sub=el('div','ir-sub');if(it.tier)sub.append(el('span','ir-tier',it.tier));{const cs=capOf(it);if(cs)sub.append(mkImg(cs,'capi'))}if(it.size)sub.append(el('span','ir-size',it.size));if(it.code)sub.append(el('span','ir-code',it.code));m.append(sub);
+  const sub=el('div','ir-sub');if(it.tier)sub.append(el('span','ir-tier',it.tier));{const cs=capOf(it);if(cs)sub.append(mkImg(cs,'capi'))}if(it.size)sub.append(el('span','ir-size',it.size));if(it.code)sub.append(el('span','ir-code',it.code));m.append(sub);{const ad=arOf(it);if(ad)m.append(arEl(ad))}
   if(it.grp){const ks=packs(it);if(ks.length>1){const ps=el('select','ir-pack');ps.setAttribute('aria-label','العبوة');ks.forEach(k=>{const o=el('option',null,k);o.value=k;ps.append(o)});ps.value=it.gk;
     ps.onchange=()=>{it.gk=ps.value;delete it.pm;grpApply(it);saveDraft();renderItems()};m.append(ps)}}
   const hasP=it.price!=null&&it.price!=='';
@@ -1265,6 +1266,26 @@ function capSrc(title,variant){const nrm=x=>fold(x).replace(/[^a-z0-9]+/g,'-').r
   const k=col&&shape+'-'+col;return k&&CAP_FILES.has(k)?'konfig/kappen/'+k+'.webp':''}
 /* Set nach Wahl: fertiges Modellbild je Kappe + mit/ohne Sprühkopf (konfig/set-mini/SET-…-KAPPE-S|O.webp) */
 const setSrc=sku=>{const m=/^(SET-[A-Z]{3}-\d{3}-[A-Z]{1,3}-[SO])-(M|K\d+)$/.exec(String(sku||'').trim().toUpperCase());return m?'konfig/set-mini/'+m[1]+'.webp':''};
+/* Arabische Kurzbeschreibung nur für Mitarbeiter (nicht in Kunden-PDFs): was genau zusammengestellt werden muss */
+const AR_SHAPE={kugel:'كروي',polo:'بولو',ribbed:'مضلّع',holz:'خشبي',zen:'زِن',eckig:'مربّع',zylinder:'أسطواني'};
+const AR_COL=[['weiss-gold','أبيض وذهبي'],['schwarz-gold','أسود وذهبي'],['schwarz-matt','أسود مطفي'],['schwarz-glaenzend','أسود لامع'],['schwarz-glanzend','أسود لامع'],['dunkelbraun','بني غامق'],['natur','خشب فاتح'],['silber','فضي'],['gold','ذهبي'],['weiss','أبيض'],['schwarz','أسود'],['glanz','لامع'],['matt','مطفي']];
+function arCap(seg,title){const n=fold(seg).replace(/[^a-z0-9]+/g,'-');const sh=Object.keys(AR_SHAPE).find(k=>n.includes(k))||(/zen/i.test(title||'')?'zen':'');
+  let rest=n;sh&&(rest=rest.replace(sh,''));const c=AR_COL.find(([k])=>new RegExp('(^|-)'+k+'(-|$)').test(rest));const cn=c?(sh==='holz'&&c[0]==='natur'?'فاتح':c[1]):'';return 'غطاء'+(sh?' '+AR_SHAPE[sh]:'')+(cn?' '+cn:'')}
+function arDesc(title,variant){const t=String(title||''),v=String(variant||''),ft=fold(t),segs=v.split(' / ').map(x=>x.trim());
+  const sq=splitQ(v),qs=sq?sq.q:'';let pack='';
+  {const m=/^Karton\s*à\s*(\d+)/i.exec(qs),n=/^(\d[\d.]*)\s*St/i.exec(qs);if(/^muster/i.test(qs))pack='عينة: سِت واحد';else if(m)pack='كرتون = '+m[1]+(/set\s*nach\s*wahl/i.test(t)?' سِت':' قطعة');else if(n)pack='العبوة: '+n[1]+' قطعة'}
+  let what='';
+  if(/set\s*nach\s*wahl/i.test(t)){const cs=segs.find(x=>/kappe|kugel|polo|ribbed|holz|eckig|zylinder|^gold$|schwarz|weiss|weiß/i.test(x)&&!/spr(ü|u)hkopf/i.test(x)&&!(sq&&x===sq.q))||'';
+    const noCap=/ohne\s*kappe/i.test(cs),spr=segs.some(x=>/^mit\s*spr/i.test(x));
+    what=noCap?'زجاجة + بخاخ فقط (بدون غطاء)':spr?'زجاجة + بخاخ + '+arCap(cs,t):'زجاجة + '+arCap(cs,t)+' (بدون بخاخ)'}
+  else if(/parf(ü|u)mkappe|^kappe/i.test(ft)||/kappe\s*\(/i.test(t)){const cs=segs.filter(x=>!(sq&&x===sq.q)).join(' ');what=arCap(t+' '+cs,t)+' فقط'}
+  else if(/spr(ü|u)hkopf|zerst(ä|a)uber|pumpe/i.test(t)&&!/flakon|flasche|ml\b/i.test(t.replace(/spr(ü|u)hkopf.*$/i,'')))what='بخاخ فقط';
+  else if(/mit\s*spr(ü|u)hkopf\s*(&|und)\s*kappe/i.test(t)){const cs=segs.filter(x=>!(sq&&x===sq.q)).join(' ');const c=AR_COL.find(([k])=>new RegExp('(^|-)'+k+'(-|$)').test(fold(cs).replace(/[^a-z0-9]+/g,'-')));what='زجاجة + بخاخ + غطاء'+(c?' '+c[1]:'')}
+  else if(/crimp|nur\s*flasche/i.test(t))what='زجاجة فقط (بدون بخاخ وبدون غطاء)';
+  else if(/roll-?on/i.test(t))what='زجاجة رول-أون';
+  return [what,pack].filter(Boolean).join(' · ')}
+const arOf=it=>isOil(it)?'':arDesc(it.t,it.size);
+const arEl=txt=>{const d=el('div','ar-d',txt);d.dir='rtl';d.lang='ar';return d};
 const capOf=it=>isOil(it)||setSrc(it.sku||it.code)?'':capSrc(it.t,it.size);
 const mkImg=(src,cls)=>{const im=el('img',cls);im.src=src;im.loading='lazy';im.alt='';im.onerror=()=>im.remove();return im};
 const itRab=it=>Math.min(100,Math.max(0,+it.rab||0));
@@ -1462,7 +1483,8 @@ function search(){
     const c=el('div','chips');
     opts.forEach(o=>{
       const b=el('button','chip',(o.label||'إضافة')+(o.price!=null?' · '+money(o.price):o.hint?' · '+o.hint:''));
-      if(!p.oil){const ss=setSrc(o.sku),cs=ss||capSrc(p.t,o.label);if(cs){b.classList.add('has-cap');const sp=el('span',null,b.textContent);b.textContent='';b.append(mkImg(cs,ss?'capi seti':'capi'),sp)}}
+      if(!p.oil){const ss=setSrc(o.sku),cs=ss||capSrc(p.t,o.label);if(cs){b.classList.add('has-cap');const sp=el('span',null,b.textContent);b.textContent='';b.append(mkImg(cs,ss?'capi seti':'capi'),sp)}
+        const ad=arDesc(p.t,o.grp?o.gb:(o.size||o.label));if(ad){if(!b.classList.contains('has-cap')){const sp=el('span',null,b.textContent);b.textContent='';b.classList.add('has-cap');b.append(sp)}b.querySelector('span').append(arEl(ad))}}
       if(o.off){b.disabled=true;b.textContent=o.label+' · لا يوجد '+size}
       b.onclick=()=>{addItem(Object.assign({t:p.t,a:p.a||'',oil:p.oil?1:0,tier:o.tier,code:o.code,size:o.size,sku:o.sku,price:o.price},o.src?{vk:o.vk,src:o.src}:{},o.grp?{gb:o.gb,gi:o.gi,grp:o.grp}:{}));$('q').value='';search();$('q').focus()};c.append(b)});
     r.append(info,c);box.append(r);
@@ -2794,7 +2816,7 @@ function buildCard(l,full){
         const q=el('div','iq',qtxt(i));const mid=el('div');
         if(isOil(i)){const pl=itPlatz(i),tl=String(i.tier||'').trim();const tg=el('div','ipl');tg.append(el('b',null,pl||'—'));if(tl)tg.append(el('span','ivq '+tl.charAt(0).toUpperCase(),tl));mid.append(tg)}
         mid.append(el('div','nm',i.t));if(i.code)mid.append(el('div','cd',i.code));
-        if(!isOil(i)&&i.size){const d=el('div','cd',i.size),cs=capOf(i);if(cs)d.prepend(mkImg(cs,'capi'));mid.append(d)}if(i.note)mid.append(el('div','nt','✎ '+i.note));
+        if(!isOil(i)&&i.size){const d=el('div','cd',i.size),cs=capOf(i);if(cs)d.prepend(mkImg(cs,'capi'));mid.append(d)}{const ad=arOf(i);if(ad)mid.append(arEl(ad))}if(i.note)mid.append(el('div','nt','✎ '+i.note));
         const sz=el('div','isz',isOil(i)?(i.size||''):'');const pr=el('div','pr2',(i.price!=null&&i.price!=='')?money(i.price)+(itRab(i)?' −'+itRab(i)+'%':''):'');
         const left=el('div');left.style.display='flex';left.style.gap='6px';left.style.alignItems='center';left.append(cb,q);{const src=imgOf(i);if(src)mid.prepend(mkImg(src,'ithumb'))}
         r.append(left,mid,sz,pr);odb.append(r)});
