@@ -486,6 +486,9 @@ button.pay::after{content:' ✎';opacity:.6;font-weight:400}
  header:has(#tab-back:not([hidden])) #tab-set{margin-inline-start:auto}
 }
 a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi:isolate}
+
+.ir-pack{width:100%}
+@media (max-width:640px){.ir-top{flex-wrap:wrap;row-gap:8px}.ir-main{flex:1 1 calc(100% - 60px)}.ir-q{margin-inline-start:auto}.ir-name{white-space:normal}}
 </style>
 </head>
 <body>
@@ -569,12 +572,13 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <h2><span class="step">1</span> العميل</h2>
       <div class="custbox"><label for="cust">اسم العميل <span id="cust-no" class="code"></span></label><input type="text" id="cust" autocomplete="off" placeholder="مثال: Parfümerie Müller"><div id="cust-sug" class="sug" hidden></div></div>
       <div id="cust-quick" class="quick" hidden></div>
+
+      <label class="clprow" id="kg-box"><input type="checkbox" id="kgprice"> تسعير بالكيلو لهذا العميل (100 / 250 / 500 غ من سعر 1 كغ) <span id="kg-st" class="code"></span></label>
+      <details class="sub" id="cust-more"><summary>واتساب · إيميل · العنوان · ملاحظة <span id="cust-more-s" class="code"></span></summary>
       <div class="row grow" style="margin-top:8px">
         <div><label for="cphone">💬 واتساب / هاتف · WhatsApp</label><input type="tel" id="cphone" dir="ltr" autocomplete="off" placeholder="+49 …"></div>
         <div><label for="cemail">✉️ الإيميل · E-Mail</label><input type="email" id="cemail" dir="ltr" autocomplete="off" placeholder="name@firma.de"></div>
       </div>
-      <label class="clprow" id="kg-box"><input type="checkbox" id="kgprice"> تسعير بالكيلو لهذا العميل (100 / 250 / 500 غ من سعر 1 كغ) <span id="kg-st" class="code"></span></label>
-      <details class="sub" id="cust-more"><summary>العنوان · الدولة · ملاحظة</summary>
       <div class="row grow">
         <div><label for="note">ملاحظة (اختياري)</label><input type="text" id="note" autocomplete="off" placeholder="مثال: يستلم خلال ساعة"></div>
       </div>
@@ -593,7 +597,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
     <div class="panel">
       <h2><span class="step">2</span> الأصناف</h2>
       <div>
-        <div class="lbl">كمية الزيت للأصناف التالية</div>
+        <div class="lbl">حجم الزيت عند الإضافة</div>
         <div class="sizes" id="sizes"></div>
       </div>
       <div class="searchrow">
@@ -1282,6 +1286,7 @@ $('cphone').value=draft.phone||'';$('cemail').value=draft.email||'';$('cphone').
 $('street').oninput=e=>{draft.street=e.target.value;saveDraft()};$('city').oninput=e=>{draft.city=e.target.value;saveDraft()};
 $('country').onchange=e=>{draft.country=e.target.value;saveDraft();showLang()}; $('rab').value=draft.rabatt||''; $('rabfix').value=draft.rabattFix||''; $('versand').value=draft.versand||'';
 function showCust(){
+  try{const cs=$('cust-more-s');if(cs)cs.textContent=[draft.phone,draft.city].filter(Boolean).join(' · ')}catch(e){}
   try{renderQuick()}catch(e){console.warn(e)}
   const c=findCust(draft.cust);$('cust-no').textContent=c?'· '+c.no:(draft.cust.trim()?'· عميل جديد':'');
   if(c&&c.kg&&!draft.kg&&!draft.kgOff){draft.kg=true;$('kgprice').checked=true;applyKg(draft.items,true);saveDraft();renderItems()}
@@ -1451,11 +1456,12 @@ function search(){
     const info=el('div','info');
     let opts=options(p);
     if(!p.oil){const seen=new Set();opts=opts.map((o,ix)=>{const g=grpOf(p,p.v[ix]);if(!g)return o;if(seen.has(g.gb))return null;seen.add(g.gb);
-      const ps=g.grp.map(x=>x.price).filter(x=>x!=null);return Object.assign({},o,g,{label:g.gb,price:null,from:ps.length?Math.min(...ps):null})}).filter(Boolean)}
+      const ps=g.grp.map(x=>x.price).filter(x=>x!=null);const mu=g.grp.find(x=>/^muster/i.test(x.q)),rest=g.grp.filter(x=>x!==mu&&x.price!=null),rk=rest.length?packKey(rest[0].q).replace(/\s*à.*$/,''):'';
+      return Object.assign({},o,g,{label:g.gb,price:null,from:null,hint:[mu&&mu.price!=null?'Muster '+money(mu.price):'',rest.length?rk+' ab '+money(Math.min(...rest.map(x=>x.price))):''].filter(Boolean).join(' · ')})}).filter(Boolean)}
     info.append(el('div','name',p.t));if(p.a)info.append(el('div','alias',p.a));info.append(el('div','code',opts[0]?opts[0].code:''));
     const c=el('div','chips');
     opts.forEach(o=>{
-      const b=el('button','chip',(o.label||'إضافة')+(o.price!=null?' · '+money(o.price):o.from!=null?' · ab '+money(o.from):''));
+      const b=el('button','chip',(o.label||'إضافة')+(o.price!=null?' · '+money(o.price):o.hint?' · '+o.hint:''));
       if(!p.oil){const ss=setSrc(o.sku),cs=ss||capSrc(p.t,o.label);if(cs){b.classList.add('has-cap');const sp=el('span',null,b.textContent);b.textContent='';b.append(mkImg(cs,ss?'capi seti':'capi'),sp)}}
       if(o.off){b.disabled=true;b.textContent=o.label+' · لا يوجد '+size}
       b.onclick=()=>{addItem(Object.assign({t:p.t,a:p.a||'',oil:p.oil?1:0,tier:o.tier,code:o.code,size:o.size,sku:o.sku,price:o.price},o.src?{vk:o.vk,src:o.src}:{},o.grp?{gb:o.gb,gi:o.gi,grp:o.grp}:{}));$('q').value='';search();$('q').focus()};c.append(b)});
