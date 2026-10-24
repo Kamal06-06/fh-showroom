@@ -326,6 +326,12 @@ details.sub[open]{padding-bottom:12px}
 .ir:first-child{border-top:0}
 .ir-top{display:flex;align-items:center;gap:10px;padding:10px 12px}
 .ir-img{width:42px;height:42px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:8px;flex:none}
+/* Kappen-Miniaturen */
+.chip.has-cap{display:inline-flex;align-items:center;gap:10px;text-align:start}
+.chip .capi{width:46px;height:46px;flex:none}
+img.capi{width:34px;height:34px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:8px;flex:none;padding:2px;box-sizing:border-box}
+.cd img.capi,.ir-sub img.capi{width:30px;height:30px;vertical-align:middle;margin-inline-end:6px}
+.lab img.capi{display:block;margin:4px auto 0}
 .ir-main{flex:1;min-width:0}
 .ir-name{font-weight:700;font-size:14.5px;line-height:1.3;direction:ltr;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ir-sub{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:2px;direction:ltr;justify-content:flex-end}
@@ -1128,7 +1134,7 @@ function itemRow(it,ix){
   const w=el('div','ir'),top=el('div','ir-top');
   {const src=imgOf(it);if(src)top.append(mkImg(src,'ir-img'))}
   const m=el('div','ir-main');m.append(el('div','ir-name',it.t));
-  const sub=el('div','ir-sub');if(it.tier)sub.append(el('span','ir-tier',it.tier));if(it.size)sub.append(el('span','ir-size',it.size));if(it.code)sub.append(el('span','ir-code',it.code));m.append(sub);
+  const sub=el('div','ir-sub');if(it.tier)sub.append(el('span','ir-tier',it.tier));{const cs=capOf(it);if(cs)sub.append(mkImg(cs,'capi'))}if(it.size)sub.append(el('span','ir-size',it.size));if(it.code)sub.append(el('span','ir-code',it.code));m.append(sub);
   const hasP=it.price!=null&&it.price!=='';
   m.append(el('div','ir-pr',hasP?money(it.price)+(it.unit==='kg'?' / kg':'')+' × '+qtxt(it).replace('×','')+' = '+money(lineTot(it))+(itRab(it)?' · −'+String(itRab(it)).replace('.',',')+' %':'')+(it.kg?' · سعر الكيلو':''):'بدون سعر — اضغط ⋯'));
   if(it.note)m.append(el('div','ir-note','✎ '+it.note));
@@ -1164,7 +1170,7 @@ function labelTile(it,editable,ix){
   if(editable)return itemRow(it,ix);
   const l=el('div','lab');
   {const src=imgOf(it);if(src)l.append(mkImg(src,'tthumb'))}
-  l.append(el('div','ln',it.t));
+  l.append(el('div','ln',it.t));{const cs=capOf(it);if(cs)l.append(mkImg(cs,'capi'))}
   if(it.code)l.append(el('div','lc',it.code));
   if(editable){
     const w=el('label','pr pe');const pi=el('input');pi.type='number';pi.step='0.01';pi.min='0';pi.inputMode='decimal';pi.id='pr-'+ix;
@@ -1205,6 +1211,17 @@ const qn=it=>it.unit==='kg'?1:(+it.q||1);
 const cntTxt=items=>{items=items||[];const a=items.length,pc=items.filter(i=>i.unit!=='kg'&&!(isOil(i)&&sizeG(i.size))),b=pc.reduce((s,i)=>s+qn(i),0),kg=Math.round(items.reduce((s,i)=>{if(pc.includes(i))return s;if(i.unit==='kg')return s+(+i.q||0);return s+sizeG(i.size)*(+i.q||1)/1000},0)*1000)/1000;return a+' صنف'+(kg?' · '+String(kg).replace('.',',')+' kg':'')+(b?' · '+b+' قطعة':'')};   /* pieces count (a line sold by kg counts as one) */
 const qtxt=it=>it.unit?(String(+it.q||1).replace('.',',')+' '+(it.unit==='kg'?'kg':'Stk')):((it.q||1)+'×');
 const imgOf=it=>{if(isOil(it))return '';const p=(catalog||[]).find(p=>p.t===it.t);return (p&&p.i)||''};
+/* Kappen-Miniatur aus konfig/kappen: erkennt Form + Farbe der gewählten Kappe im Varianten-/Produktnamen (Sets, Kappen) */
+const CAP_SHAPES=['kugel','polo','ribbed','holz','zen','eckig','zylinder'],CAP_COLS=['weiss-gold','schwarz-gold','dunkelbraun','natur','glanz','matt','gold','weiss','schwarz'],
+ CAP_FILES=new Set(['eckig-schwarz','holz-dunkelbraun','holz-natur','holz-schwarz','kugel-gold','kugel-schwarz','kugel-weiss','polo-schwarz-gold','polo-weiss-gold','ribbed-gold','ribbed-schwarz','zen-glanz','zen-gold','zen-matt','zylinder-weiss-gold']);
+function capSrc(title,variant){const nrm=x=>fold(x).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const segs=String(variant||'').split(' / ').map(nrm),all=nrm(title)+'-'+segs.join('-');
+  const shape=CAP_SHAPES.find(sh=>new RegExp('(^|-)'+sh+'(-|$)').test(segs.join('-')))||CAP_SHAPES.find(sh=>new RegExp('(^|-)(parfumkappe-)?'+sh+'(-|$)').test(nrm(title))&&/kappe/.test(nrm(title)));
+  if(!shape)return '';const seg=segs.find(x=>x.includes(shape))||segs.join('-');
+  const tail=seg.includes(shape)?seg.slice(seg.indexOf(shape)+shape.length):seg;
+  const col=CAP_COLS.find(c=>new RegExp('(^|-)'+c+'(-|$)').test(tail))||CAP_COLS.find(c=>new RegExp('(^|-)'+c+'(-|$)').test(seg));
+  const k=col&&shape+'-'+col;return k&&CAP_FILES.has(k)?'konfig/kappen/'+k+'.webp':''}
+const capOf=it=>isOil(it)?'':capSrc(it.t,it.size);
 const mkImg=(src,cls)=>{const im=el('img',cls);im.src=src;im.loading='lazy';im.alt='';im.onerror=()=>im.remove();return im};
 const itRab=it=>Math.min(100,Math.max(0,+it.rab||0));
 const r2=x=>Math.round(Number((((+x)||0)*100).toPrecision(12)))/100;   /* every amount is rounded to whole cents, like on an invoice */
@@ -1348,6 +1365,7 @@ function search(){
     const c=el('div','chips');
     opts.forEach(o=>{
       const b=el('button','chip',(o.label||'إضافة')+(o.price!=null?' · '+money(o.price):''));
+      if(!p.oil){const cs=capSrc(p.t,o.label);if(cs){b.classList.add('has-cap');const sp=el('span',null,b.textContent);b.textContent='';b.append(mkImg(cs,'capi'),sp)}}
       if(o.off){b.disabled=true;b.textContent=o.label+' · لا يوجد '+size}
       b.onclick=()=>{addItem(Object.assign({t:p.t,a:p.a||'',oil:p.oil?1:0,tier:o.tier,code:o.code,size:o.size,sku:o.sku,price:o.price},o.src?{vk:o.vk,src:o.src}:{}));$('q').value='';search();$('q').focus()};c.append(b)});
     r.append(info,c);box.append(r);
@@ -2662,7 +2680,7 @@ function buildCard(l,full){
         const q=el('div','iq',qtxt(i));const mid=el('div');
         if(isOil(i)){const pl=itPlatz(i),tl=String(i.tier||'').trim();const tg=el('div','ipl');tg.append(el('b',null,pl||'—'));if(tl)tg.append(el('span','ivq '+tl.charAt(0).toUpperCase(),tl));mid.append(tg)}
         mid.append(el('div','nm',i.t));if(i.code)mid.append(el('div','cd',i.code));
-        if(!isOil(i)&&i.size)mid.append(el('div','cd',i.size));if(i.note)mid.append(el('div','nt','✎ '+i.note));
+        if(!isOil(i)&&i.size){const d=el('div','cd',i.size),cs=capOf(i);if(cs)d.prepend(mkImg(cs,'capi'));mid.append(d)}if(i.note)mid.append(el('div','nt','✎ '+i.note));
         const sz=el('div','isz',isOil(i)?(i.size||''):'');const pr=el('div','pr2',(i.price!=null&&i.price!=='')?money(i.price)+(itRab(i)?' −'+itRab(i)+'%':''):'');
         const left=el('div');left.style.display='flex';left.style.gap='6px';left.style.alignItems='center';left.append(cb,q);{const src=imgOf(i);if(src)mid.prepend(mkImg(src,'ithumb'))}
         r.append(left,mid,sz,pr);odb.append(r)});
