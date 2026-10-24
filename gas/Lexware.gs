@@ -42,6 +42,14 @@ function lexKontakt_(name) {
   } catch (e) { Logger.log('lexKontakt_ ' + e.message); return null; }
 }
 
+/* Leistungsdatum: ein Auftrag → Lieferdatum; Sammelrechnung → Leistungszeitraum vom ersten bis zum letzten Auftrag */
+function lexLiefer_(p, datum, tz) {
+  var iso = function (s) { var d = /^\d{4}-\d{2}-\d{2}$/.test(s || '') ? new Date(s + 'T12:00:00') : null; return d ? Utilities.formatDate(d, tz, "yyyy-MM-dd'T'00:00:00.000XXX") : null; };
+  var f = iso(p.shipFrom), t = iso(p.shipTo);
+  if (f && t && p.shipFrom !== p.shipTo) return { shippingDate: f, shippingEndDate: t, shippingType: 'deliveryperiod' };
+  return { shippingDate: f || datum, shippingType: 'delivery' };
+}
+
 function lexEntwurf_(p) {
   if (!SR_ADMIN) throw new Error('NUR_INHABER');
   if (!p || !p.lineItems || !p.lineItems.length) throw new Error('Keine Positionen');
@@ -66,7 +74,7 @@ function lexEntwurf_(p) {
     }),
     totalPrice: { currency: 'EUR' },
     taxConditions: { taxType: 'net' },
-    shippingConditions: { shippingDate: datum, shippingType: 'delivery' },
+    shippingConditions: lexLiefer_(p, datum, tz),
     title: 'Rechnung'
   };
   if (p.totalDiscountAbsolute > 0) body.totalPrice.totalDiscountAbsolute = Math.round(p.totalDiscountAbsolute * 100) / 100;
