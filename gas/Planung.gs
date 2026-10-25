@@ -47,6 +47,7 @@ function plZeile_(o) {
 
 /** stündlich: neue/geänderte Bestellungen übernehmen (setzt nach Zeitlimit beim nächsten Lauf fort) */
 function plSync() {
+  plHb_('auftragsdaten');
   var lock = LockService.getScriptLock(); if (!lock.tryLock(5000)) return { busy: true };
   try {
     var start = Date.now(), props = PropertiesService.getScriptProperties();
@@ -249,12 +250,13 @@ function plMail_(o) {
 }
 
 /** Tageskontingent für E-Mails (Gmail-Grenze) */
-function plQuota_() { if (!SR_ADMIN) throw new Error('NUR_INHABER'); return { frei: MailApp.getRemainingDailyQuota(), von: fhAbsender_() || '' }; }
+var PL_MAIL_RESERVE = 25;   // für Zertifikate, Rechnungen, Antworten – Sammelversand nutzt nur den Rest
+function plQuota_() { if (!SR_ADMIN) throw new Error('NUR_INHABER'); return { frei: Math.max(0, MailApp.getRemainingDailyQuota() - PL_MAIL_RESERVE), von: fhAbsender_() || '' }; }
 
 /** Sammelversand: liste = [{k, to, s, b}] – jede E-Mail einzeln (persönlich), stoppt beim Tageskontingent */
 function plMailBulk_(liste) {
   if (!SR_ADMIN) throw new Error('NUR_INHABER');
-  var von = plVon_(), ok = [], fehler = [], frei = MailApp.getRemainingDailyQuota(), abm = plAbmeldungen_(), log = [];
+  var von = plVon_(), ok = [], fehler = [], frei = MailApp.getRemainingDailyQuota() - PL_MAIL_RESERVE, abm = plAbmeldungen_(), log = [];
   (liste || []).slice(0, 25).forEach(function (o) {
     if (frei <= 0) return;
     var to = String(o.to || '').trim();
@@ -343,6 +345,7 @@ function plAntwMail_(to, betreff, text) {
 }
 
 function plAntwortenLauf() {
+  plHb_('antworten');
   var lock = LockService.getScriptLock(); if (!lock.tryLock(5000)) return;
   try {
     var label = GmailApp.getUserLabelByName(PL_ANTW_LABEL) || GmailApp.createLabel(PL_ANTW_LABEL);
@@ -475,6 +478,7 @@ function etTelegram_(text, pdf) {
 }
 /** ersetzt etTelegramBefehle: /neu in der Etiketten-Gruppe wie bisher + /berichte verbindet den Berichte-Chat */
 function etTelegramBefehle() {
+  plHb_('telegram');
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) return;
   try {
@@ -536,6 +540,7 @@ var PL_ETK_VON = 7, PL_ETK_BIS = 19;
 function plEtikettZeit_() { var h = Number(Utilities.formatDate(new Date(), 'Europe/Berlin', 'H')); return h >= PL_ETK_VON && h < PL_ETK_BIS; }
 /** ersetzt processEtiketten aus CLP-Etikett.gs (gleicher Ablauf, nur mit Zeitfenster) */
 function processEtiketten() {
+  plHb_('etiketten');
   if (!plEtikettZeit_()) return;                 // nachts nichts senden – ab 07:00 wird nachgeholt
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(5000)) return;
@@ -566,4 +571,83 @@ function processEtiketten() {
       }
     });
   } finally { lock.releaseLock(); }
+}
+
+/* =====================================================================
+   Tägliche Prüfung (07:45) → Berichte-Chat: läuft alles? Fehler? Grenzen?
+   plPruefungJetzt() kann jederzeit von Hand gestartet werden (Ergebnis im Log + Telegram).
+   ===================================================================== */
+function plHb_(name) { try { PropertiesService.getScriptProperties().setProperty('HB_' + name, String(Date.now())); } catch (e) {} }
+var PL_PFLICHT = { processEtiketten: 'Etiketten (Shop)', etTelegramBefehle: 'Telegram-Befehle', processPaidOrders: 'Zertifikate nach Zahlung',
+  lagerShopifyLauf: 'Lager ← Shopify', plSync: 'Auftragsdaten', plAntwortenLauf: 'Kundenantworten', chStuendlich: 'Chargen/Zertifikate lesen',
+  zertQueueLauf: 'Zertifikat-Anfragen' };
+function plPruefung_() {
+  var ok = [], warn = [], p = PropertiesService.getScriptProperties(), alle = p.getProperties(), jetzt = Date.now();
+  var std = function (ms) { var m = Math.round((jetzt - ms) / 60000); return m < 120 ? m + ' Min.' : Math.round(m / 60) + ' Std.'; };
+  // 1) Trigger vorhanden / doppelt
+  var anz = {};
+  ScriptApp.getProjectTriggers().forEach(function (t) { var h = t.getHandlerFunction(); anz[h] = (anz[h] || 0) + 1; });
+  var fehlt = Object.keys(PL_PFLICHT).filter(function (h) { return !anz[h]; }).map(function (h) { return PL_PFLICHT[h]; });
+  var doppelt = Object.keys(anz).filter(function (h) { return anz[h] > 1; });
+  if (fehlt.length) warn.push('Automatik fehlt: ' + fehlt.join(', ')); else ok.push('Alle ' + Object.keys(PL_PFLICHT).length + ' Automatiken aktiv (' + ScriptApp.getProjectTriggers().length + ' Trigger)');
+  if (doppelt.length) warn.push('Doppelte Trigger (verbrauchen Laufzeit): ' + doppelt.map(function (h) { return h + ' ×' + anz[h]; }).join(', '));
+  // 2) Lebenszeichen
+  [['etiketten', 'Etiketten-Prüfung', 20], ['telegram', 'Telegram-Befehle', 20], ['auftragsdaten', 'Auftragsdaten', 150], ['antworten', 'Kundenantworten', 45]].forEach(function (x) {
+    var t = Number(alle['HB_' + x[0]] || 0);
+    if (!t) warn.push(x[1] + ': noch kein Lauf registriert');
+    else if (jetzt - t > x[2] * 60000) warn.push(x[1] + ': letzter Lauf vor ' + std(t)); else ok.push(x[1] + ' läuft (vor ' + std(t) + ')');
+  });
+  try {
+    var ev = lagerSS_().getSheetByName('Einstellungen').getDataRange().getValues(), ls = 0;
+    ev.forEach(function (r) { if (r[0] === 'Letzter Shopify-Lauf' && r[1] instanceof Date) ls = r[1].getTime(); });
+    if (!ls || jetzt - ls > 60 * 60000) warn.push('Lager ← Shopify: letzter Lauf ' + (ls ? 'vor ' + std(ls) : 'unbekannt')); else ok.push('Lager-Abgleich läuft (vor ' + std(ls) + ')');
+  } catch (e) { warn.push('Lager-Tabelle nicht lesbar: ' + e.message); }
+  // 3) Fehlermeldungen von Google (letzte 24 Std.)
+  try {
+    var th = GmailApp.search('from:apps-scripts-notifications@google.com newer_than:1d', 0, 10), zeilen = [];
+    th.forEach(function (t) { t.getMessages().forEach(function (m) {
+      if (jetzt - m.getDate().getTime() > 864e5) return;
+      String(m.getPlainBody()).split('\n').forEach(function (l) { l = l.trim(); if (/^\S+\s+(Exception|Error|TypeError|ReferenceError|Fehler|Exceeded|Service|Zeitüberschreitung|Timeout)/i.test(l) || /Exception:|Error:|exceeded|Überschritten|Zeitlimit/i.test(l)) zeilen.push(l.slice(0, 160)); });
+    }); });
+    var uniq = zeilen.filter(function (v, i, a) { return a.indexOf(v) === i; });
+    if (uniq.length) warn.push('Fehler laut Google (24 Std.):\n   • ' + uniq.slice(0, 8).join('\n   • ') + (uniq.length > 8 ? '\n   • … +' + (uniq.length - 8) : ''));
+    else ok.push('Keine Fehlermeldungen von Google');
+  } catch (e) { warn.push('Fehler-Mails nicht lesbar: ' + e.message); }
+  // 4) Etiketten hängen?
+  try {
+    var ab = p.getProperty('ETK_START_DATE'), grenze = new Date(jetzt - 75 * 60000).toISOString();
+    var offen = shopifyGraphQL('query($q:String!){orders(first:50,query:$q){nodes{name createdAt}}}',
+      { q: "created_at:>='" + ab + "' created_at:<'" + grenze + "' -status:cancelled -tag:" + ETIKETT.tag }).orders.nodes;
+    var tag = plEtikettZeit_();
+    if (offen.length && tag) warn.push('Bestellungen ohne Etikett (älter als 75 Min.): ' + offen.length + ' – ' + offen.slice(0, 6).map(function (o) { return o.name; }).join(', '));
+    else ok.push(offen.length ? offen.length + ' Nachtbestellungen warten auf 07:00' : 'Alle Bestellungen haben Etiketten');
+  } catch (e) { warn.push('Shopify nicht erreichbar: ' + e.message.slice(0, 120)); }
+  // 5) Grenzen
+  try { var q = MailApp.getRemainingDailyQuota(); (q < 20 ? warn : ok).push('E-Mail-Kontingent heute: noch ' + q); } catch (e) {}
+  var groesse = 0; Object.keys(alle).forEach(function (k) { groesse += k.length + String(alle[k]).length; });
+  var kb = Math.round(groesse / 1024);
+  (kb > 400 ? warn : ok).push('Skript-Speicher: ' + kb + ' KB von 500 KB (' + Object.keys(alle).length + ' Einträge)');
+  if (!fhAbsender_()) warn.push('Absender info@fragranceshub.de ist in Gmail nicht verfügbar – Kunden-E-Mails werden nicht gesendet');
+  else ok.push('Absender info@fragranceshub.de bereit');
+  try { var tk = p.getProperty('TELEGRAM_TOKEN'); var me = JSON.parse(UrlFetchApp.fetch('https://api.telegram.org/bot' + tk + '/getMe', { muteHttpExceptions: true }).getContentText()); (me.ok ? ok : warn).push(me.ok ? 'Telegram-Bot erreichbar' : 'Telegram-Bot Fehler'); } catch (e) { warn.push('Telegram nicht erreichbar'); }
+  if (!p.getProperty('TELEGRAM_CHAT_BERICHTE')) warn.push('Berichte-Chat nicht verbunden (/berichte senden)');
+  // 6) Kundenantworten der letzten 24 Std.
+  try {
+    var sh = lagerSS_().getSheetByName(PL_ANTW), n24 = 0;
+    if (sh && sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().forEach(function (r) { if (jetzt - new Date(r[0]).getTime() < 864e5) n24++; });
+    ok.push('Kundenantworten verarbeitet (24 Std.): ' + n24);
+  } catch (e) {}
+  return { ok: ok, warn: warn };
+}
+function plPruefungText_(r) {
+  var d = Utilities.formatDate(new Date(), 'Europe/Berlin', 'dd.MM.yyyy HH:mm');
+  return (r.warn.length ? '🩺 Tagesprüfung ' + d + ' – ⚠️ ' + r.warn.length + ' Hinweis(e)\n\n⚠️ ' + r.warn.join('\n⚠️ ') + '\n\n' : '🩺 Tagesprüfung ' + d + ' – ✅ alles in Ordnung\n\n') +
+         '✅ ' + r.ok.join('\n✅ ');
+}
+function plPruefungTaeglich() { var t = plPruefungText_(plPruefung_()); etTelegram_(t, null); return t; }
+function plPruefungJetzt() { var t = plPruefungTaeglich(); Logger.log(t); return t; }
+function plPruefungEinrichten() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'plPruefungTaeglich') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('plPruefungTaeglich').timeBased().everyDays(1).atHour(7).nearMinute(45).inTimezone('Europe/Berlin').create();
+  return plPruefungJetzt();
 }
