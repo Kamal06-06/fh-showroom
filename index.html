@@ -560,6 +560,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <button class="btn" id="menu" aria-controls="drawer" aria-expanded="false">☰ الطلبات <span class="badge" id="open-count" hidden>0</span></button>
  <span id="me-badge" hidden style="font-size:12px;color:var(--muted);align-self:center;white-space:nowrap"></span>
       <span id="syncdot" title="المزامنة" style="font-size:12px;color:var(--muted);align-self:center;white-space:nowrap"></span>
+      <button class="btn small" id="chat-btn" aria-label="دردشة الفريق" title="دردشة الفريق">💬<b id="chat-n" hidden></b></button>
       <button class="btn small" id="tab-set" aria-label="الإعدادات" title="الإعدادات">⚙️</button>
     </div>
   </header>
@@ -1100,7 +1101,7 @@ function openDebtSheet(d,presetName){
 }
 $('cu-new').onclick=$('acc-new').onclick=()=>openCustSheet(null);
 $('cu-debt').onclick=$('acc-debt').onclick=()=>openDebtSheet(null);
-$('h-shop').onclick=()=>{drawer(false);shopOpen()};$('nv-shop').onclick=()=>$('h-shop').click();
+$('h-shop').onclick=()=>{drawer(false);shopOpen()};$('chat-btn').onclick=()=>{chCss();chOpen()};$('nv-shop').onclick=()=>$('h-shop').click();
 $('cu-prof').onclick=()=>plSheet('stop');
 function renderCust(){
   const q=nz($('cu-q').value),box=$('cu-list');box.textContent='';
@@ -2341,7 +2342,7 @@ async function pregenClp(id,rec){
   }catch(e){console.warn('CLP pregen',e)}
 }
 let sheetPushed=false,skipPop=false,sheetBack=null;   /* sheetBack: Zurück-Taste im Fenster → vorherige Ansicht statt Startseite */
-function openSheet(t,fill){$('sheet-t').textContent=t;const b=$('sheet-b'),sb=0;[['settings-body','settings-holder'],['cs-form','cs-form-holder']].forEach(([x,h])=>{const e=$(x);if(e&&b.contains(e))$(h).append(e)});b.textContent='';sheetBack=null;fill(b);$('sheet').hidden=false;if(!IN_GAS&&!sheetPushed){try{history.pushState({sh:1},'');sheetPushed=true}catch(e){}}}
+function openSheet(t,fill){$('sheet-t').textContent=t;$('sheet').classList.toggle('chat',/^💬/.test(t));const b=$('sheet-b'),sb=0;[['settings-body','settings-holder'],['cs-form','cs-form-holder']].forEach(([x,h])=>{const e=$(x);if(e&&b.contains(e))$(h).append(e)});b.textContent='';sheetBack=null;fill(b);$('sheet').hidden=false;if(!IN_GAS&&!sheetPushed){try{history.pushState({sh:1},'');sheetPushed=true}catch(e){}}}
 function closeSheet(fromPop){if($('sheet').hidden)return;$('sheet').hidden=true;if(sheetPushed&&!fromPop){skipPop=true;try{history.back()}catch(e){skipPop=false}}sheetPushed=false}
 $('sheet-x').onclick=()=>closeSheet();$('sheet').onclick=e=>{if(e.target===$('sheet'))closeSheet()};
 let sheetFor='';
@@ -2947,6 +2948,7 @@ function buildCard(l,full){
     tog.onclick=async()=>{tog.disabled=true;try{await db.doc('lists/'+l.id).update({status:done?'new':'done',doneAt:Date.now()})}catch(e){tog.disabled=false}};
     c.append(tog);
     if(apIsDE(l)){const dn=l.dhl&&l.dhl.nr,db2=el('button','btn'+(dn?'':' primary'),dn?(apLand(l)==='DE'?'📦 DHL شحن داخلي ✅ ':'✈️ DHL شحن خارجي ✅ ')+(l.dhl.n>1?l.dhl.n+' طرود':dn):(apLand(l)==='DE'?'📦 ملصق DHL شحن داخلي':'✈️ ملصق DHL شحن خارجي'));db2.style.cssText='width:100%;margin-top:8px';db2.onclick=()=>apDhl(l);c.append(db2);if(!dn){const a=apAdr(l);if(a.a1&&a.plz)dhlVorGet({id:'AP-'+l.id,adr:a,kg:apKg(l)})}}
+    {const nb=el('button','btn','💬 ملاحظة للفريق عن هذا الطلب');nb.style.cssText='width:100%;margin-top:8px';nb.onclick=()=>{chCss();chOpen(null,{id:l.id,name:custLabel(l)})};c.append(nb)}
     if(claimsOf(l).length){const cb2=el('div','claimbox');cb2.append(el('b',null,'⚠️ مرتجعات / شكاوى ('+claimsOf(l).length+')'));claimsOf(l).forEach((x,i)=>cb2.append(claimRow(l,x,i,()=>{try{renderOrderModal()}catch(e){}})));c.append(cb2)}
     const acts=docsPanel(l);c.append(acts);
     if(isAdmin()){const lx=el('div','row grow');lx.style.margin='8px 0';const lo=el('div');
@@ -3656,6 +3658,141 @@ function pickHandle(text){
   if(!left)setTimeout(()=>{camMsg('✅ كل الزيوت جاهزة · Alle Öle bereit','ok');setTimeout(camStop,1600)},700);
 }
 
+/* ---------- 💬 Team-Chat: Text · Sprachnachricht · Foto · Bezug zu einem Auftrag (nur in der App, kein Telegram) ---------- */
+let CH={msgs:[],last:0,gelesen:{},ich:'',users:[]},chView=null,chRef=null,chTimer=0,chBusy=false,chLoaded=false;
+const CH_MED={};
+const chSc=()=>$('sheet-b').closest('.sh')||$('sheet-b');
+const chSeenGet=()=>LS.get('chSeen',{}),chSeenSet=(k,t)=>{const s=chSeenGet();if((s[k]||0)<t){s[k]=t;LS.set('chSeen',s)}};
+const chKey=m=>m.an==='alle'?'alle':(m.von===CH.ich?m.an:m.von);
+const chName=k=>k==='alle'?'👥 الفريق · الكل':k;
+const chTime=t=>{const d=new Date(t),n=new Date();return d.toDateString()===n.toDateString()?d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})};
+const chPrev=m=>m.typ==='audio'?'🎤 رسالة صوتية':m.typ==='bild'?'📷 صورة':m.text;
+function chUnread(k){const s=chSeenGet();return CH.msgs.filter(m=>m.von!==CH.ich&&(k==null||chKey(m)===k)&&m.at>(s[chKey(m)]||0))}
+function chBadge(){const n=chUnread().length,b=$('chat-n');if(b){b.textContent=n>99?'99+':n;b.hidden=!n}}
+function chOpenNow(){return !$('sheet').hidden&&/^💬/.test($('sheet-t').textContent)}
+function chSound(){if(LS.get('snd',true)===false)return;try{sndUnlock();const t=audioCtx.currentTime;[[740,0],[988,.13]].forEach(([f,o])=>{const s=audioCtx.createOscillator(),g=audioCtx.createGain();s.type='sine';s.frequency.value=f;g.gain.setValueAtTime(.18,t+o);g.gain.exponentialRampToValueAtTime(.001,t+o+.22);s.connect(g).connect(audioCtx.destination);s.start(t+o);s.stop(t+o+.25)})}catch(e){}}
+function chNotify(inc){const m=inc[inc.length-1],k=chKey(m);
+  if(chOpenNow()&&chView===k&&!document.hidden)return;
+  chSound();try{navigator.vibrate&&navigator.vibrate([120,60,120])}catch(e){}
+  toast('💬 '+m.von+(m.an==='alle'?' (للكل)':'')+': '+String(chPrev(m)).slice(0,80),()=>chOpen(k));
+  if(document.hidden&&'Notification' in window&&Notification.permission==='granted'&&navigator.serviceWorker){
+    navigator.serviceWorker.ready.then(r=>r.showNotification('💬 '+m.von,{body:String(chPrev(m)).slice(0,140),tag:'fh-chat',renotify:true,icon:'icon-192.png',badge:'icon-192.png',data:{chat:k}})).catch(()=>{})}}
+async function chPoll(){if(chBusy||IN_GAS)return;chBusy=true;
+  try{if(!chLoaded){chLoaded=true;const c=await IDB.get('chat');if(c&&c.msgs){CH.msgs=c.msgs;CH.last=c.last||0;CH.ich=c.ich||''}}
+    const first=!CH.last,r=await srv('chat_poll',JSON.stringify({seit:CH.last}));CH.ich=r.ich;CH.gelesen=r.gelesen||{};
+    if(r.msgs&&r.msgs.length){const have=new Set(CH.msgs.map(m=>m.id)),neu=r.msgs.filter(m=>!have.has(m.id));
+      CH.msgs=CH.msgs.filter(m=>!m.tmp||!neu.some(n=>n.von===m.von&&n.text===m.text&&n.typ===m.typ)).concat(neu).sort((a,b)=>a.at-b.at).slice(-600);
+      if(first)CH.msgs.forEach(m=>{if(m.von===CH.ich)chSeenSet(chKey(m),m.at)});
+      const inc=neu.filter(m=>m.von!==CH.ich);if(!first&&inc.length)chNotify(inc)}
+    CH.last=Math.max(CH.last,r.last||0);IDB.set('chat',{msgs:CH.msgs.filter(m=>!m.tmp),last:CH.last,ich:CH.ich});chBadge();chRedraw()}
+  catch(e){}chBusy=false}
+function chLoop(){clearTimeout(chTimer);chTimer=setTimeout(async()=>{await chPoll();chLoop()},document.hidden?30000:chOpenNow()?2500:10000)}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){chPoll();chLoop()}});
+if(!IN_GAS)setTimeout(()=>{chCss();chPoll();chLoop()},3000);
+if(!IN_GAS&&navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.chat)chOpen(e.data.chat)});
+function chCss(){if($('ch-css'))return;const s=document.createElement('style');s.id='ch-css';s.textContent=`
+#chat-btn{position:relative}#chat-n{position:absolute;top:-6px;inset-inline-end:-6px;background:#d93025;color:#fff;border-radius:999px;font-size:11px;min-width:18px;height:18px;line-height:18px;padding:0 5px;font-weight:700}
+#sheet.chat .sh{height:92vh;height:92dvh;max-height:none}
+.ch-list{display:flex;flex-direction:column;gap:8px}
+.ch-conv{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:11px 12px;font:inherit;color:var(--ink);text-align:start;cursor:pointer;width:100%}
+.ch-av{width:40px;height:40px;border-radius:50%;background:var(--gold-soft);color:var(--gold);display:grid;place-items:center;font-weight:800}
+.ch-conv b{display:block;font-size:15px}.ch-conv .pv{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-conv .rt{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:11px;color:var(--muted)}
+.ch-un{background:var(--gold);color:#fff;border-radius:999px;font-size:11px;font-weight:700;min-width:20px;height:20px;line-height:20px;text-align:center;padding:0 6px}
+.ch-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}.ch-top b{font-size:16px;flex:1}
+.ch-msgs{display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:6px 2px 10px;min-height:calc(92dvh - 250px)}
+.ch-day{align-self:center;font-size:11px;color:var(--muted);background:var(--soft);border-radius:999px;padding:2px 10px;margin:6px 0}
+.ch-b{max-width:82%;padding:8px 11px 5px;border-radius:16px;font-size:14.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 1px 1px #0001}
+.ch-b.in{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-start-start-radius:5px}
+.ch-b.out{align-self:flex-end;background:#f3e7c9;border-start-end-radius:5px;color:#1a1714}
+.ch-b .who{font-size:11.5px;font-weight:700;color:var(--gold);margin-bottom:2px}
+.ch-b .meta{font-size:10.5px;color:#8a8170;text-align:end;margin-top:2px;direction:ltr}
+.ch-b .meta .rd{color:#1d8ee6}
+.ch-ref{display:inline-flex;gap:4px;align-items:center;font-size:12px;background:#0000000d;border-radius:8px;padding:3px 8px;margin-bottom:4px;cursor:pointer;border:0;font-family:inherit;color:inherit}
+.ch-aud{display:flex;align-items:center;gap:8px;min-width:170px}.ch-aud button{width:34px;height:34px;border-radius:50%;border:0;background:var(--gold);color:#fff;font-size:14px;cursor:pointer;flex:none}
+.ch-aud .bar{flex:1;height:4px;border-radius:4px;background:#0002;overflow:hidden}.ch-aud .bar i{display:block;height:100%;width:0;background:var(--gold)}
+.ch-img{max-width:100%;border-radius:10px;display:block;margin-bottom:2px;cursor:zoom-in}
+.ch-imgph{border:0;background:#0000000d;border-radius:10px;padding:18px 22px;font:inherit;cursor:pointer;color:inherit}
+.ch-bar{position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom));background:var(--bg,#f6f2ea);padding:8px 0 12px;display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line)}
+.ch-row{display:flex;gap:6px;align-items:flex-end}
+.ch-row textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:20px;padding:10px 14px;font:inherit;font-size:15px;max-height:120px;background:var(--surface);color:var(--ink)}
+.ch-ic{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:18px;cursor:pointer;flex:none}
+.ch-send{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.ch-rec{display:flex;align-items:center;gap:10px;background:#fdecea;color:#b3261e;border-radius:20px;padding:8px 12px;font-weight:700}
+.ch-rec .dot{width:10px;height:10px;border-radius:50%;background:#d93025;animation:chp 1s infinite}@keyframes chp{50%{opacity:.2}}
+.ch-chip{display:flex;align-items:center;gap:6px;font-size:12.5px;background:var(--gold-soft);border-radius:10px;padding:5px 10px}
+.ch-chip button{border:0;background:none;font-size:14px;cursor:pointer;margin-inline-start:auto}
+.ch-to{display:flex;gap:6px;flex-wrap:wrap}
+`;document.head.append(s)}
+/* öffnen: ohne Ziel → Liste der Unterhaltungen; ref = {id,name} → Nachricht mit Bezug zu einem Auftrag */
+function chOpen(k,ref){chCss();if(ref)chRef=ref;chView=k||null;openSheet('💬 دردشة الفريق',b=>{chDraw(b)});
+  if('Notification' in window&&Notification.permission==='default')try{Notification.requestPermission()}catch(e){}
+  chPoll();chLoop();if(!CH.users.length)srv('chat_users').then(r=>{CH.users=r.users||[];CH.ich=r.ich||CH.ich;if(chOpenNow()&&!chView)chRedraw()}).catch(()=>{})}
+function chRedraw(){if(!chOpenNow())return;const b=$('sheet-b');if(chView){const box=b.querySelector('.ch-msgs');if(box){chFill(box);return}}chDraw(b)}
+function chDraw(b){b.textContent='';sheetBack=chView?()=>{chView=null;chDraw($('sheet-b'))}:null;if(!chView)return chListView(b);chConvView(b)}
+function chListView(b){
+  const ks=['alle'].concat((CH.users.length?CH.users:[...new Set(CH.msgs.map(m=>chKey(m)))]).filter(u=>u&&u!=='alle'&&u!==CH.ich));
+  CH.msgs.forEach(m=>{const k=chKey(m);if(!ks.includes(k))ks.push(k)});
+  const lastOf=k=>{for(let i=CH.msgs.length-1;i>=0;i--)if(chKey(CH.msgs[i])===k)return CH.msgs[i];return null};
+  ks.sort((a,c)=>a==='alle'?-1:c==='alle'?1:((lastOf(c)||{}).at||0)-((lastOf(a)||{}).at||0));
+  if(chRef)b.append(el('div','ch-chip','📦 اختر لمن تُرسل الملاحظة عن: '+chRef.name));
+  const L=el('div','ch-list');ks.forEach(k=>{const lm=lastOf(k),un=chUnread(k).length,r=el('button','ch-conv');
+    r.append(el('span','ch-av',k==='alle'?'👥':String(k).charAt(0).toUpperCase()));const mid=el('div');mid.append(el('b',null,chName(k)),el('div','pv',lm?(lm.von===CH.ich?'أنت: ':(k==='alle'?lm.von+': ':''))+chPrev(lm):'لا توجد رسائل بعد'));
+    const rt=el('div','rt',lm?chTime(lm.at):'');if(un)rt.append(el('span','ch-un',String(un)));r.append(mid,rt);r.onclick=()=>{chView=k;chDraw(b)};L.append(r)});
+  b.append(L);b.append(el('p','hint','الرسائل داخل التطبيق فقط. تصل خلال ثوانٍ، مع صوت تنبيه واهتزاز. للرسالة الصوتية: 🎤 ثم ⏹ للإرسال.'))}
+function chConvView(b){const k=chView,top=el('div','ch-top'),bk=el('button','btn small','←');bk.onclick=()=>{chView=null;chDraw(b)};
+  top.append(bk,el('b',null,chName(k)));b.append(top);
+  const box=el('div','ch-msgs');b.append(box);chFill(box);
+  const bar=el('div','ch-bar');b.append(bar);chBar(bar,box);
+  setTimeout(()=>{const sb=chSc();sb.scrollTop=sb.scrollHeight},30)}
+function chFill(box){const k=chView,L=CH.msgs.filter(m=>chKey(m)===k),sb=chSc(),atEnd=sb.scrollHeight-sb.scrollTop-sb.clientHeight<120;
+  box.textContent='';if(!L.length)box.append(el('p','hint','ابدأ المحادثة 👇'));let day='';
+  L.forEach(m=>{const d=new Date(m.at).toLocaleDateString('de-DE');if(d!==day){day=d;box.append(el('div','ch-day',d===new Date().toLocaleDateString('de-DE')?'اليوم':d))}
+    const out=m.von===CH.ich,bb=el('div','ch-b '+(out?'out':'in'));if(!out&&k==='alle')bb.append(el('div','who',m.von));
+    if(m.ref){const [rid,rn]=String(m.ref).split('|'),c=el('button','ch-ref','📦 '+(rn||'طلب'));c.onclick=()=>{closeSheet();try{openOrder(rid)}catch(e){}};bb.append(c,document.createElement('br'))}
+    if(m.typ==='audio')bb.append(chAudio(m));else if(m.typ==='bild')bb.append(chImg(m));if(m.text)bb.append(document.createTextNode(m.text));
+    const meta=el('div','meta',chTime(m.at));if(out){if(m.tmp)meta.append(m.err?' ⚠️':' 🕓');else{const rd=chReadBy(m);const t=el('span',rd?'rd':'',rd?' ✓✓':' ✓');if(rd&&k==='alle')t.title='قرأها: '+rd;meta.append(t)}}
+    if(m.err){const rt=el('button','ch-ref','⚠️ لم تُرسل – اضغط لإعادة الإرسال');rt.onclick=()=>chResend(m);bb.append(rt)}
+    bb.append(meta);box.append(bb)});
+  const inc=L.filter(m=>m.von!==CH.ich);if(inc.length&&!document.hidden){const t=inc[inc.length-1].at,s=chSeenGet();if((s[k]||0)<t){chSeenSet(k,t);chBadge();srv('chat_read',JSON.stringify({conv:k,bis:t})).catch(()=>{})}}
+  if(atEnd)setTimeout(()=>{sb.scrollTop=sb.scrollHeight},20)}
+function chReadBy(m){const g=CH.gelesen||{};if(m.an==='alle'){const w=Object.keys(g).filter(x=>x.endsWith('|alle')&&g[x]>=m.at).map(x=>x.split('|')[0]).filter(u=>u!==CH.ich);return w.join('، ')}return (g[m.an+'|'+CH.ich]||0)>=m.at?m.an:''}
+async function chGetMed(m){if(CH_MED[m.med])return CH_MED[m.med];const r=await srv('chat_media',JSON.stringify({key:m.med}));const bl=b64blob(r.b64);const f=new Blob([bl],{type:r.mime||bl.type});CH_MED[m.med]=URL.createObjectURL(f);return CH_MED[m.med]}
+function chAudio(m){const w=el('div','ch-aud'),pb=el('button',null,'▶'),bar=el('div','bar'),i=el('i'),t=el('span',null,m.dauer?Math.floor(m.dauer/60)+':'+String(Math.round(m.dauer%60)).padStart(2,'0'):'');bar.append(i);w.append(pb,bar,t);let au=null;
+  pb.onclick=async()=>{try{if(!au){pb.textContent='…';const u=m.url||await chGetMed(m);au=new Audio(u);au.ontimeupdate=()=>{if(au.duration&&isFinite(au.duration))i.style.width=(100*au.currentTime/au.duration)+'%'};au.onended=()=>{pb.textContent='▶';i.style.width='0'}}
+    if(au.paused){await au.play();pb.textContent='⏸'}else{au.pause();pb.textContent='▶'}}catch(e){pb.textContent='▶';toast('⚠️ '+(e.message||e))}};return w}
+function chImg(m){const ph=el('button','ch-imgph','📷 صورة · اضغط للعرض');const show=u=>{const im=el('img','ch-img');im.src=u;im.onclick=()=>window.open(u,'_blank');ph.replaceWith(im)};
+  if(m.url||CH_MED[m.med])setTimeout(()=>show(m.url||CH_MED[m.med]),0);ph.onclick=async()=>{ph.textContent='…';try{show(await chGetMed(m))}catch(e){ph.textContent='⚠️ '+e.message}};return ph}
+function chBar(bar,box){const k=chView;
+  if(k!=='alle'||true){}
+  const chip=el('div');bar.append(chip);const drawChip=()=>{chip.textContent='';if(chRef){const c=el('div','ch-chip','📦 مرتبطة بالطلب: '+chRef.name),x=el('button',null,'✕');x.onclick=()=>{chRef=null;drawChip()};c.append(x);chip.append(c)}};drawChip();
+  const row=el('div','ch-row'),cam=el('button','ch-ic','📷'),mic=el('button','ch-ic','🎤'),ta=el('textarea'),snd=el('button','ch-ic ch-send','➤');ta.rows=1;ta.placeholder='اكتب رسالة…';ta.dir='auto';
+  ta.oninput=()=>{ta.style.height='auto';ta.style.height=Math.min(120,ta.scrollHeight)+'px'};
+  row.append(cam,mic,ta,snd);bar.append(row);
+  const file=el('input');file.type='file';file.accept='image/*';file.capture='environment';file.hidden=true;bar.append(file);
+  snd.onclick=()=>{const t=ta.value.trim();if(!t)return;ta.value='';ta.oninput();chSendMsg({typ:'text',text:t})};
+  cam.onclick=()=>file.click();
+  file.onchange=async()=>{const f=file.files[0];file.value='';if(!f)return;try{const {b64,url}=await chShrink(f);chSendMsg({typ:'bild',b64,mime:'image/jpeg',url,text:ta.value.trim()});ta.value=''}catch(e){toast('⚠️ '+e.message)}};
+  let rec=null,chunks=[],t0=0,tick=0;
+  mic.onclick=async()=>{if(rec)return;if(!navigator.mediaDevices||!window.MediaRecorder)return toast('⚠️ التسجيل غير مدعوم في هذا المتصفح');
+    let st;try{st=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){return toast('⚠️ اسمح للتطبيق باستخدام الميكروفون')}
+    const mt=['audio/webm;codecs=opus','audio/mp4','audio/ogg;codecs=opus','audio/webm'].find(x=>MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(x))||'';
+    rec=new MediaRecorder(st,mt?{mimeType:mt,audioBitsPerSecond:24000}:{});chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};rec.start(250);t0=Date.now();
+    const rb=el('div','ch-rec'),dot=el('span','dot'),tm=el('span',null,'0:00'),stop=el('button','ch-ic ch-send','⏹'),cx=el('button','ch-ic','✕');rb.append(dot,tm,el('span',null,'جاري التسجيل…'));rb.style.flex='1';
+    row.hidden=true;const rr=el('div','ch-row');rr.append(cx,rb,stop);bar.append(rr);
+    tick=setInterval(()=>{const s=Math.round((Date.now()-t0)/1000);tm.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');if(s>=120)stop.click()},300);
+    const end=send=>{clearInterval(tick);rec.onstop=async()=>{st.getTracks().forEach(t=>t.stop());rr.remove();row.hidden=false;const dauer=(Date.now()-t0)/1000;const r2=rec;rec=null;
+        if(!send||dauer<0.8)return;const bl=new Blob(chunks,{type:r2.mimeType||mt||'audio/webm'});const url=URL.createObjectURL(bl);chSendMsg({typ:'audio',b64:await blob64(bl),mime:bl.type,url,dauer:Math.round(dauer)})};rec.stop()};
+    stop.onclick=()=>end(true);cx.onclick=()=>end(false)}}
+function chShrink(f){return new Promise((ok,no)=>{const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{const m=1280,s=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+  c.toBlob(async b=>{URL.revokeObjectURL(u);if(!b)return no(new Error('تعذّرت قراءة الصورة'));ok({b64:await blob64(b),url:URL.createObjectURL(b)})},'image/jpeg',0.72)};im.onerror=()=>no(new Error('تعذّرت قراءة الصورة'));im.src=u})}
+async function chSendMsg(x){const k=chView||'alle',m=Object.assign({id:'tmp'+Date.now(),tmp:1,at:Date.now(),von:CH.ich||WHO()||'Inhaber',an:k},x);
+  if(chRef){m.ref=chRef.id+'|'+chRef.name;m._ref=chRef;chRef=null}CH.msgs.push(m);chRedraw();
+  const sb=chSc();setTimeout(()=>{sb.scrollTop=sb.scrollHeight},30);await chPush(m)}
+async function chPush(m){m.err=0;try{const r=await srv('chat_send',JSON.stringify({an:m.an,text:m.text||'',typ:m.typ,b64:m.b64,mime:m.mime,dauer:m.dauer,ref:m._ref?m._ref.id:'',refName:m._ref?m._ref.name:''}));
+    if(r.med&&m.url)CH_MED[r.med]=m.url;Object.assign(m,r);delete m.tmp;delete m.b64;delete m.err;CH.last=Math.max(CH.last,0);IDB.set('chat',{msgs:CH.msgs.filter(z=>!z.tmp),last:CH.last,ich:CH.ich})}
+  catch(e){m.err=1;toast('⚠️ لم تُرسل الرسالة: '+(e.message||e))}chRedraw()}
+function chResend(m){chPush(m)}
 /* ---------- 🛒 Shop-Bestellungen: eigener Bereich mit Passwort – liest nur aus Shopify, KEIN Einfluss auf Lager, Inventur oder Kundenkonten ---------- */
 let SO={orders:[],at:0},soTab='open',soSel=null;
 const soPw=()=>{const x=LS.get('soPw',null);return x&&Date.now()-x.t<12*3600e3?x.p:''};

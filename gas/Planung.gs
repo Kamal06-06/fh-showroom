@@ -1479,3 +1479,85 @@ function dhlxDruck_(o) {
   if (!b64s.length) throw new Error('Keine Dateien gefunden');
   return { ok: true, b64s: b64s };
 }
+
+/* =====================================================================
+   💬 Team-Chat in der Showroom-App – Text, Sprachnachricht, Foto, Bezug zu einem Auftrag
+   • Blatt „Team-Chat“ (Nachrichten) + „Team-Chat-Medien“ (Ton/Bild als base64, in Teilen)
+   • schnelles Abfragen: Cache-Zeitstempel → ohne neue Nachricht kein Blattzugriff
+   • Medien älter als 30 Tage werden gelöscht
+   App-Aktionen: chat_poll, chat_send, chat_media, chat_read, chat_users
+   ===================================================================== */
+var CHAT_BLATT = 'Team-Chat', CHAT_MED = 'Team-Chat-Medien';
+function chatBlatt_(name, kopf) {
+  var ss = lagerSS_(), sh = ss.getSheetByName(name);
+  if (!sh) { sh = ss.insertSheet(name); sh.getRange(1, 1, 1, kopf.length).setValues([kopf]).setFontWeight('bold'); sh.setFrozenRows(1); sh.getRange('A:A').setNumberFormat('@'); }
+  return sh;
+}
+function chatSh_() { return chatBlatt_(CHAT_BLATT, ['ID', 'Zeit', 'Von', 'An', 'Text', 'Typ', 'Auftrag', 'Medium', 'Dauer']); }
+function chatMedSh_() { return chatBlatt_(CHAT_MED, ['Schlüssel', 'Zeit', 'MIME', 'Daten (base64, in Teilen)']); }
+function chatIch_() { return String(SR_USER || 'Inhaber'); }
+function chatLast_() {
+  var c = CacheService.getScriptCache(), v = c.get('CHAT_LAST');
+  if (v == null) { v = PropertiesService.getScriptProperties().getProperty('CHAT_LAST') || '0'; c.put('CHAT_LAST', v, 21600); }
+  return Number(v) || 0;
+}
+function chatLeser_() {
+  var c = CacheService.getScriptCache(), v = c.get('CHAT_READ');
+  if (v == null) { v = PropertiesService.getScriptProperties().getProperty('CHAT_READ') || '{}'; c.put('CHAT_READ', v, 21600); }
+  try { return JSON.parse(v) || {}; } catch (e) { return {}; }
+}
+function chatSichtbar_(m, ich) { return m.an === 'alle' || m.an === ich || m.von === ich; }
+/** o = { seit } → neue Nachrichten seit Zeitstempel (nur die für mich sichtbaren) + Lesestände */
+function chatPoll_(o) {
+  var seit = Number(o && o.seit) || 0, last = chatLast_(), ich = chatIch_(), out = { last: last, ich: ich, msgs: [], gelesen: chatLeser_() };
+  if (seit && seit >= last) return out;
+  var sh = chatSh_(), n = sh.getLastRow(); if (n < 2) return out;
+  var ab = Math.max(2, n - (seit ? 400 : 300) + 1), rows = sh.getRange(ab, 1, n - ab + 1, 9).getValues();
+  rows.forEach(function (r) {
+    var m = { id: String(r[0]), at: Number(r[1]) || 0, von: String(r[2]), an: String(r[3]), text: String(r[4] || ''), typ: String(r[5] || 'text'), ref: String(r[6] || ''), med: String(r[7] || ''), dauer: Number(r[8]) || 0 };
+    if (m.at > seit && chatSichtbar_(m, ich)) out.msgs.push(m);
+  });
+  return out;
+}
+/** o = { an, text, typ:'text'|'audio'|'bild', ref, refName, b64, mime, dauer } */
+function chatSend_(o) {
+  var ich = chatIch_(), typ = /^(audio|bild)$/.test(o.typ) ? o.typ : 'text', text = String(o.text || '').slice(0, 4000);
+  if (typ === 'text' && !text.trim()) throw new Error('Leere Nachricht');
+  var an = String(o.an || 'alle'), now = Date.now(), id = now.toString(36) + Math.random().toString(36).slice(2, 6), med = '';
+  if (typ !== 'text') {
+    var b = String(o.b64 || ''); if (!b) throw new Error('Datei fehlt'); if (b.length > 2.5e6) throw new Error('Datei zu groß');
+    med = 'M' + id; var teile = []; for (var i = 0; i < b.length; i += 45000) teile.push(b.slice(i, i + 45000));
+    var ms = chatMedSh_(); ms.appendRow([med, now, String(o.mime || '')].concat(teile));
+    if (Math.random() < 0.05) chatAufraeumen_();
+  }
+  var ref = o.ref ? String(o.ref) + (o.refName ? '|' + String(o.refName).slice(0, 80) : '') : '';
+  chatSh_().appendRow([id, now, ich, an, text, typ, ref, med, Number(o.dauer) || 0]);
+  CacheService.getScriptCache().put('CHAT_LAST', String(now), 21600);
+  PropertiesService.getScriptProperties().setProperty('CHAT_LAST', String(now));
+  return { id: id, at: now, von: ich, an: an, text: text, typ: typ, ref: ref, med: med, dauer: Number(o.dauer) || 0 };
+}
+function chatMedia_(o) {
+  var key = String(o && o.key || ''); if (!/^M[a-z0-9]+$/.test(key)) throw new Error('Medium fehlt');
+  var sh = chatMedSh_(), f = sh.getRange('A:A').createTextFinder(key).matchEntireCell(true).findNext();
+  if (!f) throw new Error('Medium nicht mehr vorhanden (älter als 30 Tage)');
+  var r = sh.getRange(f.getRow(), 1, 1, Math.max(4, sh.getLastColumn())).getValues()[0];
+  return { mime: String(r[2]), b64: r.slice(3).join('') };
+}
+/** o = { conv, bis } – „gelesen bis“ je Unterhaltung speichern (für ✓✓ beim Absender). Schlüssel: Leser|Unterhaltung */
+function chatRead_(o) {
+  var ich = chatIch_(), conv = String(o && o.conv || 'alle').slice(0, 60), bis = Number(o && o.bis) || 0, r = chatLeser_(), k = ich + '|' + conv;
+  if ((r[k] || 0) >= bis) return r;
+  r[k] = bis; var v = JSON.stringify(r);
+  CacheService.getScriptCache().put('CHAT_READ', v, 21600); PropertiesService.getScriptProperties().setProperty('CHAT_READ', v);
+  return r;
+}
+function chatUsers_() {
+  var n = ['Inhaber']; srUsers_().forEach(function (u) { if (u && u.name && u.on !== false && n.indexOf(String(u.name)) < 0) n.push(String(u.name)); });
+  return { ich: chatIch_(), users: n };
+}
+function chatAufraeumen_() {
+  var sh = chatMedSh_(), n = sh.getLastRow(); if (n < 2) return;
+  var grenze = Date.now() - 30 * 864e5, d = sh.getRange(2, 2, n - 1, 1).getValues(), weg = 0;
+  while (weg < d.length && Number(d[weg][0]) && Number(d[weg][0]) < grenze) weg++;
+  if (weg) sh.deleteRows(2, weg);
+}
