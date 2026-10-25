@@ -4151,8 +4151,11 @@ function soLsPdf(orders){
   const lat=s=>latin(String(s==null?'':s).replace(/·/g,'·'));
   const T=(s,x,y,o)=>{o=o||{};doc.setFont(o.font||'helvetica',o.b?'bold':'normal');doc.setFontSize(o.pt||P(12));doc.setTextColor(...(o.c||NAVY));doc.setCharSpace(o.cs||0);doc.text(lat(s),x,y,{align:o.al||'left',maxWidth:o.mw});doc.setCharSpace(0)};
   const tw=(s,pt,b,cs)=>{doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(pt);return doc.getTextWidth(lat(s))+(cs||0)*lat(s).length};
-  orders.forEach((o,oi)=>{if(oi)doc.addPage();const D=soLsData(o),dt=new Date(o.at);let y=14;
-    const need=h=>{if(y+h>BOT){doc.addPage();y=14}};
+  orders.forEach((o,oi)=>{if(oi)doc.addPage();const D=soLsData(o),dt=new Date(o.at);let y=14;const pg0=doc.getNumberOfPages();
+    const kunde=(o.liefer&&(o.liefer.firma||o.liefer.name))||o.kunde||o.name||'';
+    /* Folgeseite: oben Bestellnummer + Kunde, damit beim Sammeldruck jede Seite zuzuordnen ist */
+    const need=h=>{if(y+h>BOT){doc.addPage();y=12;doc.setFillColor(243,236,220);doc.rect(L,y,W,M(34),'F');
+      T('Bestellung '+o.nr,L+M(10),y+M(22),{b:1,pt:P(16)});T(kunde+'  ·  Fortsetzung',R-M(10),y+M(22),{pt:P(12),c:GRAY,al:'right',mw:W/2});y+=M(34)+M(10)}};
     /* Kopf */
     T('FRAGRANCE HUB',L,y+M(24),{font:'times',b:1,pt:P(24),c:GOLD,cs:M(.5)});T('GERMANY',L,y+M(24)+M(16),{font:'times',pt:P(13),c:GOLD,cs:M(4)});
     T('LIEFERSCHEIN',R,y+M(20),{b:1,pt:P(22),al:'right',cs:M(1)});T('Bestellung '+o.nr,R,y+M(20)+M(20),{b:1,pt:P(16),al:'right'});
@@ -4220,7 +4223,10 @@ function soLsPdf(orders){
     T('Gepackt von / Datum',L,y+M(14),{pt:P(11),c:GRAY});T('Geprüft von',L+hw+M(24),y+M(14),{pt:P(11),c:GRAY});
     y+=M(14)+M(28)+M(10);const mx=(L+R)/2;T('Vielen Dank für Ihre Bestellung!',mx,y,{pt:P(11),c:GRAY,al:'center'});y+=M(26);
     T('Fragrance Hub Germany',mx,y,{b:1,pt:P(11),al:'center'});y+=M(14);T('Am Alten Kirchplatz 10, 45665 Recklinghausen, Deutschland',mx,y,{pt:P(11),c:GRAY,al:'center'});y+=M(14);
-    T('info@fragranceshub.de · fragranceshub.de',mx,y,{pt:P(11),c:GRAY,al:'center'})});
+    T('info@fragranceshub.de · fragranceshub.de',mx,y,{pt:P(11),c:GRAY,al:'center'});
+    /* Fußzeile auf jeder Seite dieser Bestellung: Bestellnummer, Kunde, Seite x / n */
+    {const pg1=doc.getNumberOfPages(),n=pg1-pg0+1;for(let k=pg0;k<=pg1;k++){doc.setPage(k);doc.setDrawColor(200);doc.setLineWidth(M(1));doc.line(L,BOT+2,R,BOT+2);
+      T('Bestellung '+o.nr+'  ·  '+kunde,L,BOT+6.5,{b:1,pt:P(11),mw:W*0.7});T('Seite '+(k-pg0+1)+' / '+n,R,BOT+6.5,{b:1,pt:P(12),al:'right',c:n>1?RED:NAVY})}doc.setPage(pg1)}});
   return doc}
 /* Drucken: 'a4' → Druck-Warteschlange → Mini-PC → Brother A4 im Lager · 'pdf' → hier drucken/teilen */
 async function soLsPrint(orders,btn,mode){const ob=btn.innerHTML;btn.disabled=true;btn.textContent='جاري التجهيز…';
