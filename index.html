@@ -2248,15 +2248,15 @@ const CLP_GR=[7,6.5,6,5.5,5,4.5,4,3.5,3.2,3];
 function clpFit(doc,e){const avail=46;for(const s of CLP_GR){const h=clpLabel(doc,e,s,0,false);if(h<=avail)return {s,oy:2.5+(avail-h)/2}}return {s:3,oy:2.5}}
 /* Probe-Etikett 40 × 30 mm */
 function clpProbe(doc,x,draw,f,oy){
-  const lx=1.5,w=37,C='center';let y=oy;
-  if(x.fhLogo){let h=4*f,lw=x.fhLogo.w*h/x.fhLogo.h;if(lw>w-1){lw=w-1;h=lw*x.fhLogo.h/x.fhLogo.w}clpPic(doc,x.fhLogo,lx+(w-lw)/2,y,lw,h,draw);y+=h+0.5*f}
-  y+=clpPara(doc,[{t:x.name,st:'bold'}],lx,y,w,7*f,C,draw);
-  if(x.Q)y+=clpQLine(doc,x.Q,lx,y,w,6.5*f,C,draw);
-  y+=clpPara(doc,[{t:[x.sku,x.size].filter(Boolean).join(' · ')}],lx,y,w,6*f,C,draw);
-  y+=clpPara(doc,[{t:'Charge / Batch: '+x.batch}],lx,y,w,5.5*f,C,draw);
-  y+=clpPara(doc,[{t:'Abgefüllt / Filled: '+x.datum}],lx,y,w,5.5*f,C,draw);
-  y+=clpPara(doc,[{t:'Auftrag / Order: '+x.nr}],lx,y,w,5.5*f,C,draw);
-  y+=clpPara(doc,[{t:'Probe / Sample',st:'bold'}],lx,y,w,6.5*f,C,draw);
+  /* Thermodruck (Phomemo): nur reines Schwarz, alles fett, Logo als Schrift – Grau/Farbe wird sonst gerastert und unscharf */
+  const lx=1.2,w=37.6,C='center',B=[0,0,0];let y=oy;
+  y+=clpPara(doc,[{t:'FRAGRANCE HUB',st:'bold',c:B}],lx,y,w,6.2*f,C,draw);
+  y+=clpPara(doc,[{t:x.name,st:'bold',c:B}],lx,y,w,8.4*f,C,draw);
+  if(x.Q)y+=clpPara(doc,[{t:x.Q.n||'',st:'bold',c:B}],lx,y,w,7*f,C,draw);
+  y+=clpPara(doc,[{t:[x.sku,x.size].filter(Boolean).join(' · '),st:'bold',c:B}],lx,y,w,6.6*f,C,draw);
+  y+=clpPara(doc,[{t:'Charge: '+x.batch+'  ·  '+x.datum,st:'bold',c:B}],lx,y,w,6*f,C,draw);
+  y+=clpPara(doc,[{t:'Auftrag / Order: '+x.nr,st:'bold',c:B}],lx,y,w,6*f,C,draw);
+  y+=clpPara(doc,[{t:'PROBE / SAMPLE',st:'bold',c:B}],lx,y,w,7*f,C,draw);
   return y-oy}
 function clpName_(l){return String(l.customer||'Showroom').replace(/[\\\/:*?"<>|]/g,'-')}
 async function clpLocal(l){
@@ -2439,10 +2439,12 @@ async function phomemoPrint(blob,progress){
   for(let i=0;i<pages.length;i++){progress&&progress((i+1)+'/'+pages.length);await pmSend(ch,pages[i]);await pmSleep(400)}
   return pages.length;
 }
-/* an die Phomemo im Lager (Mini-PC druckt das PDF über den Windows-Treiber, Format 40 × 30) */
+/* an die Phomemo im Lager: fertige Druckerdaten (1-Bit, 8 Punkte/mm, wie über Bluetooth) als „.bin“ –
+   der Mini-PC schickt sie unverändert (RAW) an die Phomemo → scharfe Schrift statt gerastertem PDF über den Windows-Treiber */
 async function pmQueue(blob,name){
-  await srv('druck','P-'+String(name),await blob64(blob));
-  return 1}
+  const pages=await pmRaw(blob),n=pages.reduce((s,p)=>s+p.length,0),all=new Uint8Array(n);let o=0;pages.forEach(p=>{all.set(p,o);o+=p.length});
+  await srv('druck','P-'+String(name).replace(/\.pdf$/i,'')+'.bin',await blob64(new Blob([all],{type:'application/octet-stream'})));
+  return pages.length}
 async function savePdf(kind,l,btn,out){
   if(LAB_KINDS.includes(kind)){const lo=labOrder(l);if(lo._part&&!lo.items.length){const o=document.querySelector('[data-files="'+orderKey(l)+'"]')||out;o.textContent='اختر صنفاً واحداً على الأقل من «اختيار أصناف للملصقات».';return}l=lo}
   const old=btn.textContent,key=orderKey(l);
