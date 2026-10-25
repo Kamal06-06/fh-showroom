@@ -3659,7 +3659,7 @@ function shopPwSheet(after,setMode){
       try{if(setMode){await srv('so_pw',JSON.stringify({neu:v}))}LS.set('soPw',{p:v,t:Date.now()});await soLoad(true);closeSheet();after&&after()}
       catch(e){LS.set('soPw',null);m.classList.add('err');m.textContent=/SO_PW_FALSCH/.test(e.message)?'كلمة السر غير صحيحة':/SO_KEIN_PW/.test(e.message)?'لم تُحدَّد كلمة سر بعد – يحددها المدير أولاً':e.message;go.disabled=false}};
     go.onclick=run;i.onkeydown=e=>{if(e.key==='Enter')run()}})}
-async function soLoad(force){if(!force&&SO.at&&Date.now()-SO.at<60e3)return SO;const r=await soCall('so_list');SO=r;try{const n=r.orders.filter(o=>!soPrep(o).ready).length;const c=$('h-shop-n');if(c)c.textContent=n||''}catch(e){}return SO}
+async function soLoad(force){if(!force&&SO.at&&Date.now()-SO.at<60e3)return SO;const r=await soCall('so_list');SO=r;try{const n=r.orders.filter(o=>soPaid(o)&&!soPrep(o).ready).length;const c=$('h-shop-n');if(c)c.textContent=n||''}catch(e){}return SO}
 async function shopOpen(){
   if(!soPw()){let info={pw:true};try{info=await srv('so_info')}catch(e){}
     if(!info.pw){if(isAdmin())return shopPwSheet(shopOpen,true);return alert('لم تُحدَّد كلمة سر لطلبات المتجر بعد – يحددها المدير أولاً.')}
@@ -3668,56 +3668,290 @@ async function shopOpen(){
     const st=el('p','hint','جاري التحميل…');b.append(st);
     try{await soLoad()}catch(e){if(/SO_PW_FALSCH|SO_KEIN_PW/.test(e.message)){LS.set('soPw',null);closeSheet();return shopOpen()}st.textContent='⚠️ '+e.message;return}
     soSel?soDetail(b,soSel):soListView(b)})}
-function soListView(b){b.textContent='';
-  const top=el('div','row');top.style.cssText='gap:6px;flex-wrap:wrap;margin:4px 0 8px';
+/* Region & Bezahlt: nur bezahlte/autorisierte Bestellungen; Deutschland und Ausland getrennt */
+let soReg='de';
+const soIsDE=o=>String(o.land||'DE').toUpperCase()==='DE';
+const soPaid=o=>!o.fin||/^(PAID|AUTHORIZED|PARTIALLY_PAID|PARTIALLY_REFUNDED)$/i.test(o.fin);
+const soAll=()=>(SO.orders||[]).filter(soPaid);
+const soHasDhl=o=>!!(o.stand&&o.stand.dhl&&o.stand.dhl.nr);
+const soNr=o=>String(o.nr||'').replace(/^\D+/,'');
+const soOrt=o=>{const l=o.liefer;if(l&&l.ort)return l.ort;return String((o.adr||[]).slice(-1)[0]||'').replace(/^[\dA-Z-]{3,9}\s+/,'')};
+const soDate=t=>new Date(t).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+/* Werktage seit Bestellung (Mo–Fr) – ab 2 rot wie „Ausführen bis" in Shopify */
+const soAge=t=>{let d=0;const x=new Date(t),now=new Date();x.setHours(0,0,0,0);now.setHours(0,0,0,0);while(x<now){x.setDate(x.getDate()+1);const w=x.getDay();if(w&&w<6)d++}return d};
+function soCss(){if($('so-css'))return;const s=document.createElement('style');s.id='so-css';s.textContent=`
+.so-seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--soft);padding:4px;border-radius:14px;margin:2px 0 10px}
+.so-seg button{border:0;background:none;padding:9px 6px;border-radius:10px;font:inherit;font-weight:700;font-size:15px;color:var(--muted);cursor:pointer;line-height:1.25}
+.so-seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 5px #0002}
+.so-seg small{display:block;font-weight:500;font-size:12px}
+.so-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 8px}
+.so-chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 13px;font:inherit;font-size:14px;cursor:pointer}
+.so-chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.so-chip.ic{padding:6px 10px}
+.so-bar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 12px}
+.so-bar .btn{width:100%;justify-content:center}
+.so-card{display:block;width:100%;text-align:start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:8px 0;font:inherit;color:var(--ink);cursor:pointer}
+.so-card:active{transform:scale(.995)}
+.so-l1{display:flex;align-items:baseline;gap:10px}
+.so-nr{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.so-cust{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.so-st{font-size:13px;font-weight:700;white-space:nowrap;direction:ltr;unicode-bidi:isolate}
+.so-l2 bdi,.so-ltr{direction:ltr;unicode-bidi:isolate}
+.so-l2{font-size:13px;color:var(--muted);margin-top:3px}
+.so-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.so-tag{font-size:12px;border-radius:999px;padding:2px 9px;background:var(--soft);color:var(--ink);white-space:nowrap}
+.so-tag.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.so-tag.warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.so-tag.bad{background:color-mix(in srgb,var(--danger) 16%,transparent);color:var(--danger)}
+.so-tag.gold{background:var(--gold-soft)}
+.so-prog{height:4px;background:var(--soft);border-radius:4px;margin-top:9px;overflow:hidden}.so-prog i{display:block;height:100%;background:var(--gold)}
+.so-head{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:8px 0}
+.so-head .so-addr{direction:ltr;text-align:left;white-space:pre-line;font-size:14px;margin-top:8px;color:var(--ink)}
+.so-sec{font-size:12px;font-weight:800;letter-spacing:.08em;color:var(--muted);margin:14px 2px 6px;text-transform:uppercase}
+.so-act{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.so-act .btn{width:100%;justify-content:center}
+.so-act .wide{grid-column:1/-1}
+.so-pick{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line)}
+.so-pick input[type=checkbox]{width:22px;height:22px}
+.so-pick input[type=number]{width:74px;padding:6px;font:inherit;border-radius:8px;border:1px solid var(--line);text-align:center}
+.so-pick .ad{font-size:12px;color:var(--muted);direction:ltr;text-align:left}
+.so-log{font-size:13px;white-space:pre-line;direction:ltr;text-align:left;background:var(--soft);border-radius:10px;padding:10px;margin-top:10px;max-height:40vh;overflow:auto}
+`;document.head.append(s)}
+function soListView(b){b.textContent='';soCss();
+  const all=soAll(),de=all.filter(soIsDE),ab=all.filter(o=>!soIsDE(o)),reg=soReg==='de'?de:ab;
+  const open=L=>L.filter(o=>!soPrep(o).ready).length;
+  const seg=el('div','so-seg');[['de','🇩🇪 داخل ألمانيا',de],['ab','🌍 خارج ألمانيا',ab]].forEach(([k,t,L])=>{const x=el('button',soReg===k?'on':'');x.append(t,el('small',null,L.length+' طلب · '+open(L)+' للتحضير'));x.onclick=()=>{soReg=k;soListView(b)};seg.append(x)});b.append(seg);
+  const ch=el('div','so-chips');
   const T=[['open','📦 للتحضير'],['ready','✅ جاهزة'],['all','الكل']];
-  const cnt=k=>SO.orders.filter(o=>k==='all'||(k==='ready')===soPrep(o).ready).length;
-  T.forEach(([k,t])=>{const x=el('button','btn small'+(soTab===k?' primary':''),t+' ('+cnt(k)+')');x.onclick=()=>{soTab=k;soListView(b)};top.append(x)});
-  const rf=el('button','btn small','🔄');rf.onclick=async()=>{rf.disabled=true;try{await soLoad(true)}catch(e){}soListView(b)};top.append(rf);
-  if(isAdmin()){const pw=el('button','btn small','🔑');pw.title='تغيير كلمة السر';pw.onclick=()=>shopPwSheet(null,true);top.append(pw)}
-  if(isAdmin()){const dh=el('button','btn small','🚚 DHL');dh.title='إعدادات DHL';dh.onclick=()=>dhlSetup();top.append(dh)}
-  b.append(top,el('p','hint','طلبات Shopify غير المشحونة (آخر 21 يوماً). هذا القسم لا يغيّر المخزون ولا الجرد ولا حسابات العملاء.'));
-  const L=SO.orders.filter(o=>soTab==='all'||(soTab==='ready')===soPrep(o).ready).sort((a,c)=>a.at-c.at);
-  if(!L.length)b.append(el('p','hint','لا توجد طلبات ✅'));
-  L.forEach(o=>{const pr=soPrep(o),r=el('button','card');r.style.cssText='display:block;width:100%;text-align:start;padding:10px 12px;margin:8px 0;font:inherit;color:var(--ink);cursor:pointer';
-    const h=el('div','row');h.style.cssText='justify-content:space-between;gap:8px';
-    h.append(el('b',null,o.nr+' · '+o.kunde),el('span','pay '+(pr.ready?'paid':pr.c?'part':'open'),(o.stand&&o.stand.dhl&&o.stand.dhl.nr?'📦 ':'')+(pr.ready?'✅ جاهز':pr.c+' / '+pr.n)));
-    const oils=o.items.filter(i=>i.oil).length;
-    r.append(h,el('div','time',SO_FLAG(o.land)+' '+o.land+' · '+soShip(o)+' · '+new Date(o.at).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})+' · '+o.items.length+' صنف'+(oils?' ('+oils+' زيت)':'')+(/AUTHORIZED|PENDING/.test(o.fin)?' · ⏳ الدفع معلّق':'')));
-    r.onclick=()=>{soSel=o.id;soDetail(b,o.id)};b.append(r)})}
-function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;return soListView(b)}b.textContent='';
+  const cnt=k=>reg.filter(o=>k==='all'||(k==='ready')===soPrep(o).ready).length;
+  T.forEach(([k,t])=>{const x=el('button','so-chip'+(soTab===k?' on':''),t+' '+cnt(k));x.onclick=()=>{soTab=k;soListView(b)};ch.append(x)});
+  const rf=el('button','so-chip ic','🔄');rf.title='تحديث';rf.onclick=async()=>{rf.disabled=true;try{await soLoad(true)}catch(e){toast('⚠️ '+e.message)}soListView(b)};ch.append(rf);
+  if(isAdmin()){const pw=el('button','so-chip ic','🔑');pw.title='تغيير كلمة السر';pw.onclick=()=>shopPwSheet(null,true);ch.append(pw);
+    const dh=el('button','so-chip ic','⚙️ DHL');dh.title='إعدادات DHL';dh.onclick=()=>dhlSetup();ch.append(dh)}
+  b.append(ch);
+  const L=reg.filter(o=>soTab==='all'||(soTab==='ready')===soPrep(o).ready).sort((a,c)=>a.at-c.at);
+  const bar=el('div','so-bar');
+  const pl=el('button','btn','📋 قوائم التحضير · '+L.length);pl.disabled=!L.length;pl.onclick=()=>soBulkLs(L);bar.append(pl);
+  if(soReg==='de'){const nd=reg.filter(o=>!soHasDhl(o)).length;const dl=el('button','btn primary','📦 ملصقات DHL · '+nd);dl.disabled=!nd;dl.onclick=()=>soBulkDhl(reg.filter(o=>!soHasDhl(o)).sort((a,c)=>a.at-c.at));bar.append(dl)}
+  else{const n=el('button','btn','🚚 DHL Express');n.onclick=()=>alert('ملصقات DHL Express للخارج هي الخطوة التالية.\nحالياً: أنشئ الملصق من تطبيق «DHL Express Commerce» في Shopify.');bar.append(n)}
+  b.append(bar);
+  if(!L.length)b.append(el('p','hint',soTab==='open'?'لا توجد طلبات للتحضير ✅':'لا توجد طلبات'));
+  L.forEach(o=>{const pr=soPrep(o),st=o.stand||{},r=el('button','so-card');
+    const l1=el('div','so-l1'),nr=el('b','so-nr','#'+soNr(o));
+    l1.append(nr,el('span','so-cust',o.kunde||o.name||'—'),el('span','so-st',pr.ready?'✅ جاهز':pr.c+' / '+pr.n));
+    const oils=o.items.filter(i=>i.oil).length,age=soAge(o.at);
+    const l2=el('div','so-l2',(soIsDE(o)?'':SO_FLAG(o.land)+' '+(o.landName||o.land)+' · ')+soOrt(o)+' · ');l2.append(el('bdi',null,soDate(o.at)));
+    const tg=el('div','so-tags');const tag=(t,c)=>tg.append(el('span','so-tag'+(c?' '+c:''),t));
+    tag(o.items.length+' صنف'+(oils?' · '+oils+' زيت':''));
+    if(soHasDhl(o))tag('📦 DHL '+st.dhl.nr,'ok');else if(!soIsDE(o))tag('DHL Express');
+    if(st.lsAt)tag('📋 طُبعت','gold');
+    if(o.notiz)tag('📝 ملاحظة','warn');
+    if(!pr.ready&&age>=2)tag('⏰ متأخر '+age+' أيام عمل','bad');
+    r.append(l1,l2,tg);if(!pr.ready&&pr.n){const g=el('div','so-prog'),i=el('i');i.style.width=Math.round(100*pr.c/pr.n)+'%';g.append(i);r.append(g)}
+    r.onclick=()=>{soSel=o.id;soDetail(b,o.id)};b.append(r)});
+  b.append(el('p','hint','تظهر فقط طلبات Shopify المدفوعة وغير المشحونة (آخر 21 يوماً). هذا القسم لا يغيّر المخزون ولا الجرد ولا حسابات العملاء.'))}
+function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;return soListView(b)}b.textContent='';soCss();
   const st=o.stand=o.stand||{},chk=st.prep=st.prep||[];const save=async patch=>{try{o.stand=await soCall('so_set',{id:o.id,nr:o.nr,patch})}catch(e){toast('⚠️ '+e.message)}};
-  const back=el('button','btn small','← كل طلبات المتجر');back.onclick=()=>{soSel=null;soListView(b)};b.append(back);
-  const hd=el('div','card');hd.style.cssText='padding:10px 12px;margin:8px 0';
-  hd.append(el('b',null,o.nr+' · '+o.kunde),el('div','time',new Date(o.at).toLocaleString('de-DE')+' · '+SO_FLAG(o.land)+' '+o.land+' · '+(o.versand||soShip(o))));
-  const ad=el('div','note');ad.dir='ltr';ad.style.whiteSpace='pre-line';ad.textContent=[o.firma,o.name].filter(Boolean).join(' – ')+'\n'+o.adr.join('\n')+(o.tel?'\n☎ '+o.tel:'');hd.append(ad);
-  if(o.notiz)hd.append(el('div','note','📝 '+o.notiz));b.append(hd);
-  const l=soAsList(o);
-  o.items.forEach((it,ix)=>{const r=el('label','ivrow');r.style.gridTemplateColumns='auto 1fr';const cb=document.createElement('input');cb.type='checkbox';cb.checked=!!chk[ix];
+  const back=el('button','btn small','← كل الطلبات');back.onclick=()=>{soSel=null;soListView(b)};b.append(back);
+  const hd=el('div','so-head');const l1=el('div','so-l1');l1.append(el('b','so-nr','#'+soNr(o)),el('span','so-cust',o.kunde||o.name),el('span','so-st',SO_FLAG(o.land)+' '+o.land));hd.append(l1);
+  {const d2=el('div','so-l2');d2.append(el('bdi',null,new Date(o.at).toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'})),' · '+(o.versand||soShip(o))+(/AUTHORIZED/.test(o.fin)?' · الدفع مُفوَّض':''));hd.append(d2)}
+  const ad=el('div','so-addr');ad.textContent=[o.firma,o.name].filter(Boolean).join(' – ')+'\n'+o.adr.join('\n')+(o.landName&&!soIsDE(o)?'\n'+o.landName:'')+(o.tel?'\n☎ '+o.tel:'');hd.append(ad);
+  if(o.notiz)hd.append(el('div','status err','📝 '+o.notiz));b.append(hd);
+  const l=soAsList(o),pc=el('span','so-ltr');
+  const sec=t=>b.append(el('div','so-sec',t));
+  const row=(it,ix)=>{const r=el('label','ivrow');r.style.gridTemplateColumns='auto 1fr';const cb=document.createElement('input');cb.type='checkbox';cb.checked=!!chk[ix];
     cb.onchange=()=>{chk[ix]=cb.checked;save({prep:chk});pc.textContent=chk.filter(Boolean).length+' / '+o.items.length};
     const inf=el('div','ivinfo');inf.append(el('div','ivname',it.q+' × '+it.t+(it.oil?' · '+it.tier:'')));
     inf.append(el('div','ivtn',(it.oil?it.code+' · '+it.size:(it.size||''))+(it.sku&&!it.oil?' · '+it.sku:'')));
     if(it.oil){const lo=lotNow(it);if(lo)inf.append(el('div','ivtn','الدفعة · Charge: '+lo.b))}
     else{try{const a=arDesc(it.t,it.vt);if(a)inf.append(el('div','ivtn',a))}catch(e){}}
-    r.append(cb,inf);b.append(r)});
-  const pc=el('p','note',chk.filter(Boolean).length+' / '+o.items.length);b.append(pc);
-  const act=el('div','row');act.style.cssText='gap:8px;flex-wrap:wrap;margin:10px 0';
-  if(o.items.some(i=>i.oil)){
-    const ep=el('button','btn primary','🖨️ ملصقات CLP → الطابعة');ep.onclick=()=>epsonPrint(l,ep);
-    const pdf=el('button','btn','📄 ملصقات PDF');pdf.onclick=async()=>{pdf.disabled=true;try{const r=await clpMake(l);for(const f of r.files){const file=new File([f.blob],f.name.replace(/\.pdf$/i,'')+' '+o.nr.replace(/\D/g,'')+'.pdf',{type:'application/pdf'});
+    r.append(cb,inf);b.append(r)};
+  const io=o.items.map((it,ix)=>[it,ix]),oi=io.filter(x=>x[0].oil),ot=io.filter(x=>!x[0].oil);
+  if(oi.length){sec('🧪 الزيوت · '+oi.length);oi.forEach(x=>row(...x))}
+  if(ot.length){sec('🍶 الزجاج والإكسسوارات · '+ot.length);ot.forEach(x=>row(...x))}
+  pc.textContent=chk.filter(Boolean).length+' / '+o.items.length;const pp=el('p','note','تم تحضير ');pp.append(pc);b.append(pp);
+  sec('📋 قائمة التحضير · Lieferschein');
+  const a1=el('div','so-act');
+  const lsA4=el('button','btn primary','🖨️ طباعة في المستودع (A4)');lsA4.onclick=()=>soLsPrint([o],lsA4,'a4');
+  const lsP=el('button','btn','📄 PDF / طباعة هنا');lsP.onclick=()=>soLsPrint([o],lsP,'pdf');a1.append(lsA4,lsP);b.append(a1);
+  if(o.items.some(i=>i.oil)){sec('🏷️ ملصقات الزيوت');const a2=el('div','so-act');
+    const ep=el('button','btn','🖨️ ملصقات CLP → Epson');ep.onclick=()=>epsonPrint(l,ep);
+    const pdf=el('button','btn','📄 ملصقات PDF');pdf.onclick=async()=>{pdf.disabled=true;try{const r=await clpMake(l);for(const f of r.files){const file=new File([f.blob],f.name.replace(/\.pdf$/i,'')+' '+soNr(o)+'.pdf',{type:'application/pdf'});
       if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:file.name})}catch(e){}}else{const a=document.createElement('a');a.href=URL.createObjectURL(f.blob);a.download=file.name;a.click()}}
       if(r.fehlend&&r.fehlend.length)alert('بدون ملصق: '+r.fehlend.join('، '))}catch(e){alert(e.message)}pdf.disabled=false};
-    act.append(ep,pdf)}
+    a2.append(ep,pdf);b.append(a2)}
+  sec('🚚 الشحن');const a3=el('div','so-act');
   const rd=el('button','btn'+(st.readyAt?'':' primary'),st.readyAt?'↺ إلغاء «جاهز»':'✅ جاهز للشحن');
   rd.onclick=async()=>{rd.disabled=true;const on=!st.readyAt;const lots={};if(on)o.items.forEach((it,ix)=>{if(it.oil){const lo=lotNow(it);if(lo)lots[ix]={b:lo.b,fc:lo.fc}}});
     await save(on?{ready:true,prep:o.items.map(()=>true),lots}:{ready:false});soDetail(b,o.id)};
-  act.append(rd);
-  const dn=st.dhl&&st.dhl.nr,isDE=String(o.land||'DE').toUpperCase()==='DE';
-  const sh=el('button','btn'+(dn||!st.readyAt?'':' primary'),dn?'📦 DHL ✅ '+dn:'📦 ملصق الشحن · '+soShip(o));
-  sh.onclick=()=>isDE?dhlSheet(o,()=>openSheet('🛒 طلبات المتجر',b2=>soDetail(b2,o.id))):alert('DHL Express للخارج قيد التجهيز (الخطوة التالية).\nحالياً: أنشئ الملصق من صفحة الطلب في Shopify.');act.append(sh);
-  if(o.admin&&isAdmin()){const a=el('a','btn','🔗 Shopify');a.href=o.admin;a.target='_blank';a.rel='noopener';act.append(a)}
-  b.append(act);
-  if(st.readyAt)b.append(el('p','time','✅ جاهز '+new Date(st.readyAt).toLocaleString('de-DE')+(st.readyBy?' · '+st.readyBy:'')))}
+  const dn=st.dhl&&st.dhl.nr,isDE=soIsDE(o);
+  const sh=el('button','btn'+(dn?'':' primary'),dn?'📦 DHL ✅ '+dn:'📦 ملصق '+soShip(o));
+  sh.onclick=()=>isDE?dhlSheet(o,()=>openSheet('🛒 طلبات المتجر',b2=>soDetail(b2,o.id))):alert('DHL Express للخارج قيد التجهيز (الخطوة التالية).\nحالياً: أنشئ الملصق من تطبيق «DHL Express Commerce» في Shopify.');
+  a3.append(rd,sh);
+  if(o.admin&&isAdmin()){const a=el('a','btn wide','🔗 فتح في Shopify');a.href=o.admin;a.target='_blank';a.rel='noopener';a3.append(a)}
+  b.append(a3);
+  if(st.readyAt)b.append(el('p','time','✅ جاهز '+new Date(st.readyAt).toLocaleString('de-DE')+(st.readyBy?' · '+st.readyBy:'')));
+  if(st.lsAt)b.append(el('p','time','📋 قائمة التحضير طُبعت '+new Date(st.lsAt).toLocaleString('de-DE')))}
+
+/* ---------- 📋 Lieferschein: gleiche Logik & Optik wie die Order-Printer-Vorlage „Lieferschein" (Shopify) ---------- */
+const SO_QW=/standard|premium|exklusiv/;
+const SO_HEX={gold:'#c9a24a','weiß':'#ffffff',weiss:'#ffffff',schwarz:'#111111',silber:'#bfc3c7',natur:'#d2b48a',dunkelbraun:'#5a3a22',braun:'#5a3a22',rosegold:'#c7877a','roségold':'#c7877a',kupfer:'#b87333',bronze:'#8c6a3c',grau:'#8a8a8a',rot:'#b3261e',blau:'#1f4e9c','grün':'#2e7d32',gruen:'#2e7d32',transparent:'klar',klar:'klar'};
+function soLsData(o){const R={oils:[],other:[],nPos:0,nOil:0,oilG:0,nStk:0};
+  (o.items||[]).forEach(it=>{R.nPos++;const vt=String(it.vt||''),vtd=(vt||String(it.t||'')).toLowerCase(),sku=String(it.sku||''),qty=Number(it.rq||it.q||1);
+    if(sku.includes('-SH-')||SO_QW.test(vtd)){
+      let size='',qual='';vt.split(' / ').forEach(p=>{const pd=p.toLowerCase();if(SO_QW.test(pd))qual=p;else if(pd.includes(' g')||pd.includes('kg'))size=p});
+      const qd=qual.toLowerCase(),qcls=qd.includes('exklusiv')?'exklusiv':qd.includes('premium')?'premium':'standard';
+      const sd=size.toLowerCase().replace(/ /g,'');let g=sd.includes('kg')?parseFloat(sd.replace('kg','').replace(',','.'))*1000:parseFloat(sd.replace(/g/g,'').replace(',','.'));if(!isFinite(g))g=0;
+      let fl=qty;const probe=sku.slice(-3).toUpperCase()==='-1G';if(probe){g=qty;fl=1;size='Probe '+qty+' g'}
+      R.oilG+=g*fl;R.nOil+=fl;R.oils.push({name:it.t,sku,size:size||(vt&&!SO_QW.test(vt.toLowerCase())?vt:''),qual,qcls,fl,probe,g,img:it.img})}
+    else{const parts=vt?vt.split(' / '):[];let per=0,menge='',rest='',cap='',spr='',sprc='';const isset=String(it.t).includes('Set nach Wahl');
+      parts.forEach((p,i)=>{const pd=p.toLowerCase();
+        if(/karton|muster|stück|stk/.test(pd)){menge=p;if(pd.includes('muster'))per=1;else{for(const t of pd.replace(/\./g,'').replace(/-/g,' ').split(' ')){const m=/^\d+/.exec(t),tn=m?Number(m[0]):0;if(tn>0){per=tn;break}}}}
+        else if(isset&&i===0)cap=p;else if(isset&&pd.includes('sprühkopf'))spr=p;else rest=rest?rest+' / '+p:p});
+      (it.props||[]).forEach(pr=>{if(pr[0]==='Sprühkopf')sprc=String(pr[1]||'')});
+      if(!per)per=1;const total=per*qty;R.nStk+=total;
+      let rows=[];if(isset)rows=[['Kappe',cap.includes('Ohne')?'OHNE KAPPE':cap],['Sprühkopf',spr.includes('Ohne')?'OHNE SPRÜHKOPF':sprc||'Farbe siehe Bestellung']];else if(rest)rows=[['-',rest]];
+      R.other.push({name:String(it.t).replace(' - Set nach Wahl (Sprühkopf & Kappe)',' - Komplett-Set'),sku,menge,rows,total,per,qty,isset,spr,cap,img:it.img})}});
+  return R}
+const soImgC={};
+async function soImgLoad(url){if(!url)return null;if(url in soImgC)return soImgC[url];
+  try{const bmp=await createImageBitmap(await fetch(url).then(r=>{if(!r.ok)throw 0;return r.blob()}));const S=160,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,S,S);
+    const k=Math.min(S/bmp.width,S/bmp.height),w=bmp.width*k,h=bmp.height*k;x.drawImage(bmp,(S-w)/2,(S-h)/2,w,h);return soImgC[url]=c.toDataURL('image/jpeg',0.8)}catch(e){return soImgC[url]=null}}
+/* px der Vorlage (780 px Breite) → mm / pt auf A4 */
+function soLsPdf(orders){
+  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'}),PXM=0.2333,M=px=>px*PXM,P=px=>px*0.66,L=14,R=196,W=R-L,BOT=287;
+  const NAVY=[28,33,53],GOLD=[168,130,62],LBL=[138,106,47],RED=[192,57,43],GRAY=[85,85,85];
+  const lat=s=>latin(String(s==null?'':s).replace(/·/g,'·'));
+  const T=(s,x,y,o)=>{o=o||{};doc.setFont(o.font||'helvetica',o.b?'bold':'normal');doc.setFontSize(o.pt||P(12));doc.setTextColor(...(o.c||NAVY));doc.setCharSpace(o.cs||0);doc.text(lat(s),x,y,{align:o.al||'left',maxWidth:o.mw});doc.setCharSpace(0)};
+  const tw=(s,pt,b,cs)=>{doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(pt);return doc.getTextWidth(lat(s))+(cs||0)*lat(s).length};
+  orders.forEach((o,oi)=>{if(oi)doc.addPage();const D=soLsData(o),dt=new Date(o.at);let y=14;
+    const need=h=>{if(y+h>BOT){doc.addPage();y=14}};
+    /* Kopf */
+    T('FRAGRANCE HUB',L,y+M(24),{font:'times',b:1,pt:P(24),c:GOLD,cs:M(.5)});T('GERMANY',L,y+M(24)+M(16),{font:'times',pt:P(13),c:GOLD,cs:M(4)});
+    T('LIEFERSCHEIN',R,y+M(20),{b:1,pt:P(22),al:'right',cs:M(1)});T('Bestellung '+o.nr,R,y+M(20)+M(20),{b:1,pt:P(16),al:'right'});
+    T(p2(dt.getDate())+'.'+p2(dt.getMonth()+1)+'.'+dt.getFullYear()+' · '+D.nPos+' Position'+(D.nPos!==1?'en':''),R,y+M(20)+M(36),{pt:P(12),c:GRAY,al:'right'});
+    y+=M(20)+M(36)+M(10);doc.setDrawColor(...NAVY);doc.setLineWidth(M(3));doc.line(L,y,R,y);y+=M(14);
+    /* Adressen */
+    const A=(x,lbl,a,name,tel)=>{let yy=y+M(10);T(lbl.toUpperCase(),x,yy,{b:1,pt:P(10),c:LBL,cs:M(1.5)});yy+=M(18);
+      if(!a){T('Abholung / keine Lieferadresse',x,yy);return yy}
+      const ls=[[a.name,1],[a.firma],[a.a1],[a.a2],[(a.plz||'')+' '+(a.ort||'')],[a.land],[tel?a.tel:'']].filter(r=>String(r[0]||'').trim());
+      ls.forEach(r=>{T(r[0],x,yy,{b:name&&r[1],pt:P(12),mw:W/2-4});yy+=M(16)});return yy};
+    const ya=A(L,'Lieferadresse',o.liefer||{name:o.name,firma:o.firma,a1:o.adr[0],a2:o.adr.length>2?o.adr[1]:'',plz:'',ort:o.adr.slice(-1)[0],land:o.landName||'',tel:o.tel},true,true);
+    const yb=A(L+W/2+M(12),'Rechnungsadresse',o.rechnung,false,false);y=Math.max(ya,yb)+M(8);
+    /* Hinweis */
+    if(String(o.notiz||'').trim()){const ln=doc.setFontSize(P(13)).splitTextToSize('Hinweis zur Bestellung: '+lat(o.notiz),W-M(24));const h=ln.length*M(17)+M(16);need(h);
+      doc.setFillColor(253,242,240);doc.setDrawColor(...RED);doc.setLineWidth(M(2));doc.rect(L,y,W,h,'FD');
+      ln.forEach((s,i)=>{if(!i){const pre='Hinweis zur Bestellung:';T(pre,L+M(12),y+M(20),{b:1,pt:P(13),c:RED});T(s.slice(pre.length),L+M(12)+tw(pre,P(13),1)+M(4),y+M(20),{pt:P(13)})}else T(s,L+M(12),y+M(20)+i*M(17),{pt:P(13)})});y+=h+M(14)}
+    const sec=t=>{need(M(26)+M(70));y+=M(16);doc.setFillColor(...NAVY);doc.rect(L,y,W,M(26),'F');T(t.toUpperCase(),L+M(10),y+M(17.5),{b:1,pt:P(12),c:[255,255,255],cs:M(1.5)});y+=M(26)+M(6)};
+    const chkBox=(x,yc)=>{doc.setDrawColor(...NAVY);doc.setLineWidth(M(2));doc.roundedRect(x,yc-M(11),M(22),M(22),M(3),M(3),'S')};
+    const img=(u,x,yc,s)=>{doc.setDrawColor(238);doc.setLineWidth(M(1));const d=u&&soImgC[u];if(d){try{doc.addImage(d,'JPEG',x,yc-M(s)/2,M(s),M(s))}catch(e){}doc.rect(x,yc-M(s)/2,M(s),M(s),'S')}};
+    /* Duftöle */
+    if(D.oils.length){sec('Duftöle');
+      D.oils.forEach(it=>{const h=M(20)+M(52);need(h);const yc=y+h/2;
+        chkBox(L+M(6),yc);let x=L+M(6)+M(22)+M(12);if(it.img){img(it.img,x,yc,52);x+=M(52)+M(12)}
+        const qx=R-M(6)-M(74)/2,bx=qx-M(74)/2-M(12);
+        /* Größe + Qualität (zentriert) */
+        const sw=Math.max(tw(it.size,P(20),1),it.qual?tw(it.qual.toUpperCase(),P(12),1,M(1))+M(24):0),cx=bx-sw/2;
+        if(it.size)T(it.size,cx,it.qual?yc-M(2):yc+M(6),{b:1,pt:P(20),al:'center'});
+        if(it.qual){const qt=it.qual.toUpperCase(),qw=tw(qt,P(12),1,M(1))+M(24),qh=M(20),qy=yc+M(3);
+          const bg=it.qcls==='exklusiv'?NAVY:it.qcls==='premium'?[227,201,143]:[255,255,255],bd=it.qcls==='premium'?GOLD:NAVY,fg=it.qcls==='exklusiv'?[227,201,143]:NAVY;
+          doc.setFillColor(...bg);doc.setDrawColor(...bd);doc.setLineWidth(M(2));doc.roundedRect(cx-qw/2,qy,qw,qh,qh/2,qh/2,'FD');T(qt,cx,qy+qh*0.68,{b:1,pt:P(12),c:fg,al:'center',cs:M(1)})}
+        /* Name + SKU */
+        const nmw=bx-sw/2-M(12)-x;T(it.name,x,yc-M(1),{b:1,pt:P(14),mw:nmw});T(it.sku,x,yc+M(13),{font:'courier',pt:P(11),c:[102,102,102]});
+        /* Anzahl */
+        const multi=it.fl>1;T('× '+it.fl,qx,yc-M(1),{b:1,pt:P(22),c:multi?RED:NAVY,al:'center'});T('Flasche'+(multi?'n':''),qx,yc+M(14),{pt:P(12),c:GRAY,al:'center'});
+        if(it.probe)T('('+it.g+' g)',qx,yc+M(26),{pt:P(10),c:GRAY,al:'center'});
+        y+=h;doc.setDrawColor(221);doc.setLineWidth(M(1));doc.line(L,y,R,y)})}
+    /* Flakons & Zubehör */
+    if(D.other.length){sec('Flakons & Zubehör');
+      D.other.forEach(it=>{const infoH=M(18)+M(16)+it.rows.length*M(32),h=M(20)+Math.max(M(72),infoH,M(it.per>1||it.isset?84:60));need(h);const yc=y+h/2;
+        chkBox(L+M(6),yc);let x=L+M(6)+M(22)+M(12);if(it.img){img(it.img,x,yc,72);x+=M(72)+M(12)}
+        const bw=M(150),bxl=R-M(6)-bw,nmw=bxl-M(12)-x;let yy=yc-infoH/2+M(14);
+        T(it.name,x,yy,{b:1,pt:P(14),mw:nmw});yy+=M(16);T(it.sku+(it.menge?' · '+it.menge:''),x,yy,{font:'courier',pt:P(11),c:[102,102,102]});yy+=M(8);
+        it.rows.forEach(([lab,val])=>{yy+=M(6);let xx=x;const rc=yy+M(13);
+          if(lab!=='-'){T(lab.toUpperCase(),xx,rc+M(4),{b:1,pt:P(11),c:GRAY,cs:M(1)});xx+=M(82)}
+          const hx=String(val).toLowerCase().replace(/-/g,' ').split(' ').map(w=>SO_HEX[w]).filter(Boolean);
+          if(hx.length){hx.forEach(c=>{if(c==='klar'){doc.setFillColor(255,255,255)}else{const n=parseInt(c.slice(1),16);doc.setFillColor(n>>16,(n>>8)&255,n&255)}doc.setDrawColor(...NAVY);doc.setLineWidth(M(1.5));doc.rect(xx,rc-M(10),M(20),M(20),'FD');
+            if(c==='klar'){doc.setDrawColor(200);doc.setLineWidth(M(1));for(let k=-12;k<20;k+=6)doc.line(xx+Math.max(0,M(k)),rc-M(10)+Math.max(0,-M(k)),xx+Math.min(M(20),M(k+20)),rc-M(10)+Math.min(M(20),M(20-k)))}
+            xx+=M(20)});xx+=M(8)}
+          const vt=String(val).toUpperCase(),vw=tw(vt,P(15),1,M(.5))+M(16),vh=M(24);doc.setDrawColor(...NAVY);doc.setLineWidth(M(2));doc.setFillColor(255,255,255);doc.roundedRect(xx,rc-vh/2,vw,vh,M(4),M(4),'FD');
+          T(vt,xx+M(8),rc+M(5),{b:1,pt:P(15),cs:M(.5)});yy+=M(26)});
+        /* Stück-Kasten */
+        const sm=[];if(it.per>1)sm.push(it.qty+' × '+it.per+' Stück');if(it.isset)sm.push('je Set: Flakon'+(it.spr.includes('Ohne')?'':' + Sprühkopf')+(it.cap.includes('Ohne')?'':' + Kappe'));
+        const sml=[];sm.forEach(s=>sml.push(...doc.setFontSize(P(11)).splitTextToSize(lat(s),bw-M(12))));
+        const bh=M(12)+M(29)+M(14)+sml.length*M(14)+M(4);doc.setDrawColor(...NAVY);doc.setLineWidth(M(3));doc.roundedRect(bxl,yc-bh/2,bw,bh,M(6),M(6),'S');
+        let by=yc-bh/2+M(6)+M(24);T(String(it.total),bxl+bw/2,by,{b:1,pt:P(26),al:'center'});by+=M(14);T(it.isset?'SETS PACKEN':'STÜCK PACKEN',bxl+bw/2,by,{b:1,pt:P(11),al:'center',cs:M(1)});
+        sml.forEach(s=>{by+=M(14);T(s,bxl+bw/2,by,{b:1,pt:P(11),c:RED,al:'center'})});
+        y+=h;doc.setDrawColor(221);doc.setLineWidth(M(1));doc.line(L,y,R,y)})}
+    /* Summen */
+    const sums=[[String(D.nPos),'Positionen']];
+    if(D.oils.length){const og=D.oilG;sums.push([og>=1000?D.nOil+' · '+(Math.round(og/10)/100).toString().replace('.',',')+' kg':og>0?D.nOil+' · '+Math.round(og)+' g':String(D.nOil),og>0?'Duftöle (Flaschen · Gewicht)':'Duftöle (Flaschen)'])}
+    if(D.other.length)sums.push([String(D.nStk),'Stück Flakons & Zubehör']);
+    need(M(16)+M(56)+M(26)+M(30)+M(28)+M(60));y+=M(16);const gap=M(10),sw2=(W-gap*(sums.length-1))/sums.length;
+    sums.forEach(([v,t],i)=>{const x=L+i*(sw2+gap);doc.setDrawColor(...NAVY);doc.setLineWidth(M(1.5));doc.roundedRect(x,y,sw2,M(52),M(6),M(6),'S');T(v,x+sw2/2,y+M(24),{b:1,pt:P(18),al:'center'});T(t.toUpperCase(),x+sw2/2,y+M(40),{pt:P(10),c:GRAY,al:'center',cs:M(1)})});
+    y+=M(52)+M(26);const hw=(W-M(24))/2;doc.setDrawColor(...NAVY);doc.setLineWidth(M(1.5));doc.line(L,y,L+hw,y);doc.line(L+hw+M(24),y,R,y);
+    T('Gepackt von / Datum',L,y+M(14),{pt:P(11),c:GRAY});T('Geprüft von',L+hw+M(24),y+M(14),{pt:P(11),c:GRAY});
+    y+=M(14)+M(28)+M(10);const mx=(L+R)/2;T('Vielen Dank für Ihre Bestellung!',mx,y,{pt:P(11),c:GRAY,al:'center'});y+=M(26);
+    T('Fragrance Hub Germany',mx,y,{b:1,pt:P(11),al:'center'});y+=M(14);T('Am Alten Kirchplatz 10, 45665 Recklinghausen, Deutschland',mx,y,{pt:P(11),c:GRAY,al:'center'});y+=M(14);
+    T('info@fragranceshub.de · fragranceshub.de',mx,y,{pt:P(11),c:GRAY,al:'center'})});
+  return doc}
+/* Drucken: 'a4' → Druck-Warteschlange → Mini-PC → Brother A4 im Lager · 'pdf' → hier drucken/teilen */
+async function soLsPrint(orders,btn,mode){const ob=btn.innerHTML;btn.disabled=true;btn.textContent='جاري التجهيز…';
+  try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');
+    const urls=[...new Set(orders.flatMap(o=>(o.items||[]).map(i=>i.img).filter(Boolean)))];let k=0;
+    await Promise.all(Array.from({length:6},async()=>{while(k<urls.length){const u=urls[k++];await soImgLoad(u)}}));
+    const blob=soLsPdf(orders).output('blob'),d=new Date(),nm='Lieferschein'+(orders.length>1?'e-'+orders.length+'x':'-'+soNr(orders[0]))+'-'+p2(d.getDate())+p2(d.getMonth()+1)+'-'+p2(d.getHours())+p2(d.getMinutes())+'.pdf';
+    if(mode==='a4'){const st=await srv('druckstatus').catch(()=>null);await srv('druck','A4-'+nm,await blob64(blob));
+      btn.textContent=st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';toast(st&&!st.online?'⚠️ جهاز الطباعة في المستودع غير متصل – ستُطبع فور تشغيله':'✓ أُرسلت إلى طابعة A4 في المستودع ('+orders.length+')')}
+    else{const file=new File([blob],nm,{type:'application/pdf'});btn.textContent='جاري الفتح…';
+      try{await printPdf(blob)}catch(e){if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:nm});else download(nm,blob)}}
+    const now=Date.now();orders.forEach(o=>{o.stand=o.stand||{};o.stand.lsAt=now;soCall('so_set',{id:o.id,nr:o.nr,patch:{lsAt:now}}).then(s=>{if(s)o.stand=s}).catch(()=>{})})}
+  catch(e){alert('تعذّرت الطباعة: '+(e.message||e))}
+  setTimeout(()=>{btn.disabled=false;btn.innerHTML=ob},2200)}
+/* Auswahl-Liste für Sammelaktionen */
+function soPickList(b,orders,initial){const sel=new Set(orders.filter(initial||(()=>true)).map(o=>o.id));
+  const top=el('div','so-chips');const all=el('button','so-chip','✔ الكل'),none=el('button','so-chip','✖ لا شيء');top.append(all,none);b.append(top);
+  const boxes=[];orders.forEach(o=>{const r=el('label','so-pick'),cb=document.createElement('input');cb.type='checkbox';cb.checked=sel.has(o.id);cb.onchange=()=>{cb.checked?sel.add(o.id):sel.delete(o.id);b.dispatchEvent(new Event('selchange'))};
+    const inf=el('div');inf.append(el('b',null,'#'+soNr(o)+' · '+(o.kunde||o.name)),el('div','ad',soOrt(o)+' · '+o.items.length+' Pos.'+(o.stand&&o.stand.lsAt?' · 📋':'')));r.append(cb,inf,el('span'));b.append(r);boxes.push([o,cb,r])});
+  all.onclick=()=>{boxes.forEach(([o,cb])=>{cb.checked=true;sel.add(o.id)});b.dispatchEvent(new Event('selchange'))};none.onclick=()=>{boxes.forEach(([o,cb])=>{cb.checked=false;sel.delete(o.id)});b.dispatchEvent(new Event('selchange'))};
+  return {sel,boxes}}
+function soBulkLs(list){openSheet('📋 قوائم التحضير · Lieferscheine',b=>{
+  b.append(el('p','hint','نفس قائمة التحضير التي تُطبع من Shopify (Order Printer). كل طلب في صفحة مستقلة.'));
+  const pk=soPickList(b,list),m=el('div','so-act');m.style.marginTop='12px';
+  const a4=el('button','btn primary','🖨️ طباعة في المستودع (A4)'),pd=el('button','btn','📄 PDF / طباعة هنا');m.append(a4,pd);b.append(m);
+  const upd=()=>{const n=pk.sel.size;a4.textContent='🖨️ طباعة في المستودع (A4) · '+n;pd.textContent='📄 PDF · '+n;a4.disabled=pd.disabled=!n};b.addEventListener('selchange',upd);upd();
+  const go=(btn,mode)=>soLsPrint(list.filter(o=>pk.sel.has(o.id)),btn,mode);a4.onclick=()=>go(a4,'a4');pd.onclick=()=>go(pd,'pdf')})}
+/* 📦 DHL-Etiketten für mehrere Inlands-Bestellungen auf einmal (kostenpflichtig – mit Bestätigung) */
+function soBulkDhl(list){openSheet('📦 ملصقات DHL جماعية · داخل ألمانيا',async b=>{
+  const st=el('p','hint','جاري تجهيز العناوين والأوزان…');b.append(st);
+  const res=new Array(list.length);let k=0,done=0;
+  await Promise.all(Array.from({length:4},async()=>{while(k<list.length){const i=k++;try{res[i]=await soCall('dhl_vor',{id:list[i].id})}catch(e){res[i]={err:dhlErr(e)}}done++;st.textContent='جاري التجهيز… '+done+' / '+list.length}}));
+  if(res.some(r=>r&&r.bereit===false)){st.textContent='لم تُضبط بيانات DHL بعد.';if(isAdmin()){const x=el('button','btn primary','⚙️ إعدادات DHL');x.onclick=()=>dhlSetup();b.append(x)}return}
+  st.textContent='تأكد من الوزن (مع التغليف). الطلبات التي عليها ملاحظة في العنوان غير محددة تلقائياً – افتحها وصحّحها أولاً.';
+  const rows=[];
+  list.forEach((o,i)=>{const v=res[i]||{},r=el('label','so-pick'),cb=document.createElement('input');cb.type='checkbox';
+    const has=v.dhl&&v.dhl.nr,warn=(v.warn||[]).concat(v.err?[v.err]:[]);cb.checked=!has&&!warn.length;cb.disabled=!!has||!!v.err;
+    const inf=el('div');inf.append(el('b',null,'#'+soNr(o)+' · '+(o.kunde||o.name)));
+    const e=v.empf||{};inf.append(el('div','ad',e.lockerID?'Packstation '+e.lockerID+' · '+e.postalCode+' '+e.city:e.retailID?'Postfiliale '+e.retailID+' · '+e.postalCode+' '+e.city:((e.addressStreet||'')+' '+(e.addressHouse||'❓')+', '+(e.postalCode||'')+' '+(e.city||'')).trim()));
+    if(has)inf.append(el('div','ad','✅ يوجد ملصق: '+v.dhl.nr));warn.forEach(w=>inf.append(el('div','status err','⚠️ '+w)));
+    const kg=el('input');kg.type='number';kg.step='0.1';kg.min='0.1';kg.inputMode='decimal';kg.value=v.kg||1;kg.title='kg';kg.onfocus=()=>kg.select();
+    const kw=el('div');kw.style.textAlign='center';kw.append(kg,el('div','ad','kg'));r.append(cb,inf,kw);b.append(r);rows.push({o,v,cb,kg})});
+  const cbx=(t,on)=>{const l=el('label','clprow'),i=el('input');i.type='checkbox';i.checked=on;l.append(i,' '+t);b.append(l);return i};
+  const dr=cbx('🖨️ اطبع الملصقات مباشرة على طابعة Zebra في المستودع',true),sp=cbx('📧 علِّم الطلبات «مشحونة» في Shopify وأرسل رقم التتبع للعملاء',true);
+  srv('druckstatus').then(x=>{if(x&&!x.online){dr.checked=false;dr.parentNode.append(el('span','hint',' (جهاز الطباعة غير متصل الآن)'))}}).catch(()=>{});
+  const go=el('button','btn primary big','✅ إنشاء الملصقات (مدفوع)'),log=el('div','so-log');log.hidden=true;b.append(go,log);
+  const upd=()=>{const n=rows.filter(r=>r.cb.checked).length;go.textContent='✅ إنشاء '+n+' ملصق DHL (مدفوع)';go.disabled=!n};rows.forEach(r=>r.cb.onchange=upd);upd();
+  go.onclick=async()=>{const todo=rows.filter(r=>r.cb.checked);for(const r of todo){const x=Number(String(r.kg.value).replace(',','.'));if(!(x>0&&x<=31.5))return alert('وزن غير صحيح في #'+soNr(r.o))}
+    if(!confirm('إنشاء '+todo.length+' ملصق DHL Paket مدفوع؟\n\n'+todo.map(r=>'#'+soNr(r.o)+' · '+(r.o.kunde||r.o.name)+' · '+r.kg.value+' kg').join('\n')+'\n\nيُحسب كل ملصق عند تسليم الطرد لـ DHL. يمكن إلغاء الملصق في نفس اليوم.'))return;
+    go.disabled=true;rows.forEach(r=>r.cb.disabled=true);log.hidden=false;log.textContent='';let ok=0,bad=0;
+    for(const r of todo){log.textContent+='#'+soNr(r.o)+' … ';
+      try{const kg=Number(String(r.kg.value).replace(',','.'));const x=await soCall('dhl_label',{id:r.o.id,nr:r.o.nr,kg,prod:'V01PAK',nurPruefen:false,druck:dr.checked,shopify:sp.checked});
+        r.o.stand=r.o.stand||{};r.o.stand.dhl={nr:x.nr,at:Date.now(),kg,prod:'V01PAK',shopify:x.shopify};ok++;
+        log.textContent+='✅ '+x.nr+(x.gedruckt?' · 🖨️':x.druckFehler?' · ⚠️ طباعة: '+x.druckFehler:'')+(x.shopify&&x.shopify!=='versendet'?' · Shopify: '+x.shopify:'')+'\n'}
+      catch(e){bad++;log.textContent+='❌ '+dhlErr(e)+'\n'}
+      log.scrollTop=log.scrollHeight}
+    log.textContent+='\n'+ok+' ملصق جاهز'+(bad?' · '+bad+' فشل':'')+(dr.checked&&ok?' – الطباعة جارية على Zebra':'');toast('📦 '+ok+' ملصق DHL'+(bad?' · '+bad+' فشل':''));
+    if(!dr.checked&&ok)b.append(el('p','hint','لطباعة الملصقات لاحقاً: افتح كل طلب ← «📦 DHL» ← طباعة.'));SO.at=0}})}
 
 /* ---------- 📦 DHL Paket (Inland): Versandetikett direkt aus «طلبات المتجر» – kostenpflichtig erst nach Bestätigung, kein Einfluss auf Lager ---------- */
 const b64Blob=(b64,t)=>{const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type:t||'application/pdf'})};

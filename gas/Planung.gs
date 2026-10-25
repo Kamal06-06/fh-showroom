@@ -702,18 +702,30 @@ function soPosition_(li) {
 function soListe_(o) {
   soPruefen_(o && o.pw);
   var ab = Utilities.formatDate(new Date(Date.now() - 21 * 864e5), 'UTC', "yyyy-MM-dd'T'HH:mm:ss'Z'");
-  var q = "created_at:>='" + ab + "' -status:cancelled -fulfillment_status:shipped -financial_status:refunded -financial_status:voided";
+  // nur bezahlte bzw. autorisierte Bestellungen – „Zahlung ausstehend" (PENDING) erscheint nicht in der App
+  var q = "created_at:>='" + ab + "' -status:cancelled -fulfillment_status:shipped (financial_status:paid OR financial_status:authorized OR financial_status:partially_paid OR financial_status:partially_refunded)";
   var felder = 'id name createdAt displayFinancialStatus displayFulfillmentStatus note tags email phone ' +
-    'customer { displayName } shippingAddress { name company address1 address2 zip city countryCodeV2 phone } shippingLine { title } ' +
-    'currentSubtotalPriceSet { shopMoney { amount } } lineItems(first: 60) { nodes { title variantTitle sku currentQuantity } }';
-  var nodes = shopifyGraphQL('query($q:String!){orders(first:60,query:$q,sortKey:CREATED_AT,reverse:true){nodes{' + felder + '}}}', { q: q }).orders.nodes;
+    'customer { displayName } shippingAddress { name company address1 address2 zip city country countryCodeV2 phone } ' +
+    'billingAddress { name company address1 address2 zip city country } shippingLine { title } ' +
+    'currentSubtotalPriceSet { shopMoney { amount } } lineItems(first: 80) { nodes { title variantTitle sku currentQuantity customAttributes { key value } image { url(transform: { maxWidth: 160, maxHeight: 160 }) } } }';
+  var nodes = shopifyGraphQL('query($q:String!){orders(first:100,query:$q,sortKey:CREATED_AT,reverse:true){nodes{' + felder + '}}}', { q: q }).orders.nodes;
+  var BEZAHLT = { PAID: 1, AUTHORIZED: 1, PARTIALLY_PAID: 1, PARTIALLY_REFUNDED: 1 };
+  nodes = nodes.filter(function (n) { return BEZAHLT[String(n.displayFinancialStatus || '').toUpperCase()]; });
   var st = soStaende_(), handle = soShopHandle_();
   var out = nodes.map(function (n) {
     var id = String(n.id).split('/').pop(), a = n.shippingAddress || {};
-    var items = (n.lineItems.nodes || []).filter(function (li) { return Number(li.currentQuantity) > 0; }).map(soPosition_);
+    var items = (n.lineItems.nodes || []).filter(function (li) { return Number(li.currentQuantity) > 0; }).map(function (li) {
+      var x = soPosition_(li);   // + Rohdaten für den Lieferschein (gleiche Logik wie die Order-Printer-Vorlage)
+      x.rq = Number(li.currentQuantity) || 0; x.img = (li.image && li.image.url) || '';
+      x.props = (li.customAttributes || []).map(function (c) { return [c.key, c.value]; });
+      return x;
+    });
+    var b = n.billingAddress || null;
     return { id: id, nr: n.name, at: new Date(n.createdAt).getTime(), fin: n.displayFinancialStatus, ful: n.displayFulfillmentStatus,
       kunde: (a.company || a.name || (n.customer && n.customer.displayName) || ''), name: a.name || '', firma: a.company || '',
       adr: [a.address1, a.address2, (a.zip || '') + ' ' + (a.city || '')].filter(function (x) { return String(x || '').trim(); }), land: a.countryCodeV2 || '',
+      landName: a.country || '', liefer: n.shippingAddress ? { name: a.name || '', firma: a.company || '', a1: a.address1 || '', a2: a.address2 || '', plz: a.zip || '', ort: a.city || '', land: a.country || '', tel: a.phone || '' } : null,
+      rechnung: b ? { name: b.name || '', firma: b.company || '', a1: b.address1 || '', a2: b.address2 || '', plz: b.zip || '', ort: b.city || '', land: b.country || '' } : null,
       tel: a.phone || n.phone || '', email: n.email || '', versand: (n.shippingLine && n.shippingLine.title) || '', notiz: n.note || '',
       netto: Number(n.currentSubtotalPriceSet && n.currentSubtotalPriceSet.shopMoney.amount || 0), tags: n.tags || [],
       items: items, stand: (st[id] && st[id].d) || {}, admin: handle ? 'https://admin.shopify.com/store/' + handle + '/orders/' + id : '' };
