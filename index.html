@@ -3754,7 +3754,7 @@ function soListView(b){b.textContent='';soCss();
     const l2=el('div','so-l2',(soIsDE(o)?'':SO_FLAG(o.land)+' '+(o.landName||o.land)+' · ')+soOrt(o)+' · ');l2.append(el('bdi',null,soDate(o.at)));
     const tg=el('div','so-tags');const tag=(t,c)=>tg.append(el('span','so-tag'+(c?' '+c:''),t));
     tag(o.items.length+' صنف'+(oils?' · '+oils+' زيت':''));
-    if(soHasDhl(o))tag('📦 DHL '+st.dhl.nr,'ok');else if(!soIsDE(o))tag('DHL Express');
+    if(soHasDhl(o)){const n=dhlPak(st.dhl).length;tag('📦 DHL '+(n>1?'× '+n+' طرود':st.dhl.nr),'ok')}else if(!soIsDE(o))tag('DHL Express');
     if(o.ful==='FULFILLED')tag('🚚 مشحون في Shopify','ok');
     if(st.lsAt)tag('📋 طُبعت','gold');
     if(o.notiz)tag('📝 ملاحظة','warn');
@@ -3798,10 +3798,11 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
   rd.onclick=async()=>{rd.disabled=true;const on=!st.readyAt;const lots={};if(on)o.items.forEach((it,ix)=>{if(it.oil){const lo=lotNow(it);if(lo)lots[ix]={b:lo.b,fc:lo.fc}}});
     await save(on?{ready:true,prep:o.items.map(()=>true),lots}:{ready:false});soDetail(b,o.id)};
   const dn=st.dhl&&st.dhl.nr,isDE=soIsDE(o);
-  const sh=el('button','btn'+(dn?'':' primary'),dn?'📦 DHL ✅ '+dn:'📦 ملصق '+soShip(o));
+  const np=dhlPak(st.dhl).length;
+  const sh=el('button','btn'+(dn?'':' primary'),dn?'📦 DHL ✅ '+(np>1?np+' طرود':dn):'📦 ملصق '+soShip(o));
   sh.onclick=()=>isDE?dhlSheet(o,()=>openSheet('🛒 طلبات المتجر',b2=>soDetail(b2,o.id))):alert('DHL Express للخارج قيد التجهيز (الخطوة التالية).\nحالياً: أنشئ الملصق من تطبيق «DHL Express Commerce» في Shopify.');
   a3.append(rd,sh);
-  if(dn){const cx=el('button','btn wide','❌ إلغاء ملصق DHL '+dn);cx.onclick=async()=>{
+  if(dn){const cx=el('button','btn wide',np>1?'❌ إلغاء طرد أو كل الطرود ('+np+')':'❌ إلغاء ملصق DHL '+dn);cx.onclick=async()=>{if(np>1)return dhlSheet(o,()=>openSheet('🛒 طلبات المتجر',b2=>soDetail(b2,o.id)));
     if(!confirm('إلغاء ملصق DHL '+dn+'؟\n\n• يُلغى عند DHL تلقائياً ولا يُحسب عليك (فقط إن لم يُسلَّم الطرد بعد – عادةً في نفس اليوم).\n• ويرجع الطلب في Shopify إلى «غير مشحون».\n• إيميل الشحن الذي وصل للعميل لا يمكن سحبه.'))return;
     cx.disabled=true;cx.textContent='جاري الإلغاء…';try{const r=await soCall('dhl_storno',{id:o.id,nr:o.nr});o.stand.dhl=null;o.ful='UNFULFILLED';toast('✅ أُلغي الملصق '+r.nr);if(r.hinweis)alert(r.hinweis);soDetail(b,o.id)}
     catch(e){cx.disabled=false;cx.textContent='❌ إلغاء ملصق DHL '+dn;alert('⚠️ '+dhlErr(e))}};a3.append(cx)}
@@ -3812,7 +3813,7 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
 
 /* ✏️ Lieferadresse in Shopify korrigieren – direkt aus der App */
 function soAdrSheet(o){const back=()=>openSheet('🛒 طلبات المتجر',b2=>soDetail(b2,o.id));
-  openSheet('✏️ تعديل عنوان التوصيل · '+o.nr,b=>{
+  openSheet('✏️ تعديل عنوان التوصيل · '+o.nr,b=>{soCss();
     const bk=el('button','btn small','← رجوع للطلب');bk.onclick=back;b.append(bk);
     const L=o.liefer||{name:o.name,firma:o.firma,a1:o.adr[0]||'',a2:o.adr.length>2?o.adr[1]:'',plz:String(o.adr.slice(-1)[0]||'').split(' ')[0],ort:String(o.adr.slice(-1)[0]||'').split(' ').slice(1).join(' '),tel:o.tel};
     b.append(el('p','hint','يُحفظ التعديل مباشرة في طلب Shopify. بعدها تستخدم قائمة التحضير وملصق DHL العنوان الجديد.'));
@@ -3953,38 +3954,39 @@ function soPickList(b,orders,initial){const sel=new Set(orders.filter(initial||(
     const inf=el('div');inf.append(el('b',null,'#'+soNr(o)+' · '+(o.kunde||o.name)),el('div','ad',soOrt(o)+' · '+o.items.length+' Pos.'+(o.stand&&o.stand.lsAt?' · 📋':'')));r.append(cb,inf,el('span'));b.append(r);boxes.push([o,cb,r])});
   all.onclick=()=>{boxes.forEach(([o,cb])=>{cb.checked=true;sel.add(o.id)});b.dispatchEvent(new Event('selchange'))};none.onclick=()=>{boxes.forEach(([o,cb])=>{cb.checked=false;sel.delete(o.id)});b.dispatchEvent(new Event('selchange'))};
   return {sel,boxes}}
-function soBulkLs(list){openSheet('📋 قوائم التحضير · Lieferscheine',b=>{
+function soBulkLs(list){openSheet('📋 قوائم التحضير · Lieferscheine',b=>{soCss();
   b.append(el('p','hint','نفس قائمة التحضير التي تُطبع من Shopify (Order Printer). كل طلب في صفحة مستقلة.'));
   const pk=soPickList(b,list),m=el('div','so-act');m.style.marginTop='12px';
   const a4=el('button','btn primary','🖨️ طباعة في المستودع (A4)'),pd=el('button','btn','📄 PDF / طباعة هنا');m.append(a4,pd);b.append(m);
   const upd=()=>{const n=pk.sel.size;a4.textContent='🖨️ طباعة في المستودع (A4) · '+n;pd.textContent='📄 PDF · '+n;a4.disabled=pd.disabled=!n};b.addEventListener('selchange',upd);upd();
   const go=(btn,mode)=>soLsPrint(list.filter(o=>pk.sel.has(o.id)),btn,mode);a4.onclick=()=>go(a4,'a4');pd.onclick=()=>go(pd,'pdf')})}
 /* 📦 DHL-Etiketten für mehrere Inlands-Bestellungen auf einmal (kostenpflichtig – mit Bestätigung) */
-function soBulkDhl(list){openSheet('📦 ملصقات DHL جماعية · داخل ألمانيا',async b=>{
+function soBulkDhl(list){openSheet('📦 ملصقات DHL جماعية · داخل ألمانيا',async b=>{soCss();
   const st=el('p','hint','جاري تجهيز العناوين والأوزان…');b.append(st);
   const res=new Array(list.length);let k=0,done=0;
   await Promise.all(Array.from({length:4},async()=>{while(k<list.length){const i=k++;try{res[i]=await soCall('dhl_vor',{id:list[i].id})}catch(e){res[i]={err:dhlErr(e)}}done++;st.textContent='جاري التجهيز… '+done+' / '+list.length}}));
   if(res.some(r=>r&&r.bereit===false)){st.textContent='لم تُضبط بيانات DHL بعد.';if(isAdmin()){const x=el('button','btn primary','⚙️ إعدادات DHL');x.onclick=()=>dhlSetup();b.append(x)}return}
-  st.textContent='تأكد من الوزن (مع التغليف). الطلبات التي عليها ملاحظة في العنوان غير محددة تلقائياً – افتحها وصحّحها أولاً.';
+  st.textContent='تأكد من الوزن الكلي (مع التغليف) وعدد الطرود لكل طلب – يُقسَم الوزن على الطرود بالتساوي. الطلبات التي عليها ملاحظة في العنوان غير محددة تلقائياً – صحّحها أولاً (✏️ تعديل العنوان).';
   const rows=[];
   list.forEach((o,i)=>{const v=res[i]||{},r=el('label','so-pick'),cb=document.createElement('input');cb.type='checkbox';
     const has=v.dhl&&v.dhl.nr,warn=(v.warn||[]).concat(v.err?[v.err]:[]);cb.checked=!has&&!warn.length;cb.disabled=!!has||!!v.err;
     const inf=el('div');inf.append(el('b',null,'#'+soNr(o)+' · '+(o.kunde||o.name)));
     const e=v.empf||{};inf.append(el('div','ad',e.lockerID?'Packstation '+e.lockerID+' · '+e.postalCode+' '+e.city:e.retailID?'Postfiliale '+e.retailID+' · '+e.postalCode+' '+e.city:((e.addressStreet||'')+' '+(e.addressHouse||'❓')+', '+(e.postalCode||'')+' '+(e.city||'')).trim()));
     if(has)inf.append(el('div','ad','✅ يوجد ملصق: '+v.dhl.nr));warn.forEach(w=>inf.append(el('div','status err','⚠️ '+w)));
-    const kg=el('input');kg.type='number';kg.step='0.1';kg.min='0.1';kg.inputMode='decimal';kg.value=v.kg||1;kg.title='kg';kg.onfocus=()=>kg.select();
-    const kw=el('div');kw.style.textAlign='center';kw.append(kg,el('div','ad','kg'));r.append(cb,inf,kw);b.append(r);rows.push({o,v,cb,kg})});
+    const kg=el('input');kg.type='number';kg.step='0.1';kg.min='0.1';kg.inputMode='decimal';kg.value=v.kg||1;kg.title='kg (مجموع)';kg.onfocus=()=>kg.select();
+    const np=el('input');np.type='number';np.step='1';np.min='1';np.max='20';np.inputMode='numeric';np.value='1';np.title='عدد الطرود';np.onfocus=()=>np.select();np.style.marginTop='4px';
+    const kw=el('div');kw.style.textAlign='center';kw.append(kg,el('div','ad','kg'),np,el('div','ad','طرد'));r.append(cb,inf,kw);b.append(r);rows.push({o,v,cb,kg,np})});
   const cbx=(t,on)=>{const l=el('label','clprow'),i=el('input');i.type='checkbox';i.checked=on;l.append(i,' '+t);b.append(l);return i};
   const dr=cbx('🖨️ اطبع الملصقات مباشرة على طابعة Zebra في المستودع',true),sp=cbx('📧 علِّم الطلبات «مشحونة» في Shopify وأرسل رقم التتبع للعملاء',true);
   srv('druckstatus').then(x=>{if(x&&!x.online){dr.checked=false;dr.parentNode.append(el('span','hint',' (جهاز الطباعة غير متصل الآن)'))}}).catch(()=>{});
   const go=el('button','btn primary big','✅ إنشاء الملصقات (مدفوع)'),log=el('div','so-log');log.hidden=true;b.append(go,log);
   const upd=()=>{const n=rows.filter(r=>r.cb.checked).length;go.textContent='✅ إنشاء '+n+' ملصق DHL (مدفوع)';go.disabled=!n};rows.forEach(r=>r.cb.onchange=upd);upd();
-  go.onclick=async()=>{const todo=rows.filter(r=>r.cb.checked);for(const r of todo){const x=Number(String(r.kg.value).replace(',','.'));if(!(x>0&&x<=31.5))return alert('وزن غير صحيح في #'+soNr(r.o))}
-    if(!confirm('إنشاء '+todo.length+' ملصق DHL Paket مدفوع؟\n\n'+todo.map(r=>'#'+soNr(r.o)+' · '+(r.o.kunde||r.o.name)+' · '+r.kg.value+' kg').join('\n')+'\n\nيُحسب كل ملصق عند تسليم الطرد لـ DHL. يمكن إلغاء الملصق في نفس اليوم.'))return;
+  go.onclick=async()=>{const todo=rows.filter(r=>r.cb.checked);for(const r of todo){const x=Number(String(r.kg.value).replace(',','.')),n=Math.max(1,parseInt(r.np.value,10)||1);if(!(x>0&&x/n<=31.5))return alert('وزن غير صحيح في #'+soNr(r.o)+' (الحد 31.5 kg لكل طرد)')}
+    const tp=todo.reduce((t,r)=>t+Math.max(1,parseInt(r.np.value,10)||1),0);if(!confirm('إنشاء '+tp+' ملصق DHL Paket مدفوع لـ '+todo.length+' طلب؟\n\n'+todo.map(r=>'#'+soNr(r.o)+' · '+(r.o.kunde||r.o.name)+' · '+r.kg.value+' kg'+((parseInt(r.np.value,10)||1)>1?' · '+r.np.value+' طرود':'')).join('\n')+'\n\nيُحسب كل ملصق عند تسليم الطرد لـ DHL. يمكن إلغاء الملصق في نفس اليوم.'))return;
     go.disabled=true;rows.forEach(r=>r.cb.disabled=true);log.hidden=false;log.textContent='';let ok=0,bad=0;
     for(const r of todo){log.textContent+='#'+soNr(r.o)+' … ';
-      try{const kg=Number(String(r.kg.value).replace(',','.'));const x=await soCall('dhl_label',{id:r.o.id,nr:r.o.nr,kg,prod:'V01PAK',nurPruefen:false,druck:dr.checked,shopify:sp.checked});
-        r.o.stand=r.o.stand||{};r.o.stand.dhl={nr:x.nr,at:Date.now(),kg,prod:'V01PAK',shopify:x.shopify};ok++;
+      try{const kg=Number(String(r.kg.value).replace(',','.')),n=Math.max(1,Math.min(20,parseInt(r.np.value,10)||1)),kgs=Array.from({length:n},()=>Math.max(0.1,Math.round(kg/n*10)/10));const x=await soCall('dhl_label',{id:r.o.id,nr:r.o.nr,kgs,prod:'V01PAK',nurPruefen:false,druck:dr.checked,shopify:sp.checked});
+        r.o.stand=r.o.stand||{};r.o.stand.dhl=x.dhl||{nr:x.nr,at:Date.now(),kg,prod:'V01PAK',shopify:x.shopify};ok++;
         log.textContent+='✅ '+x.nr+(x.gedruckt?' · 🖨️':x.druckFehler?' · ⚠️ طباعة: '+x.druckFehler:'')+(x.shopify&&x.shopify!=='versendet'?' · Shopify: '+x.shopify:'')+'\n'}
       catch(e){bad++;log.textContent+='❌ '+dhlErr(e)+'\n'}
       log.scrollTop=log.scrollHeight}
@@ -4009,45 +4011,72 @@ function dhlSetup(after){openSheet('🚚 إعدادات DHL Paket',async b=>{
     sv.disabled=true;say('جاري الحفظ…');try{const r=await soCall('dhl_set',o);Object.values(inp).forEach(i=>i.value='');say('✅ حُفظ ('+r.gespeichert+')'+(r.status.bereit?' · كل البيانات موجودة – اضغط «اختبار الاتصال»':' · ما زال ينقص شيء'))}catch(e){say('⚠️ '+dhlErr(e),1)}sv.disabled=false};
   ts.onclick=async()=>{ts.disabled=true;say('جاري الاتصال بـ DHL…');try{const r=await soCall('dhl_test');say(r.ok?'✅ الاتصال بـ DHL يعمل':'⚠️ DHL ردّ بالرمز '+r.code,!r.ok)}catch(e){say('⚠️ '+dhlErr(e)+'\nملاحظة: المفاتيح الجديدة قد تحتاج حتى 24 ساعة لتعمل.',1)}ts.disabled=false};
   b.append(el('p','hint','المرسِل على الملصق: '+[s.absender.name1,s.absender.addressStreet+' '+s.absender.addressHouse,s.absender.postalCode+' '+s.absender.city].join(' · ')))})}
-function dhlSheet(o,after){openSheet('📦 DHL Paket · '+o.nr,async b=>{
+/* mehrere Etiketten-PDFs → ein PDF (zum Öffnen/Drucken) */
+async function dhlMerge(b64s){b64s=[].concat(b64s).filter(Boolean);if(b64s.length<2)return b64Blob(b64s[0]);
+  try{const L=await loadPdfLib(),out=await L.PDFDocument.create();for(const x of b64s){const src=await L.PDFDocument.load(await b64Blob(x).arrayBuffer());(await out.copyPages(src,src.getPageIndices())).forEach(p=>out.addPage(p))}return new Blob([await out.save()],{type:'application/pdf'})}
+  catch(e){return b64Blob(b64s[0])}}
+const dhlPak=d=>!d||!d.nr?[]:(d.pakete&&d.pakete.length?d.pakete:[{nr:d.nr,kg:d.kg,file:d.file,at:d.at}]);
+/* Gewichtsfelder für n Pakete (Gesamtgewicht wird gleichmäßig verteilt, jedes Feld änderbar) */
+function dhlKgBox(b,total){const box=el('div');const nIn=el('input');nIn.type='number';nIn.min='1';nIn.max='20';nIn.step='1';nIn.value='1';nIn.inputMode='numeric';nIn.dir='ltr';
+  field(b,'📦 عدد الطرود لهذا الطلب',nIn);b.append(box);let ins=[];
+  const draw=()=>{const n=Math.max(1,Math.min(20,parseInt(nIn.value,10)||1)),per=Math.max(0.1,Math.round((Number(total)||1)/n*10)/10);box.textContent='';ins=[];
+    for(let i=0;i<n;i++){const k=el('input');k.type='number';k.step='0.1';k.min='0.1';k.inputMode='decimal';k.dir='ltr';k.value=n===1?(total||1):per;ins.push(field(box,n===1?'الوزن بالكيلو (مع التغليف) · اقتراح من أوزان المنتجات':'وزن الطرد '+(i+1)+' (kg)',k))}};
+  nIn.oninput=draw;draw();
+  return {kgs:()=>ins.map(i=>Number(String(i.value).replace(',','.'))),n:()=>ins.length}}
+function dhlSheet(o,after){openSheet('📦 DHL Paket · '+o.nr,async b=>{soCss();
   const st=el('p','hint','جاري التحضير…');b.append(st);let v;
   try{v=await soCall('dhl_vor',{id:o.id})}catch(e){st.textContent='⚠️ '+dhlErr(e);return}
   if(!v.bereit){st.textContent='لم تُضبط بيانات DHL بعد.';if(isAdmin()){const x=el('button','btn primary','⚙️ إعدادات DHL');x.onclick=()=>dhlSetup();b.append(x)}else b.append(el('p','hint','يضبطها المدير مرة واحدة.'));return}
   b.textContent='';if(after){const bk=el('button','btn small','← رجوع للطلب');bk.onclick=after;b.append(bk)}const m=el('div','status');m.hidden=true;m.style.whiteSpace='pre-line';const say=(t,err)=>{m.hidden=false;m.classList.toggle('err',!!err);m.textContent=t};
   const setStand=d=>{o.stand=o.stand||{};o.stand.dhl=d};
-  const openPdf=async b64=>{try{await printPdf(b64Blob(b64))}catch(e){const a=document.createElement('a');a.href=URL.createObjectURL(b64Blob(b64));a.target='_blank';a.click()}};
-  /* schon ein Etikett da */
-  if(v.dhl&&v.dhl.nr){const d=v.dhl,c=el('div','card');c.style.cssText='padding:10px 12px;margin:8px 0';
-    c.append(el('b',null,'✅ ملصق DHL موجود'),el('div','ivname',d.nr),el('div','time',new Date(d.at).toLocaleString('de-DE')+' · '+d.kg+' kg · '+(d.prod==='V62KP'?'Kleinpaket':'Paket')+(d.by?' · '+d.by:'')),
+  const openPdf=async b64s=>{const bl=await dhlMerge(b64s);try{await printPdf(bl)}catch(e){const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.target='_blank';a.click()}};
+  const reopen=()=>dhlSheet(o,after);
+  const e=v.empf,adrTxt=()=>{const lines=e.lockerID?[e.name,'Packstation '+e.lockerID,'PostNr. '+(e.postNumber||'❓'),e.postalCode+' '+e.city]:e.retailID?[e.name,'Postfiliale '+e.retailID,'PostNr. '+(e.postNumber||'❓'),e.postalCode+' '+e.city]:
+    [e.name1,e.name2,(e.addressStreet+' '+(e.addressHouse||'❓')).trim(),e.additionalAddressInformation1,e.postalCode+' '+e.city,e.email?'✉ '+e.email:''].filter(Boolean);const ad=el('div','note');ad.dir='ltr';ad.style.whiteSpace='pre-line';ad.textContent=lines.join('\n');return ad};
+  const cbx=(t,on)=>{const l=el('label','clprow'),i=el('input');i.type='checkbox';i.checked=on;l.append(i,' '+t);b.append(l);return i};
+  /* schon Etikett(en) da */
+  const pk=dhlPak(v.dhl);
+  if(pk.length){const d=v.dhl,c=el('div','card');c.style.cssText='padding:10px 12px;margin:8px 0';
+    c.append(el('b',null,'✅ ملصق DHL موجود · '+pk.length+' طرد'),el('div','time',new Date(d.at).toLocaleString('de-DE')+' · '+d.kg+' kg · '+(d.prod==='V62KP'?'Kleinpaket':'Paket')+(d.by?' · '+d.by:'')),
       el('div','time','Shopify: '+(d.shopify==='versendet'?'✅ مُعلَّم كمشحون + إيميل التتبع للعميل':d.shopify||'—')));b.append(c);
-    const row=el('div','row');row.style.cssText='gap:8px;flex-wrap:wrap';
-    const pr=el('button','btn primary','🖨️ طباعة مرة أخرى (المستودع)');pr.onclick=async()=>{pr.disabled=true;try{await soCall('dhl_druck',{id:o.id,druck:true});say('✓ أُرسل إلى طابعة الملصقات في المستودع')}catch(e){say('⚠️ '+dhlErr(e),1)}pr.disabled=false};
-    const pf=el('button','btn','📄 PDF');pf.onclick=async()=>{pf.disabled=true;try{const r=await soCall('dhl_druck',{id:o.id});await openPdf(r.b64)}catch(e){say('⚠️ '+dhlErr(e),1)}pf.disabled=false};
-    const tr=el('a','btn','🔗 تتبع');tr.href=dhlTrack(d.nr);tr.target='_blank';tr.rel='noopener';
-    const sx=el('button','btn','❌ إلغاء الملصق');sx.onclick=async()=>{if(!confirm('إلغاء ملصق DHL '+d.nr+'؟\n\n• يُلغى عند DHL تلقائياً ولا يُحسب عليك (فقط إن لم يُسلَّم الطرد بعد – عادةً في نفس اليوم).\n• ويرجع الطلب في Shopify إلى «غير مشحون».\n• ملاحظة: إيميل الشحن الذي وصل للعميل لا يمكن سحبه.'))return;
-      sx.disabled=true;try{const r=await soCall('dhl_storno',{id:o.id,nr:o.nr});setStand(null);say('✅ أُلغي الملصق '+r.nr+(r.hinweis?'\n'+r.hinweis:''));sx.remove();pr.remove();pf.remove()}catch(e){say('⚠️ '+dhlErr(e),1);sx.disabled=false}};
-    row.append(pr,pf,tr,sx);b.append(row,m);return}
+    pk.forEach((p,i)=>{const r=el('div','so-pick');r.style.gridTemplateColumns='1fr auto';const inf=el('div');inf.append(el('b',null,'طرد '+(i+1)+' · '),el('bdi',null,p.nr));inf.append(el('div','ad',(p.kg||'?')+' kg'));
+      const bs=el('div','row');bs.style.cssText='gap:6px;flex-wrap:nowrap;justify-content:flex-end';
+      const pr=el('button','btn small','🖨️');pr.title='طباعة هذا الطرد في المستودع';pr.onclick=async()=>{pr.disabled=true;try{await soCall('dhl_druck',{id:o.id,druck:true,paket:p.nr});say('✓ أُرسل ملصق '+p.nr+' إلى طابعة Zebra')}catch(x){say('⚠️ '+dhlErr(x),1)}pr.disabled=false};
+      const tr=el('a','btn small','🔗');tr.title='تتبع';tr.href=dhlTrack(p.nr);tr.target='_blank';tr.rel='noopener';
+      const sx=el('button','btn small','❌ إلغاء');sx.onclick=async()=>{if(!confirm('إلغاء الطرد '+(i+1)+' فقط ('+p.nr+')؟\n\nيُلغى عند DHL تلقائياً ولا يُحسب عليك (إن لم يُسلَّم بعد).'+(pk.length>1?'\nباقي الطرود تبقى كما هي، ويُحدَّث رقم التتبع في Shopify.':'\nويرجع الطلب في Shopify إلى «غير مشحون».')))return;
+        sx.disabled=true;try{const r2=await soCall('dhl_storno',{id:o.id,nr:o.nr,paket:p.nr});setStand(r2.dhl||null);if(!r2.dhl)o.ful='UNFULFILLED';toast('✅ أُلغي الطرد '+p.nr);if(r2.hinweis)alert(r2.hinweis);reopen()}catch(x){say('⚠️ '+dhlErr(x),1);sx.disabled=false}};
+      bs.append(pr,tr,sx);r.append(inf,bs);b.append(r)});
+    const row=el('div','so-act');row.style.marginTop='10px';
+    const pa=el('button','btn primary','🖨️ طباعة كل الطرود');pa.onclick=async()=>{pa.disabled=true;try{await soCall('dhl_druck',{id:o.id,druck:true});say('✓ أُرسلت كل الملصقات إلى طابعة Zebra')}catch(x){say('⚠️ '+dhlErr(x),1)}pa.disabled=false};
+    const pf=el('button','btn','📄 PDF');pf.onclick=async()=>{pf.disabled=true;try{const r=await soCall('dhl_druck',{id:o.id});await openPdf(r.b64s||r.b64)}catch(x){say('⚠️ '+dhlErr(x),1)}pf.disabled=false};
+    const ad=el('button','btn','➕ إضافة طرد');ad.onclick=()=>addForm();
+    const sa=el('button','btn','❌ إلغاء كل الطرود');sa.onclick=async()=>{if(!confirm('إلغاء كل ملصقات DHL لهذا الطلب ('+pk.length+')؟\n\n• تُلغى عند DHL تلقائياً ولا تُحسب عليك (إن لم تُسلَّم بعد).\n• ويرجع الطلب في Shopify إلى «غير مشحون».\n• إيميل الشحن الذي وصل للعميل لا يمكن سحبه.'))return;
+      sa.disabled=true;try{const r2=await soCall('dhl_storno',{id:o.id,nr:o.nr});setStand(r2.dhl||null);if(!r2.dhl)o.ful='UNFULFILLED';say('✅ أُلغي: '+r2.nr+(r2.fehler&&r2.fehler.length?'\n⚠️ لم يُلغَ: '+r2.fehler.join(' | '):'')+(r2.hinweis?'\n'+r2.hinweis:''),!!(r2.fehler&&r2.fehler.length));row.remove()}catch(x){say('⚠️ '+dhlErr(x),1);sa.disabled=false}};
+    row.append(pa,pf,ad,sa);b.append(row,m);
+    const addForm=()=>{row.remove();const f=el('div','card');f.style.cssText='padding:10px 12px;margin:10px 0';f.append(el('b',null,'➕ طرد إضافي لنفس الطلب'),adrTxt());b.append(f);
+      const kb=dhlKgBox(f,v.kg);const dr=cbx('🖨️ اطبع مباشرة على Zebra في المستودع',true);
+      const go=el('button','btn primary big','✅ إنشاء الطرد الإضافي (مدفوع)');b.append(go,m);
+      go.onclick=async()=>{const kgs=kb.kgs();if(kgs.some(k=>!(k>0)))return say('أدخل الوزن',1);if(!confirm('إنشاء '+kgs.length+' ملصق DHL إضافي مدفوع لـ '+o.nr+'؟\n'+kgs.map((k,i)=>'طرد '+(i+1)+': '+k+' kg').join('\n')))return;
+        go.disabled=true;say('جاري الإنشاء…');try{const r=await soCall('dhl_label',{id:o.id,nr:o.nr,kgs,prod:d.prod||'V01PAK',add:true,druck:dr.checked,shopify:true});setStand(r.dhl);
+          say('✅ '+r.nr+(r.gedruckt?'\n🖨️ أُرسل إلى Zebra':'')+(r.fehlend?'\n⚠️ لم يُنشأ '+r.fehlend+' طرد':''));if(!dr.checked)openPdf(r.b64s);setTimeout(reopen,1200)}catch(x){say('⚠️ '+dhlErr(x),1);go.disabled=false}}};
+    return}
   /* neues Etikett */
-  const c=el('div','card');c.style.cssText='padding:10px 12px;margin:8px 0';const e=v.empf;
-  const lines=e.lockerID?[e.name,'Packstation '+e.lockerID,'PostNr. '+(e.postNumber||'❓'),e.postalCode+' '+e.city]:e.retailID?[e.name,'Postfiliale '+e.retailID,'PostNr. '+(e.postNumber||'❓'),e.postalCode+' '+e.city]:
-    [e.name1,e.name2,(e.addressStreet+' '+(e.addressHouse||'❓')).trim(),e.additionalAddressInformation1,e.postalCode+' '+e.city,e.email?'✉ '+e.email:''].filter(Boolean);
-  const ad=el('div','note');ad.dir='ltr';ad.style.whiteSpace='pre-line';ad.textContent=lines.join('\n');
-  c.append(el('b',null,'المستلم كما سيظهر على الملصق · '+v.typ),ad);(v.warn||[]).forEach(w=>c.append(el('div','status err','⚠️ '+w)));b.append(c);
-  const kg=el('input');kg.type='number';kg.step='0.1';kg.min='0.1';kg.inputMode='decimal';kg.value=v.kg;kg.dir='ltr';field(b,'الوزن بالكيلو (مع التغليف) · اقتراح من أوزان المنتجات',kg);
+  const c=el('div','card');c.style.cssText='padding:10px 12px;margin:8px 0';
+  c.append(el('b',null,'المستلم كما سيظهر على الملصق · '+v.typ),adrTxt());(v.warn||[]).forEach(w=>c.append(el('div','status err','⚠️ '+w)));b.append(c);
+  const kb=dhlKgBox(b,v.kg);
   const pd=el('select');pd.style.cssText='padding:10px;font:inherit;border-radius:10px;width:100%';[['V01PAK','DHL Paket (حتى 31.5 kg)'],['V62KP','DHL Kleinpaket (حتى 1 kg · بحجم صغير)']].forEach(([k,t])=>{const op=el('option',null,t);op.value=k;pd.append(op)});field(b,'المنتج',pd);
-  const cb=(t,on)=>{const l=el('label','clprow'),i=el('input');i.type='checkbox';i.checked=on;l.append(i,' '+t);b.append(l);return i};
-  const dr=cb('🖨️ اطبع مباشرة في المستودع ('+(v.fmt==='A4'?'Brother A4':'Zebra')+') – عبر جهاز الطباعة Mini PC',false),sp=cb('📧 علِّم الطلب «مشحون» في Shopify وأرسل رقم التتبع للعميل',true);
+  const dr=cbx('🖨️ اطبع مباشرة في المستودع ('+(v.fmt==='A4'?'Brother A4':'Zebra')+') – عبر جهاز الطباعة Mini PC',false),sp=cbx('📧 علِّم الطلب «مشحون» في Shopify وأرسل رقم التتبع للعميل',true);
   const row=el('div','row');row.style.cssText='gap:8px;flex-wrap:wrap;margin-top:10px';
   const chk=el('button','btn','🔍 فحص العنوان (مجاني)'),go=el('button','btn primary big','✅ إنشاء الملصق (مدفوع)');row.append(chk,go);b.append(row,m);
   srv('druckstatus').then(x=>{if(x&&x.online)dr.checked=LS.get('dhlDr',true)}).catch(()=>{});dr.onchange=()=>LS.set('dhlDr',dr.checked);
-  const opt=nur=>({id:o.id,nr:o.nr,kg:Number(String(kg.value).replace(',','.')),prod:pd.value,nurPruefen:nur,druck:dr.checked,shopify:sp.checked});
-  chk.onclick=async()=>{chk.disabled=true;say('جاري الفحص عند DHL…');try{const r=await soCall('dhl_label',opt(true));say((r.ok?'✅ DHL يقبل العنوان والبيانات':'❌ DHL لا يقبل البيانات')+(r.msgs.length?'\n'+r.msgs.join('\n'):''),!r.ok)}catch(e){say('⚠️ '+dhlErr(e),1)}chk.disabled=false};
-  go.onclick=async()=>{const x=opt(false);if(!(x.kg>0))return say('أدخل الوزن',1);
-    if(!confirm('إنشاء ملصق DHL مدفوع؟\n\n'+o.nr+' · '+(e.name1||e.name)+'\n'+x.kg+' kg · '+(x.prod==='V62KP'?'Kleinpaket':'Paket')+'\n\nيُحسب على حسابك عند تسليم الطرد لـ DHL.'))return;
+  const opt=nur=>({id:o.id,nr:o.nr,kgs:kb.kgs(),prod:pd.value,nurPruefen:nur,druck:dr.checked,shopify:sp.checked});
+  chk.onclick=async()=>{chk.disabled=true;say('جاري الفحص عند DHL…');try{const r=await soCall('dhl_label',opt(true));say((r.ok?'✅ DHL يقبل العنوان والبيانات':'❌ DHL لا يقبل البيانات')+(r.msgs.length?'\n'+r.msgs.join('\n'):''),!r.ok)}catch(x){say('⚠️ '+dhlErr(x),1)}chk.disabled=false};
+  go.onclick=async()=>{const x=opt(false);if(x.kgs.some(k=>!(k>0)))return say('أدخل الوزن',1);
+    if(!confirm('إنشاء '+(x.kgs.length>1?x.kgs.length+' ملصقات':'ملصق')+' DHL مدفوع؟\n\n'+o.nr+' · '+(e.name1||e.name)+'\n'+x.kgs.map((k,i)=>(x.kgs.length>1?'طرد '+(i+1)+': ':'')+k+' kg').join('\n')+' · '+(x.prod==='V62KP'?'Kleinpaket':'Paket')+'\n\nيُحسب كل ملصق عند تسليم الطرد لـ DHL.'))return;
     go.disabled=chk.disabled=true;say('جاري إنشاء الملصق…');
-    try{const r=await soCall('dhl_label',x);setStand({nr:r.nr,at:Date.now(),kg:x.kg,prod:x.prod,shopify:r.shopify});
-      say('✅ رقم الشحنة: '+r.nr+'\n'+(r.gedruckt?'🖨️ أُرسل إلى طابعة الملصقات في المستودع':r.druckFehler?'⚠️ لم يُرسل للطابعة: '+r.druckFehler:'')+(r.shopify?'\nShopify: '+(r.shopify==='versendet'?'✅ مُعلَّم كمشحون':r.shopify):'')+(r.msgs&&r.msgs.length?'\n'+r.msgs.join('\n'):''));
-      const pf=el('button','btn','📄 فتح PDF');pf.onclick=()=>openPdf(r.b64);b.append(pf);if(!x.druck)openPdf(r.b64)}
+    try{const r=await soCall('dhl_label',x);setStand(r.dhl||{nr:r.nrs?r.nrs[0]:r.nr,at:Date.now(),kg:x.kgs[0],prod:x.prod,shopify:r.shopify});
+      say('✅ رقم الشحنة: '+r.nr+'\n'+(r.gedruckt?'🖨️ أُرسل إلى طابعة الملصقات في المستودع':r.druckFehler?'⚠️ لم يُرسل للطابعة: '+r.druckFehler:'')+(r.fehlend?'\n⚠️ لم يُنشأ '+r.fehlend+' طرد – أضفه لاحقاً بـ «➕ إضافة طرد»':'')+(r.shopify?'\nShopify: '+(r.shopify==='versendet'?'✅ مُعلَّم كمشحون':r.shopify):'')+(r.msgs&&r.msgs.length?'\n'+r.msgs.join('\n'):''));
+      const pf=el('button','btn','📄 فتح PDF');pf.onclick=()=>openPdf(r.b64s||r.b64);b.append(pf);if(!x.druck)openPdf(r.b64s||r.b64)}
     catch(err){say('⚠️ '+dhlErr(err),1);go.disabled=chk.disabled=false}};
   b.append(el('p','hint','«فحص العنوان» مجاني ولا يُنشئ شحنة. الملصق المدفوع يمكن إلغاؤه في نفس اليوم إن لم يُسلَّم الطرد بعد.'))})}
 
