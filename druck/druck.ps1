@@ -34,6 +34,101 @@ public class FhRaw {
 }
 "@
 
+# Zebra GK420t direkt ueber USB (ohne Windows-Treiber, ohne Admin): PDF -> Bild (Windows.Data.Pdf) -> ZPL-Grafik -> USB
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
+using System; using System.Text; using System.Drawing; using System.Drawing.Imaging; using System.Runtime.InteropServices; using System.Collections.Generic; using Microsoft.Win32.SafeHandles;
+public class FhZebra {
+  [StructLayout(LayoutKind.Sequential)] struct DID { public int cbSize; public Guid g; public int Flags; public IntPtr Reserved; }
+  [DllImport("setupapi.dll", SetLastError=true)] static extern IntPtr SetupDiGetClassDevs(ref Guid g, IntPtr e, IntPtr h, int f);
+  [DllImport("setupapi.dll", SetLastError=true)] static extern bool SetupDiEnumDeviceInterfaces(IntPtr s, IntPtr d, ref Guid g, int i, ref DID di);
+  [DllImport("setupapi.dll", SetLastError=true, CharSet=CharSet.Unicode)] static extern bool SetupDiGetDeviceInterfaceDetail(IntPtr s, ref DID di, IntPtr buf, int size, out int req, IntPtr dev);
+  [DllImport("setupapi.dll")] static extern bool SetupDiDestroyDeviceInfoList(IntPtr s);
+  [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)] static extern SafeFileHandle CreateFile(string n, uint a, uint s, IntPtr sa, uint c, uint f, IntPtr t);
+  // USB-Pfad des ersten Zebra-Druckers (Hersteller-ID 0A5F)
+  public static string Pfad() {
+    Guid g = new Guid("28d78fad-5a12-11d1-ae5b-0000f803a8c2"); string r = null;
+    IntPtr s = SetupDiGetClassDevs(ref g, IntPtr.Zero, IntPtr.Zero, 0x12);
+    DID di = new DID(); di.cbSize = Marshal.SizeOf(di);
+    for (int i = 0; r == null && SetupDiEnumDeviceInterfaces(s, IntPtr.Zero, ref g, i, ref di); i++) {
+      int req; SetupDiGetDeviceInterfaceDetail(s, ref di, IntPtr.Zero, 0, out req, IntPtr.Zero);
+      IntPtr buf = Marshal.AllocHGlobal(req); Marshal.WriteInt32(buf, IntPtr.Size == 8 ? 8 : 6);
+      if (SetupDiGetDeviceInterfaceDetail(s, ref di, buf, req, out req, IntPtr.Zero)) { string p = Marshal.PtrToStringUni(new IntPtr(buf.ToInt64() + 4)); if (p.ToLower().Contains("vid_0a5f")) r = p; }
+      Marshal.FreeHGlobal(buf);
+    }
+    SetupDiDestroyDeviceInfoList(s); return r;
+  }
+  public static bool Senden(string pfad, byte[] daten) {
+    using (SafeFileHandle h = CreateFile(pfad, 0x40000000, 3, IntPtr.Zero, 3, 0, IntPtr.Zero)) {
+      if (h.IsInvalid) return false;
+      using (var fs = new System.IO.FileStream(h, System.IO.FileAccess.Write, 65536)) { fs.Write(daten, 0, daten.Length); fs.Flush(); }
+      return true;
+    }
+  }
+  // Bild -> ZPL (^GFA, 1 Bit). maxW = Druckbreite in Punkten (GK420t: 832 = 104 mm bei 8 Punkten/mm)
+  public static string Zpl(Bitmap src, int maxW, int schwelle) {
+    if (src.Width > src.Height) src.RotateFlip(RotateFlipType.Rotate90FlipNone);
+    int w = Math.Min(src.Width, maxW), h = (int)Math.Round((double)src.Height * w / src.Width);
+    using (var bmp = new Bitmap(w, h, PixelFormat.Format24bppRgb)) {
+      using (var g = Graphics.FromImage(bmp)) { g.Clear(Color.White); g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor; g.DrawImage(src, 0, 0, w, h); }
+      int bpr = (w + 7) / 8; var d = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+      byte[] px = new byte[d.Stride * h]; Marshal.Copy(d.Scan0, px, 0, px.Length); bmp.UnlockBits(d);
+      var sb = new StringBuilder(bpr * h * 2 + 200); const string HX = "0123456789ABCDEF";
+      for (int y = 0; y < h; y++) for (int xb = 0; xb < bpr; xb++) {
+        int b = 0;
+        for (int bit = 0; bit < 8; bit++) { int x = xb * 8 + bit; if (x >= w) break; int o = y * d.Stride + x * 3;
+          if ((px[o + 2] * 299 + px[o + 1] * 587 + px[o] * 114) / 1000 < schwelle) b |= 0x80 >> bit; }
+        sb.Append(HX[b >> 4]).Append(HX[b & 15]);
+      }
+      int links = Math.Max(0, (maxW - w) / 2);
+      return "^XA^PW" + maxW + "^LL" + h + "^LH0,0^FO" + links + ",0^GFA," + (bpr * h) + "," + (bpr * h) + "," + bpr + "," + sb.ToString() + "^FS^XZ";
+    }
+  }
+}
+"@
+
+# PDF-Seiten mit dem in Windows eingebauten PDF-Renderer in Bilder umwandeln (kein Zusatzprogramm noetig)
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+$null = [Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
+$null = [Windows.Data.Pdf.PdfDocument, Windows.Data.Pdf, ContentType = WindowsRuntime]
+$null = [Windows.Storage.Streams.InMemoryRandomAccessStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
+$script:AsTaskOp  = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' } | Select-Object -First 1
+$script:AsTaskAct = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncAction' } | Select-Object -First 1
+function WartenOp($op, [Type]$typ) { $t = $script:AsTaskOp.MakeGenericMethod($typ).Invoke($null, @($op)); [void]$t.Wait(60000); return $t.Result }
+function WartenAkt($op) { $t = $script:AsTaskAct.Invoke($null, @($op)); [void]$t.Wait(60000) }
+# PDF -> ZPL (jede Seite ein Etikett), 8 Punkte/mm = 203 dpi
+function PdfZuZpl($datei) {
+  $f = WartenOp ([Windows.Storage.StorageFile]::GetFileFromPathAsync($datei)) ([Windows.Storage.StorageFile])
+  $doc = WartenOp ([Windows.Data.Pdf.PdfDocument]::LoadFromFileAsync($f)) ([Windows.Data.Pdf.PdfDocument])
+  $zpl = New-Object Text.StringBuilder
+  for ($i = 0; $i -lt $doc.PageCount; $i++) {
+    $pg = $doc.GetPage($i)
+    $opt = New-Object Windows.Data.Pdf.PdfPageRenderOptions
+    $opt.DestinationWidth  = [uint32][math]::Round($pg.Size.Width  * 203.2 / 96)
+    $opt.DestinationHeight = [uint32][math]::Round($pg.Size.Height * 203.2 / 96)
+    $ms = New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
+    WartenAkt ($pg.RenderToStreamAsync($ms, $opt))
+    $st = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ms.GetInputStreamAt(0))
+    $bmp = New-Object System.Drawing.Bitmap($st)
+    [void]$zpl.Append([FhZebra]::Zpl($bmp, 832, 140))
+    $bmp.Dispose(); $st.Dispose(); $ms.Dispose(); $pg.Dispose()
+  }
+  return $zpl.ToString()
+}
+# DHL-Etikett (PDF) auf die Zebra drucken: zuerst direkt per USB, sonst ueber einen Windows-Zebra-Treiber (falls installiert)
+function ZebraDruck($datei, $name) {
+  $usb = [FhZebra]::Pfad()
+  if ($usb) {
+    try {
+      $daten = [Text.Encoding]::ASCII.GetBytes((PdfZuZpl $datei))
+      if ([FhZebra]::Senden($usb, $daten)) { Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf Zebra (USB): $name" -ForegroundColor Green; return $true }
+      Write-Host "Zebra (USB) nicht erreichbar: $name" -ForegroundColor Red
+    } catch { Write-Host "Zebra-Fehler: $($_.Exception.Message)" -ForegroundColor Red }
+  }
+  $q = DruckerZ
+  if ($q) { & $SUM -print-to $q -print-settings 'fit,portrait' -silent $datei | Out-Null; Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${q}: $name" -ForegroundColor Green; return $true }
+  Write-Host "Keine Zebra gefunden (USB-Kabel?) - Datei gespeichert: $datei" -ForegroundColor Yellow; return $false
+}
+
 function Api($action, $a) {
   $body = @{ pin = $script:PIN; action = $action; a = $a } | ConvertTo-Json -Compress
   return Invoke-RestMethod -Uri $URL -Method Post -Body $body -ContentType 'text/plain; charset=utf-8' -TimeoutSec 60
@@ -56,7 +151,8 @@ while ($true) {
   else { $script:PIN = (Read-Host 'Zugangscode (PIN) der Showroom-App eingeben').Trim() }
   $r = $null
   try { $r = Api 'check' '' } catch {}
-  if ($r -and $r.val -eq $true) { Set-Content $PINF $script:PIN; break }
+  # Server antwortet je nach Version mit true oder {ok:true,...}
+  if ($r -and ($r.val -eq $true -or $r.val.ok -eq $true)) { Set-Content $PINF $script:PIN; break }
   # Nur bei klarer Antwort "PIN falsch" neu fragen. Keine Verbindung (z. B. WLAN nach dem Einschalten noch nicht da) -> gespeicherte PIN behalten und warten.
   if ($r -and ($r.val -eq $false -or "$($r.err)" -match 'pin|code|zugang')) {
     Write-Host 'PIN falsch - bitte nochmal.' -ForegroundColor Red
@@ -91,14 +187,15 @@ $DRUCKERP = DruckerP
 if (-not $DRUCKERP) { Write-Host 'Hinweis: Kein Phomemo-Drucker (40 x 30) gefunden.' -ForegroundColor DarkGray }
 else { Write-Host "Phomemo-Drucker: $DRUCKERP" -ForegroundColor Green }
 $DRUCKERA4 = DruckerA4
-# Zebra GK420t (DHL-Versandetiketten 103 x 199 / 103 x 150) - Dateiname beginnt mit "Z-"
+# Zebra GK420t (DHL-Versandetiketten 103 x 199 / 103 x 150) - Dateiname beginnt mit "Z-". Normal direkt per USB (FhZebra), Windows-Treiber nur als Ersatz
 function DruckerZ {
   $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'Zebra|ZDesigner|GK420' } | Select-Object -First 1
   if ($p) { return $p.Name } else { return $null }
 }
 $DRUCKERZ = DruckerZ
-if (-not $DRUCKERZ) { Write-Host 'Hinweis: Kein Zebra-Drucker (DHL-Etiketten) gefunden.' -ForegroundColor DarkGray }
-else { Write-Host "Zebra-Drucker: $DRUCKERZ" -ForegroundColor Green }
+if ([FhZebra]::Pfad()) { Write-Host 'Zebra-Drucker (DHL-Etiketten): direkt per USB' -ForegroundColor Green }
+elseif ($DRUCKERZ) { Write-Host "Zebra-Drucker: $DRUCKERZ" -ForegroundColor Green }
+else { Write-Host 'Hinweis: Kein Zebra-Drucker (DHL-Etiketten) gefunden.' -ForegroundColor DarkGray }
 if (-not $DRUCKERA4) { Write-Host 'WARNUNG: Kein A4-Drucker (Brother) gefunden.' -ForegroundColor Yellow }
 else { Write-Host "A4-Drucker: $DRUCKERA4" -ForegroundColor Green }
 Write-Host 'Bereit. Etiketten und A4-Dokumente aus der App werden automatisch gedruckt. Dieses Fenster offen lassen.' -ForegroundColor Green
@@ -111,7 +208,8 @@ while ($true) {
     if (-not $DRUCKERP) { $DRUCKERP = DruckerP }
     if (-not $DRUCKERZ) { $DRUCKERZ = DruckerZ }
     if ($t.Name -like 'A4-*') { $z = $DRUCKERA4; $o = 'fit' } elseif ($t.Name -like 'Z-*') { $z = $DRUCKERZ; $o = 'fit,portrait' } elseif ($t.Name -like 'P-*') { $z = $DRUCKERP; $o = $(if ($t.Name -match '__(.+)\.pdf$') { $Matches[1] -replace '_',',' } else { 'noscale,landscape' }) } else { $z = $DRUCKER; $o = 'fit,landscape' }
-    if ($z) { & $SUM -print-to $z -print-settings $o -silent $t.FullName | Out-Null; Write-Host "$(Get-Date -Format HH:mm:ss)  Test gedruckt auf ${z} ($o): $($t.Name)" -ForegroundColor Cyan }
+    if ($t.Name -like 'Z-*') { [void](ZebraDruck $t.FullName $t.Name) }
+    elseif ($z) { & $SUM -print-to $z -print-settings $o -silent $t.FullName | Out-Null; Write-Host "$(Get-Date -Format HH:mm:ss)  Test gedruckt auf ${z} ($o): $($t.Name)" -ForegroundColor Cyan }
     Remove-Item $t.FullName -ErrorAction SilentlyContinue
   }
   try {
@@ -130,7 +228,8 @@ while ($true) {
         elseif ($j.name -like 'Z-*') { $ziel = $DRUCKERZ; $opt = 'fit,portrait' }  # DHL-Versandetikett -> Zebra
         elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'noscale,landscape' }  # Phomemo-Treiber skaliert sonst falsch: 1:1 drucken
         else { $ziel = $DRUCKER; $opt = 'fit,landscape' }
-        if ($ziel -and $j.name -match '\.bin(\.pdf)?$') {  # Server haengt .pdf an den Namen an
+        if ($j.name -like 'Z-*') { [void](ZebraDruck $f $j.name) }
+        elseif ($ziel -and $j.name -match '\.bin(\.pdf)?$') {  # Server haengt .pdf an den Namen an
           if ([FhRaw]::Send($ziel, [IO.File]::ReadAllBytes($f), $j.name)) { Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${ziel}: $($j.name)" -ForegroundColor Green }
           else { Write-Host "Fehler beim Senden an ${ziel}: $($j.name)" -ForegroundColor Red }
         } elseif ($ziel) {
