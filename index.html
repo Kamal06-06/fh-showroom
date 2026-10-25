@@ -3744,7 +3744,7 @@ function soListView(b){b.textContent='';soCss();
   const bar=el('div','so-bar');
   const pl=el('button','btn','📋 قوائم التحضير · '+L.length);pl.disabled=!L.length;pl.onclick=()=>soBulkLs(L);bar.append(pl);
   if(soReg==='de'){const nd=reg.filter(o=>!soHasDhl(o)).length;const dl=el('button','btn primary','📦 ملصقات DHL شحن داخلي · '+nd);dl.disabled=!nd;dl.onclick=()=>soBulkDhl(reg.filter(o=>!soHasDhl(o)).sort((a,c)=>a.at-c.at));bar.append(dl)}
-  else{const n=el('button','btn','🚚 DHL Express');n.onclick=()=>alert('ملصقات DHL Express للخارج هي الخطوة التالية.\nحالياً: أنشئ الملصق من تطبيق «DHL Express Commerce» في Shopify.');bar.append(n)}
+  else pl.style.gridColumn='1/-1';
   b.append(bar);
   if(!L.length)b.append(el('p','hint',soTab==='open'?'لا توجد طلبات للتحضير ✅':'لا توجد طلبات'));
   L.forEach(o=>{const pr=soPrep(o),st=o.stand||{},r=el('button','so-card');
@@ -3754,7 +3754,7 @@ function soListView(b){b.textContent='';soCss();
     const l2=el('div','so-l2',(soIsDE(o)?'':SO_FLAG(o.land)+' '+(o.landName||o.land)+' · ')+soOrt(o)+' · ');l2.append(el('bdi',null,soDate(o.at)));
     const tg=el('div','so-tags');const tag=(t,c)=>tg.append(el('span','so-tag'+(c?' '+c:''),t));
     tag(o.items.length+' صنف'+(oils?' · '+oils+' زيت':''));
-    if(soHasDhl(o)){const n=dhlPak(st.dhl).length;tag('📦 DHL '+(n>1?'× '+n+' طرود':st.dhl.nr),'ok')}else if(!soIsDE(o))tag('DHL Express');
+    if(soIsDE(o)&&soHasDhl(o)){const n=dhlPak(st.dhl).length;tag('📦 DHL '+(n>1?'× '+n+' طرود':st.dhl.nr),'ok')}
     if(o.ful==='FULFILLED')tag('🚚 مشحون في Shopify','ok');
     if(st.lsAt)tag('📋 طُبعت','gold');
     if(o.notiz)tag('📝 ملاحظة','warn');
@@ -3801,8 +3801,8 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
   const np=dhlPak(st.dhl).length;
   const sh=el('button','btn'+(dn?'':' primary'),dn?'📦 DHL ✅ '+(np>1?np+' طرود':dn):'📦 ملصق '+soShip(o));
   sh.onclick=()=>isDE?dhlSheet(o,()=>openSheet('🛒 طلبات المتجر',b2=>soDetail(b2,o.id))):alert('DHL Express للخارج قيد التجهيز (الخطوة التالية).\nحالياً: أنشئ الملصق من تطبيق «DHL Express Commerce» في Shopify.');
-  a3.append(rd,sh);
-  if(dn){const cx=el('button','btn wide',np>1?'❌ إلغاء طرد أو كل الطرود ('+np+')':'❌ إلغاء ملصق DHL '+dn);cx.onclick=async()=>{if(np>1)return dhlSheet(o,()=>openSheet('🛒 طلبات المتجر',b2=>soDetail(b2,o.id)));
+  if(isDE)a3.append(rd,sh);else{rd.classList.add('wide');a3.append(rd)}
+  if(dn&&isDE){const cx=el('button','btn wide',np>1?'❌ إلغاء طرد أو كل الطرود ('+np+')':'❌ إلغاء ملصق DHL '+dn);cx.onclick=async()=>{if(np>1)return dhlSheet(o,()=>openSheet('🛒 طلبات المتجر',b2=>soDetail(b2,o.id)));
     if(!confirm('إلغاء ملصق DHL '+dn+'؟\n\n• يُلغى عند DHL تلقائياً ولا يُحسب عليك (فقط إن لم يُسلَّم الطرد بعد – عادةً في نفس اليوم).\n• ويرجع الطلب في Shopify إلى «غير مشحون».\n• إيميل الشحن الذي وصل للعميل لا يمكن سحبه.'))return;
     cx.disabled=true;cx.textContent='جاري الإلغاء…';try{const r=await soCall('dhl_storno',{id:o.id,nr:o.nr});o.stand.dhl=null;o.ful='UNFULFILLED';toast('✅ أُلغي الملصق '+r.nr);if(r.hinweis)alert(r.hinweis);soDetail(b,o.id)}
     catch(e){cx.disabled=false;cx.textContent='❌ إلغاء ملصق DHL '+dn;alert('⚠️ '+dhlErr(e))}};a3.append(cx)}
