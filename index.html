@@ -3800,11 +3800,14 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
   const lsA4=el('button','btn primary','🖨️ طباعة في المستودع (A4)');lsA4.onclick=()=>soLsPrint([o],lsA4,'a4');
   const lsP=el('button','btn','📄 PDF / طباعة هنا');lsP.onclick=()=>soLsPrint([o],lsP,'pdf');a1.append(lsA4,lsP);b.append(a1);
   if(o.items.some(i=>i.oil)){sec('🏷️ ملصقات الزيوت');const a2=el('div','so-act');
-    const ep=el('button','btn','🖨️ ملصقات CLP → Epson');ep.onclick=()=>epsonPrint(l,ep);
+    const isPr=it=>it.oil&&(it.probe||/^6\s*g$/i.test(String(it.size||'').trim())),sub=f=>Object.assign({},l,{items:l.items.map((it,i)=>Object.assign({},it,{_ix:i})).filter(f)});
+    const nPr=l.items.filter(isPr).length,nGr=l.items.filter(it=>it.oil&&!isPr(it)).length;
+    if(nPr){const pm=el('button','btn'+(nGr?'':' primary'),'🏷️ ملصقات العينات → Phomemo · '+nPr);pm.onclick=()=>epsonPrint(sub(isPr),pm);a2.append(pm)}
+    const ep=el('button','btn','🖨️ ملصقات CLP → Epson'+(nPr?' · '+nGr:''));ep.onclick=()=>epsonPrint(sub(it=>it.oil&&!isPr(it)),ep);if(!nGr)ep.hidden=true;
     const pdf=el('button','btn','📄 ملصقات PDF');pdf.onclick=async()=>{pdf.disabled=true;try{const r=await clpMake(l);for(const f of r.files){const file=new File([f.blob],f.name.replace(/\.pdf$/i,'')+' '+soNr(o)+'.pdf',{type:'application/pdf'});
       if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:file.name})}catch(e){}}else{const a=document.createElement('a');a.href=URL.createObjectURL(f.blob);a.download=file.name;a.click()}}
       if(r.fehlend&&r.fehlend.length)alert('بدون ملصق: '+r.fehlend.join('، '))}catch(e){alert(e.message)}pdf.disabled=false};
-    a2.append(ep,pdf);b.append(a2)}
+    a2.append(ep,pdf);if(a2.querySelectorAll('button:not([hidden])').length%2)pdf.classList.add('wide');b.append(a2)}
   sec('🚚 الشحن');const a3=el('div','so-act');
   const rd=el('button','btn'+(st.readyAt?'':' primary'),st.readyAt?'↺ إلغاء «جاهز»':'✅ جاهز للشحن');
   rd.onclick=async()=>{rd.disabled=true;const on=!st.readyAt;const lots={};if(on)o.items.forEach((it,ix)=>{if(it.oil){const lo=lotNow(it);if(lo)lots[ix]={b:lo.b,fc:lo.fc}}});

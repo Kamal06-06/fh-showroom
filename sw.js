@@ -1,7 +1,7 @@
 /* Fragrance Hub Showroom – offline shell. App page: network first (updates arrive at once), cache as fallback
    (after 4 s on a weak Wi-Fi the saved copy opens, the fresh one is stored for next time).
    Libraries/fonts/icons: cache first. Server calls (script.google.com) are never cached. */
-const C='fh-shell-v54';
+const C='fh-shell-v55';
 const APP=new URL('./',self.registration.scope).pathname;
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(['./','index.html','manifest.json','icon-192.png','icon-512.png']).catch(()=>{})))});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
