@@ -65,9 +65,11 @@ public class FhZebra {
     }
   }
   // Bild -> ZPL (^GFA, 1 Bit). maxW = Druckbreite in Punkten (GK420t: 832 = 104 mm bei 8 Punkten/mm)
-  public static string Zpl(Bitmap src, int maxW, int schwelle) {
+  public static string Zpl(Bitmap src, int maxW, int maxH, int schwelle) {
     if (src.Width > src.Height) src.RotateFlip(RotateFlipType.Rotate90FlipNone);
-    int w = Math.Min(src.Width, maxW), h = (int)Math.Round((double)src.Height * w / src.Width);
+    // passt in Breite UND Länge des Etiketts (z. B. DHL Express 4 x 8 Zoll auf 103 x 199 mm)
+    double k = Math.Min(1.0, Math.Min((double)maxW / src.Width, (double)maxH / src.Height));
+    int w = (int)Math.Round(src.Width * k), h = (int)Math.Round(src.Height * k);
     using (var bmp = new Bitmap(w, h, PixelFormat.Format24bppRgb)) {
       using (var g = Graphics.FromImage(bmp)) { g.Clear(Color.White); g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor; g.DrawImage(src, 0, 0, w, h); }
       int bpr = (w + 7) / 8; var d = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
@@ -109,7 +111,7 @@ function PdfZuZpl($datei) {
     WartenAkt ($pg.RenderToStreamAsync($ms, $opt))
     $st = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ms.GetInputStreamAt(0))
     $bmp = New-Object System.Drawing.Bitmap($st)
-    [void]$zpl.Append([FhZebra]::Zpl($bmp, 832, 140))
+    [void]$zpl.Append([FhZebra]::Zpl($bmp, 832, 1600, 140))
     $bmp.Dispose(); $st.Dispose(); $ms.Dispose(); $pg.Dispose()
   }
   return $zpl.ToString()

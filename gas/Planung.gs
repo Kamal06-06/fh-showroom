@@ -1034,3 +1034,242 @@ function dhlDruck_(o) {
   });
   return { ok: true, b64: b64s[0], b64s: b64s, datei: namen[0], gedruckt: !!o.druck };
 }
+
+/* =====================================================================
+   ✈️ DHL Express (Ausland) – MyDHL API, direkt aus «طلبات المتجر»
+   Eine App-Aktion: dhlx (o.op = status | set | test | vor | label | storno | druck)
+   Zugang: Basic Auth (Benutzer/Passwort von DHL Express), Konto 148224827
+   ===================================================================== */
+var DHLX_URL = { test: 'https://express.api.dhl.com/mydhlapi/test', prod: 'https://express.api.dhl.com/mydhlapi' };
+var DHLX_FELDER = { user: 'DHLX_USER', pass: 'DHLX_PASS', konto: 'DHLX_KONTO', env: 'DHLX_ENV', eori: 'DHLX_EORI' };
+var DHLX_EU = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE','DE','MC'];
+var DHLX_DDP = ['AE','QA','BH','OM','KW','SA','US','CA','TR'];       // Zoll & Steuern zahlt der Absender (Kunde hat im Checkout bezahlt)
+var DHLX_TRACK = 'https://www.dhl.com/de-de/home/tracking/tracking-express.html?submit=1&tracking-id=';
+function dhlxApi_(o) {
+  soPruefen_(o && o.pw);
+  var op = String(o.op || '');
+  if (op === 'status') return dhlxStatus_();
+  if (op === 'set') return dhlxSetzen_(o);
+  if (op === 'test') return dhlxTest_();
+  if (op === 'vor') return dhlxVor_(o);
+  if (op === 'label') return dhlxLabel_(o);
+  if (op === 'storno') return dhlxStorno_(o);
+  if (op === 'druck') return dhlxDruck_(o);
+  throw new Error('Unbekannte DHL-Express-Aktion');
+}
+function dhlxCfg_() {
+  var p = PropertiesService.getScriptProperties(), c = {};
+  Object.keys(DHLX_FELDER).forEach(function (k) { c[k] = p.getProperty(DHLX_FELDER[k]) || ''; });
+  c.konto = c.konto || '148224827'; c.env = c.env === 'prod' ? 'prod' : 'test';
+  return c;
+}
+function dhlxStatus_() {
+  var c = dhlxCfg_();
+  return { user: c.user ? c.user.slice(0, 3) + '…' : '', pass: !!c.pass, konto: c.konto, env: c.env, eori: c.eori, bereit: !!(c.user && c.pass) };
+}
+function dhlxSetzen_(o) {
+  if (!SR_ADMIN) throw new Error('NUR_INHABER');
+  var p = PropertiesService.getScriptProperties(), n = 0;
+  ['user', 'pass', 'konto', 'eori'].forEach(function (k) { var v = String(o[k] || '').trim(); if (v) { p.setProperty(DHLX_FELDER[k], v); n++; } });
+  if (o.env === 'test' || o.env === 'prod') { p.setProperty(DHLX_FELDER.env, o.env); n++; }
+  return { gespeichert: n, status: dhlxStatus_() };
+}
+function dhlxFetch_(method, pfad, body) {
+  var c = dhlxCfg_();
+  if (!(c.user && c.pass)) throw new Error('DHLX_NICHT_EINGERICHTET');
+  var opt = { method: method, muteHttpExceptions: true, headers: { Authorization: 'Basic ' + Utilities.base64Encode(c.user + ':' + c.pass),
+    Accept: 'application/json', 'Message-Reference': Utilities.getUuid(), 'Message-Reference-Date': new Date().toUTCString() } };
+  if (body) { opt.contentType = 'application/json'; opt.payload = JSON.stringify(body); }
+  var r = UrlFetchApp.fetch(DHLX_URL[c.env] + pfad, opt), j = {};
+  try { j = JSON.parse(r.getContentText() || '{}'); } catch (e) { j = { detail: r.getContentText().slice(0, 300) }; }
+  return { code: r.getResponseCode(), j: j };
+}
+function dhlxFehler_(j) {
+  var m = [];
+  if (j.detail) m.push(String(j.detail));
+  (j.additionalDetails || []).forEach(function (x) { m.push(String(x)); });
+  if (!m.length && j.title) m.push(j.title);
+  return m;
+}
+function dhlxTest_() {
+  var c = dhlxCfg_();
+  var r = dhlxFetch_('get', '/address-validate?type=delivery&countryCode=DE&postalCode=45665&cityName=Recklinghausen', null);
+  return { ok: r.code === 200, code: r.code, env: c.env, msgs: dhlxFehler_(r.j) };
+}
+function dhlxOrder_(id) {
+  var q = 'query($id:ID!){order(id:$id){id name email phone currencyCode shippingAddress{name company address1 address2 zip city province provinceCode countryCodeV2 phone} ' +
+    'lineItems(first:80){nodes{title variantTitle sku currentQuantity discountedUnitPriceAfterAllDiscountsSet{shopMoney{amount currencyCode}} ' +
+    'variant{inventoryItem{harmonizedSystemCode countryCodeOfOrigin measurement{weight{value unit}}}}}}}}';
+  var n = shopifyGraphQL(q, { id: 'gid://shopify/Order/' + id }).order;
+  if (!n) throw new Error('Bestellung nicht gefunden');
+  return n;
+}
+/* Zollpositionen aus der Shopify-Bestellung (HS-Code & Ursprung aus Shopify, sonst Standardwerte je Warenart) */
+function dhlxPositionen_(n) {
+  var f = { KILOGRAMS: 1, GRAMS: 0.001, POUNDS: 0.4536, OUNCES: 0.02835 }, out = [];
+  (n.lineItems.nodes || []).filter(function (li) { return Number(li.currentQuantity) > 0; }).forEach(function (li) {
+    var inv = (li.variant && li.variant.inventoryItem) || {}, w = inv.measurement && inv.measurement.weight, sku = String(li.sku || ''), t = String(li.title || '');
+    var oel = /-SH-/.test(sku) || /standard|premium|exklusiv/i.test(li.variantTitle || ''), alk = /ethanol|alcohol|alkohol/i.test(t);
+    var hs = String(inv.harmonizedSystemCode || '').replace(/\D/g, '') || (alk ? (/denat/i.test(t) ? '22072000' : '22071000') : oel ? '33029090' : /^GL-|flakon|flasche|bottle/i.test(sku + ' ' + t) ? '70109091' : '33029090');
+    var ur = inv.countryCodeOfOrigin || (alk ? (/denat/i.test(t) ? 'FR' : 'DE') : oel ? 'BG' : 'CN');
+    var kg = w && w.value ? Number(w.value) * (f[w.unit] || 1) : 0;
+    if (!kg && oel) { var g = String(li.variantTitle || '').match(/(\d+(?:[.,]\d+)?)\s*(kg|g)\b/i); if (g) kg = Number(g[1].replace(',', '.')) * (g[2].toLowerCase() === 'kg' ? 1 : 0.001); }
+    if (/-1G$/i.test(sku)) kg = 0.001;                              // Probe pro Gramm: Menge = Gramm
+    var preis = Number(li.discountedUnitPriceAfterAllDiscountsSet && li.discountedUnitPriceAfterAllDiscountsSet.shopMoney.amount || 0);
+    var desc = (oel ? 'Fragrance oil (perfume compound) - ' : alk ? 'Ethyl alcohol 96% - ' : '') + t + (li.variantTitle ? ' / ' + li.variantTitle : '');
+    out.push({ desc: dhlCut_(desc.replace(/[^\x20-\x7E\xA0-\xFF]/g, ' '), 500), q: Number(li.currentQuantity), preis: Math.max(0.01, Math.round(preis * 100) / 100),
+      hs: hs.slice(0, 8), ur: ur, kg: Math.max(0.001, Math.round((kg || 0.05) * 1000) / 1000), alk: alk, sku: sku });
+  });
+  return out;
+}
+function dhlxEmpfaenger_(n, ov) {
+  var a = n.shippingAddress || {}; ov = ov || {};
+  var land = String(a.countryCodeV2 || '').toUpperCase(), w = [];
+  var tel = String(ov.tel || a.phone || n.phone || '').trim(), mail = String(n.email || '').trim();
+  if (!tel) w.push('Telefonnummer des Empfängers fehlt – DHL Express braucht sie');
+  if (['US', 'CA'].indexOf(land) >= 0 && !a.provinceCode) w.push('Bundesstaat/Provinz fehlt');
+  var e = { postalAddress: { addressLine1: dhlCut_(a.address1, 45), cityName: dhlCut_(a.city, 45), countryCode: land },
+    contactInformation: { fullName: dhlCut_(a.name || a.company, 255), companyName: dhlCut_(a.company || a.name, 100), phone: dhlCut_(tel || '0', 70) } };
+  if (a.zip) e.postalAddress.postalCode = dhlCut_(a.zip, 12);
+  if (a.address2) e.postalAddress.addressLine2 = dhlCut_(a.address2, 45);
+  if (a.provinceCode && ['US', 'CA', 'AE', 'MX', 'AU', 'BR', 'IN'].indexOf(land) >= 0) e.postalAddress.provinceCode = a.provinceCode;
+  if (mail) e.contactInformation.email = mail;
+  return { e: e, w: w, land: land };
+}
+function dhlxAbsender_() {
+  var c = dhlxCfg_(), reg = [{ typeCode: 'VAT', number: 'DE346107492', issuerCountryCode: 'DE' }];
+  if (c.eori) reg.push({ typeCode: 'EOR', number: c.eori, issuerCountryCode: 'DE' });
+  return { postalAddress: { postalCode: '45665', cityName: 'Recklinghausen', countryCode: 'DE', addressLine1: 'Am Alten Kirchplatz 10' },
+    contactInformation: { email: 'info@fragranceshub.de', phone: '+4923614878835', companyName: 'Fragrance Hub Germany', fullName: 'Mohammad Kamal Al Masri' },
+    registrationNumbers: reg, typeCode: 'business' };
+}
+function dhlxTag_() {   // geplanter Versand: heute bis 16 Uhr (Mo–Fr), sonst nächster Werktag
+  var d = new Date(), tz = 'Europe/Berlin', h = Number(Utilities.formatDate(d, tz, 'H'));
+  if (h >= 16) d = new Date(d.getTime() + 864e5);
+  while (['Sat', 'Sun'].indexOf(Utilities.formatDate(d, tz, 'EEE')) >= 0) d = new Date(d.getTime() + 864e5);
+  var off = Utilities.formatDate(d, tz, 'Z');            // +0100
+  return { tag: Utilities.formatDate(d, tz, 'yyyy-MM-dd'), zeit: Utilities.formatDate(d, tz, 'yyyy-MM-dd') + 'T' + (h >= 16 || Utilities.formatDate(d, tz, 'yyyy-MM-dd') !== Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd') ? '10:00:00' : Utilities.formatDate(new Date(Date.now() + 5 * 60e3), tz, 'HH:mm:ss')) +
+    ' GMT' + off.slice(0, 3) + ':' + off.slice(3) };
+}
+/** Vorbereitung: Empfänger, Zollpositionen, Gewicht, Produkte & Preise von DHL Express */
+function dhlxVor_(o) {
+  var n = dhlxOrder_(String(o.id)), em = dhlxEmpfaenger_(n), st = soStaende_()[String(o.id)], c = dhlxCfg_();
+  if (em.land === 'DE') throw new Error('Inland → DHL Paket');
+  var pos = dhlxPositionen_(n), zoll = DHLX_EU.indexOf(em.land) < 0;
+  var kg = Math.max(0.5, Math.ceil((pos.reduce(function (s, p) { return s + p.kg * p.q; }, 0) + 0.4) * 10) / 10);
+  var res = { empf: em.e, warn: em.w.concat(pos.some(function (p) { return p.alk; }) ? ['Alkohol ist Gefahrgut (UN1170) – DHL Express nur mit Gefahrgut-Vereinbarung'] : []),
+    land: em.land, zoll: zoll, incoterm: zoll ? (DHLX_DDP.indexOf(em.land) >= 0 ? 'DDP' : 'DAP') : '', pos: pos, kg: kg, waehrung: n.currencyCode || 'EUR',
+    wert: Math.round(pos.reduce(function (s, p) { return s + p.preis * p.q; }, 0) * 100) / 100, dhlx: (st && st.d && st.d.dhlx) || null, bereit: !!(c.user && c.pass), env: c.env, produkte: [] };
+  if (!res.bereit) return res;
+  try {
+    var t = dhlxTag_(), a = em.e.postalAddress;
+    var q = '/rates?accountNumber=' + c.konto + '&originCountryCode=DE&originCityName=Recklinghausen&originPostalCode=45665&destinationCountryCode=' + a.countryCode +
+      '&destinationCityName=' + encodeURIComponent(a.cityName) + (a.postalCode ? '&destinationPostalCode=' + encodeURIComponent(a.postalCode) : '') +
+      '&weight=' + kg + '&length=30&width=20&height=15&plannedShippingDate=' + t.tag + '&isCustomsDeclarable=' + zoll + '&unitOfMeasurement=metric';
+    var r = dhlxFetch_('get', q, null);
+    if (r.code === 200) res.produkte = (r.j.products || []).map(function (p) {
+      var pr = (p.totalPrice || []).filter(function (x) { return x.currencyType === 'BILLC'; })[0] || (p.totalPrice || [])[0] || {};
+      return { code: p.productCode, name: p.productName, preis: pr.price, wae: pr.priceCurrency, lieferung: p.deliveryCapabilities && p.deliveryCapabilities.estimatedDeliveryDateAndTime };
+    }).filter(function (p) { return p.code; });
+    else res.warn.push('Preise nicht abrufbar: ' + (dhlxFehler_(r.j).join(' · ') || r.code));
+  } catch (e) { res.warn.push('Preise nicht abrufbar: ' + (e.message || e)); }
+  return res;
+}
+/**
+ * Sendung erstellen (oder nur prüfen): o = { id, nr, prod, pakete:[{kg,l,b,h}], tel, druck, shopify, nurPruefen }
+ */
+function dhlxLabel_(o) {
+  var id = String(o.id || ''); if (!/^\d+$/.test(id)) throw new Error('Bestellung fehlt');
+  var c = dhlxCfg_(), lock = LockService.getScriptLock(); if (!o.nurPruefen && !lock.tryLock(20000)) throw new Error('Bitte gleich nochmal versuchen');
+  try {
+    var st = soStaende_()[id], alt = st && st.d && st.d.dhlx;
+    if (!o.nurPruefen && alt && alt.nr) throw new Error('Für diese Bestellung gibt es schon eine DHL-Express-Sendung: ' + alt.nr);
+    var n = dhlxOrder_(id), em = dhlxEmpfaenger_(n, { tel: o.tel });
+    if (em.land === 'DE') throw new Error('Inland → DHL Paket');
+    var zoll = DHLX_EU.indexOf(em.land) < 0, pos = dhlxPositionen_(n), wae = n.currencyCode || 'EUR';
+    var pk = (o.pakete && o.pakete.length ? o.pakete : [{ kg: o.kg || 1 }]).slice(0, 20).map(function (p) {
+      var kg = Math.round(Number(String(p.kg).replace(',', '.')) * 1000) / 1000; if (!(kg > 0)) throw new Error('Gewicht fehlt');
+      return { weight: kg, dimensions: { length: Math.max(1, Number(p.l) || 30), width: Math.max(1, Number(p.b) || 20), height: Math.max(1, Number(p.h) || 15) } };
+    });
+    var t = dhlxTag_(), ref = String(n.name || o.nr || id).slice(0, 35), wert = Math.round(pos.reduce(function (s, p) { return s + p.preis * p.q; }, 0) * 100) / 100;
+    var body = {
+      plannedShippingDateAndTime: t.zeit, pickup: { isRequested: false }, productCode: String(o.prod || (zoll ? 'P' : 'U')),
+      accounts: [{ typeCode: 'shipper', number: c.konto }],
+      customerReferences: [{ value: ref, typeCode: 'CU' }],
+      outputImageProperties: { encodingFormat: 'pdf', splitTransportAndWaybillDocLabels: true, allDocumentsInOneImage: false, splitInvoiceAndReceipt: true,
+        imageOptions: [{ typeCode: 'label', templateName: 'ECOM26_84_001', isRequested: true },
+          { typeCode: 'waybillDoc', isRequested: false }, { typeCode: 'invoice', templateName: 'COMMERCIAL_INVOICE_P_10', isRequested: zoll, invoiceType: 'commercial' }] },
+      customerDetails: { shipperDetails: dhlxAbsender_(), receiverDetails: em.e },
+      content: { packages: pk, isCustomsDeclarable: zoll, description: 'Fragrance oils and perfume accessories', unitOfMeasurement: 'metric',
+        declaredValue: Math.max(0.01, wert), declaredValueCurrency: wae }
+    };
+    if (zoll) {
+      var inc = DHLX_DDP.indexOf(em.land) >= 0 ? 'DDP' : 'DAP';
+      body.content.incoterm = inc;
+      body.content.exportDeclaration = { exportReason: 'sale', exportReasonType: 'permanent', invoice: { number: ref, date: t.tag },
+        lineItems: pos.map(function (p, i) { return { number: i + 1, description: p.desc, price: p.preis, quantity: { value: p.q, unitOfMeasurement: 'PCS' },
+          commodityCodes: [{ typeCode: 'outbound', value: p.hs }], exportReasonType: 'permanent', manufacturerCountry: p.ur,
+          weight: { netValue: Math.max(0.001, Math.round(p.kg * p.q * 1000) / 1000), grossValue: Math.max(0.001, Math.round(p.kg * p.q * 1100) / 1000) } }; }) };
+      if (inc === 'DDP') body.valueAddedServices = [{ serviceCode: 'DD' }];
+    }
+    var r = dhlxFetch_('post', '/shipments' + (o.nurPruefen ? '?validateDataOnly=true' : ''), body), j = r.j, msgs = dhlxFehler_(j);
+    if (o.nurPruefen) return { ok: r.code < 300, code: r.code, msgs: msgs };
+    if (r.code >= 300 || !j.shipmentTrackingNumber) throw new Error('DHL Express: ' + (msgs.join(' · ') || ('Fehler ' + r.code)));
+    var nr = String(j.shipmentTrackingNumber), docs = j.documents || [], ordner = dhlOrdner_(), base = 'DHL-Express ' + String(n.name || id).replace(/[^\w\-]+/g, '-') + ' ' + nr;
+    var labels = docs.filter(function (d) { return d.typeCode === 'label'; }), inv = docs.filter(function (d) { return d.typeCode === 'invoice'; });
+    var files = { label: [], inv: [] }, gedruckt = false, druckFehler = '';
+    labels.forEach(function (d, i) {
+      var nm = base + (labels.length > 1 ? '-' + (i + 1) : '') + '.pdf';
+      try { files.label.push(ordner.createFile(Utilities.newBlob(Utilities.base64Decode(d.content), 'application/pdf', nm)).getId()); } catch (e) {}
+      if (o.druck !== false) { try { srDruck_(dhlDruckName_(nm), d.content); gedruckt = true; } catch (e) { druckFehler = String(e.message || e); } }
+    });
+    inv.forEach(function (d) {
+      var nm = base + ' Handelsrechnung.pdf';
+      try { files.inv.push(ordner.createFile(Utilities.newBlob(Utilities.base64Decode(d.content), 'application/pdf', nm)).getId()); } catch (e) {}
+      if (o.druck !== false) { try { srDruck_('A4-' + nm, d.content); srDruck_('A4-' + nm.replace('.pdf', ' Kopie.pdf'), d.content); } catch (e) { druckFehler = druckFehler || String(e.message || e); } }
+    });
+    var info = { nr: nr, prod: body.productCode, kg: Math.round(pk.reduce(function (s, p) { return s + p.weight; }, 0) * 1000) / 1000, stk: pk.length,
+      teile: (j.packages || []).map(function (p) { return String(p.trackingNumber || ''); }), at: Date.now(), by: SR_USER || '', files: files, env: c.env, incoterm: body.content.incoterm || '' };
+    var shop = '';
+    if (o.shopify !== false && c.env === 'prod') {
+      try { shop = dhlxShopifyVersand_(id, nr); } catch (e) { shop = 'Fehler: ' + (e.message || e); }
+    } else if (c.env !== 'prod') shop = 'Test – nicht an Shopify gemeldet';
+    info.shopify = shop;
+    soSetzen_({ pw: o.pw, id: id, nr: n.name || o.nr, patch: { dhlx: info } });
+    return { ok: true, nr: nr, b64s: labels.map(function (d) { return d.content; }), inv: inv.map(function (d) { return d.content; }), gedruckt: gedruckt, druckFehler: druckFehler,
+      shopify: shop, msgs: msgs, dhlx: info };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+function dhlxShopifyVersand_(id, nr) {
+  var fo = shopifyGraphQL('query($id:ID!){order(id:$id){fulfillmentOrders(first:10){nodes{id status}}}}', { id: 'gid://shopify/Order/' + id }).order.fulfillmentOrders.nodes
+    .filter(function (f) { return /OPEN|IN_PROGRESS|SCHEDULED/.test(f.status); });
+  if (!fo.length) return 'schon versendet';
+  var d = shopifyGraphQL('mutation($f:FulfillmentInput!){fulfillmentCreate(fulfillment:$f){fulfillment{id status} userErrors{field message}}}',
+    { f: { lineItemsByFulfillmentOrder: fo.map(function (f) { return { fulfillmentOrderId: f.id }; }), notifyCustomer: true,
+      trackingInfo: { company: 'DHL Express', number: nr, url: DHLX_TRACK + nr } } });
+  var e = d.fulfillmentCreate.userErrors || [];
+  if (e.length) throw new Error(e.map(function (x) { return x.message; }).join('; '));
+  return 'versendet';
+}
+/** Sendung aus der App entfernen. MyDHL API kennt kein Storno: nicht übergebene Sendungen werden nicht berechnet. Shopify-Versand wird zurückgenommen. */
+function dhlxStorno_(o) {
+  var id = String(o.id || ''), st = soStaende_()[id], alt = st && st.d && st.d.dhlx;
+  if (!alt || !alt.nr) throw new Error('Keine DHL-Express-Sendung vorhanden');
+  var verlauf = (st.d.dhlxStorniert || []).concat([{ nr: alt.nr, at: Date.now(), by: SR_USER || '' }]);
+  soSetzen_({ pw: o.pw, id: id, nr: o.nr, patch: { dhlx: null, dhlxStorniert: verlauf } });
+  var hinweis = '';
+  try { hinweis = dhlShopifyTracking_(id, [alt.nr], [], false); } catch (e) { hinweis = 'تعذّر تحديث Shopify: ' + (e.message || e); }
+  return { ok: true, nr: alt.nr, hinweis: hinweis };
+}
+function dhlxDruck_(o) {
+  var st = soStaende_()[String(o.id || '')], alt = st && st.d && st.d.dhlx;
+  if (!alt || !alt.files) throw new Error('Keine Dateien gefunden');
+  var ids = o.was === 'inv' ? alt.files.inv : alt.files.label, b64s = [];
+  (ids || []).forEach(function (fid) {
+    var f = DriveApp.getFileById(fid), b64 = Utilities.base64Encode(f.getBlob().getBytes());
+    if (o.druck) srDruck_(o.was === 'inv' ? 'A4-' + f.getName() : dhlDruckName_(f.getName()), b64);
+    b64s.push(b64);
+  });
+  if (!b64s.length) throw new Error('Keine Dateien gefunden');
+  return { ok: true, b64s: b64s };
+}
