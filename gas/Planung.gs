@@ -901,9 +901,20 @@ var DHL_TOKEN_URL = 'https://api-eu.dhl.com/parcel/de/account/auth/ropc/v1/token
 var DHL_EKP = '6388620821';
 var DHL_PROD = {                       // Produkt → Abrechnungsnummer (EKP + Verfahren + Teilnahme)
   V01PAK: { t: 'DHL Paket', bn: DHL_EKP + '0101', max: 31.5 },
-  V62KP:  { t: 'DHL Kleinpaket', bn: DHL_EKP + '6201', max: 1 }
+  V62KP:  { t: 'DHL Kleinpaket', bn: DHL_EKP + '6201', max: 1 },
+  V54EPAK: { t: 'DHL Europaket', bn: DHL_EKP + '5401', max: 31.5 }   // EU-Ausland (B2B), ohne Zoll
 };
-var DHL_ABSENDER = { name1: 'Fragrance Hub Germany', name2: 'Inh. Mohammad Kamal Al Masri', addressStreet: 'Am Alten Kirchplatz', addressHouse: '10',
+/* EU-Länder für DHL Europaket (ISO2 → ISO3). Länder außerhalb der EU brauchen Zollpapiere → DHL Express */
+var DHL_EU3 = { DE: 'DEU', AT: 'AUT', BE: 'BEL', BG: 'BGR', HR: 'HRV', CY: 'CYP', CZ: 'CZE', DK: 'DNK', EE: 'EST', FI: 'FIN', FR: 'FRA', GR: 'GRC', HU: 'HUN', IE: 'IRL', IT: 'ITA',
+  LV: 'LVA', LT: 'LTU', LU: 'LUX', MT: 'MLT', NL: 'NLD', PL: 'POL', PT: 'PRT', RO: 'ROU', SK: 'SVK', SI: 'SVN', ES: 'ESP', SE: 'SWE' };
+/** Land → passendes DHL-Produkt: DE = Paket, EU = Europaket, sonst Fehler */
+function dhlProdLand_(land, wunsch) {
+  land = String(land || 'DE').toUpperCase();
+  if (land === 'DE') return DHL_PROD[wunsch] && wunsch !== 'V54EPAK' ? wunsch : 'V01PAK';
+  if (DHL_EU3[land]) return 'V54EPAK';
+  throw new Error('Land ' + land + ' ist nicht in der EU – bitte über DHL Express versenden');
+}
+var DHL_ABSENDER = { name1: 'Fragrance Hub Germany', addressStreet: 'Am Alten Kirchplatz', addressHouse: '10',
   postalCode: '45665', city: 'Recklinghausen', country: 'DEU', email: 'info@fragranceshub.de', phone: '+49 2361 4878835' };
 var DHL_FELDER = { key: 'DHL_KEY', secret: 'DHL_SECRET', user: 'DHL_USER', pass: 'DHL_PASS' };
 /** Etikettenformat: Zebra GK420t (Thermo-Rolle) oder A4 (Brother). Druckauftrag "Z-…" → Zebra, "A4-…" → Brother */
@@ -992,7 +1003,7 @@ function dhlEmpfaenger_(a, email) {
   var postNr = (zeilen.match(/(?:post\s*nr|postnummer|kundennr|kd\.?\s*nr)\.?\s*:?\s*(\d{6,10})/i) || zeilen.match(/\b(\d{6,10})\b/) || [])[1] || '';
   var ps = zeilen.match(/packstation\s*(?:nr\.?)?\s*(\d{3})/i), pf = zeilen.match(/(?:postfiliale|filiale|paketshop)\s*(?:nr\.?)?\s*(\d{3,4})/i);
   var w = [];
-  if (ps || pf) {
+  if ((ps || pf) && String(a.countryCodeV2 || 'DE').toUpperCase() === 'DE') {
     if (!postNr) w.push('Packstation/Filiale ohne Postnummer – DHL lehnt das ab');
     var e = { name: dhlCut_(name || firma, 35), postNumber: postNr, postalCode: String(a.zip || '').trim(), city: dhlCut_(a.city, 40) };
     if (ps) e.lockerID = Number(ps[1]); else e.retailID = Number(pf[1]);
@@ -1000,7 +1011,10 @@ function dhlEmpfaenger_(a, email) {
   }
   var st = dhlStrasse_(a.address1);
   if (!st[1]) w.push('Keine Hausnummer erkannt: „' + (a.address1 || '') + '“');
-  var n1 = dhlTeil_(firma || name), e2 = { name1: n1[0], addressStreet: dhlCut_(st[0], 50), postalCode: String(a.zip || '').trim(), city: dhlCut_(a.city, 40), country: 'DEU' };
+  var land = String(a.countryCodeV2 || 'DE').toUpperCase(), plz = String(a.zip || '').trim();
+  if (land === 'NL') plz = plz.replace(/^(\d{4})\s*([A-Za-z]{2})$/, function (x, d, b) { return d + ' ' + b.toUpperCase(); });
+  var n1 = dhlTeil_(firma || name), e2 = { name1: n1[0], addressStreet: dhlCut_(st[0], 50), postalCode: plz, city: dhlCut_(a.city, 40), country: DHL_EU3[land] || 'DEU' };
+  if (land !== 'DE' && !firma) w.push('Europaket ist für Firmenempfänger – bitte Firmenname eintragen');
   if (st[1]) e2.addressHouse = dhlCut_(st[1], 10);
   if (firma && name) { if (n1[1]) { e2.name2 = n1[1]; e2.name3 = dhlCut_(name, 35); } else { var n2 = dhlTeil_(name); e2.name2 = n2[0]; if (n2[1]) e2.name3 = n2[1]; } }
   else if (n1[1]) e2.name2 = n1[1];
@@ -1028,9 +1042,9 @@ function dhlGewicht_(n) {
 function dhlVor_(o) {
   dhlPw_(o);
   var n = dhlQuelle_(o, String(o.id)), a = n.shippingAddress || {};
-  if (String(a.countryCodeV2 || '').toUpperCase() !== 'DE') throw new Error('Nur Inland (DE) – Ausland folgt mit DHL Express');
+  var prodV = dhlProdLand_(a.countryCodeV2, 'V01PAK');
   var em = dhlEmpfaenger_(a, n.email), st = soStaende_()[String(o.id)];
-  return { empf: em.e, typ: em.typ, warn: em.w, kg: Number(o.kg) > 0 ? Number(o.kg) : dhlGewicht_(n), dhl: (st && st.d && st.d.dhl) || null, bereit: dhlStatus_(o).bereit, fmt: dhlFormat_() };
+  return { empf: em.e, typ: em.typ, warn: em.w, kg: Number(o.kg) > 0 ? Number(o.kg) : dhlGewicht_(n), dhl: (st && st.d && st.d.dhl) || null, bereit: dhlStatus_(o).bereit, fmt: dhlFormat_(), prod: prodV, land: String(a.countryCodeV2 || 'DE').toUpperCase() };
 }
 function dhlFehler_(j) {
   var m = [];
@@ -1066,7 +1080,7 @@ function dhlQuelle_(o, id) {
 function dhlLabel_(o) {
   dhlPw_(o);
   var id = String(o.id || ''); if (!/^\d+$/.test(id) && !dhlAp_(id)) throw new Error('Bestellung fehlt');
-  var prod = DHL_PROD[o.prod] ? o.prod : 'V01PAK', P = DHL_PROD[prod];
+  var prod = DHL_PROD[o.prod] ? o.prod : 'V01PAK', P = DHL_PROD[prod];   // wird unten nach dem Land festgelegt
   var kgs = (Array.isArray(o.kgs) && o.kgs.length ? o.kgs : [o.kg]).map(function (x) { return Math.round(Number(String(x).replace(',', '.')) * 1000) / 1000; });
   if (kgs.length > 20) throw new Error('Max. 20 Pakete');
   kgs.forEach(function (kg, i) { if (!(kg > 0)) throw new Error('Gewicht fehlt (Paket ' + (i + 1) + ')'); if (kg > P.max) throw new Error(P.t + ': max. ' + P.max + ' kg (Paket ' + (i + 1) + ')'); });
@@ -1075,7 +1089,7 @@ function dhlLabel_(o) {
     var st = soStaende_()[id], alt = st && st.d && st.d.dhl, altP = dhlPakete_(alt);
     if (!o.nurPruefen && altP.length && !o.add) throw new Error('Für diese Bestellung gibt es schon ein Etikett: ' + altP.map(function (p) { return p.nr; }).join(', '));
     var n = dhlQuelle_(o, id), a = n.shippingAddress || {};
-    if (String(a.countryCodeV2 || '').toUpperCase() !== 'DE') throw new Error('Nur Inland (DE)');
+    prod = dhlProdLand_(a.countryCodeV2, prod); P = DHL_PROD[prod];
     var empf = o.empf || dhlEmpfaenger_(a, n.email).e;
     var ref = String(n.name || o.nr || id).replace(/[^\w\- ]/g, ' ').replace(/\s+/g, ' ').trim();
     if (ref.length < 8) ref = ('FH ' + ref + '        ').slice(0, 8).trim() + '-' + id.slice(-4);
