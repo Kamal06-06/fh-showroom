@@ -3764,9 +3764,10 @@ function dhlSheet(o,after){openSheet('📦 DHL Paket · '+o.nr,async b=>{
   const kg=el('input');kg.type='number';kg.step='0.1';kg.min='0.1';kg.inputMode='decimal';kg.value=v.kg;kg.dir='ltr';field(b,'الوزن بالكيلو (مع التغليف) · اقتراح من أوزان المنتجات',kg);
   const pd=el('select');pd.style.cssText='padding:10px;font:inherit;border-radius:10px;width:100%';[['V01PAK','DHL Paket (حتى 31.5 kg)'],['V62KP','DHL Kleinpaket (حتى 1 kg · بحجم صغير)']].forEach(([k,t])=>{const op=el('option',null,t);op.value=k;pd.append(op)});field(b,'المنتج',pd);
   const cb=(t,on)=>{const l=el('label','clprow'),i=el('input');i.type='checkbox';i.checked=on;l.append(i,' '+t);b.append(l);return i};
-  const dr=cb('🖨️ اطبع مباشرة في المستودع ('+(v.fmt==='A4'?'Brother A4':'Zebra')+')',true),sp=cb('📧 علِّم الطلب «مشحون» في Shopify وأرسل رقم التتبع للعميل',true);
+  const dr=cb('🖨️ اطبع مباشرة في المستودع ('+(v.fmt==='A4'?'Brother A4':'Zebra')+') – عبر جهاز الطباعة Mini PC',false),sp=cb('📧 علِّم الطلب «مشحون» في Shopify وأرسل رقم التتبع للعميل',true);
   const row=el('div','row');row.style.cssText='gap:8px;flex-wrap:wrap;margin-top:10px';
   const chk=el('button','btn','🔍 فحص العنوان (مجاني)'),go=el('button','btn primary big','✅ إنشاء الملصق (مدفوع)');row.append(chk,go);b.append(row,m);
+  srv('druckstatus').then(x=>{if(x&&x.online)dr.checked=LS.get('dhlDr',true)}).catch(()=>{});dr.onchange=()=>LS.set('dhlDr',dr.checked);
   const opt=nur=>({id:o.id,nr:o.nr,kg:Number(String(kg.value).replace(',','.')),prod:pd.value,nurPruefen:nur,druck:dr.checked,shopify:sp.checked});
   chk.onclick=async()=>{chk.disabled=true;say('جاري الفحص عند DHL…');try{const r=await soCall('dhl_label',opt(true));say((r.ok?'✅ DHL يقبل العنوان والبيانات':'❌ DHL لا يقبل البيانات')+(r.msgs.length?'\n'+r.msgs.join('\n'):''),!r.ok)}catch(e){say('⚠️ '+dhlErr(e),1)}chk.disabled=false};
   go.onclick=async()=>{const x=opt(false);if(!(x.kg>0))return say('أدخل الوزن',1);
