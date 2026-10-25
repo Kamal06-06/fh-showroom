@@ -734,3 +734,214 @@ function soSetzen_(o) {
     return alt;
   } finally { /* ohne Script-Lock: Etiketten-Läufe sollen das Abhaken nicht blockieren */ }
 }
+
+/* =====================================================================
+   📦 DHL Paket (Inland) – Versandetiketten direkt aus «طلبات المتجر»
+   • Parcel DE Shipping API v2 · OAuth (API-Key + Secret + GKP-Systembenutzer)
+   • Zugangsdaten nur in den Skript-Eigenschaften (gibt der Inhaber in der App ein)
+   • KEIN Einfluss auf Lager / Inventur / Kundenkonten
+   App-Aktionen: dhl_status, dhl_set (nur Inhaber), dhl_test, dhl_vor, dhl_label, dhl_storno
+   ===================================================================== */
+var DHL_BASE = 'https://api-eu.dhl.com/parcel/de/shipping/v2';
+var DHL_TOKEN_URL = 'https://api-eu.dhl.com/parcel/de/account/auth/ropc/v1/token';
+var DHL_EKP = '6388620821';
+var DHL_PROD = {                       // Produkt → Abrechnungsnummer (EKP + Verfahren + Teilnahme)
+  V01PAK: { t: 'DHL Paket', bn: DHL_EKP + '0101', max: 31.5 },
+  V62KP:  { t: 'DHL Kleinpaket', bn: DHL_EKP + '6201', max: 1 }
+};
+var DHL_ABSENDER = { name1: 'Fragrance Hub Germany', name2: 'Inh. Mohammad Kamal Al Masri', addressStreet: 'Am Alten Kirchplatz', addressHouse: '10',
+  postalCode: '45665', city: 'Recklinghausen', country: 'DEU', email: 'info@fragranceshub.de', phone: '+49 2361 4878835' };
+var DHL_FELDER = { key: 'DHL_KEY', secret: 'DHL_SECRET', user: 'DHL_USER', pass: 'DHL_PASS' };
+
+function dhlCfg_() {
+  var p = PropertiesService.getScriptProperties(), c = {};
+  Object.keys(DHL_FELDER).forEach(function (k) { c[k] = p.getProperty(DHL_FELDER[k]) || ''; });
+  return c;
+}
+function dhlStatus_(o) {
+  soPruefen_(o && o.pw);
+  var c = dhlCfg_(), u = c.user;
+  return { key: !!c.key, secret: !!c.secret, user: u ? u.slice(0, 3) + '…' + u.slice(-3) : '', pass: !!c.pass,
+    bereit: !!(c.key && c.secret && c.user && c.pass), absender: DHL_ABSENDER, produkte: DHL_PROD };
+}
+/** nur Inhaber: o = { pw, key, secret, user, pass } – leere Felder bleiben unverändert */
+function dhlSetzen_(o) {
+  soPruefen_(o && o.pw);
+  if (!SR_ADMIN) throw new Error('NUR_INHABER');
+  var p = PropertiesService.getScriptProperties(), n = 0;
+  Object.keys(DHL_FELDER).forEach(function (k) { var v = String(o[k] || '').trim(); if (v) { p.setProperty(DHL_FELDER[k], v); n++; } });
+  CacheService.getScriptCache().remove('DHL_TOKEN');
+  return { gespeichert: n, status: dhlStatus_(o) };
+}
+function dhlToken_(neu) {
+  var cache = CacheService.getScriptCache(), t = !neu && cache.get('DHL_TOKEN');
+  if (t) return t;
+  var c = dhlCfg_();
+  if (!(c.key && c.secret && c.user && c.pass)) throw new Error('DHL_NICHT_EINGERICHTET');
+  var r = UrlFetchApp.fetch(DHL_TOKEN_URL, { method: 'post', muteHttpExceptions: true, contentType: 'application/x-www-form-urlencoded',
+    payload: { grant_type: 'password', username: c.user, password: c.pass, client_id: c.key, client_secret: c.secret } });
+  var code = r.getResponseCode(), j = {};
+  try { j = JSON.parse(r.getContentText()); } catch (e) {}
+  if (code !== 200 || !j.access_token) throw new Error('DHL-Anmeldung fehlgeschlagen (' + code + '): ' + (j.error_description || j.error || j.detail || r.getContentText().slice(0, 200)));
+  cache.put('DHL_TOKEN', j.access_token, Math.max(60, Math.min(21000, (Number(j.expires_in) || 1800) - 120)));
+  return j.access_token;
+}
+function dhlFetch_(method, pfad, body) {
+  var mach = function (tok) {
+    var opt = { method: method, muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + tok, Accept: 'application/json', 'Accept-Language': 'de-DE' } };
+    if (body) { opt.contentType = 'application/json'; opt.payload = JSON.stringify(body); }
+    return UrlFetchApp.fetch(DHL_BASE + pfad, opt);
+  };
+  var r = mach(dhlToken_());
+  if (r.getResponseCode() === 401) r = mach(dhlToken_(true));
+  var j = {}; try { j = JSON.parse(r.getContentText() || '{}'); } catch (e) { j = { raw: r.getContentText().slice(0, 300) }; }
+  return { code: r.getResponseCode(), j: j };
+}
+function dhlTest_(o) {
+  soPruefen_(o && o.pw);
+  dhlToken_(true);
+  var r = dhlFetch_('get', '/', null);
+  return { ok: r.code === 200, code: r.code, info: r.j && (r.j.amp || r.j.backend || r.j) };
+}
+/** Straße / Hausnummer trennen: "Lohmühlenweg 28b" → ["Lohmühlenweg","28b"] */
+function dhlStrasse_(s) {
+  s = String(s || '').replace(/\s+/g, ' ').trim();
+  var m = s.match(/^(.*?[^\d\s].*?)[\s,]+(\d+\s*[a-zA-Z]?(?:\s*[-\/]\s*\d*\s*[a-zA-Z]?)?)$/);
+  if (m) return [m[1].replace(/,$/, '').trim(), m[2].replace(/\s+/g, '')];
+  m = s.match(/^(\d+\s*[a-zA-Z]?)[\s,]+(.+)$/);           // "12 Hauptstraße"
+  if (m) return [m[2].trim(), m[1].replace(/\s+/g, '')];
+  return [s, ''];
+}
+function dhlCut_(s, n) { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n) : s; }
+/** Shopify-Bestellung → DHL-Empfänger (Hausadresse, Packstation oder Postfiliale) */
+function dhlEmpfaenger_(a, email) {
+  var name = dhlCut_(a.name, 50), firma = dhlCut_(a.company, 50), zeilen = [a.address1, a.address2].join(' ');
+  var postNr = (zeilen.match(/(?:post\s*nr|postnummer|kundennr|kd\.?\s*nr)\.?\s*:?\s*(\d{6,10})/i) || zeilen.match(/\b(\d{6,10})\b/) || [])[1] || '';
+  var ps = zeilen.match(/packstation\s*(?:nr\.?)?\s*(\d{3})/i), pf = zeilen.match(/(?:postfiliale|filiale|paketshop)\s*(?:nr\.?)?\s*(\d{3,4})/i);
+  var w = [];
+  if (ps || pf) {
+    if (!postNr) w.push('Packstation/Filiale ohne Postnummer – DHL lehnt das ab');
+    var e = { name: name || firma, postNumber: postNr, postalCode: String(a.zip || '').trim(), city: dhlCut_(a.city, 40) };
+    if (ps) e.lockerID = Number(ps[1]); else e.retailID = Number(pf[1]);
+    return { e: e, typ: ps ? 'Packstation ' + ps[1] : 'Postfiliale ' + pf[1], w: w };
+  }
+  var st = dhlStrasse_(a.address1);
+  if (!st[1]) w.push('Keine Hausnummer erkannt: „' + (a.address1 || '') + '“');
+  var e2 = { name1: firma || name, addressStreet: dhlCut_(st[0], 50), postalCode: String(a.zip || '').trim(), city: dhlCut_(a.city, 40), country: 'DEU' };
+  if (st[1]) e2.addressHouse = dhlCut_(st[1], 10);
+  if (firma && name) e2.name2 = name;
+  if (a.address2) e2.additionalAddressInformation1 = dhlCut_(a.address2, 60);
+  if (email) e2.email = String(email).trim();
+  if (a.phone) e2.phone = dhlCut_(a.phone, 20);
+  return { e: e2, typ: 'Hausadresse', w: w };
+}
+function dhlOrder_(id) {
+  var q = 'query($id:ID!){order(id:$id){id name email phone displayFulfillmentStatus shippingAddress{name company address1 address2 zip city countryCodeV2 phone} ' +
+    'lineItems(first:60){nodes{currentQuantity variant{inventoryItem{measurement{weight{value unit}}}}}}}}';
+  var n = shopifyGraphQL(q, { id: 'gid://shopify/Order/' + id }).order;
+  if (!n) throw new Error('Bestellung nicht gefunden');
+  return n;
+}
+function dhlGewicht_(n) {
+  var f = { KILOGRAMS: 1, GRAMS: 0.001, POUNDS: 0.4536, OUNCES: 0.02835 }, kg = 0;
+  (n.lineItems.nodes || []).forEach(function (li) {
+    var w = li.variant && li.variant.inventoryItem && li.variant.inventoryItem.measurement && li.variant.inventoryItem.measurement.weight;
+    if (w && w.value) kg += Number(li.currentQuantity || 0) * Number(w.value) * (f[w.unit] || 1);
+  });
+  return Math.max(0.5, Math.ceil((kg + 0.3) * 10) / 10);   // + Verpackung, auf 100 g aufrunden
+}
+/** Vorbereitung: Adresse wie DHL sie bekommt + vorgeschlagenes Gewicht + vorhandenes Etikett */
+function dhlVor_(o) {
+  soPruefen_(o && o.pw);
+  var n = dhlOrder_(String(o.id)), a = n.shippingAddress || {};
+  if (String(a.countryCodeV2 || '').toUpperCase() !== 'DE') throw new Error('Nur Inland (DE) – Ausland folgt mit DHL Express');
+  var em = dhlEmpfaenger_(a, n.email), st = soStaende_()[String(o.id)];
+  return { empf: em.e, typ: em.typ, warn: em.w, kg: dhlGewicht_(n), dhl: (st && st.d && st.d.dhl) || null, bereit: dhlStatus_(o).bereit };
+}
+function dhlFehler_(j) {
+  var m = [];
+  (j.items || []).forEach(function (it) { (it.validationMessages || []).forEach(function (v) { m.push((v.validationState === 'Warning' ? '⚠️ ' : '❌ ') + (v.property ? v.property + ': ' : '') + v.validationMessage); }); });
+  if (!m.length && j.status) m.push((j.status.title || '') + ' ' + (j.status.detail || ''));
+  if (!m.length && j.detail) m.push(j.detail);
+  if (!m.length && j.title) m.push(j.title);
+  return m;
+}
+function dhlOrdner_() {
+  var p = PropertiesService.getScriptProperties(), id = p.getProperty('DHL_ORDNER');
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
+  var f = DriveApp.createFolder('DHL-Versandetiketten'); p.setProperty('DHL_ORDNER', f.getId()); return f;
+}
+/**
+ * Etikett prüfen (nurPruefen) oder kostenpflichtig erstellen.
+ * o = { pw, id, nr, kg, prod:'V01PAK'|'V62KP', nurPruefen, druck, shopify, empf (optional korrigiert) }
+ */
+function dhlLabel_(o) {
+  soPruefen_(o && o.pw);
+  var id = String(o.id || ''); if (!/^\d+$/.test(id)) throw new Error('Bestellung fehlt');
+  var prod = DHL_PROD[o.prod] ? o.prod : 'V01PAK', P = DHL_PROD[prod], kg = Math.round(Number(o.kg) * 1000) / 1000;
+  if (!(kg > 0)) throw new Error('Gewicht fehlt');
+  if (kg > P.max) throw new Error(P.t + ': max. ' + P.max + ' kg');
+  var lock = LockService.getScriptLock(); if (!o.nurPruefen && !lock.tryLock(20000)) throw new Error('Bitte gleich nochmal versuchen');
+  try {
+    var st = soStaende_()[id], alt = st && st.d && st.d.dhl;
+    if (!o.nurPruefen && alt && alt.nr) throw new Error('Für diese Bestellung gibt es schon ein Etikett: ' + alt.nr);
+    var n = dhlOrder_(id), a = n.shippingAddress || {};
+    if (String(a.countryCodeV2 || '').toUpperCase() !== 'DE') throw new Error('Nur Inland (DE)');
+    var empf = o.empf || dhlEmpfaenger_(a, n.email).e;
+    var ref = String(n.name || o.nr || id).replace(/[^\w\- ]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (ref.length < 8) ref = ('FH ' + ref + '        ').slice(0, 8).trim() + '-' + id.slice(-4);
+    var body = { profile: 'STANDARD_GRUPPENPROFIL', shipments: [{ product: prod, billingNumber: P.bn, refNo: ref.slice(0, 35),
+      shipDate: Utilities.formatDate(new Date(), 'Europe/Berlin', 'yyyy-MM-dd'), shipper: DHL_ABSENDER, consignee: empf,
+      details: { weight: { uom: 'kg', value: kg } } }] };
+    var pfad = '/orders?' + (o.nurPruefen ? 'validate=true&' : '') + 'mustEncode=true&printFormat=A4&combine=true';
+    var r = dhlFetch_('post', pfad, body), j = r.j, it = (j.items || [])[0] || {};
+    var msgs = dhlFehler_(j);
+    if (o.nurPruefen) return { ok: r.code < 300 && !msgs.some(function (x) { return x.charAt(0) === '❌'; }), code: r.code, msgs: msgs, empf: empf };
+    if (r.code >= 300 || !it.shipmentNo || !it.label || !it.label.b64) throw new Error('DHL: ' + (msgs.join(' · ') || ('Fehler ' + r.code)));
+    var nr = String(it.shipmentNo), datei = 'DHL ' + String(n.name || id).replace(/[^\w\-]+/g, '-') + ' ' + nr + '.pdf';
+    var fileId = '';
+    try { fileId = dhlOrdner_().createFile(Utilities.newBlob(Utilities.base64Decode(it.label.b64), 'application/pdf', datei)).getId(); } catch (e) {}
+    var info = { nr: nr, prod: prod, kg: kg, at: Date.now(), by: SR_USER || '', file: fileId, ref: ref };
+    var gedruckt = false, druckFehler = '';
+    if (o.druck !== false) { try { srDruck_('A4-' + datei, it.label.b64); gedruckt = true; } catch (e) { druckFehler = String(e.message || e); } }
+    var shop = '';
+    if (o.shopify !== false) { try { shop = dhlShopifyVersand_(id, nr); } catch (e) { shop = 'Fehler: ' + (e.message || e); } }
+    info.shopify = shop;
+    soSetzen_({ pw: o.pw, id: id, nr: n.name || o.nr, patch: { dhl: info } });
+    return { ok: true, nr: nr, b64: it.label.b64, datei: datei, gedruckt: gedruckt, druckFehler: druckFehler, shopify: shop, msgs: msgs };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+/** Etikett stornieren (geht nur, solange DHL die Sendung noch nicht bearbeitet hat – i. d. R. am selben Tag) */
+function dhlStorno_(o) {
+  soPruefen_(o && o.pw);
+  var id = String(o.id || ''), st = soStaende_()[id], alt = st && st.d && st.d.dhl;
+  if (!alt || !alt.nr) throw new Error('Kein Etikett vorhanden');
+  var r = dhlFetch_('delete', '/orders?profile=STANDARD_GRUPPENPROFIL&shipment=' + encodeURIComponent(alt.nr), null);
+  var msgs = dhlFehler_(r.j), ok = r.code < 300;
+  if (!ok) throw new Error('DHL: ' + (msgs.join(' · ') || ('Fehler ' + r.code)));
+  var verlauf = (st.d.dhlStorniert || []).concat([{ nr: alt.nr, at: Date.now(), by: SR_USER || '' }]);
+  soSetzen_({ pw: o.pw, id: id, nr: o.nr, patch: { dhl: null, dhlStorniert: verlauf } });
+  return { ok: true, nr: alt.nr, hinweis: alt.shopify && !/^Fehler/.test(alt.shopify) ? 'In Shopify ist die Bestellung schon als versendet markiert – dort bei Bedarf die Sendungsverfolgung entfernen.' : '' };
+}
+/** Bestellung in Shopify als versendet markieren + Sendungsnummer (Kunde bekommt die Versand-Mail von Shopify) */
+function dhlShopifyVersand_(id, nr) {
+  var fo = shopifyGraphQL('query($id:ID!){order(id:$id){fulfillmentOrders(first:10){nodes{id status}}}}', { id: 'gid://shopify/Order/' + id }).order.fulfillmentOrders.nodes
+    .filter(function (f) { return /OPEN|IN_PROGRESS|SCHEDULED/.test(f.status); });
+  if (!fo.length) return 'schon versendet';
+  var url = 'https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=' + nr;
+  var inp = { lineItemsByFulfillmentOrder: fo.map(function (f) { return { fulfillmentOrderId: f.id }; }), notifyCustomer: true,
+    trackingInfo: { company: 'DHL', number: nr, url: url } };
+  var d = shopifyGraphQL('mutation($f:FulfillmentInput!){fulfillmentCreate(fulfillment:$f){fulfillment{id status} userErrors{field message}}}', { f: inp });
+  var e = d.fulfillmentCreate.userErrors || [];
+  if (e.length) throw new Error(e.map(function (x) { return x.message; }).join('; '));
+  return 'versendet';
+}
+/** Etikett nochmal drucken / als PDF holen: o = { pw, id, druck } */
+function dhlDruck_(o) {
+  soPruefen_(o && o.pw);
+  var st = soStaende_()[String(o.id || '')], alt = st && st.d && st.d.dhl;
+  if (!alt || !alt.file) throw new Error('Etikett-Datei nicht gefunden');
+  var f = DriveApp.getFileById(alt.file), b64 = Utilities.base64Encode(f.getBlob().getBytes());
+  if (o.druck) srDruck_('A4-' + f.getName(), b64);
+  return { ok: true, b64: b64, datei: f.getName(), gedruckt: !!o.druck };
+}
