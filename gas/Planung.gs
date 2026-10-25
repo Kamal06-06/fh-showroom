@@ -346,7 +346,7 @@ function plAntwortenLauf() {
   var lock = LockService.getScriptLock(); if (!lock.tryLock(5000)) return;
   try {
     var label = GmailApp.getUserLabelByName(PL_ANTW_LABEL) || GmailApp.createLabel(PL_ANTW_LABEL);
-    var q = 'newer_than:30d -in:sent -label:' + PL_ANTW_LABEL + ' (subject:Rabatt OR subject:discount OR subject:"Willkommen bei Fragrance Hub")';
+    var q = 'newer_than:30d -in:sent -label:' + PL_ANTW_LABEL + ' subject:"Fragrance Hub" (subject:Rabatt OR subject:discount OR subject:Willkommen) -from:shopify -from:noreply -from:no-reply -from:mailer-daemon';
     var threads = GmailApp.search(q, 0, 30), tg = [];
     threads.forEach(function (th) {
       var fertig = true;
