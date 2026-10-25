@@ -724,7 +724,6 @@ function soListe_(o) {
 function soSetzen_(o) {
   soPruefen_(o && o.pw);
   var id = String(o.id || ''); if (!/^\d+$/.test(id)) throw new Error('Bestellung fehlt');
-  var lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
     var sh = soBlatt_(), st = soStaende_(), alt = (st[id] && st[id].d) || {}, p = o.patch || {};
     Object.keys(p).forEach(function (k) { alt[k] = p[k]; });
@@ -733,5 +732,5 @@ function soSetzen_(o) {
     var zeile = [id, String(o.nr || ''), JSON.stringify(alt), new Date()];
     if (st[id]) sh.getRange(st[id].row, 1, 1, 4).setValues([zeile]); else sh.appendRow(zeile);
     return alt;
-  } finally { lock.releaseLock(); }
+  } finally { /* ohne Script-Lock: Etiketten-Läufe sollen das Abhaken nicht blockieren */ }
 }
