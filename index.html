@@ -4166,7 +4166,7 @@ function apAdr(l){const c=findCust(l.customer)||{},st=l.street||c.street||'',ci=
   const pt=String(l.customer||'').split(/[()]/).map(x=>x.trim()).filter(Boolean);   /* „Name (Firma)“ → Name + Firma */
   return Object.assign({name:pt.length===2?pt[0]:(l.customer||''),firma:pt.length===2?pt[1]:'',a1:st,a2:'',plz:m?m[1]:'',ort:m?m[2]:ci,land:'DE',tel:l.phone||c.phone||'',email:l.email||c.email||''},l.dhlAdr||{})}
 function apKg(l){let g=0;(l.items||[]).forEach(it=>{if(isOil(it))g+=(it.unit==='kg'?1000:sizeG(it.size))*(+it.q||1)});return g?Math.max(0.5,Math.ceil((g/1000*1.15+0.3)*10)/10):0}
-function apDhl(l){const o={ap:true,id:'AP-'+l.id,nr:'AP-'+stamp(l),adr:apAdr(l),kg:apKg(l),stand:{},
+function apDhl(l){const o={ap:true,l,id:'AP-'+l.id,nr:'AP-'+stamp(l),adr:apAdr(l),kg:apKg(l),stand:{},
     onStand:d=>{const v=d?{nr:d.nr,n:(d.pakete||[]).length||1,at:d.at||Date.now()}:null;l.dhl=v;try{db.doc('lists/'+l.id).update({dhl:v}).catch(()=>{})}catch(e){}try{renderOrderModal()}catch(e){}},
     editAdr:()=>apDhlAdr(l,o)};
   if(l.dhl&&l.dhl.nr||(o.adr.a1&&o.adr.plz&&o.adr.ort))return dhlSheet(o,null);
@@ -4183,6 +4183,7 @@ function apDhlAdr(l,o){openSheet('📦 عنوان الشحن · '+o.nr,b=>{soCss
 function dhlSheet(o,after){openSheet('📦 DHL Paket · '+o.nr,async b=>{soCss();sheetBack=after||null;
   const st=el('p','hint','جاري التحضير…');b.append(st);let v;
   try{v=await soCall('dhl_vor',{id:o.id,adr:o.adr,kg:o.kg})}catch(e){st.textContent='⚠️ '+dhlErr(e);return}
+  if(o.ap&&o.onStand){const had=!!(o.l&&o.l.dhl&&o.l.dhl.nr);if(had!==!!(v.dhl&&v.dhl.nr))o.onStand(v.dhl||null)}
   if(!v.bereit){st.textContent='لم تُضبط بيانات DHL بعد.';if(isAdmin()){const x=el('button','btn primary','⚙️ إعدادات DHL');x.onclick=()=>dhlSetup();b.append(x)}else b.append(el('p','hint','يضبطها المدير مرة واحدة.'));return}
   b.textContent='';if(after){const bk=el('button','btn small','← رجوع للطلب');bk.onclick=after;b.append(bk)}const m=el('div','status');m.hidden=true;m.style.whiteSpace='pre-line';const say=(t,err)=>{m.hidden=false;m.classList.toggle('err',!!err);m.textContent=t};
   const setStand=d=>{o.stand=o.stand||{};o.stand.dhl=d;if(o.onStand)o.onStand(d)};

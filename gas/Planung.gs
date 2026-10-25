@@ -760,7 +760,7 @@ function soSetzen_(o) {
   if (!dhlAp_(id)) soPruefen_(o && o.pw);
   try {
     var p = o.patch || {};
-    if (p.adr) { var neu = soAdresseSetzen_(id, p.adr); delete p.adr; if (!Object.keys(p).length) return { adresse: neu }; }
+    if (p.adr && /^\d+$/.test(id)) { var neu = soAdresseSetzen_(id, p.adr); delete p.adr; if (!Object.keys(p).length) return { adresse: neu }; }
     var sh = soBlatt_(), st = soStaende_(), alt = (st[id] && st[id].d) || {};
     Object.keys(p).forEach(function (k) { alt[k] = p[k]; });
     if (p.ready === true) { alt.readyAt = Date.now(); alt.readyBy = SR_USER || ''; }
@@ -1047,7 +1047,7 @@ function dhlAp_(id) { return /^AP-[A-Za-z0-9_-]{3,60}$/.test(String(id || '')); 
 function dhlPw_(o) { if (!dhlAp_(o && o.id)) soPruefen_(o && o.pw); }
 function dhlQuelle_(o, id) {
   if (!dhlAp_(id)) return dhlOrder_(id);
-  var st = soStaende_()[id], a = o.adr || (st && st.d && st.d.adr);
+  var st = soStaende_()[id], a = o.adr || (st && st.d && (st.d.apAdr || st.d.adr));
   if (!a) throw new Error('Adresse fehlt');
   return { name: String(o.nr || id), email: a.email || '', lineItems: { nodes: [] }, adr: a,
     shippingAddress: { name: a.name || '', company: a.firma || '', address1: a.a1 || '', address2: a.a2 || '', zip: a.plz || '', city: a.ort || '', countryCodeV2: String(a.land || 'DE').toUpperCase(), phone: a.tel || '' } };
@@ -1093,7 +1093,7 @@ function dhlLabel_(o) {
       catch (e) { shop = 'Fehler: ' + (e.message || e); }
       info.shopify = shop;
     }
-    var patch = { dhl: info }; if (n.adr) patch.adr = n.adr;
+    var patch = { dhl: info }; if (n.adr) patch.apAdr = n.adr;   // NICHT „adr“ – das würde die Shopify-Adresse ändern
     soSetzen_({ pw: o.pw, id: id, nr: n.name || o.nr, patch: patch });
     var nrs = neu.map(function (p) { return p.nr; });
     return { ok: true, nr: nrs.join(', '), nrs: nrs, b64: b64s[0], b64s: b64s, gedruckt: gedruckt, druckFehler: druckFehler, shopify: shop, msgs: msgs,
