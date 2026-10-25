@@ -909,6 +909,17 @@ var DHL_FELDER = { key: 'DHL_KEY', secret: 'DHL_SECRET', user: 'DHL_USER', pass:
 /** Etikettenformat: Zebra GK420t (Thermo-Rolle) oder A4 (Brother). Druckauftrag "Z-…" → Zebra, "A4-…" → Brother */
 var DHL_FORMATE = { '910-300-610': 'Zebra · 103 × 199 mm (Rolle)', '910-300-410': 'Zebra · 103 × 150 mm (Rolle)', 'A4': 'A4 · Brother' };
 function dhlFormat_() { var f = PropertiesService.getScriptProperties().getProperty('DHL_FORMAT'); return DHL_FORMATE[f] ? f : '910-300-610'; }
+/** Etikett sofort in die Druck-Warteschlange – als Skript-Eigenschaft (schnell, ohne Drive-Datei). Zu groß → wie bisher über Drive. Mini-PC holt es mit srDruckHolen_. */
+function dhlDruckSchnell_(name, b64) {
+  var n = String(name || 'Etikett.pdf').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss').replace(/[^A-Za-z0-9 ._-]/g, '-').slice(0, 80);
+  if (!/\.pdf$/i.test(n)) n += '.pdf';
+  var v = JSON.stringify({ n: n, b: b64 });
+  if (v.length > 8800) return srDruck_(n, b64);
+  var p = PropertiesService.getScriptProperties();
+  p.setProperty('SRQ_' + Date.now() + '_' + Math.floor(Math.random() * 1e6), v);
+  p.setProperty('SR_DRUCK', String(Date.now()));
+  return 'q';
+}
 function dhlDruckName_(datei) { return (dhlFormat_() === 'A4' ? 'A4-' : 'Z-') + datei; }
 
 function dhlCfg_() {
@@ -1080,8 +1091,8 @@ function dhlLabel_(o) {
     var neu = [], b64s = [], gedruckt = false, druckFehler = '';
     gut.forEach(function (it, i) {
       var nr = String(it.shipmentNo), datei = 'DHL ' + String(n.name || id).replace(/[^\w\-]+/g, '-') + ' ' + nr + '.pdf', fileId = '';
-      try { fileId = dhlOrdner_().createFile(Utilities.newBlob(Utilities.base64Decode(it.label.b64), 'application/pdf', datei)).getId(); } catch (e) {}
-      if (o.druck !== false) { try { srDruck_(dhlDruckName_(datei), it.label.b64); gedruckt = true; } catch (e) { druckFehler = String(e.message || e); } }
+      try { dhlEtikettSpeichern_(nr, it.label.b64); } catch (e) {}   // für Nachdruck – im Blatt, NICHT in Drive
+      if (o.druck !== false) { try { dhlDruckSchnell_(dhlDruckName_(datei), it.label.b64); gedruckt = true; } catch (e) { druckFehler = String(e.message || e); } }
       neu.push({ nr: nr, kg: kgs[items.indexOf(it)] || kgs[i], file: fileId, at: Date.now() }); b64s.push(it.label.b64);
     });
     var pakete = altP.concat(neu), alle = pakete.map(function (p) { return p.nr; });
@@ -1159,15 +1170,49 @@ function dhlDruck_(o) {
   dhlPw_(o);
   var st = soStaende_()[String(o.id || '')], pakete = dhlPakete_(st && st.d && st.d.dhl);
   if (o.paket) pakete = pakete.filter(function (p) { return String(p.nr) === String(o.paket); });
-  pakete = pakete.filter(function (p) { return p.file; });
-  if (!pakete.length) throw new Error('Etikett-Datei nicht gefunden');
   var b64s = [], namen = [];
   pakete.forEach(function (p) {
-    var f = DriveApp.getFileById(p.file), b64 = Utilities.base64Encode(f.getBlob().getBytes());
-    if (o.druck) srDruck_(dhlDruckName_(f.getName()), b64);
-    b64s.push(b64); namen.push(f.getName());
+    var b64 = dhlEtikettLesen_(p.nr, p.file); if (!b64) return;
+    var nm = 'DHL ' + String((st && st.d && st.d.dhl && st.d.dhl.ref) || o.nr || '').replace(/[^\w\-]+/g, '-') + ' ' + p.nr + '.pdf';
+    if (o.druck) dhlDruckSchnell_(dhlDruckName_(nm), b64);
+    b64s.push(b64); namen.push(nm);
   });
+  if (!b64s.length) throw new Error('Etikett nicht gefunden – bitte bei DHL neu erstellen');
   return { ok: true, b64: b64s[0], b64s: b64s, datei: namen[0], gedruckt: !!o.druck };
+}
+/* Etiketten für Nachdruck im Blatt „DHL-Etiketten“ (Sendungsnr. · Datum · PDF base64) – keine Drive-Dateien. Älter als 60 Tage wird gelöscht. */
+var DHL_ETK_BLATT = 'DHL-Etiketten';
+function dhlEtkBlatt_() {
+  var ss = lagerSS_(), sh = ss.getSheetByName(DHL_ETK_BLATT);
+  if (!sh) { sh = ss.insertSheet(DHL_ETK_BLATT); sh.getRange(1, 1, 1, 3).setValues([['Sendungsnummer', 'Erstellt', 'PDF (base64)']]).setFontWeight('bold'); sh.setFrozenRows(1); sh.getRange('A:A').setNumberFormat('@'); }
+  return sh;
+}
+function dhlEtikettSpeichern_(nr, b64) {
+  var sh = dhlEtkBlatt_(), t = String(b64), teile = [];
+  for (var i = 0; i < t.length; i += 45000) teile.push(t.slice(i, i + 45000));   // Zellen max. 50.000 Zeichen
+  sh.appendRow([String(nr), new Date()].concat(teile));
+  var n = sh.getLastRow();
+  if (n > 400) {   // aufräumen
+    var grenze = Date.now() - 60 * 864e5, d = sh.getRange(2, 2, n - 1, 1).getValues(), weg = 0;
+    while (weg < d.length && d[weg][0] && new Date(d[weg][0]).getTime() < grenze) weg++;
+    if (weg) sh.deleteRows(2, weg);
+  }
+}
+/** einmalig: alte Etiketten aus dem Drive-Ordner ins Blatt übernehmen und die Dateien löschen (Papierkorb) */
+function dhlDriveAufraeumen() {
+  var it = dhlOrdner_().getFiles(), n = 0;
+  while (it.hasNext()) { var f = it.next(), m = f.getName().match(/(\d{12,})\.pdf$/);
+    if (m && !dhlEtikettLesen_(m[1], null)) dhlEtikettSpeichern_(m[1], Utilities.base64Encode(f.getBlob().getBytes()));
+    f.setTrashed(true); n++; }
+  Logger.log(n + ' Datei(en) übernommen und gelöscht');
+}
+function dhlEtikettLesen_(nr, fileId) {
+  try {
+    var sh = dhlEtkBlatt_(), f = sh.getRange('A:A').createTextFinder(String(nr)).matchEntireCell(true).findNext();
+    if (f) return sh.getRange(f.getRow(), 3, 1, Math.max(1, sh.getLastColumn() - 2)).getValues()[0].join('');
+  } catch (e) {}
+  if (fileId) { try { return Utilities.base64Encode(DriveApp.getFileById(fileId).getBlob().getBytes()); } catch (e) {} }   // ältere Etiketten (früher in Drive)
+  return '';
 }
 
 /* =====================================================================
