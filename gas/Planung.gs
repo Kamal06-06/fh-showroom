@@ -715,7 +715,7 @@ function soListe_(o) {
   var st = soStaende_(), handle = soShopHandle_();
   // Bestellungen mit DHL-Etikett der letzten 3 Tage bleiben sichtbar (auch wenn in Shopify schon „versendet“) – damit man sie noch stornieren kann
   var da = {}; nodes.forEach(function (n) { da[String(n.id).split('/').pop()] = 1; });
-  var nach = Object.keys(st).filter(function (k) { var d = st[k].d || {}; return !da[k] && d.dhl && d.dhl.nr && Date.now() - (d.dhl.at || 0) < 3 * 864e5; }).slice(0, 40);
+  var nach = Object.keys(st).filter(function (k) { var d = st[k].d || {}; return /^\d+$/.test(k) && !da[k] && d.dhl && d.dhl.nr && Date.now() - (d.dhl.at || 0) < 3 * 864e5; }).slice(0, 40);
   if (nach.length) { try {
     var mehr = shopifyGraphQL('query($q:String!){orders(first:40,query:$q){nodes{' + felder + '}}}', { q: nach.map(function (k) { return 'id:' + k; }).join(' OR ') }).orders.nodes;
     nodes = nodes.concat(mehr.filter(ok_));
@@ -756,8 +756,8 @@ function soAdresseSetzen_(id, a) {
 }
 /** Vorbereitungsstand speichern: o = { pw, id, nr, patch:{prep, lots, ready} } */
 function soSetzen_(o) {
-  soPruefen_(o && o.pw);
-  var id = String(o.id || ''); if (!/^\d+$/.test(id)) throw new Error('Bestellung fehlt');
+  var id = String(o.id || ''); if (!/^\d+$/.test(id) && !dhlAp_(id)) throw new Error('Bestellung fehlt');
+  if (!dhlAp_(id)) soPruefen_(o && o.pw);
   try {
     var p = o.patch || {};
     if (p.adr) { var neu = soAdresseSetzen_(id, p.adr); delete p.adr; if (!Object.keys(p).length) return { adresse: neu }; }
@@ -917,7 +917,7 @@ function dhlCfg_() {
   return c;
 }
 function dhlStatus_(o) {
-  soPruefen_(o && o.pw);
+  dhlPw_(o);
   var c = dhlCfg_(), u = c.user;
   return { key: !!c.key, secret: !!c.secret, user: u ? u.slice(0, 3) + '…' + u.slice(-3) : '', pass: !!c.pass,
     bereit: !!(c.key && c.secret && c.user && c.pass), absender: DHL_ABSENDER, produkte: DHL_PROD, fmt: dhlFormat_(), formate: DHL_FORMATE };
@@ -1011,11 +1011,11 @@ function dhlGewicht_(n) {
 }
 /** Vorbereitung: Adresse wie DHL sie bekommt + vorgeschlagenes Gewicht + vorhandenes Etikett */
 function dhlVor_(o) {
-  soPruefen_(o && o.pw);
-  var n = dhlOrder_(String(o.id)), a = n.shippingAddress || {};
+  dhlPw_(o);
+  var n = dhlQuelle_(o, String(o.id)), a = n.shippingAddress || {};
   if (String(a.countryCodeV2 || '').toUpperCase() !== 'DE') throw new Error('Nur Inland (DE) – Ausland folgt mit DHL Express');
   var em = dhlEmpfaenger_(a, n.email), st = soStaende_()[String(o.id)];
-  return { empf: em.e, typ: em.typ, warn: em.w, kg: dhlGewicht_(n), dhl: (st && st.d && st.d.dhl) || null, bereit: dhlStatus_(o).bereit, fmt: dhlFormat_() };
+  return { empf: em.e, typ: em.typ, warn: em.w, kg: Number(o.kg) > 0 ? Number(o.kg) : dhlGewicht_(n), dhl: (st && st.d && st.d.dhl) || null, bereit: dhlStatus_(o).bereit, fmt: dhlFormat_() };
 }
 function dhlFehler_(j) {
   var m = [];
@@ -1038,9 +1038,19 @@ function dhlPakete_(alt) {
   if (!alt || !alt.nr) return [];
   return (alt.pakete && alt.pakete.length) ? alt.pakete : [{ nr: alt.nr, kg: alt.kg, file: alt.file, at: alt.at }];
 }
+/* Showroom-Aufträge (طلبات تطبيق الصالة): ID „AP-…“, Adresse kommt aus der App, kein Shopify. PIN prüft schon srApi. */
+function dhlAp_(id) { return /^AP-[A-Za-z0-9_-]{3,60}$/.test(String(id || '')); }
+function dhlPw_(o) { if (!dhlAp_(o && o.id)) soPruefen_(o && o.pw); }
+function dhlQuelle_(o, id) {
+  if (!dhlAp_(id)) return dhlOrder_(id);
+  var st = soStaende_()[id], a = o.adr || (st && st.d && st.d.adr);
+  if (!a) throw new Error('Adresse fehlt');
+  return { name: String(o.nr || id), email: a.email || '', lineItems: { nodes: [] }, adr: a,
+    shippingAddress: { name: a.name || '', company: a.firma || '', address1: a.a1 || '', address2: a.a2 || '', zip: a.plz || '', city: a.ort || '', countryCodeV2: String(a.land || 'DE').toUpperCase(), phone: a.tel || '' } };
+}
 function dhlLabel_(o) {
-  soPruefen_(o && o.pw);
-  var id = String(o.id || ''); if (!/^\d+$/.test(id)) throw new Error('Bestellung fehlt');
+  dhlPw_(o);
+  var id = String(o.id || ''); if (!/^\d+$/.test(id) && !dhlAp_(id)) throw new Error('Bestellung fehlt');
   var prod = DHL_PROD[o.prod] ? o.prod : 'V01PAK', P = DHL_PROD[prod];
   var kgs = (Array.isArray(o.kgs) && o.kgs.length ? o.kgs : [o.kg]).map(function (x) { return Math.round(Number(String(x).replace(',', '.')) * 1000) / 1000; });
   if (kgs.length > 20) throw new Error('Max. 20 Pakete');
@@ -1049,7 +1059,7 @@ function dhlLabel_(o) {
   try {
     var st = soStaende_()[id], alt = st && st.d && st.d.dhl, altP = dhlPakete_(alt);
     if (!o.nurPruefen && altP.length && !o.add) throw new Error('Für diese Bestellung gibt es schon ein Etikett: ' + altP.map(function (p) { return p.nr; }).join(', '));
-    var n = dhlOrder_(id), a = n.shippingAddress || {};
+    var n = dhlQuelle_(o, id), a = n.shippingAddress || {};
     if (String(a.countryCodeV2 || '').toUpperCase() !== 'DE') throw new Error('Nur Inland (DE)');
     var empf = o.empf || dhlEmpfaenger_(a, n.email).e;
     var ref = String(n.name || o.nr || id).replace(/[^\w\- ]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -1074,12 +1084,13 @@ function dhlLabel_(o) {
     var info = { nr: pakete[0].nr, pakete: pakete, prod: prod, kg: Math.round(pakete.reduce(function (s, p) { return s + (Number(p.kg) || 0); }, 0) * 1000) / 1000,
       at: (alt && alt.at) || Date.now(), by: SR_USER || '', file: pakete[0].file, ref: ref, shopify: (alt && alt.shopify) || '' };
     var shop = '';
-    if (o.shopify !== false) {
+    if (o.shopify !== false && !dhlAp_(id)) {
       try { shop = altP.length ? dhlShopifyTracking_(id, altP.map(function (p) { return p.nr; }), alle, true) : dhlShopifyVersand_(id, alle); }
       catch (e) { shop = 'Fehler: ' + (e.message || e); }
       info.shopify = shop;
     }
-    soSetzen_({ pw: o.pw, id: id, nr: n.name || o.nr, patch: { dhl: info } });
+    var patch = { dhl: info }; if (n.adr) patch.adr = n.adr;
+    soSetzen_({ pw: o.pw, id: id, nr: n.name || o.nr, patch: patch });
     var nrs = neu.map(function (p) { return p.nr; });
     return { ok: true, nr: nrs.join(', '), nrs: nrs, b64: b64s[0], b64s: b64s, gedruckt: gedruckt, druckFehler: druckFehler, shopify: shop, msgs: msgs,
       fehlend: kgs.length - gut.length, dhl: info };
@@ -1087,7 +1098,7 @@ function dhlLabel_(o) {
 }
 /** Etikett(en) stornieren – alle Pakete oder nur eins (o.paket = Sendungsnummer). Geht nur, solange DHL die Sendung noch nicht bearbeitet hat (i. d. R. am selben Tag). */
 function dhlStorno_(o) {
-  soPruefen_(o && o.pw);
+  dhlPw_(o);
   var id = String(o.id || ''), st = soStaende_()[id], alt = st && st.d && st.d.dhl, pakete = dhlPakete_(alt);
   if (!pakete.length) throw new Error('Kein Etikett vorhanden');
   var ziel = o.paket ? pakete.filter(function (p) { return String(p.nr) === String(o.paket); }) : pakete;
@@ -1106,7 +1117,7 @@ function dhlStorno_(o) {
   soSetzen_({ pw: o.pw, id: id, nr: o.nr, patch: { dhl: neu, dhlStorniert: verlauf } });
   // automatisch auch in Shopify anpassen: Sendungsnummer entfernen bzw. Versand ganz zurücknehmen (→ Bestellung wieder „nicht ausgeführt“)
   var hinweis = '';
-  try { hinweis = dhlShopifyTracking_(id, pakete.map(function (p) { return p.nr; }), rest.map(function (p) { return p.nr; }), false); }
+  if (!dhlAp_(id)) try { hinweis = dhlShopifyTracking_(id, pakete.map(function (p) { return p.nr; }), rest.map(function (p) { return p.nr; }), false); }
   catch (err) { hinweis = 'تعذّر تحديث Shopify: ' + (err.message || err); }
   return { ok: true, nr: weg.join(', '), weg: weg, rest: rest.length, dhl: neu, fehler: fehler, hinweis: hinweis };
 }
@@ -1141,7 +1152,7 @@ function dhlShopifyTracking_(id, alteNrs, neueNrs, benachrichtigen) {
 }
 /** Etikett(en) nochmal drucken / als PDF holen: o = { pw, id, druck, paket (optional: nur dieses Paket) } */
 function dhlDruck_(o) {
-  soPruefen_(o && o.pw);
+  dhlPw_(o);
   var st = soStaende_()[String(o.id || '')], pakete = dhlPakete_(st && st.d && st.d.dhl);
   if (o.paket) pakete = pakete.filter(function (p) { return String(p.nr) === String(o.paket); });
   pakete = pakete.filter(function (p) { return p.file; });
