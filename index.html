@@ -892,7 +892,7 @@ function goBack(){
   focusId=p.focusId;focusCust=p.focusCust;onlyDone=p.onlyDone;tab(p.which,true);if(p.which==='wh')renderLists();
 }
 $('tab-back').onclick=()=>{if(!$('omodal').hidden){closeOrder();return}if(!IN_GAS&&navStack.length&&$('drawer').hidden)history.back();else goBack()};
-if(!IN_GAS){try{history.replaceState({fh:0},'')}catch(e){}window.addEventListener('popstate',()=>{if(skipPop){skipPop=false;return}if(!$('sheet').hidden){sheetPushed=false;closeSheet(true);return}if(!$('omodal').hidden){omPushed=false;closeOrder(true);return}if(!$('drawer').hidden){drawer(false);try{history.pushState({fh:navStack.length},'')}catch(e){}return}goBack()})}
+if(!IN_GAS){try{history.replaceState({fh:0},'')}catch(e){}window.addEventListener('popstate',()=>{if(skipPop){skipPop=false;return}if(!$('sheet').hidden){if(sheetBack){const f=sheetBack;sheetBack=null;try{history.pushState({sh:1},'')}catch(e){}f();return}sheetPushed=false;closeSheet(true);return}if(!$('omodal').hidden){omPushed=false;closeOrder(true);return}if(!$('drawer').hidden){drawer(false);try{history.pushState({fh:navStack.length},'')}catch(e){}return}goBack()})}
 function tabRaw(which){
   const n=which==='new', lg=which==='lg', h=which==='home', iv=which==='inv';
   $('view-home').hidden=!h;
@@ -2326,8 +2326,8 @@ async function pregenClp(id,rec){
       if(lastSent===rec){const la=$('last-actions');la.textContent='';la.append(docsPanel(rec))}}
   }catch(e){console.warn('CLP pregen',e)}
 }
-let sheetPushed=false,skipPop=false;
-function openSheet(t,fill){$('sheet-t').textContent=t;const b=$('sheet-b'),sb=0;[['settings-body','settings-holder'],['cs-form','cs-form-holder']].forEach(([x,h])=>{const e=$(x);if(e&&b.contains(e))$(h).append(e)});b.textContent='';fill(b);$('sheet').hidden=false;if(!IN_GAS&&!sheetPushed){try{history.pushState({sh:1},'');sheetPushed=true}catch(e){}}}
+let sheetPushed=false,skipPop=false,sheetBack=null;   /* sheetBack: Zurück-Taste im Fenster → vorherige Ansicht statt Startseite */
+function openSheet(t,fill){$('sheet-t').textContent=t;const b=$('sheet-b'),sb=0;[['settings-body','settings-holder'],['cs-form','cs-form-holder']].forEach(([x,h])=>{const e=$(x);if(e&&b.contains(e))$(h).append(e)});b.textContent='';sheetBack=null;fill(b);$('sheet').hidden=false;if(!IN_GAS&&!sheetPushed){try{history.pushState({sh:1},'');sheetPushed=true}catch(e){}}}
 function closeSheet(fromPop){if($('sheet').hidden)return;$('sheet').hidden=true;if(sheetPushed&&!fromPop){skipPop=true;try{history.back()}catch(e){skipPop=false}}sheetPushed=false}
 $('sheet-x').onclick=()=>closeSheet();$('sheet').onclick=e=>{if(e.target===$('sheet'))closeSheet()};
 let sheetFor='';
@@ -3737,7 +3737,7 @@ function soCss(){if($('so-css'))return;const s=document.createElement('style');s
 .so-sum{background:var(--soft);border-radius:12px;padding:10px 12px;margin:10px 0;font-size:14px}
 .so-log{font-size:13px;white-space:pre-line;direction:ltr;text-align:left;background:var(--soft);border-radius:10px;padding:10px;margin-top:10px;max-height:40vh;overflow:auto}
 `;document.head.append(s)}
-function soListView(b){b.textContent='';soCss();
+function soListView(b){b.textContent='';soCss();sheetBack=null;
   const all=soAll(),de=all.filter(soIsDE),ab=all.filter(o=>!soIsDE(o)),reg=soReg==='de'?de:ab;
   const open=L=>L.filter(o=>!soPrep(o).ready).length;
   const seg=el('div','so-seg');[['de','🇩🇪 داخل ألمانيا',de],['ab','🌍 خارج ألمانيا',ab]].forEach(([k,t,L])=>{const x=el('button',soReg===k?'on':'');x.append(t,el('small',null,L.length+' طلب · '+open(L)+' للتحضير'));x.onclick=()=>{soReg=k;soListView(b)};seg.append(x)});b.append(seg);
@@ -3774,7 +3774,7 @@ function soListView(b){b.textContent='';soCss();
     r.append(l1,l2,tg);if(!pr.ready&&pr.n){const g=el('div','so-prog'),i=el('i');i.style.width=Math.round(100*pr.c/pr.n)+'%';g.append(i);r.append(g)}
     r.onclick=()=>{soSel=o.id;soDetail(b,o.id)};b.append(r)});
   b.append(el('p','hint','تظهر فقط طلبات Shopify المدفوعة وغير المشحونة (آخر 21 يوماً). هذا القسم لا يغيّر المخزون ولا الجرد ولا حسابات العملاء.'))}
-function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;return soListView(b)}b.textContent='';soCss();
+function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;return soListView(b)}b.textContent='';soCss();sheetBack=()=>{soSel=null;soListView(b);b.scrollTop=0};
   const st=o.stand=o.stand||{},chk=st.prep=st.prep||[];const save=async patch=>{try{o.stand=await soCall('so_set',{id:o.id,nr:o.nr,patch})}catch(e){toast('⚠️ '+e.message)}};
   const back=el('button','btn small','← كل الطلبات');back.onclick=()=>{soSel=null;soListView(b)};b.append(back);
   const hd=el('div','so-head');const l1=el('div','so-l1');l1.append(el('b','so-nr','#'+soNr(o)),el('span','so-cust',o.kunde||o.name),el('span','so-st',SO_FLAG(o.land)+' '+o.land));hd.append(l1);
@@ -3844,7 +3844,7 @@ function soSuchFeld(b,onPick){const i=el('input');i.placeholder='🔍 اسم ا�
           x.append(l,el('span','pr',soEur(v.preis)));x.onclick=()=>{onPick(v);i.value='';box.hidden=true;i.focus()};box.append(x)})}
       catch(e){if(my===seq){box.textContent='';box.append(el('p','status err','⚠️ '+e.message))}}},350)}}
 function soEditSheet(o){const back=soBackTo(o.id);
-  openSheet('➕➖ تعديل منتجات الطلب · '+o.nr,b=>{soCss();
+  openSheet('➕➖ تعديل منتجات الطلب · '+o.nr,b=>{soCss();sheetBack=back;
     const bk=el('button','btn small','← رجوع للطلب');bk.onclick=back;b.append(bk);
     if(o.items.some(it=>!it.lid)){b.append(el('p','status err','حدّث قائمة الطلبات أولاً (🔄) ثم افتح التعديل.'));return}
     b.append(el('p','hint','غيّر الكمية أو احذف منتجاً، أو أضف منتجاً جديداً، ثم اضغط «حفظ في Shopify». المنتجات المشحونة لا يمكن تعديلها.'));
@@ -3871,7 +3871,7 @@ function soEditSheet(o){const back=soBackTo(o.id);
         back()}
       catch(e){sv.disabled=false;m.classList.add('err');m.textContent='⚠️ '+e.message}}})}
 function soStornoSheet(o){const back=soBackTo(o.id);
-  openSheet('🚫 Stornieren · '+o.nr,b=>{soCss();
+  openSheet('🚫 Stornieren · '+o.nr,b=>{soCss();sheetBack=back;
     const bk=el('button','btn small','← رجوع للطلب');bk.onclick=back;b.append(bk);
     b.append(el('p','hint','إلغاء الطلب نهائياً في Shopify (لا يمكن التراجع عنه).'));
     const G=[['kunde','العميل ألغى الطلب'],['fehler','خطأ من عندنا'],['lager','المنتج غير متوفر'],['andere','سبب آخر']];let g='kunde';
@@ -3892,7 +3892,7 @@ function soStornoSheet(o){const back=soBackTo(o.id);
         SO.orders=SO.orders.filter(x=>x.id!==o.id);IDB.set('so',SO);soSetCount();soSel=null;toast('✅ أُلغي الطلب '+o.nr);if(r.hinweis)alert(r.hinweis);soBackTo(null)()}
       catch(e){go.disabled=false;m.classList.add('err');m.textContent='⚠️ '+e.message}}})}
 function soNeuSheet(){
-  openSheet('➕ طلب يدوي جديد',b=>{soCss();
+  openSheet('➕ طلب يدوي جديد',b=>{soCss();sheetBack=soBackTo(null);
     const bk=el('button','btn small','← كل الطلبات');bk.onclick=soBackTo(null);b.append(bk);
     const K={cid:''},items=[];
     b.append(el('div','so-sec','👤 العميل'));
@@ -3946,7 +3946,7 @@ function soNeuSheet(){
 
 /* ✏️ Lieferadresse in Shopify korrigieren – direkt aus der App */
 function soAdrSheet(o){const back=()=>openSheet('🛒 طلبات المتجر',b2=>soDetail(b2,o.id));
-  openSheet('✏️ تعديل عنوان التوصيل · '+o.nr,b=>{soCss();
+  openSheet('✏️ تعديل عنوان التوصيل · '+o.nr,b=>{soCss();sheetBack=back;
     const bk=el('button','btn small','← رجوع للطلب');bk.onclick=back;b.append(bk);
     const L=o.liefer||{name:o.name,firma:o.firma,a1:o.adr[0]||'',a2:o.adr.length>2?o.adr[1]:'',plz:String(o.adr.slice(-1)[0]||'').split(' ')[0],ort:String(o.adr.slice(-1)[0]||'').split(' ').slice(1).join(' '),tel:o.tel};
     b.append(el('p','hint','يُحفظ التعديل مباشرة في طلب Shopify. بعدها تستخدم قائمة التحضير وملصق DHL العنوان الجديد.'));
@@ -4087,17 +4087,17 @@ function soPickList(b,orders,initial){const sel=new Set(orders.filter(initial||(
     const inf=el('div');inf.append(el('b',null,'#'+soNr(o)+' · '+(o.kunde||o.name)),el('div','ad',soOrt(o)+' · '+o.items.length+' Pos.'+(o.stand&&o.stand.lsAt?' · 📋':'')));r.append(cb,inf,el('span'));b.append(r);boxes.push([o,cb,r])});
   all.onclick=()=>{boxes.forEach(([o,cb])=>{cb.checked=true;sel.add(o.id)});b.dispatchEvent(new Event('selchange'))};none.onclick=()=>{boxes.forEach(([o,cb])=>{cb.checked=false;sel.delete(o.id)});b.dispatchEvent(new Event('selchange'))};
   return {sel,boxes}}
-function soPickOne(list){openSheet('✈️ DHL Express · اختر الطلب',b=>{soCss();b.append(el('p','hint','شحنات الخارج تختلف في الجمارك والوزن – تُنشأ لكل طلب على حدة.'));
+function soPickOne(list){openSheet('✈️ DHL Express · اختر الطلب',b=>{soCss();sheetBack=soBackTo(null);b.append(el('p','hint','شحنات الخارج تختلف في الجمارك والوزن – تُنشأ لكل طلب على حدة.'));
   list.forEach(o=>{const r=el('button','so-card');const l1=el('div','so-l1');l1.append(el('b','so-nr','#'+soNr(o)),el('span','so-cust',o.kunde||o.name),el('span','so-st',SO_FLAG(o.land)+' '+o.land));r.append(l1,el('div','so-l2',soOrt(o)+' · '+o.items.length+' صنف'));
     r.onclick=()=>dhlxSheet(o,()=>soPickOne(list));b.append(r)})})}
-function soBulkLs(list){openSheet('📋 قوائم التحضير · Lieferscheine',b=>{soCss();
+function soBulkLs(list){openSheet('📋 قوائم التحضير · Lieferscheine',b=>{soCss();sheetBack=soBackTo(null);
   b.append(el('p','hint','نفس قائمة التحضير التي تُطبع من Shopify (Order Printer). كل طلب في صفحة مستقلة.'));
   const pk=soPickList(b,list),m=el('div','so-act');m.style.marginTop='12px';
   const a4=el('button','btn primary','🖨️ طباعة في المستودع (A4)'),pd=el('button','btn','📄 PDF / طباعة هنا');m.append(a4,pd);b.append(m);
   const upd=()=>{const n=pk.sel.size;a4.textContent='🖨️ طباعة في المستودع (A4) · '+n;pd.textContent='📄 PDF · '+n;a4.disabled=pd.disabled=!n};b.addEventListener('selchange',upd);upd();
   const go=(btn,mode)=>soLsPrint(list.filter(o=>pk.sel.has(o.id)),btn,mode);a4.onclick=()=>go(a4,'a4');pd.onclick=()=>go(pd,'pdf')})}
 /* 📦 DHL-Etiketten für mehrere Inlands-Bestellungen auf einmal (kostenpflichtig – mit Bestätigung) */
-function soBulkDhl(list){openSheet('📦 ملصقات DHL شحن داخلي',async b=>{soCss();
+function soBulkDhl(list){openSheet('📦 ملصقات DHL شحن داخلي',async b=>{soCss();sheetBack=soBackTo(null);
   const st=el('p','hint','جاري تجهيز العناوين والأوزان…');b.append(st);
   const res=new Array(list.length);let k=0,done=0;
   await Promise.all(Array.from({length:4},async()=>{while(k<list.length){const i=k++;try{res[i]=await soCall('dhl_vor',{id:list[i].id})}catch(e){res[i]={err:dhlErr(e)}}done++;st.textContent='جاري التجهيز… '+done+' / '+list.length}}));
@@ -4159,7 +4159,7 @@ function dhlKgBox(b,total){const box=el('div');const nIn=el('input');nIn.type='n
     for(let i=0;i<n;i++){const k=el('input');k.type='number';k.step='0.1';k.min='0.1';k.inputMode='decimal';k.dir='ltr';k.value=n===1?(total||1):per;ins.push(field(box,n===1?'الوزن بالكيلو (مع التغليف) · اقتراح من أوزان المنتجات':'وزن الطرد '+(i+1)+' (kg)',k))}};
   nIn.oninput=draw;draw();
   return {kgs:()=>ins.map(i=>Number(String(i.value).replace(',','.'))),n:()=>ins.length}}
-function dhlSheet(o,after){openSheet('📦 DHL Paket · '+o.nr,async b=>{soCss();
+function dhlSheet(o,after){openSheet('📦 DHL Paket · '+o.nr,async b=>{soCss();sheetBack=after||null;
   const st=el('p','hint','جاري التحضير…');b.append(st);let v;
   try{v=await soCall('dhl_vor',{id:o.id})}catch(e){st.textContent='⚠️ '+dhlErr(e);return}
   if(!v.bereit){st.textContent='لم تُضبط بيانات DHL بعد.';if(isAdmin()){const x=el('button','btn primary','⚙️ إعدادات DHL');x.onclick=()=>dhlSetup();b.append(x)}else b.append(el('p','hint','يضبطها المدير مرة واحدة.'));return}
@@ -4233,7 +4233,7 @@ function dhlxSetup(){openSheet('✈️ إعدادات DHL Express',async b=>{soC
     sv.disabled=true;say('جاري الحفظ…');try{const r=await dhlxCall('set',o);s=r.status;Object.values(inp).forEach(i=>i.value='');say('✅ حُفظ ('+r.gespeichert+')'+(r.status.bereit?' · اضغط «اختبار الاتصال»':' · ما زال ينقص Username أو Password'))}catch(e){say('⚠️ '+dhlxErr(e),1)}sv.disabled=false};
   ts.onclick=async()=>{ts.disabled=true;say('جاري الاتصال بـ DHL Express…');try{const r=await dhlxCall('test');say(r.ok?'✅ الاتصال بـ DHL Express يعمل ('+(r.env==='prod'?'تشغيل حقيقي':'اختبار')+')':'⚠️ DHL Express ردّ بالرمز '+r.code+(r.msgs.length?'\n'+r.msgs.join('\n'):''),!r.ok)}catch(e){say('⚠️ '+dhlxErr(e),1)}ts.disabled=false};
   b.append(el('p','hint','المرسِل: Fragrance Hub Germany · Am Alten Kirchplatz 10 · 45665 Recklinghausen · USt-IdNr. DE346107492'))})}
-function dhlxSheet(o,after){openSheet('✈️ DHL Express · '+o.nr,async b=>{soCss();
+function dhlxSheet(o,after){openSheet('✈️ DHL Express · '+o.nr,async b=>{soCss();sheetBack=after||null;
   const st=el('p','hint','جاري التحضير وجلب الأسعار من DHL Express…');b.append(st);let v;
   try{v=await dhlxCall('vor',{id:o.id})}catch(e){st.textContent='⚠️ '+dhlxErr(e);return}
   b.textContent='';if(after){const bk=el('button','btn small','← رجوع للطلب');bk.onclick=after;b.append(bk)}
