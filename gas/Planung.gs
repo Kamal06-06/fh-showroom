@@ -445,3 +445,84 @@ function plAntwortenTest() {
     Logger.log(t + ' → ust=' + plUstFinden_(plAntwText_(t)) + ' · nichtEU=' + ((t.match(PL_NICHT_EU_RX) || [''])[0]));
   });
 }
+
+/* =====================================================================
+   Telegram: zwei Kanäle
+     • Etiketten-Gruppe (TELEGRAM_CHAT_ID)      – Etiketten-PDFs, Shop-Bestellungen, Packlisten, /neu-Befehle
+     • Berichte-Chat (TELEGRAM_CHAT_BERICHTE)   – alles andere (Kundenantworten, B2B, Lager, Chargen, IFRA, Prüfberichte …)
+   Einrichten: im Telegram-Chat mit dem Bot (oder einer neuen Gruppe mit dem Bot) /berichte senden.
+   Solange kein Berichte-Chat verbunden ist, geht alles wie bisher in die Etiketten-Gruppe.
+   ===================================================================== */
+var PL_TG_ETIKETT_RX = /^(📦 Bestellung|🏷️|🧪 (?!TEST)|❌ (Die Etiketten|\d)|⚠️ [^\n]*\nOHNE Etikett|⏳ Erstelle Etiketten|❓ Bestellung|⏸️|❗ Bitte Bestellnummer|ℹ️ Befehle|🤖 Befehle|✅ Etiketten|✅ Fragrance Hub Etiketten|\u{1F501})/u;
+function plTgSenden_(chat, text, pdf) {
+  var token = PropertiesService.getScriptProperties().getProperty('TELEGRAM_TOKEN');
+  if (!token || !chat) return;
+  try {
+    var base = 'https://api.telegram.org/bot' + token + '/';
+    var r = pdf
+      ? UrlFetchApp.fetch(base + 'sendDocument', { method: 'post', muteHttpExceptions: true,
+          payload: { chat_id: chat, caption: String(text).slice(0, 1000), document: pdf.copyBlob() } })
+      : UrlFetchApp.fetch(base + 'sendMessage', { method: 'post', muteHttpExceptions: true,
+          payload: { chat_id: chat, text: String(text).slice(0, 4000) } });
+    if (r.getResponseCode() !== 200) Logger.log('Telegram-Fehler ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 200));
+  } catch (e) { Logger.log('Telegram nicht gesendet: ' + e.message); }
+}
+/** ersetzt etTelegram_ aus CLP-Etikett.gs: Etiketten/Bestellungen → Etiketten-Gruppe, Rest → Berichte-Chat */
+function etTelegram_(text, pdf) {
+  var p = PropertiesService.getScriptProperties(), haupt = p.getProperty('TELEGRAM_CHAT_ID'), ber = p.getProperty('TELEGRAM_CHAT_BERICHTE');
+  var etikett = !!pdf || PL_TG_ETIKETT_RX.test(String(text || ''));
+  plTgSenden_(etikett || !ber ? haupt : ber, text, pdf);
+}
+/** ersetzt etTelegramBefehle: /neu in der Etiketten-Gruppe wie bisher + /berichte verbindet den Berichte-Chat */
+function etTelegramBefehle() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return;
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var token = props.getProperty('TELEGRAM_TOKEN'), chat = props.getProperty('TELEGRAM_CHAT_ID');
+    if (!token || !chat) return;
+    var offset = Number(props.getProperty('TG_OFFSET') || 0);
+    var res = JSON.parse(UrlFetchApp.fetch('https://api.telegram.org/bot' + token +
+              '/getUpdates?timeout=0&offset=' + offset, { muteHttpExceptions: true }).getContentText());
+    var updates = res.result || [];
+    if (!updates.length) return;
+    var nummern = [];
+    updates.forEach(function (u) {
+      offset = Math.max(offset, u.update_id + 1);
+      var m = u.message;
+      if (!m || !m.text) return;
+      if (/^\/berichte(@\w+)?\s*$/i.test(m.text.trim())) {                       // Berichte-Chat verbinden
+        if (String(m.chat.id) === String(chat)) { plTgSenden_(chat, '❗ Bitte /berichte in einem ANDEREN Chat senden (privat mit dem Bot oder neue Gruppe) – diese Gruppe bleibt für Etiketten.', null); return; }
+        props.setProperty('TELEGRAM_CHAT_BERICHTE', String(m.chat.id));
+        plTgSenden_(String(m.chat.id), '✅ Berichte-Chat verbunden.\nHier kommen ab jetzt: Kundenantworten, Geschäftskunden, Lager, Chargen, Zertifikate und alle Berichte.\nDie Etiketten und Shop-Bestellungen bleiben in der Etiketten-Gruppe.', null);
+        return;
+      }
+      if (String(m.chat.id) !== String(chat)) return;
+      var b = m.text.trim().match(/^\/(neu|hilfe|help)(?:@\w+)?\s*(.*)$/i);
+      if (!b) return;
+      if (/hilfe|help/i.test(b[1])) { etTelegram_('ℹ️ Befehle:\n/neu 3796  → Etiketten neu senden\n/neu 3796 3801  → mehrere Bestellungen', null); return; }
+      var n = b[2].match(/\d+/g);
+      if (!n) { etTelegram_('❗ Bitte Bestellnummer angeben, z.B.  /neu 3796', null); return; }
+      n.forEach(function (x) { if (nummern.indexOf(x) === -1) nummern.push(x); });
+    });
+    props.setProperty('TG_OFFSET', String(offset));
+    if (!nummern.length) return;
+    var map = loadCodeMap(), start = Date.now();
+    nummern.forEach(function (nr) {
+      if (Date.now() - start > 4 * 60 * 1000) { etTelegram_('⏸️ ' + nr + ' nicht mehr geschafft – bitte erneut senden.', null); return; }
+      try {
+        var order = etFindeBestellung_(nr);
+        if (!order) { etTelegram_('❓ Bestellung ' + nr + ' nicht gefunden.', null); return; }
+        etTelegram_('⏳ Erstelle Etiketten für ' + order.name + ' …', null);
+        etVerarbeiteBestellung_(order, map);
+      } catch (e) { etTelegram_('❌ ' + nr + ': ' + e.message, null); }
+    });
+  } finally { lock.releaseLock(); }
+}
+/** zeigt den Bot-Namen (für die Einrichtung des Berichte-Chats) */
+function plTelegramBot() {
+  var token = PropertiesService.getScriptProperties().getProperty('TELEGRAM_TOKEN');
+  var me = JSON.parse(UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/getMe').getContentText()).result;
+  Logger.log('Bot: @' + me.username + ' (' + me.first_name + ') · Berichte-Chat: ' + (PropertiesService.getScriptProperties().getProperty('TELEGRAM_CHAT_BERICHTE') || 'noch nicht verbunden'));
+  return me.username;
+}
