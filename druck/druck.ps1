@@ -1,5 +1,5 @@
 ﻿# Fragrance Hub - Etiketten-Drucker (Mini-PC im Lager)
-# Holt alle 3 Sekunden neue Druckauftraege aus der Showroom-App: CLP-Etiketten -> Epson ColorWorks, Angebot/Packliste (A4-...) -> Brother A4, Etiketten 40x30 (P-...) -> Phomemo.
+# Holt alle 3 Sekunden neue Druckauftraege aus der Showroom-App: CLP-Etiketten -> Epson ColorWorks, Angebot/Packliste (A4-...) -> Brother A4, DHL-Versandetiketten (Z-...) -> Zebra, Etiketten 40x30 (P-...) -> Phomemo.
 $ErrorActionPreference = 'Continue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $URL  = 'https://script.google.com/macros/s/AKfycbzU9YIR7tzx1VBzVAVNni93eBBBwGphyzTErrAUOveD2YmvAmiQO81QkyzVcUB5FAUd/exec?app=sr'
@@ -91,6 +91,14 @@ $DRUCKERP = DruckerP
 if (-not $DRUCKERP) { Write-Host 'Hinweis: Kein Phomemo-Drucker (40 x 30) gefunden.' -ForegroundColor DarkGray }
 else { Write-Host "Phomemo-Drucker: $DRUCKERP" -ForegroundColor Green }
 $DRUCKERA4 = DruckerA4
+# Zebra GK420t (DHL-Versandetiketten 103 x 199 / 103 x 150) - Dateiname beginnt mit "Z-"
+function DruckerZ {
+  $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'Zebra|ZDesigner|GK420' } | Select-Object -First 1
+  if ($p) { return $p.Name } else { return $null }
+}
+$DRUCKERZ = DruckerZ
+if (-not $DRUCKERZ) { Write-Host 'Hinweis: Kein Zebra-Drucker (DHL-Etiketten) gefunden.' -ForegroundColor DarkGray }
+else { Write-Host "Zebra-Drucker: $DRUCKERZ" -ForegroundColor Green }
 if (-not $DRUCKERA4) { Write-Host 'WARNUNG: Kein A4-Drucker (Brother) gefunden.' -ForegroundColor Yellow }
 else { Write-Host "A4-Drucker: $DRUCKERA4" -ForegroundColor Green }
 Write-Host 'Bereit. Etiketten und A4-Dokumente aus der App werden automatisch gedruckt. Dieses Fenster offen lassen.' -ForegroundColor Green
@@ -101,7 +109,8 @@ while ($true) {
   $TEST = Join-Path $DIR 'test'; New-Item -ItemType Directory -Force $TEST | Out-Null
   foreach ($t in @(Get-ChildItem $TEST -File -Filter *.pdf -ErrorAction SilentlyContinue)) {
     if (-not $DRUCKERP) { $DRUCKERP = DruckerP }
-    if ($t.Name -like 'A4-*') { $z = $DRUCKERA4; $o = 'fit' } elseif ($t.Name -like 'P-*') { $z = $DRUCKERP; $o = $(if ($t.Name -match '__(.+)\.pdf$') { $Matches[1] -replace '_',',' } else { 'noscale,landscape' }) } else { $z = $DRUCKER; $o = 'fit,landscape' }
+    if (-not $DRUCKERZ) { $DRUCKERZ = DruckerZ }
+    if ($t.Name -like 'A4-*') { $z = $DRUCKERA4; $o = 'fit' } elseif ($t.Name -like 'Z-*') { $z = $DRUCKERZ; $o = 'fit,portrait' } elseif ($t.Name -like 'P-*') { $z = $DRUCKERP; $o = $(if ($t.Name -match '__(.+)\.pdf$') { $Matches[1] -replace '_',',' } else { 'noscale,landscape' }) } else { $z = $DRUCKER; $o = 'fit,landscape' }
     if ($z) { & $SUM -print-to $z -print-settings $o -silent $t.FullName | Out-Null; Write-Host "$(Get-Date -Format HH:mm:ss)  Test gedruckt auf ${z} ($o): $($t.Name)" -ForegroundColor Cyan }
     Remove-Item $t.FullName -ErrorAction SilentlyContinue
   }
@@ -112,11 +121,13 @@ while ($true) {
       if (-not $DRUCKER) { $DRUCKER = Drucker }
       if (-not $DRUCKERA4) { $DRUCKERA4 = DruckerA4 }
       if (-not $DRUCKERP) { $DRUCKERP = DruckerP }
+      if (-not $DRUCKERZ) { $DRUCKERZ = DruckerZ }
       foreach ($j in @($r.val)) {
         $f = Join-Path $DONE ((Get-Date -Format 'yyMMdd-HHmmss') + '-' + $j.name)
         [IO.File]::WriteAllBytes($f, [Convert]::FromBase64String($j.b64))
         # Etiketten 102x51 brauchen 'landscape', sonst dreht SumatraPDF sie um 90 Grad und verkleinert sie
         if ($j.name -like 'A4-*') { $ziel = $DRUCKERA4; $opt = 'fit' }
+        elseif ($j.name -like 'Z-*') { $ziel = $DRUCKERZ; $opt = 'fit,portrait' }  # DHL-Versandetikett -> Zebra
         elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'noscale,landscape' }  # Phomemo-Treiber skaliert sonst falsch: 1:1 drucken
         else { $ziel = $DRUCKER; $opt = 'fit,landscape' }
         if ($ziel -and $j.name -match '\.bin(\.pdf)?$') {  # Server haengt .pdf an den Namen an

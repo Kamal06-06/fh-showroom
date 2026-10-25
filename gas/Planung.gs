@@ -752,6 +752,10 @@ var DHL_PROD = {                       // Produkt → Abrechnungsnummer (EKP + V
 var DHL_ABSENDER = { name1: 'Fragrance Hub Germany', name2: 'Inh. Mohammad Kamal Al Masri', addressStreet: 'Am Alten Kirchplatz', addressHouse: '10',
   postalCode: '45665', city: 'Recklinghausen', country: 'DEU', email: 'info@fragranceshub.de', phone: '+49 2361 4878835' };
 var DHL_FELDER = { key: 'DHL_KEY', secret: 'DHL_SECRET', user: 'DHL_USER', pass: 'DHL_PASS' };
+/** Etikettenformat: Zebra GK420t (Thermo-Rolle) oder A4 (Brother). Druckauftrag "Z-…" → Zebra, "A4-…" → Brother */
+var DHL_FORMATE = { '910-300-610': 'Zebra · 103 × 199 mm (Rolle)', '910-300-410': 'Zebra · 103 × 150 mm (Rolle)', 'A4': 'A4 · Brother' };
+function dhlFormat_() { var f = PropertiesService.getScriptProperties().getProperty('DHL_FORMAT'); return DHL_FORMATE[f] ? f : '910-300-610'; }
+function dhlDruckName_(datei) { return (dhlFormat_() === 'A4' ? 'A4-' : 'Z-') + datei; }
 
 function dhlCfg_() {
   var p = PropertiesService.getScriptProperties(), c = {};
@@ -762,7 +766,7 @@ function dhlStatus_(o) {
   soPruefen_(o && o.pw);
   var c = dhlCfg_(), u = c.user;
   return { key: !!c.key, secret: !!c.secret, user: u ? u.slice(0, 3) + '…' + u.slice(-3) : '', pass: !!c.pass,
-    bereit: !!(c.key && c.secret && c.user && c.pass), absender: DHL_ABSENDER, produkte: DHL_PROD };
+    bereit: !!(c.key && c.secret && c.user && c.pass), absender: DHL_ABSENDER, produkte: DHL_PROD, fmt: dhlFormat_(), formate: DHL_FORMATE };
 }
 /** nur Inhaber: o = { pw, key, secret, user, pass } – leere Felder bleiben unverändert */
 function dhlSetzen_(o) {
@@ -770,6 +774,7 @@ function dhlSetzen_(o) {
   if (!SR_ADMIN) throw new Error('NUR_INHABER');
   var p = PropertiesService.getScriptProperties(), n = 0;
   Object.keys(DHL_FELDER).forEach(function (k) { var v = String(o[k] || '').trim(); if (v) { p.setProperty(DHL_FELDER[k], v); n++; } });
+  if (o.fmt && DHL_FORMATE[o.fmt]) { p.setProperty('DHL_FORMAT', o.fmt); n++; }
   CacheService.getScriptCache().remove('DHL_TOKEN');
   return { gespeichert: n, status: dhlStatus_(o) };
 }
@@ -856,7 +861,7 @@ function dhlVor_(o) {
   var n = dhlOrder_(String(o.id)), a = n.shippingAddress || {};
   if (String(a.countryCodeV2 || '').toUpperCase() !== 'DE') throw new Error('Nur Inland (DE) – Ausland folgt mit DHL Express');
   var em = dhlEmpfaenger_(a, n.email), st = soStaende_()[String(o.id)];
-  return { empf: em.e, typ: em.typ, warn: em.w, kg: dhlGewicht_(n), dhl: (st && st.d && st.d.dhl) || null, bereit: dhlStatus_(o).bereit };
+  return { empf: em.e, typ: em.typ, warn: em.w, kg: dhlGewicht_(n), dhl: (st && st.d && st.d.dhl) || null, bereit: dhlStatus_(o).bereit, fmt: dhlFormat_() };
 }
 function dhlFehler_(j) {
   var m = [];
@@ -893,7 +898,7 @@ function dhlLabel_(o) {
     var body = { profile: 'STANDARD_GRUPPENPROFIL', shipments: [{ product: prod, billingNumber: P.bn, refNo: ref.slice(0, 35),
       shipDate: Utilities.formatDate(new Date(), 'Europe/Berlin', 'yyyy-MM-dd'), shipper: DHL_ABSENDER, consignee: empf,
       details: { weight: { uom: 'kg', value: kg } } }] };
-    var pfad = '/orders?' + (o.nurPruefen ? 'validate=true&' : '') + 'mustEncode=true&printFormat=A4&combine=true';
+    var pfad = '/orders?' + (o.nurPruefen ? 'validate=true&' : '') + 'mustEncode=true&printFormat=' + encodeURIComponent(dhlFormat_()) + '&combine=true';
     var r = dhlFetch_('post', pfad, body), j = r.j, it = (j.items || [])[0] || {};
     var msgs = dhlFehler_(j);
     if (o.nurPruefen) return { ok: r.code < 300 && !msgs.some(function (x) { return x.charAt(0) === '❌'; }), code: r.code, msgs: msgs, empf: empf };
@@ -903,7 +908,7 @@ function dhlLabel_(o) {
     try { fileId = dhlOrdner_().createFile(Utilities.newBlob(Utilities.base64Decode(it.label.b64), 'application/pdf', datei)).getId(); } catch (e) {}
     var info = { nr: nr, prod: prod, kg: kg, at: Date.now(), by: SR_USER || '', file: fileId, ref: ref };
     var gedruckt = false, druckFehler = '';
-    if (o.druck !== false) { try { srDruck_('A4-' + datei, it.label.b64); gedruckt = true; } catch (e) { druckFehler = String(e.message || e); } }
+    if (o.druck !== false) { try { srDruck_(dhlDruckName_(datei), it.label.b64); gedruckt = true; } catch (e) { druckFehler = String(e.message || e); } }
     var shop = '';
     if (o.shopify !== false) { try { shop = dhlShopifyVersand_(id, nr); } catch (e) { shop = 'Fehler: ' + (e.message || e); } }
     info.shopify = shop;
@@ -942,6 +947,6 @@ function dhlDruck_(o) {
   var st = soStaende_()[String(o.id || '')], alt = st && st.d && st.d.dhl;
   if (!alt || !alt.file) throw new Error('Etikett-Datei nicht gefunden');
   var f = DriveApp.getFileById(alt.file), b64 = Utilities.base64Encode(f.getBlob().getBytes());
-  if (o.druck) srDruck_('A4-' + f.getName(), b64);
+  if (o.druck) srDruck_(dhlDruckName_(f.getName()), b64);
   return { ok: true, b64: b64, datei: f.getName(), gedruckt: !!o.druck };
 }
