@@ -3770,6 +3770,11 @@ function plSheet(start){if(!isAdmin())return;
     try{await plkLoad()}catch(e){st.textContent='تعذّر تحميل بيانات المتجر · '+e.message+' — تظهر عملاء الصالة فقط.'}
     let all=plProfiles(),tabK=start||'stop',done=false;
     const info=()=>{const s=PLK&&PLK.stand||{};st.textContent=(s.laeuft?'⏳ بيانات المتجر ما زالت تُحمَّل – القائمة ستكتمل خلال ساعات. ':'')+'المتجر + الصالة · كل الطلبات'+(PLK&&PLK.at?' · تحديث '+new Date(PLK.at).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'}):'')};info();
+    {const A=(PLK&&PLK.antw)||[];if(A.length){const d=document.createElement('details');d.style.cssText='margin:6px 0;border:1px solid var(--line);border-radius:10px;padding:6px 10px';
+      const ic=r=>/^USt gültig – Rabatt/.test(r)?'✅':/^Abmeldung/.test(r)?'🚫':/ungültig|Steuernummer/.test(r)?'❌':/Nicht-EU|VIES|Fehler/.test(r)?'⚠️':'💬';
+      const AR={'USt gültig – Rabatt aktiviert':'رقم ضريبي صحيح – فُعّل خصم العميل التجاري وأُرسل له تأكيد','Abmeldung':'طلب عدم المراسلة – سُجّل تلقائياً','USt ungültig – Rückfrage gesendet':'رقم ضريبي غير صحيح – أُرسل له طلب تصحيح','Steuernummer statt USt-IdNr. – Rückfrage gesendet':'أرسل Steuernummer – طُلب منه USt-IdNr.','Nicht-EU-Nummer – Entscheidung Inhaber':'رقم من خارج الاتحاد الأوروبي – القرار لك','Sonstige Antwort – in Proton beantworten':'رد آخر – أجبه في Proton','USt – VIES nicht erreichbar':'تعذّر فحص الرقم – افحصه يدوياً'};
+      const sm=el('summary',null,'📥 ردود العملاء (تُعالَج تلقائياً) · '+A.length);sm.style.cssText='cursor:pointer;font-weight:600';d.append(sm);
+      A.forEach(a=>{const r=el('div','time');r.style.cssText='padding:5px 0;border-top:1px solid var(--line)';r.textContent=ic(a.r)+' '+new Date(a.t).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})+' · '+a.n+' · '+(AR[a.r]||a.r)+(a.u?' · '+a.u:'')+(a.d&&/Sonstige/.test(a.r)?' · «'+a.d.slice(0,120)+'»':'');d.append(r)});b.append(d)}}
     b.append(el('p','hint','⏸ متوقف = عميل اشترى مرتين أو أكثر ومرّ عليه أكثر من ضعف مدته المعتادة بين الطلبات (30 يوماً على الأقل) بدون طلب. من تم التواصل معه يختفي من القوائم 30 يوماً ثم يعود تلقائياً.'));
     const tabs=el('div','row');tabs.style.cssText='gap:6px;flex-wrap:wrap;margin:6px 0';
     const tb=PL_TABS.map(([k,t])=>{const x=el('button','btn small');x.dataset.k=k;x.onclick=()=>{tabK=k;draw()};tabs.append(x);return [k,t,x]});

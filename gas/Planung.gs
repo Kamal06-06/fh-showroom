@@ -166,7 +166,8 @@ function plKunden_() {
              u: Math.round((Number(r[7]) || 0) * 100) / 100, a: String(r[8]).slice(0, 10), l: String(r[9]).slice(0, 10),
              t: Object.keys(a).sort(function (x, y) { return a[y] - a[x]; }).slice(0, 3) };
   });
-  var s = JSON.stringify({ at: Date.now(), stand: plStand_(), k: out, kontakt: plKontakte_(), abmeld: plAbmeldungen_() });
+  var antw = []; try { antw = plAntworten_(); } catch (e) {}
+  var s = JSON.stringify({ at: Date.now(), stand: plStand_(), k: out, kontakt: plKontakte_(), abmeld: plAbmeldungen_(), antw: antw });
   try { cache.put('PL_KUNDEN', s, 1800); } catch (e) {}   // > 100 KB: ohne Cache
   return s;
 }
@@ -267,4 +268,180 @@ function plMailBulk_(liste) {
   });
   try { plKontaktLog_(log); } catch (e) { Logger.log('Kontakt-Log: ' + e.message); }
   return { ok: ok, fehler: fehler, frei: Math.max(0, frei) };
+}
+
+/* =====================================================================
+   Automatische Verarbeitung der Kundenantworten (stündlich alle 15 Min.)
+   Proton leitet Antworten mit „Rabatt“, „discount“ oder „Willkommen bei Fragrance Hub“ im Betreff
+   an Gmail weiter. Hier wird jede Antwort gelesen:
+     • „Abmelden / Unsubscribe …“      → Kunde abgemeldet (kein Sammelversand mehr)
+     • EU-USt-IdNr. (VIES gültig)       → Shopify-Kunde mit Tag b2b-ust (15 % Öle / 10 % Rest) + Bestätigungs-Mail
+     • USt-IdNr. ungültig / Steuernummer → freundliche Rückfrage per Mail
+     • Nicht-EU-Nummer (CH, GB, NO …)   → Eingangsbestätigung an Kunden, Entscheidung durch den Inhaber (Telegram)
+     • alles andere                      → nur protokolliert (bleibt in Proton zur Beantwortung)
+   ===================================================================== */
+var PL_ANTW = 'Kunden-Antworten';
+var PL_ANTW_LABEL = 'FH-Antwort-verarbeitet';
+var PL_UST_RX = { AT: /^ATU\d{8}$/, BE: /^BE[01]\d{9}$/, BG: /^BG\d{9,10}$/, CY: /^CY\d{8}[A-Z]$/, CZ: /^CZ\d{8,10}$/, DE: /^DE\d{9}$/,
+  DK: /^DK\d{8}$/, EE: /^EE\d{9}$/, EL: /^EL\d{9}$/, ES: /^ES[A-Z0-9]\d{7}[A-Z0-9]$/, FI: /^FI\d{8}$/, FR: /^FR[A-Z0-9]{2}\d{9}$/,
+  HR: /^HR\d{11}$/, HU: /^HU\d{8}$/, IE: /^IE\d[A-Z0-9+*]\d{5}[A-Z]{1,2}$/, IT: /^IT\d{11}$/, LT: /^LT(\d{9}|\d{12})$/, LU: /^LU\d{8}$/,
+  LV: /^LV\d{11}$/, MT: /^MT\d{8}$/, NL: /^NL\d{9}B\d{2}$/, PL: /^PL\d{10}$/, PT: /^PT\d{9}$/, RO: /^RO\d{2,10}$/, SE: /^SE\d{12}$/,
+  SI: /^SI\d{8}$/, SK: /^SK\d{10}$/, XI: /^XI\d{9}$/ };
+var PL_NICHT_EU_RX = /\b(CHE[\s.\-]?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{3}|GB\s?\d{9}(\d{3})?|NO\s?\d{9}\s?MVA)\b/i;
+
+/** Antworttext ohne zitierte Original-Mail */
+function plAntwText_(t) {
+  t = String(t || '').replace(/\r/g, '');
+  var cut = t.search(/^(Am .{3,80}schrieb|On .{3,80}wrote|-{2,}\s*(Original|Ursprüngliche)|_{5,}|Von:\s|From:\s|Gesendet:\s|Sent:\s)/m);
+  if (cut > 0) t = t.slice(0, cut);
+  return t.split('\n').filter(function (l) { return !/^\s*>/.test(l); }).join('\n').trim();
+}
+/** Original-Absender (auch bei Weiterleitung über Proton) */
+function plAntwAbsender_(msg) {
+  var eigene = /@(fragranceshub\.de|proton\.me|protonmail\.(com|ch)|pm\.me)$|^almasri9696@gmail\.com$/i;
+  var kand = [msg.getReplyTo(), msg.getFrom()];
+  ['X-Original-From', 'X-Original-Sender', 'X-Forwarded-For', 'Return-Path'].forEach(function (h) { try { kand.push(msg.getHeader(h)); } catch (e) {} });
+  var b = String(msg.getPlainBody() || '');
+  var m = b.match(/^(?:From|Von|Absender):.*?([\w.+-]+@[\w-]+\.[\w.-]+)/mi); if (m) kand.push(m[1]);
+  for (var i = 0; i < kand.length; i++) {
+    var x = String(kand[i] || '').match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+    if (x && !eigene.test(x[0])) return { e: x[0].toLowerCase(), name: String(kand[i]).replace(/<.*$/, '').replace(/"/g, '').trim() };
+  }
+  return null;
+}
+/** erste formal gültige EU-USt-IdNr. im Text */
+function plUstFinden_(text) {
+  var U = String(text || '').toUpperCase().replace(/\bGR(?=[\s.\-]?\d{9}\b)/g, 'EL');
+  var c = U.match(/\b(?:AT|BE|BG|CY|CZ|DE|DK|EE|EL|ES|FI|FR|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK|XI)[\s.\-]?[0-9A-Z](?:[\s.\-]?[0-9A-Z+*]){6,14}/g) || [];
+  for (var i = 0; i < c.length; i++) {
+    var k = c[i].replace(/[\s.\-]/g, ''), rx = PL_UST_RX[k.slice(0, 2)];
+    for (var n = Math.min(k.length, 14); n >= 8 && rx; n--) if (rx.test(k.slice(0, n))) return k.slice(0, n);
+  }
+  return '';
+}
+function plAntwLog_(r) {
+  var sh = plLogBlatt_(PL_ANTW, ['Datum', 'E-Mail', 'Name', 'Ergebnis', 'USt-IdNr.', 'Details', 'Betreff']);
+  sh.appendRow([new Date().toISOString()].concat(r));
+}
+function plAbmeldenIntern_(e, name) {
+  var sh = plLogBlatt_(PL_ABMELD, ['Datum', 'E-Mail', 'Name', 'Von']);
+  if (!plAbmeldungen_()[e]) sh.appendRow([new Date().toISOString(), e, name || '', 'automatisch (Antwort)']);
+  CacheService.getScriptCache().remove('PL_KUNDEN');
+}
+/** Kundendaten aus "Kunden-Shop" (Name, Firma, Land) */
+function plShopKunde_(e) {
+  var sh = lagerSS_().getSheetByName(PL_KD_BLATT); if (!sh || sh.getLastRow() < 2) return null;
+  var v = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues();
+  for (var i = 0; i < v.length; i++) if (String(v[i][3]).toLowerCase() === e) return { name: String(v[i][1]), firma: String(v[i][2]), land: String(v[i][5]) };
+  return null;
+}
+function plDe_(land) { return ['DE', 'AT', 'CH', 'LI', 'LU'].indexOf(String(land || '').toUpperCase()) >= 0; }
+var PL_SIG_DE = '\n\nMit freundlichen Grüßen\n\nFragrance Hub Germany\nAm Alten Kirchplatz 10 · 45665 Recklinghausen\nTel. / WhatsApp: +49 2361 4878835\nE-Mail: info@fragranceshub.de\nhttps://fragranceshub.de';
+var PL_SIG_EN = '\n\nKind regards\n\nFragrance Hub Germany\nAm Alten Kirchplatz 10 · 45665 Recklinghausen · Germany\nPhone / WhatsApp: +49 2361 4878835\nE-mail: info@fragranceshub.de\nhttps://fragranceshub.de';
+function plAntwMail_(to, betreff, text) {
+  GmailApp.sendEmail(to, betreff, text, { from: plVon_(), name: 'Fragrance Hub Germany', replyTo: 'info@fragranceshub.de', htmlBody: plHtml_(text) });
+}
+
+function plAntwortenLauf() {
+  var lock = LockService.getScriptLock(); if (!lock.tryLock(5000)) return;
+  try {
+    var label = GmailApp.getUserLabelByName(PL_ANTW_LABEL) || GmailApp.createLabel(PL_ANTW_LABEL);
+    var q = 'newer_than:30d -in:sent -label:' + PL_ANTW_LABEL + ' (subject:Rabatt OR subject:discount OR subject:"Willkommen bei Fragrance Hub")';
+    var threads = GmailApp.search(q, 0, 30), tg = [];
+    threads.forEach(function (th) {
+      var fertig = true;
+      th.getMessages().forEach(function (msg) {
+        if (msg.isInTrash()) return;
+        if (/fragranceshub\.de|almasri9696@gmail\.com/i.test(msg.getFrom()) && !/almasri9696@gmail\.com/i.test(msg.getTo())) return;   // eigene ausgehende Mail
+        var abs = plAntwAbsender_(msg); if (!abs) return;
+        var key = 'PL_ANTW_' + msg.getId(), props = PropertiesService.getScriptProperties();
+        if (props.getProperty(key)) return;
+        var text = plAntwText_(msg.getPlainBody()), betreff = msg.getSubject(), sk = plShopKunde_(abs.e) || {};
+        var name = sk.name || abs.name || abs.e, land = sk.land || '';
+        var erledigt = function (erg, ust, det) { plAntwLog_([abs.e, name, erg, ust || '', det || '', betreff]); props.setProperty(key, '1'); };
+
+        // 1) Abmeldung
+        if (/\b(abmelden|abmeldung|abbestellen|austragen|unsubscribe|opt[\s-]?out|remove me)\b|keine\s+(weiteren\s+)?(e-?mails|mails|nachrichten|werbung|informationen)|no\s+more\s+e-?mails/i.test(text) ||
+            (/^\s*stop+\s*[.!]?\s*$/i.test(text))) {
+          plAbmeldenIntern_(abs.e, name); erledigt('Abmeldung', '', 'automatisch abgemeldet');
+          tg.push('🚫 Abgemeldet: ' + name + ' <' + abs.e + '>'); return;
+        }
+        // 2) EU-USt-IdNr.
+        var ust = plUstFinden_(text);
+        if (ust) {
+          var vies = b2bVies_(ust);
+          if (vies.status === 'unklar') {   // VIES gerade nicht erreichbar → später erneut (max. 1 Tag)
+            if (Date.now() - msg.getDate().getTime() < 864e5) { fertig = false; return; }
+            erledigt('USt – VIES nicht erreichbar', ust, 'bitte manuell prüfen'); tg.push('⚠️ VIES nicht erreichbar – bitte prüfen: ' + name + ' <' + abs.e + '> · ' + ust); return;
+          }
+          var de = plDe_(land || ust.slice(0, 2));
+          if (vies.status === 'gueltig') {
+            var teile = String(name).trim().split(/\s+/), firma = vies.name || sk.firma || name;
+            var d = { firma: firma, taet: 'Antwort auf E-Mail-Angebot', ust: ust, vn: teile.slice(0, -1).join(' ') || teile[0] || '', nn: teile.length > 1 ? teile[teile.length - 1] : '',
+                      em: abs.e, tel: '', str: '', plz: '', ort: '', land: '', msg: '' };
+            var kunde = '';
+            try { kunde = b2bShopifyKunde_(d, vies); } catch (e) { kunde = '⚠️ ' + e.message; }
+            if (kunde.indexOf('⚠️') === 0) { erledigt('USt gültig – Shopify-Fehler', ust, kunde); tg.push('⚠️ USt gültig, aber Shopify-Fehler: ' + name + ' · ' + ust + ' · ' + kunde); return; }
+            plAntwMail_(abs.e, de ? 'Ihr Geschäftskunden-Rabatt ist aktiviert – Fragrance Hub Germany' : 'Your business discount is activated – Fragrance Hub Germany',
+              de ? 'Guten Tag ' + name + ',\n\nvielen Dank für Ihre Rückmeldung.\n\nIhre USt-IdNr. ' + ust + ' wurde erfolgreich über das EU-System VIES geprüft' + (vies.name ? ' (' + vies.name + ')' : '') + '. ' +
+                   'Ihr Kundenkonto ist ab sofort als Geschäftskunde freigeschaltet:\n\n• 15 % Rabatt auf alle Duftöle\n• 10 % Rabatt auf Flakons und Zubehör\n\n' +
+                   'Der Rabatt wird automatisch abgezogen, sobald Sie beim Bestellen in Ihrem Kundenkonto angemeldet sind – mit dieser E-Mail-Adresse (' + abs.e + '):\nhttps://fragranceshub.de/account/login\n\n' +
+                   'Unser komplettes Sortiment finden Sie unter https://fragranceshub.de\n\nGerne stellen wir Ihnen auch ein individuelles Angebot zusammen – antworten Sie einfach auf diese E-Mail.' + PL_SIG_DE
+                 : 'Dear ' + name + ',\n\nthank you for your reply.\n\nYour VAT ID ' + ust + ' has been successfully verified via the EU VIES system' + (vies.name ? ' (' + vies.name + ')' : '') + '. ' +
+                   'Your customer account is now activated as a business customer:\n\n• 15 % discount on all fragrance oils\n• 10 % discount on bottles and accessories\n\n' +
+                   'The discount is applied automatically as soon as you are logged in to your customer account when ordering – with this e-mail address (' + abs.e + '):\nhttps://fragranceshub.de/account/login\n\n' +
+                   'You can find our complete range at https://fragranceshub.de\n\nWe are also happy to prepare an individual offer for you – simply reply to this e-mail.' + PL_SIG_EN);
+            erledigt('USt gültig – Rabatt aktiviert', ust, (vies.name || '') + ' · ' + kunde);
+            tg.push('✅ Geschäftskunde aktiviert (15 % Öle / 10 % Rest): ' + firma + ' <' + abs.e + '> · ' + ust + ' · ' + kunde); return;
+          }
+          plAntwMail_(abs.e, de ? 'Ihre USt-IdNr. – Fragrance Hub Germany' : 'Your VAT ID – Fragrance Hub Germany',
+            de ? 'Guten Tag ' + name + ',\n\nvielen Dank für Ihre Rückmeldung.\n\nLeider konnte die USt-IdNr. ' + ust + ' im EU-System VIES nicht als gültig bestätigt werden. ' +
+                 'Bitte prüfen Sie die Nummer und senden Sie uns Ihre gültige USt-IdNr. einfach als Antwort auf diese E-Mail – wir aktivieren Ihren Geschäftskunden-Rabatt dann sofort.' + PL_SIG_DE
+               : 'Dear ' + name + ',\n\nthank you for your reply.\n\nUnfortunately the VAT ID ' + ust + ' could not be confirmed as valid in the EU VIES system. ' +
+                 'Please check the number and send us your valid VAT ID as a reply to this e-mail – we will then activate your business discount right away.' + PL_SIG_EN);
+          erledigt('USt ungültig – Rückfrage gesendet', ust, vies.text); tg.push('❌ USt-IdNr. ungültig (Rückfrage gesendet): ' + name + ' <' + abs.e + '> · ' + ust); return;
+        }
+        // 3) Nicht-EU-Nummer → Inhaber entscheidet
+        var ne = text.match(PL_NICHT_EU_RX);
+        if (ne) {
+          var de2 = plDe_(land || (/^CHE/i.test(ne[0]) ? 'CH' : ''));
+          plAntwMail_(abs.e, de2 ? 'Ihre Unternehmensnummer – Fragrance Hub Germany' : 'Your company number – Fragrance Hub Germany',
+            de2 ? 'Guten Tag ' + name + ',\n\nvielen Dank für Ihre Rückmeldung und Ihre Unternehmensnummer ' + ne[0] + '. Wir prüfen Ihre Angaben und melden uns in Kürze persönlich bei Ihnen.' + PL_SIG_DE
+                : 'Dear ' + name + ',\n\nthank you for your reply and your company number ' + ne[0] + '. We will check your details and get back to you personally shortly.' + PL_SIG_EN);
+          erledigt('Nicht-EU-Nummer – Entscheidung Inhaber', ne[0], ''); tg.push('🌍 Nicht-EU-Nummer – bitte entscheiden (Tag b2b-ust in Shopify setzen?): ' + name + ' <' + abs.e + '> · ' + ne[0]); return;
+        }
+        // 4) Nur Steuernummer (z. B. 123/456/78901) → um USt-IdNr. bitten
+        if (/\b\d{2,3}\/\d{3,4}\/\d{4,5}\b/.test(text)) {
+          plAntwMail_(abs.e, 'Ihre USt-IdNr. – Fragrance Hub Germany', 'Guten Tag ' + name + ',\n\nvielen Dank für Ihre Rückmeldung.\n\n' +
+            'Für den Geschäftskunden-Rabatt benötigen wir Ihre Umsatzsteuer-Identifikationsnummer (USt-IdNr., z. B. DE123456789) – die Steuernummer können wir leider nicht automatisch prüfen. ' +
+            'Ihre USt-IdNr. finden Sie z. B. auf Ihren Rechnungen oder im Schreiben des Bundeszentralamts für Steuern. Senden Sie sie uns einfach als Antwort auf diese E-Mail.' + PL_SIG_DE);
+          erledigt('Steuernummer statt USt-IdNr. – Rückfrage gesendet', '', ''); tg.push('ℹ️ Steuernummer statt USt-IdNr. (Rückfrage gesendet): ' + name + ' <' + abs.e + '>'); return;
+        }
+        // 5) sonstige Antwort → nur protokollieren
+        erledigt('Sonstige Antwort – in Proton beantworten', '', text.replace(/\s+/g, ' ').slice(0, 300));
+        tg.push('💬 Antwort von ' + name + ' <' + abs.e + '> (bitte in Proton beantworten): ' + text.replace(/\s+/g, ' ').slice(0, 200));
+      });
+      if (fertig) { th.addLabel(label); th.moveToArchive(); }
+    });
+    if (tg.length) etTelegram_('📥 Kundenantworten (automatisch verarbeitet):\n\n' + tg.join('\n'), null);
+    if (tg.length) CacheService.getScriptCache().remove('PL_KUNDEN');
+  } finally { lock.releaseLock(); }
+}
+function plAntworten_() {
+  var sh = lagerSS_().getSheetByName(PL_ANTW); if (!sh || sh.getLastRow() < 2) return [];
+  var n = sh.getLastRow() - 1, ab = Math.max(0, n - 40);
+  return sh.getRange(2 + ab, 1, n - ab, 6).getValues().reverse().map(function (r) { return { t: String(r[0]), e: String(r[1]), n: String(r[2]), r: String(r[3]), u: String(r[4]), d: String(r[5]) }; });
+}
+/** Trigger alle 15 Minuten */
+function plAntwortenSetup() {
+  var da = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'plAntwortenLauf'; });
+  if (!da) ScriptApp.newTrigger('plAntwortenLauf').timeBased().everyMinutes(15).create();
+  plAntwortenLauf();
+  return true;
+}
+/** Test ohne Mail: erkennt USt-IdNr./Abmeldung in Beispieltexten */
+function plAntwortenTest() {
+  ['Hallo, unsere USt-IdNr. lautet DE 811 569 869. Viele Grüße', 'Bitte abmelden', 'VAT: NL 8532.10.457B01 thanks', 'MWST CHE-123.456.789', 'Steuernr. 123/456/78901', 'Danke!'].forEach(function (t) {
+    Logger.log(t + ' → ust=' + plUstFinden_(plAntwText_(t)) + ' · nichtEU=' + ((t.match(PL_NICHT_EU_RX) || [''])[0]));
+  });
 }
