@@ -712,6 +712,13 @@ function soListe_(o) {
   var BEZAHLT = { PAID: 1, AUTHORIZED: 1, PARTIALLY_PAID: 1, PARTIALLY_REFUNDED: 1 };
   nodes = nodes.filter(function (n) { return BEZAHLT[String(n.displayFinancialStatus || '').toUpperCase()]; });
   var st = soStaende_(), handle = soShopHandle_();
+  // Bestellungen mit DHL-Etikett der letzten 3 Tage bleiben sichtbar (auch wenn in Shopify schon „versendet“) – damit man sie noch stornieren kann
+  var da = {}; nodes.forEach(function (n) { da[String(n.id).split('/').pop()] = 1; });
+  var nach = Object.keys(st).filter(function (k) { var d = st[k].d || {}; return !da[k] && d.dhl && d.dhl.nr && Date.now() - (d.dhl.at || 0) < 3 * 864e5; }).slice(0, 40);
+  if (nach.length) { try {
+    var mehr = shopifyGraphQL('query($q:String!){orders(first:40,query:$q){nodes{' + felder + '}}}', { q: nach.map(function (k) { return 'id:' + k; }).join(' OR ') }).orders.nodes;
+    nodes = nodes.concat(mehr.filter(function (n) { return BEZAHLT[String(n.displayFinancialStatus || '').toUpperCase()]; }));
+  } catch (e) {} }
   var out = nodes.map(function (n) {
     var id = String(n.id).split('/').pop(), a = n.shippingAddress || {};
     var items = (n.lineItems.nodes || []).filter(function (li) { return Number(li.currentQuantity) > 0; }).map(function (li) {
@@ -732,12 +739,27 @@ function soListe_(o) {
   });
   return { at: Date.now(), orders: out };
 }
+/** Lieferadresse einer Shop-Bestellung direkt in Shopify korrigieren (aus der App) – a = { name, firma, a1, a2, plz, ort, land, tel } */
+function soAdresseSetzen_(id, a) {
+  var name = String(a.name || '').trim().replace(/\s+/g, ' '), i = name.lastIndexOf(' ');
+  var adr = { firstName: i > 0 ? name.slice(0, i) : '', lastName: i > 0 ? name.slice(i + 1) : name, company: String(a.firma || '').trim(),
+    address1: String(a.a1 || '').trim(), address2: String(a.a2 || '').trim(), zip: String(a.plz || '').trim(), city: String(a.ort || '').trim(),
+    countryCode: String(a.land || 'DE').trim().toUpperCase(), phone: String(a.tel || '').trim() };
+  if (!adr.lastName || !adr.address1 || !adr.zip || !adr.city) throw new Error('Name, Straße, PLZ und Ort sind Pflicht');
+  var d = shopifyGraphQL('mutation($i:OrderInput!){orderUpdate(input:$i){order{id shippingAddress{name company address1 address2 zip city country countryCodeV2 phone}} userErrors{field message}}}',
+    { i: { id: 'gid://shopify/Order/' + id, shippingAddress: adr } });
+  var e = d.orderUpdate.userErrors || [];
+  if (e.length) throw new Error('Shopify: ' + e.map(function (x) { return x.message; }).join('; '));
+  return d.orderUpdate.order.shippingAddress;
+}
 /** Vorbereitungsstand speichern: o = { pw, id, nr, patch:{prep, lots, ready} } */
 function soSetzen_(o) {
   soPruefen_(o && o.pw);
   var id = String(o.id || ''); if (!/^\d+$/.test(id)) throw new Error('Bestellung fehlt');
   try {
-    var sh = soBlatt_(), st = soStaende_(), alt = (st[id] && st[id].d) || {}, p = o.patch || {};
+    var p = o.patch || {};
+    if (p.adr) { var neu = soAdresseSetzen_(id, p.adr); delete p.adr; if (!Object.keys(p).length) return { adresse: neu }; }
+    var sh = soBlatt_(), st = soStaende_(), alt = (st[id] && st[id].d) || {};
     Object.keys(p).forEach(function (k) { alt[k] = p[k]; });
     if (p.ready === true) { alt.readyAt = Date.now(); alt.readyBy = SR_USER || ''; }
     if (p.ready === false) { delete alt.readyAt; delete alt.readyBy; }
@@ -938,7 +960,18 @@ function dhlStorno_(o) {
   if (!ok) throw new Error('DHL: ' + (msgs.join(' · ') || ('Fehler ' + r.code)));
   var verlauf = (st.d.dhlStorniert || []).concat([{ nr: alt.nr, at: Date.now(), by: SR_USER || '' }]);
   soSetzen_({ pw: o.pw, id: id, nr: o.nr, patch: { dhl: null, dhlStorniert: verlauf } });
-  return { ok: true, nr: alt.nr, hinweis: alt.shopify && !/^Fehler/.test(alt.shopify) ? 'In Shopify ist die Bestellung schon als versendet markiert – dort bei Bedarf die Sendungsverfolgung entfernen.' : '' };
+  // automatisch auch in Shopify zurücknehmen: Versand (Fulfillment) mit dieser Sendungsnummer stornieren → Bestellung wieder „nicht ausgeführt“
+  var hinweis = '';
+  try {
+    var fs = shopifyGraphQL('query($id:ID!){order(id:$id){fulfillments(first:20){id status trackingInfo{number}}}}', { id: 'gid://shopify/Order/' + id }).order.fulfillments || [];
+    var f = fs.filter(function (x) { return x.status === 'SUCCESS' && (x.trackingInfo || []).some(function (t) { return String(t.number) === String(alt.nr); }); })[0];
+    if (f) {
+      var c = shopifyGraphQL('mutation($id:ID!){fulfillmentCancel(id:$id){fulfillment{id status} userErrors{field message}}}', { id: f.id }).fulfillmentCancel;
+      var e = c.userErrors || [];
+      hinweis = e.length ? 'Shopify: ' + e.map(function (x) { return x.message; }).join('; ') : 'Shopify: أُلغي الشحن – الطلب مفتوح من جديد.';
+    }
+  } catch (err) { hinweis = 'تعذّر إرجاع الطلب في Shopify: ' + (err.message || err); }
+  return { ok: true, nr: alt.nr, hinweis: hinweis };
 }
 /** Bestellung in Shopify als versendet markieren + Sendungsnummer (Kunde bekommt die Versand-Mail von Shopify) */
 function dhlShopifyVersand_(id, nr) {
