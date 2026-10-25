@@ -3743,7 +3743,7 @@ function soListView(b){b.textContent='';soCss();
   const L=reg.filter(o=>soTab==='all'||(soTab==='ready')===soPrep(o).ready).sort((a,c)=>a.at-c.at);
   const bar=el('div','so-bar');
   const pl=el('button','btn','📋 قوائم التحضير · '+L.length);pl.disabled=!L.length;pl.onclick=()=>soBulkLs(L);bar.append(pl);
-  if(soReg==='de'){const nd=reg.filter(o=>!soHasDhl(o)).length;const dl=el('button','btn primary','📦 ملصقات DHL · '+nd);dl.disabled=!nd;dl.onclick=()=>soBulkDhl(reg.filter(o=>!soHasDhl(o)).sort((a,c)=>a.at-c.at));bar.append(dl)}
+  if(soReg==='de'){const nd=reg.filter(o=>!soHasDhl(o)).length;const dl=el('button','btn primary','📦 ملصقات DHL شحن داخلي · '+nd);dl.disabled=!nd;dl.onclick=()=>soBulkDhl(reg.filter(o=>!soHasDhl(o)).sort((a,c)=>a.at-c.at));bar.append(dl)}
   else{const n=el('button','btn','🚚 DHL Express');n.onclick=()=>alert('ملصقات DHL Express للخارج هي الخطوة التالية.\nحالياً: أنشئ الملصق من تطبيق «DHL Express Commerce» في Shopify.');bar.append(n)}
   b.append(bar);
   if(!L.length)b.append(el('p','hint',soTab==='open'?'لا توجد طلبات للتحضير ✅':'لا توجد طلبات'));
@@ -3961,7 +3961,7 @@ function soBulkLs(list){openSheet('📋 قوائم التحضير · Lieferschei
   const upd=()=>{const n=pk.sel.size;a4.textContent='🖨️ طباعة في المستودع (A4) · '+n;pd.textContent='📄 PDF · '+n;a4.disabled=pd.disabled=!n};b.addEventListener('selchange',upd);upd();
   const go=(btn,mode)=>soLsPrint(list.filter(o=>pk.sel.has(o.id)),btn,mode);a4.onclick=()=>go(a4,'a4');pd.onclick=()=>go(pd,'pdf')})}
 /* 📦 DHL-Etiketten für mehrere Inlands-Bestellungen auf einmal (kostenpflichtig – mit Bestätigung) */
-function soBulkDhl(list){openSheet('📦 ملصقات DHL جماعية · داخل ألمانيا',async b=>{soCss();
+function soBulkDhl(list){openSheet('📦 ملصقات DHL شحن داخلي',async b=>{soCss();
   const st=el('p','hint','جاري تجهيز العناوين والأوزان…');b.append(st);
   const res=new Array(list.length);let k=0,done=0;
   await Promise.all(Array.from({length:4},async()=>{while(k<list.length){const i=k++;try{res[i]=await soCall('dhl_vor',{id:list[i].id})}catch(e){res[i]={err:dhlErr(e)}}done++;st.textContent='جاري التجهيز… '+done+' / '+list.length}}));
