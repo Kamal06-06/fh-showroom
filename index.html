@@ -268,8 +268,8 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
 .home .tile .ic{width:36px;height:36px;border-radius:11px;background:#f6efe0;display:grid;place-items:center;flex:none;font-size:0}
 .home .tile .ic svg{width:19px;height:19px;stroke:var(--gold);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .home .tile .tt{min-width:0;flex:1;display:flex;flex-direction:column;gap:1px}
-.home .tile b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.home .tile .tt span{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home .tile b{font-size:14px;line-height:1.25}   /* kein Abschneiden „…“ bei großer Handy-Schrift: an Wortgrenzen umbrechen */
+.home .tile .tt span{font-size:11.5px;line-height:1.3}
 .home .tile .cnt{font-size:15px;white-space:nowrap}
 .home .tile .cnt:empty{display:none}
 .home .tile .cnt.cnt2{margin:2px 0 0;font-size:15px;font-weight:700;color:var(--gold);order:3}
@@ -1132,7 +1132,7 @@ $('nv-acc').onclick=()=>$('h-acc').click();$('nv-done').onclick=()=>$('h-done').
   const b=t.querySelector('b'),s=t.querySelector('b+span');if(b){const w=el('span','tt');b.before(w);w.append(b);if(s&&!s.classList.contains('cnt'))w.append(s)}
   const TT={'h-wh':['المفتوحة','قيد التحضير'],'h-done':['المكتملة','تم التسليم'],'h-lg':['المخزون','وارد · صادر · جرد'],'h-cust':['العملاء','كل عميل وطلباته'],'h-cash':['الصندوق','نقد · مصروفات'],'h-acc':['الحسابات','غير مدفوع · كشف'],'h-inv':['الجرد','حسب الرفوف · QR'],'h-off':['عروض الأسعار','بدون تجهيز'],'h-shop':['طلبات المتجر','Shopify · ملصقات']};
   if(TT[id]&&b){b.textContent=TT[id][0];if(s&&!s.classList.contains('cnt'))s.textContent=TT[id][1]}
-  const c=t.querySelector('.cnt');if(c&&(id==='h-cash'||id==='h-acc')){c.classList.add('cnt2');t.querySelector('.tt').append(c)}})}
+  const c=t.querySelector('.cnt');if(c){c.classList.add('cnt2');t.querySelector('.tt').append(c)}})}   /* Zahl unter den Text → Titel hat die volle Breite */
 $('h-low-all').onclick=()=>{tab('lg');$('lg-low-btn').click()};
 let homeLowAt=0,homeLow=[];
 const agoTxt=t=>{const m=Math.max(0,Math.round((Date.now()-(t||0))/60000));return m<1?'الآن':m<60?'منذ '+m+' د':m<1440?'منذ '+Math.round(m/60)+' س':m<2880?'أمس':'منذ '+Math.round(m/1440)+' يوم'};
