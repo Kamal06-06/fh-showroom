@@ -703,26 +703,28 @@ function soListe_(o) {
   soPruefen_(o && o.pw);
   var ab = Utilities.formatDate(new Date(Date.now() - 21 * 864e5), 'UTC', "yyyy-MM-dd'T'HH:mm:ss'Z'");
   // nur bezahlte bzw. autorisierte Bestellungen – „Zahlung ausstehend" (PENDING) erscheint nicht in der App
-  var q = "created_at:>='" + ab + "' -status:cancelled -fulfillment_status:shipped (financial_status:paid OR financial_status:authorized OR financial_status:partially_paid OR financial_status:partially_refunded)";
+  var q = "created_at:>='" + ab + "' -status:cancelled -fulfillment_status:shipped (financial_status:paid OR financial_status:authorized OR financial_status:partially_paid OR financial_status:partially_refunded OR tag:'"+SO_TAG+"')";
   var felder = 'id name createdAt displayFinancialStatus displayFulfillmentStatus note tags email phone ' +
     'customer { displayName } shippingAddress { name company address1 address2 zip city country countryCodeV2 phone } ' +
     'billingAddress { name company address1 address2 zip city country } shippingLine { title } ' +
-    'currentSubtotalPriceSet { shopMoney { amount } } lineItems(first: 80) { nodes { title variantTitle sku currentQuantity customAttributes { key value } image { url(transform: { maxWidth: 160, maxHeight: 160 }) } } }';
+    'currentSubtotalPriceSet { shopMoney { amount } } lineItems(first: 80) { nodes { id title variantTitle sku currentQuantity variant { id } customAttributes { key value } image { url(transform: { maxWidth: 160, maxHeight: 160 }) } } }';
   var nodes = shopifyGraphQL('query($q:String!){orders(first:100,query:$q,sortKey:CREATED_AT,reverse:true){nodes{' + felder + '}}}', { q: q }).orders.nodes;
   var BEZAHLT = { PAID: 1, AUTHORIZED: 1, PARTIALLY_PAID: 1, PARTIALLY_REFUNDED: 1 };
-  nodes = nodes.filter(function (n) { return BEZAHLT[String(n.displayFinancialStatus || '').toUpperCase()]; });
+  var ok_ = function (n) { return BEZAHLT[String(n.displayFinancialStatus || '').toUpperCase()] || (n.tags || []).indexOf(SO_TAG) >= 0; };   // manuelle App-Bestellungen auch unbezahlt
+  nodes = nodes.filter(ok_);
   var st = soStaende_(), handle = soShopHandle_();
   // Bestellungen mit DHL-Etikett der letzten 3 Tage bleiben sichtbar (auch wenn in Shopify schon „versendet“) – damit man sie noch stornieren kann
   var da = {}; nodes.forEach(function (n) { da[String(n.id).split('/').pop()] = 1; });
   var nach = Object.keys(st).filter(function (k) { var d = st[k].d || {}; return !da[k] && d.dhl && d.dhl.nr && Date.now() - (d.dhl.at || 0) < 3 * 864e5; }).slice(0, 40);
   if (nach.length) { try {
     var mehr = shopifyGraphQL('query($q:String!){orders(first:40,query:$q){nodes{' + felder + '}}}', { q: nach.map(function (k) { return 'id:' + k; }).join(' OR ') }).orders.nodes;
-    nodes = nodes.concat(mehr.filter(function (n) { return BEZAHLT[String(n.displayFinancialStatus || '').toUpperCase()]; }));
+    nodes = nodes.concat(mehr.filter(ok_));
   } catch (e) {} }
   var out = nodes.map(function (n) {
     var id = String(n.id).split('/').pop(), a = n.shippingAddress || {};
     var items = (n.lineItems.nodes || []).filter(function (li) { return Number(li.currentQuantity) > 0; }).map(function (li) {
       var x = soPosition_(li);   // + Rohdaten für den Lieferschein (gleiche Logik wie die Order-Printer-Vorlage)
+      x.lid = String(li.id).split('/').pop(); x.vid = li.variant ? String(li.variant.id).split('/').pop() : '';
       x.rq = Number(li.currentQuantity) || 0; x.img = (li.image && li.image.url) || '';
       x.props = (li.customAttributes || []).map(function (c) { return [c.key, c.value]; });
       return x;
@@ -767,6 +769,124 @@ function soSetzen_(o) {
     if (st[id]) sh.getRange(st[id].row, 1, 1, 4).setValues([zeile]); else sh.appendRow(zeile);
     return alt;
   } finally { /* ohne Script-Lock: Etiketten-Läufe sollen das Abhaken nicht blockieren */ }
+}
+
+/* =====================================================================
+   ✍️ Bestellungen bearbeiten aus der App: Stornieren · Artikel hinzufügen/entfernen · Manuelle Bestellung
+   App-Aktionen: so_storno, so_edit, so_suche (Artikel), so_kunden (Kundensuche), so_neu
+   ===================================================================== */
+var SO_TAG = 'FH-App';
+var SO_GRUND = { kunde: 'CUSTOMER', fehler: 'STAFF', lager: 'INVENTORY', betrug: 'FRAUD', andere: 'OTHER' };
+function soUe_(e) { if (e && e.length) throw new Error('Shopify: ' + e.map(function (x) { return x.message; }).join('; ')); }
+/** Bestellung stornieren – o = { id, nr, grund, erstatten, lager, mail, notiz } */
+function soStorno_(o) {
+  soPruefen_(o && o.pw);
+  var id = String(o.id || ''); if (!/^\d+$/.test(id)) throw new Error('Bestellung fehlt');
+  var st = soStaende_()[id], d = (st && st.d) || {}, hin = [];
+  if (dhlPakete_(d.dhl).length) {   // DHL-Etikett zuerst bei DHL löschen (und Versand in Shopify zurücknehmen)
+    try { dhlStorno_({ pw: o.pw, id: id, nr: o.nr }); hin.push('DHL-Etikett storniert'); }
+    catch (e) { throw new Error('DHL-Etikett konnte nicht storniert werden – bitte zuerst das Etikett stornieren (' + e.message + ')'); }
+  }
+  if (d.dhlx && d.dhlx.nr) { try { dhlxStorno_({ pw: o.pw, id: id, nr: o.nr }); hin.push('DHL-Express-Sendung ' + d.dhlx.nr + ' entfernt – bei DHL Express ggf. selbst stornieren'); } catch (e) {} }
+  var args = { orderId: 'gid://shopify/Order/' + id, reason: SO_GRUND[o.grund] || 'CUSTOMER', restock: o.lager !== false, notifyCustomer: !!o.mail,
+    staffNote: String(o.notiz || 'Storniert in der Showroom-App' + (SR_USER ? ' von ' + SR_USER : '')).slice(0, 250) };
+  if (o.erstatten) args.refundMethod = { originalPaymentMethodsRefund: true };
+  var r = shopifyGraphQL('mutation($orderId:ID!,$reason:OrderCancelReason!,$restock:Boolean!,$notifyCustomer:Boolean,$staffNote:String,$refundMethod:OrderCancelRefundMethodInput){orderCancel(orderId:$orderId,reason:$reason,restock:$restock,notifyCustomer:$notifyCustomer,staffNote:$staffNote,refundMethod:$refundMethod){job{id} orderCancelUserErrors{field message}}}', args).orderCancel;
+  soUe_(r.orderCancelUserErrors);
+  soSetzen_({ pw: o.pw, id: id, nr: o.nr, patch: { storniert: Date.now() } });
+  return { ok: true, hinweis: hin.join(' · ') };
+}
+/** Artikel suchen (Shopify live) – o = { q } */
+function soSuche_(o) {
+  soPruefen_(o && o.pw);
+  var q = String(o.q || '').trim(); if (q.length < 2) return [];
+  var w = q.split(/\s+/).map(function (t) { return t.replace(/["\\():*]/g, ''); }).filter(String), out = [], da = {};
+  var add = function (pt, st, v) { var id = String(v.id).split('/').pop(); if (da[id] || st === 'ARCHIVED') return; da[id] = 1;
+    out.push({ vid: id, t: pt, vt: v.title === 'Default Title' ? '' : v.title, sku: v.sku || '', preis: Number(v.price) || 0, aktiv: st === 'ACTIVE' }); };
+  if (w.length === 1 && /[-\d]/.test(w[0]) && w[0].length >= 3) {   // Artikelcode → SKU-Suche
+    shopifyGraphQL('query($q:String!){productVariants(first:60,query:$q){nodes{id title sku price product{title status}}}}', { q: 'sku:' + w[0] + '*' })
+      .productVariants.nodes.forEach(function (v) { add(v.product.title, v.product.status, v); });
+  }
+  if (out.length < 60) {
+    var pq = w.map(function (t) { return 'title:*' + t + '*'; }).join(' AND ') + ' AND -status:archived';
+    shopifyGraphQL('query($q:String!){products(first:12,query:$q,sortKey:TITLE){nodes{title status variants(first:40){nodes{id title sku price}}}}}', { q: pq })
+      .products.nodes.forEach(function (p) { p.variants.nodes.forEach(function (v) { add(p.title, p.status, v); }); });
+  }
+  return out.slice(0, 120);
+}
+/** Kunden suchen – o = { q } */
+function soKunden_(o) {
+  soPruefen_(o && o.pw);
+  var q = String(o.q || '').trim(); if (q.length < 2) return [];
+  var n = shopifyGraphQL('query($q:String!){customers(first:10,query:$q){nodes{id displayName email phone taxExempt defaultAddress{firstName lastName company address1 address2 zip city countryCodeV2 phone}}}}', { q: q }).customers.nodes;
+  return n.map(function (c) { var a = c.defaultAddress || {};
+    return { cid: String(c.id).split('/').pop(), name: c.displayName || '', email: c.email || '', tel: c.phone || a.phone || '', steuerfrei: !!c.taxExempt,
+      adr: { name: [a.firstName, a.lastName].filter(String).join(' ') || c.displayName || '', firma: a.company || '', a1: a.address1 || '', a2: a.address2 || '', plz: a.zip || '', ort: a.city || '', land: a.countryCodeV2 || 'DE', tel: a.phone || c.phone || '' } };
+  });
+}
+/** Artikel einer Bestellung ändern – o = { id, nr, menge:[{lid,q}], neu:[{vid,q}], mail } */
+function soEdit_(o) {
+  soPruefen_(o && o.pw);
+  var id = String(o.id || ''); if (!/^\d+$/.test(id)) throw new Error('Bestellung fehlt');
+  var b = shopifyGraphQL('mutation($id:ID!){orderEditBegin(id:$id){calculatedOrder{id lineItems(first:100){nodes{id sku editableQuantity variant{id}}}} userErrors{field message}}}', { id: 'gid://shopify/Order/' + id }).orderEditBegin;
+  soUe_(b.userErrors);
+  var cid = b.calculatedOrder.id, cl = b.calculatedOrder.lineItems.nodes, n = 0;
+  (o.menge || []).forEach(function (m) {
+    var li = cl.filter(function (x) { return String(x.id).split('/').pop() === String(m.lid); })[0];
+    if (!li) throw new Error('Position nicht bearbeitbar (evtl. schon versendet)');
+    var r = shopifyGraphQL('mutation($id:ID!,$l:ID!,$q:Int!){orderEditSetQuantity(id:$id,lineItemId:$l,quantity:$q,restock:true){userErrors{field message}}}', { id: cid, l: li.id, q: Math.max(0, Math.round(Number(m.q) || 0)) }).orderEditSetQuantity;
+    soUe_(r.userErrors); n++;
+  });
+  (o.neu || []).forEach(function (a) {
+    var r = shopifyGraphQL('mutation($id:ID!,$v:ID!,$q:Int!){orderEditAddVariant(id:$id,variantId:$v,quantity:$q,allowDuplicates:true){userErrors{field message}}}', { id: cid, v: 'gid://shopify/ProductVariant/' + a.vid, q: Math.max(1, Math.round(Number(a.q) || 1)) }).orderEditAddVariant;
+    soUe_(r.userErrors); n++;
+  });
+  if (!n) throw new Error('Keine Änderung');
+  var c = shopifyGraphQL('mutation($id:ID!,$m:Boolean,$s:String){orderEditCommit(id:$id,notifyCustomer:$m,staffNote:$s){order{id totalOutstandingSet{shopMoney{amount}}} userErrors{field message}}}',
+    { id: cid, m: !!o.mail, s: 'Geändert in der Showroom-App' + (SR_USER ? ' von ' + SR_USER : '') }).orderEditCommit;
+  soUe_(c.userErrors);
+  soSetzen_({ pw: o.pw, id: id, nr: o.nr, patch: { prep: [], lots: {} } });   // Positionen haben sich verschoben → Abhaken neu
+  return { ok: true, offen: Number(c.order && c.order.totalOutstandingSet && c.order.totalOutstandingSet.shopMoney.amount || 0) };
+}
+/** Zahlungsziel-Vorlage „Bei Erhalt“ (für Bestellungen mit Zahlung ausstehend) */
+function soZahlungBeiErhalt_() {
+  var t = shopifyGraphQL('{paymentTermsTemplates{id paymentTermsType}}').paymentTermsTemplates || [];
+  var x = t.filter(function (v) { return v.paymentTermsType === 'RECEIPT'; })[0] || t[0];
+  return x ? x.id : null;
+}
+/** Manuelle Bestellung – o = { kunde:{cid,email,tel}, adr:{name,firma,a1,a2,plz,ort,land,tel}, items:[{vid,q,preis?}], versand:{titel,preis}, rabatt, zahlung:'bezahlt'|'offen'|'link', steuerfrei, notiz, mail } */
+function soNeu_(o) {
+  soPruefen_(o && o.pw);
+  var items = (o.items || []).filter(function (i) { return i.vid && Number(i.q) > 0; });
+  if (!items.length) throw new Error('Keine Artikel');
+  var a = o.adr || {}, name = String(a.name || '').trim().replace(/\s+/g, ' '), i = name.lastIndexOf(' ');
+  if (!name || !a.a1 || !a.plz || !a.ort) throw new Error('Name, Straße, PLZ und Ort sind Pflicht');
+  var adr = { firstName: i > 0 ? name.slice(0, i) : '', lastName: i > 0 ? name.slice(i + 1) : name, company: String(a.firma || '').trim(), address1: String(a.a1).trim(),
+    address2: String(a.a2 || '').trim(), zip: String(a.plz).trim(), city: String(a.ort).trim(), countryCode: String(a.land || 'DE').toUpperCase(), phone: String(a.tel || '').trim() };
+  var k = o.kunde || {}, inp = {
+    lineItems: items.map(function (x) { var l = { variantId: 'gid://shopify/ProductVariant/' + x.vid, quantity: Math.round(Number(x.q)) };
+      if (x.preis != null && x.preis !== '' && !isNaN(Number(x.preis))) l.priceOverride = { amount: Number(x.preis).toFixed(2), currencyCode: 'EUR' }; return l; }),
+    shippingAddress: adr, billingAddress: adr, tags: [SO_TAG], note: String(o.notiz || ''), taxExempt: !!o.steuerfrei };
+  if (k.cid) inp.purchasingEntity = { customerId: 'gid://shopify/Customer/' + k.cid };
+  if (k.email) inp.email = String(k.email).trim();
+  if (k.tel) inp.phone = String(k.tel).trim();
+  var vs = o.versand || {}; if (vs.titel) inp.shippingLine = { title: String(vs.titel), priceWithCurrency: { amount: Number(vs.preis || 0).toFixed(2), currencyCode: 'EUR' } };
+  if (Number(o.rabatt) > 0) inp.appliedDiscount = { valueType: 'PERCENTAGE', value: Number(o.rabatt), title: 'Rabatt ' + Number(o.rabatt) + ' %' };
+  if (o.zahlung === 'offen') { var t = soZahlungBeiErhalt_(); if (t) inp.paymentTerms = { paymentTermsTemplateId: t }; }
+  var d = shopifyGraphQL('mutation($i:DraftOrderInput!){draftOrderCreate(input:$i){draftOrder{id name invoiceUrl totalPriceSet{shopMoney{amount}}} userErrors{field message}}}', { i: inp }).draftOrderCreate;
+  soUe_(d.userErrors);
+  var dr = d.draftOrder;
+  if (o.zahlung === 'link') {
+    if (!inp.email) throw new Error('Für den Zahlungslink wird die E-Mail des Kunden benötigt');
+    var s = shopifyGraphQL('mutation($id:ID!){draftOrderInvoiceSend(id:$id){draftOrder{id} userErrors{field message}}}', { id: dr.id }).draftOrderInvoiceSend;
+    soUe_(s.userErrors);
+    return { entwurf: dr.name, link: dr.invoiceUrl, summe: Number(dr.totalPriceSet.shopMoney.amount) };
+  }
+  var c = shopifyGraphQL('mutation($id:ID!){draftOrderComplete(id:$id){draftOrder{order{id name displayFinancialStatus}} userErrors{field message}}}', { id: dr.id }).draftOrderComplete;
+  soUe_(c.userErrors);
+  var ord = c.draftOrder && c.draftOrder.order;
+  if (!ord) throw new Error('Bestellung wurde nicht erstellt');
+  return { id: String(ord.id).split('/').pop(), nr: ord.name, fin: ord.displayFinancialStatus, summe: Number(dr.totalPriceSet.shopMoney.amount) };
 }
 
 /* =====================================================================
