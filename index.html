@@ -4128,8 +4128,17 @@ function dhlxSheet(o,after){openSheet('✈️ DHL Express · '+o.nr,async b=>{so
   const tel=el('input');tel.type='tel';tel.dir='ltr';tel.value=ci.phone&&ci.phone!=='0'?ci.phone:'';field(b,'☎ هاتف المستلم (إلزامي عند DHL Express)',tel);
   const zk=el('div','card');zk.style.cssText='padding:10px 12px;margin:8px 0';
   zk.append(el('b',null,v.zoll?'🛃 جمارك: نعم · '+(v.incoterm==='DDP'?'DDP – الرسوم يدفعها المرسِل (دفعها العميل في الـ Checkout)':'DAP – الرسوم يدفعها المستلم'):'🇪🇺 داخل الاتحاد الأوروبي – بدون جمارك'));
-  if(v.zoll){zk.append(el('div','time','القيمة: '+v.wert+' '+v.waehrung+' · الفاتورة التجارية تُطبع تلقائياً (نسختان A4)'));
-    v.pos.forEach(p=>{const x=el('div','ad');x.dir='ltr';x.style.cssText='font-size:12px;border-top:1px solid var(--line);padding-top:4px;margin-top:4px';x.textContent=p.q+' × '+p.desc.slice(0,60)+' · HS '+p.hs+' · '+p.ur+' · '+p.preis+' €';zk.append(x)})}
+  const posIn=[];
+  if(v.zoll){zk.append(el('div','time','القيمة: '+v.wert+' '+v.waehrung+' · الفاتورة التجارية تُطبع تلقائياً (نسختان A4) · يمكنك تعديل كل سطر'));
+    const inp=(val,ph,w,t)=>{const x=el('input');x.dir='ltr';x.value=val==null?'':val;x.placeholder=ph;x.title=ph;x.style.cssText='width:'+w+';padding:6px 8px;font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);box-sizing:border-box';if(t)x.type=t;return x};
+    v.pos.forEach((p,i)=>{const box=el('div');box.style.cssText='border-top:1px solid var(--line);padding-top:8px;margin-top:8px';
+      box.append(el('div','ad',(i+1)+'. الكمية: '+p.q+' قطعة'));
+      const d=el('textarea');d.dir='ltr';d.value=p.desc;d.rows=2;d.style.cssText='width:100%;padding:6px 8px;font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);box-sizing:border-box;margin:4px 0';d.title='الوصف بالإنجليزية للجمارك';
+      const code=inp(p.code,'Artikel-Code','100%'),hs=inp(p.hs,'HS-Code','100%'),ur=inp(p.ur,'Ursprung (BG)','100%'),pr=inp(p.preis,'Preis €','100%','number');pr.step='0.01';hs.inputMode='numeric';ur.maxLength=2;ur.style.textTransform='uppercase';
+      const g=el('div');g.style.cssText='display:grid;grid-template-columns:1.4fr 1fr .6fr .8fr;gap:6px;direction:ltr';
+      const lab=(t,x)=>{const w=el('label');w.style.cssText='display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--muted)';w.append(t,x);return w};
+      g.append(lab('الكود · Code',code),lab('HS',hs),lab('المنشأ',ur),lab('السعر €',pr));box.append(lab('الوصف · Description',d),g);zk.append(box);posIn.push({d,code,hs,ur,pr})});
+    const hl=el('label','clprow');var hsSave=el('input');hsSave.type='checkbox';hsSave.checked=false;hl.append(hsSave,' 💾 احفظ رموز HS والمنشأ في Shopify للمرات القادمة');zk.append(hl);zk.hsSave=hsSave}
   b.append(zk);
   /* Pakete */
   const pbox=el('div');const nIn=el('input');nIn.type='number';nIn.min='1';nIn.max='20';nIn.value='1';nIn.dir='ltr';field(b,'📦 عدد الطرود',nIn);b.append(pbox);let rows=[];
@@ -4145,13 +4154,13 @@ function dhlxSheet(o,after){openSheet('✈️ DHL Express · '+o.nr,async b=>{so
   const cbx=(t,on)=>{const l=el('label','clprow'),i=el('input');i.type='checkbox';i.checked=on;l.append(i,' '+t);b.append(l);return i};
   const dr=cbx('🖨️ اطبع الملصق على Zebra'+(v.zoll?' والفاتورة التجارية على A4':''),true),sp=cbx('📧 علِّم الطلب «مشحون» في Shopify وأرسل رقم التتبع للعميل',true);
   const row=el('div','row');row.style.cssText='gap:8px;flex-wrap:wrap;margin-top:10px';const chk=el('button','btn','🔍 فحص البيانات (مجاني)'),go=el('button','btn primary big','✅ إنشاء شحنة DHL Express');row.append(chk,go);b.append(row,m);
-  const opt=nur=>({id:o.id,nr:o.nr,prod:pd.value,tel:tel.value.trim(),pakete:rows.map(r=>({kg:Number(String(r.kg.value).replace(',','.')),l:r.l.value,b:r.b.value,h:r.h.value})),druck:dr.checked,shopify:sp.checked,nurPruefen:nur});
+  const opt=nur=>({id:o.id,nr:o.nr,prod:pd.value,tel:tel.value.trim(),pos:posIn.map(x=>({desc:x.d.value,code:x.code.value.trim(),hs:x.hs.value.trim(),ur:x.ur.value.trim(),preis:x.pr.value})),hsSpeichern:!!(zk.hsSave&&zk.hsSave.checked),pakete:rows.map(r=>({kg:Number(String(r.kg.value).replace(',','.')),l:r.l.value,b:r.b.value,h:r.h.value})),druck:dr.checked,shopify:sp.checked,nurPruefen:nur});
   chk.onclick=async()=>{chk.disabled=true;say('جاري الفحص عند DHL Express…');try{const r=await dhlxCall('label',opt(true));say((r.ok?'✅ DHL Express يقبل البيانات':'❌ DHL Express لا يقبل البيانات')+(r.msgs.length?'\n'+r.msgs.join('\n'):''),!r.ok)}catch(x){say('⚠️ '+dhlxErr(x),1)}chk.disabled=false};
   go.onclick=async()=>{const x=opt(false);if(!x.tel)return say('أدخل هاتف المستلم',1);if(x.pakete.some(p=>!(p.kg>0)))return say('أدخل الوزن',1);
     if(!confirm('إنشاء شحنة DHL Express'+(v.env==='prod'?' (مدفوعة)':' (اختبار)')+'؟\n\n'+o.nr+' → '+v.land+'\n'+pd.options[pd.selectedIndex].text+'\n'+x.pakete.map((p,i)=>(x.pakete.length>1?'طرد '+(i+1)+': ':'')+p.kg+' kg').join('\n')))return;
     go.disabled=chk.disabled=true;say('جاري إنشاء الشحنة…');
     try{const r=await dhlxCall('label',x);o.stand=o.stand||{};o.stand.dhlx=r.dhlx;
-      say('✅ رقم الشحنة: '+r.nr+'\n'+(r.gedruckt?'🖨️ أُرسل الملصق إلى Zebra'+(r.inv.length?' والفاتورة إلى A4':''):r.druckFehler?'⚠️ لم يُرسل للطابعة: '+r.druckFehler:'')+(r.shopify?'\nShopify: '+(r.shopify==='versendet'?'✅ مُعلَّم كمشحون':r.shopify):''));
+      say('✅ رقم الشحنة: '+r.nr+'\n'+(r.gedruckt?'🖨️ أُرسل الملصق إلى Zebra'+(r.inv.length?' والفاتورة إلى A4':''):r.druckFehler?'⚠️ لم يُرسل للطابعة: '+r.druckFehler:'')+(r.shopify?'\nShopify: '+(r.shopify==='versendet'?'✅ مُعلَّم كمشحون':r.shopify):'')+(r.hsGespeichert?'\n💾 حُفظت رموز HS في Shopify ('+r.hsGespeichert+')':''));
       const pf=el('button','btn','📄 فتح الملصق');pf.onclick=()=>openPdf(r.b64s);b.append(pf);if(!x.druck)openPdf(r.b64s)}
     catch(err){say('⚠️ '+dhlxErr(err),1);go.disabled=chk.disabled=false}};
   b.append(el('p','hint','«فحص البيانات» مجاني ولا يُنشئ شحنة. الشحنة التي لا تُسلَّم لـ DHL لا تُحسب.'))})}

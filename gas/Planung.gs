@@ -1099,7 +1099,7 @@ function dhlxTest_() {
 function dhlxOrder_(id) {
   var q = 'query($id:ID!){order(id:$id){id name email phone currencyCode shippingAddress{name company address1 address2 zip city province provinceCode countryCodeV2 phone} ' +
     'lineItems(first:80){nodes{title variantTitle sku currentQuantity discountedUnitPriceAfterAllDiscountsSet{shopMoney{amount currencyCode}} ' +
-    'variant{inventoryItem{harmonizedSystemCode countryCodeOfOrigin measurement{weight{value unit}}}}}}}}';
+    'variant{inventoryItem{id harmonizedSystemCode countryCodeOfOrigin measurement{weight{value unit}}}}}}}}';
   var n = shopifyGraphQL(q, { id: 'gid://shopify/Order/' + id }).order;
   if (!n) throw new Error('Bestellung nicht gefunden');
   return n;
@@ -1117,8 +1117,9 @@ function dhlxPositionen_(n) {
     if (/-1G$/i.test(sku)) kg = 0.001;                              // Probe pro Gramm: Menge = Gramm
     var preis = Number(li.discountedUnitPriceAfterAllDiscountsSet && li.discountedUnitPriceAfterAllDiscountsSet.shopMoney.amount || 0);
     var desc = (oel ? 'Fragrance oil (perfume compound) - ' : alk ? 'Ethyl alcohol 96% - ' : '') + t + (li.variantTitle ? ' / ' + li.variantTitle : '');
+    var code = oel ? (sku.match(/^(.*?-SH)(?:-|$)/i) || [0, sku])[1] : sku;
     out.push({ desc: dhlCut_(desc.replace(/[^\x20-\x7E\xA0-\xFF]/g, ' '), 500), q: Number(li.currentQuantity), preis: Math.max(0.01, Math.round(preis * 100) / 100),
-      hs: hs.slice(0, 8), ur: ur, kg: Math.max(0.001, Math.round((kg || 0.05) * 1000) / 1000), alk: alk, sku: sku });
+      hs: hs.slice(0, 8), ur: ur, kg: Math.max(0.001, Math.round((kg || 0.05) * 1000) / 1000), alk: alk, sku: sku, code: code, inv: inv.id || '' });
   });
   return out;
 }
@@ -1187,6 +1188,17 @@ function dhlxLabel_(o) {
     var n = dhlxOrder_(id), em = dhlxEmpfaenger_(n, { tel: o.tel });
     if (em.land === 'DE') throw new Error('Inland → DHL Paket');
     var zoll = DHLX_EU.indexOf(em.land) < 0, pos = dhlxPositionen_(n), wae = n.currencyCode || 'EUR';
+    // Korrekturen aus der App (Beschreibung, Artikelcode, HS-Code, Ursprung, Preis) – gleiche Reihenfolge wie in der Vorbereitung
+    (o.pos || []).forEach(function (x, i) { var p = pos[i]; if (!p || !x) return;
+      if (String(x.desc || '').trim()) p.desc = dhlCut_(String(x.desc).replace(/[^\x20-\x7E\xA0-\xFF]/g, ' '), 500);
+      if (x.code != null) p.code = dhlCut_(x.code, 35);
+      var h = String(x.hs || '').replace(/\D/g, ''); if (h.length >= 6) p.hs = h.slice(0, 10);
+      var u = String(x.ur || '').trim().toUpperCase(); if (/^[A-Z]{2}$/.test(u)) p.ur = u;
+      var pr = Number(String(x.preis || '').replace(',', '.')); if (pr > 0) p.preis = Math.round(pr * 100) / 100; });
+    var hsGespeichert = 0;
+    if (o.hsSpeichern && !o.nurPruefen) pos.forEach(function (p) { if (!p.inv) return; try {
+      var u = shopifyGraphQL('mutation($id:ID!,$i:InventoryItemInput!){inventoryItemUpdate(id:$id,input:$i){inventoryItem{id} userErrors{message}}}', { id: p.inv, i: { harmonizedSystemCode: p.hs, countryCodeOfOrigin: p.ur } }).inventoryItemUpdate;
+      if (!(u.userErrors || []).length) hsGespeichert++; } catch (e) {} });
     var pk = (o.pakete && o.pakete.length ? o.pakete : [{ kg: o.kg || 1 }]).slice(0, 20).map(function (p) {
       var kg = Math.round(Number(String(p.kg).replace(',', '.')) * 1000) / 1000; if (!(kg > 0)) throw new Error('Gewicht fehlt');
       return { weight: kg, dimensions: { length: Math.max(1, Number(p.l) || 30), width: Math.max(1, Number(p.b) || 20), height: Math.max(1, Number(p.h) || 15) } };
@@ -1207,7 +1219,7 @@ function dhlxLabel_(o) {
       var inc = DHLX_DDP.indexOf(em.land) >= 0 ? 'DDP' : 'DAP';
       body.content.incoterm = inc;
       body.content.exportDeclaration = { exportReason: 'sale', exportReasonType: 'permanent', invoice: { number: ref, date: t.tag },
-        lineItems: pos.map(function (p, i) { return { number: i + 1, description: p.desc, price: p.preis, quantity: { value: p.q, unitOfMeasurement: 'PCS' },
+        lineItems: pos.map(function (p, i) { return { number: i + 1, description: dhlCut_(p.desc + (p.code ? ' [' + p.code + ']' : ''), 512), price: p.preis, quantity: { value: p.q, unitOfMeasurement: 'PCS' },
           commodityCodes: [{ typeCode: 'outbound', value: p.hs }], exportReasonType: 'permanent', manufacturerCountry: p.ur,
           weight: { netValue: Math.max(0.001, Math.round(p.kg * p.q * 1000) / 1000), grossValue: Math.max(0.001, Math.round(p.kg * p.q * 1100) / 1000) } }; }) };
       if (inc === 'DDP') body.valueAddedServices = [{ serviceCode: 'DD' }];
@@ -1237,7 +1249,7 @@ function dhlxLabel_(o) {
     info.shopify = shop;
     soSetzen_({ pw: o.pw, id: id, nr: n.name || o.nr, patch: { dhlx: info } });
     return { ok: true, nr: nr, b64s: labels.map(function (d) { return d.content; }), inv: inv.map(function (d) { return d.content; }), gedruckt: gedruckt, druckFehler: druckFehler,
-      shopify: shop, msgs: msgs, dhlx: info };
+      shopify: shop, msgs: msgs, dhlx: info, hsGespeichert: hsGespeichert };
   } finally { try { lock.releaseLock(); } catch (e) {} }
 }
 function dhlxShopifyVersand_(id, nr) {
