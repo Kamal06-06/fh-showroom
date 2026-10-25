@@ -2036,9 +2036,10 @@ async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phome
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
     if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
     if(kind==='ls'||kind==='lso')await prepImgs(lo);
-    const st=await srv('druckstatus').catch(()=>null);
+    const stP=srv('druckstatus').catch(()=>null);   /* parallel – spart eine Server-Runde */
     const blob=KINDS[kind].make(lo).output('blob');
     if(pre==='P-')await pmQueue(blob,fname(kind,lo));else await srv('druck',pre+fname(kind,lo),await blob64(blob));
+    const st=await stP;
     let msg='✓ أُرسلت إلى طابعة '+nm+' في المستودع';
     if(st&&!st.online)msg+=' — ⚠️ جهاز الطباعة في المستودع غير متصل الآن، ستُطبع فور تشغيله';
     btn.textContent=st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';alert(msg)}
@@ -4227,7 +4228,7 @@ async function soLsPrint(orders,btn,mode){const ob=btn.innerHTML;btn.disabled=tr
     const urls=[...new Set(orders.flatMap(o=>(o.items||[]).map(i=>i.img).filter(Boolean)))];let k=0;
     await Promise.all(Array.from({length:6},async()=>{while(k<urls.length){const u=urls[k++];await soImgLoad(u)}}));
     const blob=soLsPdf(orders).output('blob'),d=new Date(),nm='Lieferschein'+(orders.length>1?'e-'+orders.length+'x':'-'+soNr(orders[0]))+'-'+p2(d.getDate())+p2(d.getMonth()+1)+'-'+p2(d.getHours())+p2(d.getMinutes())+'.pdf';
-    if(mode==='a4'){const st=await srv('druckstatus').catch(()=>null);await srv('druck','A4-'+nm,await blob64(blob));
+    if(mode==='a4'){const stP=srv('druckstatus').catch(()=>null);await srv('druck','A4-'+nm,await blob64(blob));const st=await stP;
       btn.textContent=st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';toast(st&&!st.online?'⚠️ جهاز الطباعة في المستودع غير متصل – ستُطبع فور تشغيله':'✓ أُرسلت إلى طابعة A4 في المستودع ('+orders.length+')')}
     else{const file=new File([blob],nm,{type:'application/pdf'});btn.textContent='جاري الفتح…';
       try{await printPdf(blob)}catch(e){if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:nm});else download(nm,blob)}}

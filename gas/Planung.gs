@@ -921,16 +921,7 @@ var DHL_FELDER = { key: 'DHL_KEY', secret: 'DHL_SECRET', user: 'DHL_USER', pass:
 var DHL_FORMATE = { '910-300-610': 'Zebra · 103 × 199 mm (Rolle)', '910-300-410': 'Zebra · 103 × 150 mm (Rolle)', 'A4': 'A4 · Brother' };
 function dhlFormat_() { var f = PropertiesService.getScriptProperties().getProperty('DHL_FORMAT'); return DHL_FORMATE[f] ? f : '910-300-610'; }
 /** Etikett sofort in die Druck-Warteschlange – als Skript-Eigenschaft (schnell, ohne Drive-Datei). Zu groß → wie bisher über Drive. Mini-PC holt es mit srDruckHolen_. */
-function dhlDruckSchnell_(name, b64) {
-  var n = String(name || 'Etikett.pdf').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss').replace(/[^A-Za-z0-9 ._-]/g, '-').slice(0, 80);
-  if (!/\.pdf$/i.test(n)) n += '.pdf';
-  var v = JSON.stringify({ n: n, b: b64 });
-  if (v.length > 8800) return srDruck_(n, b64);
-  var p = PropertiesService.getScriptProperties();
-  p.setProperty('SRQ_' + Date.now() + '_' + Math.floor(Math.random() * 1e6), v);
-  p.setProperty('SR_DRUCK', String(Date.now()));
-  return 'q';
-}
+function dhlDruckSchnell_(name, b64) { return srDruck_(name, b64); }   // srDruck_ nutzt jetzt selbst den schnellen Zwischenspeicher
 function dhlDruckName_(datei) { return (dhlFormat_() === 'A4' ? 'A4-' : 'Z-') + datei; }
 
 function dhlCfg_() {
