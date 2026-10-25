@@ -166,7 +166,7 @@ function plKunden_() {
              u: Math.round((Number(r[7]) || 0) * 100) / 100, a: String(r[8]).slice(0, 10), l: String(r[9]).slice(0, 10),
              t: Object.keys(a).sort(function (x, y) { return a[y] - a[x]; }).slice(0, 3) };
   });
-  var s = JSON.stringify({ at: Date.now(), stand: plStand_(), k: out });
+  var s = JSON.stringify({ at: Date.now(), stand: plStand_(), k: out, kontakt: plKontakte_(), abmeld: plAbmeldungen_() });
   try { cache.put('PL_KUNDEN', s, 1800); } catch (e) {}   // > 100 KB: ohne Cache
   return s;
 }
@@ -178,6 +178,44 @@ function plSetup() {
   if (!da) ScriptApp.newTrigger('plSync').timeBased().everyHours(1).create();
   return plSync();
 }
+
+
+/* ---------- Kontakt-Protokoll & Abmeldungen (für alle Geräte gleich) ---------- */
+var PL_KONTAKT = 'Kunden-Kontakte', PL_ABMELD = 'Kunden-Abmeldungen';
+function plLogBlatt_(name, kopf) {
+  var ss = lagerSS_(), sh = ss.getSheetByName(name);
+  if (!sh) { sh = ss.insertSheet(name); sh.getRange(1, 1, 1, kopf.length).setValues([kopf]).setFontWeight('bold'); sh.setFrozenRows(1); sh.getRange('A:Z').setNumberFormat('@'); }
+  return sh;
+}
+function plKontaktLog_(rows) {   // rows: [[E-Mail, Name, Betreff, Art]]
+  if (!rows.length) return;
+  var sh = plLogBlatt_(PL_KONTAKT, ['Datum', 'E-Mail', 'Name', 'Betreff', 'Art', 'Von']), t = new Date().toISOString();
+  sh.getRange(sh.getLastRow() + 1, 1, rows.length, 6).setValues(rows.map(function (r) { return [t, String(r[0]).toLowerCase(), r[1] || '', r[2] || '', r[3] || '', SR_USER || '']; }));
+  CacheService.getScriptCache().remove('PL_KUNDEN');
+}
+function plKontakte_() {   // E-Mail → letzter Kontakt (ms), letzte 90 Tage
+  var sh = lagerSS_().getSheetByName(PL_KONTAKT), m = {}, g = Date.now() - 90 * 864e5;
+  if (sh && sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues().forEach(function (r) {
+    var t = new Date(r[0]).getTime(), e = String(r[1]).toLowerCase(); if (e && t > g && (!m[e] || t > m[e])) m[e] = t; });
+  return m;
+}
+function plAbmeldungen_() {
+  var sh = lagerSS_().getSheetByName(PL_ABMELD), m = {};
+  if (sh && sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues().forEach(function (r) { var e = String(r[1]).toLowerCase(); if (e) m[e] = 1; });
+  return m;
+}
+/** Abmeldung setzen/aufheben: o = {e, name, on} */
+function plOptout_(o) {
+  if (!SR_ADMIN) throw new Error('NUR_INHABER');
+  var e = String(o && o.e || '').trim().toLowerCase(); if (!e) throw new Error('E-Mail fehlt');
+  var sh = plLogBlatt_(PL_ABMELD, ['Datum', 'E-Mail', 'Name', 'Von']), n = sh.getLastRow();
+  if (n > 1) { var v = sh.getRange(2, 2, n - 1, 1).getValues(); for (var i = v.length - 1; i >= 0; i--) if (String(v[i][0]).toLowerCase() === e) sh.deleteRow(i + 2); }
+  if (o.on) sh.appendRow([new Date().toISOString(), e, o.name || '', SR_USER || '']);
+  CacheService.getScriptCache().remove('PL_KUNDEN');
+  return true;
+}
+/** „Tel./WhatsApp kontaktiert“ oder manuell „✓ تم التواصل“ ebenfalls protokollieren */
+function plKontaktSetzen_(o) { if (!SR_ADMIN) throw new Error('NUR_INHABER'); plKontaktLog_([[o.e || o.k || '', o.name || '', '', o.art || 'manuell']]); return true; }
 
 /** HTML-Fassung der Kunden-E-Mail (Firmenkopf, klickbare Links) */
 function plHtml_(text) {
@@ -205,6 +243,7 @@ function plMail_(o) {
   var von = plVon_(), text = String(o.b || '');
   GmailApp.sendEmail(to, String(o.s || 'Fragrance Hub Germany').slice(0, 200), text,
     { from: von, name: 'Fragrance Hub Germany', replyTo: 'info@fragranceshub.de', htmlBody: plHtml_(text) });
+  plKontaktLog_([[to, o.name || '', o.s || '', 'E-Mail']]);
   return { ok: true, von: von };
 }
 
@@ -214,16 +253,18 @@ function plQuota_() { if (!SR_ADMIN) throw new Error('NUR_INHABER'); return { fr
 /** Sammelversand: liste = [{k, to, s, b}] – jede E-Mail einzeln (persönlich), stoppt beim Tageskontingent */
 function plMailBulk_(liste) {
   if (!SR_ADMIN) throw new Error('NUR_INHABER');
-  var von = plVon_(), ok = [], fehler = [], frei = MailApp.getRemainingDailyQuota();
+  var von = plVon_(), ok = [], fehler = [], frei = MailApp.getRemainingDailyQuota(), abm = plAbmeldungen_(), log = [];
   (liste || []).slice(0, 25).forEach(function (o) {
     if (frei <= 0) return;
     var to = String(o.to || '').trim();
     if (!PL_MAIL_RX.test(to)) { fehler.push({ k: o.k, e: 'Adresse ungültig' }); return; }
+    if (abm[to.toLowerCase()]) { fehler.push({ k: o.k, e: 'abgemeldet' }); return; }
     try {
       GmailApp.sendEmail(to, String(o.s || '').slice(0, 200), String(o.b || ''),
         { from: von, name: 'Fragrance Hub Germany', replyTo: 'info@fragranceshub.de', htmlBody: plHtml_(o.b) });
-      ok.push(o.k); frei--;
+      ok.push(o.k); frei--; log.push([to, o.name || '', o.s || '', 'E-Mail (Sammelversand)']);
     } catch (e) { fehler.push({ k: o.k, e: e.message }); if (/limit|quota|kontingent/i.test(e.message)) frei = 0; }
   });
+  try { plKontaktLog_(log); } catch (e) { Logger.log('Kontakt-Log: ' + e.message); }
   return { ok: ok, fehler: fehler, frei: Math.max(0, frei) };
 }
