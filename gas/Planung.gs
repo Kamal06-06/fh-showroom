@@ -651,3 +651,87 @@ function plPruefungEinrichten() {
   ScriptApp.newTrigger('plPruefungTaeglich').timeBased().everyDays(1).atHour(7).nearMinute(45).inTimezone('Europe/Berlin').create();
   return plPruefungJetzt();
 }
+
+/* =====================================================================
+   🛒 Shop-Bestellungen in der Showroom-App (eigener Bereich, eigenes Passwort)
+   • nur LESEN aus Shopify + Vorbereitungsstand im Blatt "Shop-Vorbereitung"
+   • KEIN Einfluss auf Lager, Inventur, Kundenkonten (eigene Daten, nicht in "lists")
+   App-Aktionen: so_list, so_set, so_pw (Passwort setzen, nur Inhaber), so_info
+   ===================================================================== */
+var SO_BLATT = 'Shop-Vorbereitung';
+function soHash_(pw) { return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, 'fh-shop|' + String(pw || ''), Utilities.Charset.UTF_8)); }
+function soPruefen_(pw) {
+  var h = PropertiesService.getScriptProperties().getProperty('SO_PW');
+  if (!h) throw new Error('SO_KEIN_PW');
+  if (soHash_(pw) !== h) throw new Error('SO_PW_FALSCH');
+}
+function soInfo_() { return { pw: !!PropertiesService.getScriptProperties().getProperty('SO_PW') }; }
+function soPwSetzen_(o) {
+  if (!SR_ADMIN) throw new Error('NUR_INHABER');
+  var neu = String(o && o.neu || '');
+  if (neu.length < 4) throw new Error('Passwort zu kurz (mind. 4 Zeichen)');
+  PropertiesService.getScriptProperties().setProperty('SO_PW', soHash_(neu));
+  return true;
+}
+function soBlatt_() {
+  var ss = lagerSS_(), sh = ss.getSheetByName(SO_BLATT);
+  if (!sh) { sh = ss.insertSheet(SO_BLATT); sh.getRange(1, 1, 1, 4).setValues([['Bestell-ID', 'Bestellung', 'Stand (JSON)', 'Geändert']]).setFontWeight('bold'); sh.setFrozenRows(1); sh.getRange('A:B').setNumberFormat('@'); }
+  return sh;
+}
+function soStaende_() {
+  var sh = soBlatt_(), n = sh.getLastRow(), m = {};
+  if (n > 1) sh.getRange(2, 1, n - 1, 3).getValues().forEach(function (r, i) { try { m[String(r[0])] = { row: i + 2, d: JSON.parse(r[2] || '{}') }; } catch (e) {} });
+  return m;
+}
+function soShopHandle_() {
+  var p = PropertiesService.getScriptProperties(), h = p.getProperty('SO_SHOP_HANDLE');
+  if (!h) { try { h = String(shopifyGraphQL('{ shop { myshopifyDomain } }').shop.myshopifyDomain).replace('.myshopify.com', ''); p.setProperty('SO_SHOP_HANDLE', h); } catch (e) { h = ''; } }
+  return h;
+}
+var SO_TIER = { S: 'Standard', P: 'Premium', E: 'Exklusiv' };
+function soPosition_(li) {
+  var q = Number(li.currentQuantity) || 0, vt = String(li.variantTitle || ''), p = lagerParseSku_(li.sku, li.title, li.variantTitle);
+  if (p && p.item.oil) {
+    var probe = /pro\s*gramm/i.test(vt), g = Math.round(p.menge * 1000 * 1000) / 1000;
+    var size = probe ? q + ' g' : (g >= 1000 ? (g / 1000) + ' kg' : g + ' g');
+    return { t: li.title, a: '', oil: 1, code: p.item.code, tier: SO_TIER[String(p.item.tier).charAt(0)] || 'Standard', size: size, q: probe ? 1 : q, sku: li.sku || '', probe: probe || g <= 20, vt: vt };
+  }
+  return { t: li.title, oil: 0, code: '', size: vt, q: q, sku: li.sku || '', vt: vt };
+}
+/** offene Shop-Bestellungen (nicht versendet, nicht storniert, letzte 21 Tage) */
+function soListe_(o) {
+  soPruefen_(o && o.pw);
+  var ab = Utilities.formatDate(new Date(Date.now() - 21 * 864e5), 'UTC', "yyyy-MM-dd'T'HH:mm:ss'Z'");
+  var q = "created_at:>='" + ab + "' -status:cancelled -fulfillment_status:shipped -financial_status:refunded -financial_status:voided";
+  var felder = 'id name createdAt displayFinancialStatus displayFulfillmentStatus note tags email phone ' +
+    'customer { displayName } shippingAddress { name company address1 address2 zip city countryCodeV2 phone } shippingLine { title } ' +
+    'currentSubtotalPriceSet { shopMoney { amount } } lineItems(first: 60) { nodes { title variantTitle sku currentQuantity } }';
+  var nodes = shopifyGraphQL('query($q:String!){orders(first:60,query:$q,sortKey:CREATED_AT,reverse:true){nodes{' + felder + '}}}', { q: q }).orders.nodes;
+  var st = soStaende_(), handle = soShopHandle_();
+  var out = nodes.map(function (n) {
+    var id = String(n.id).split('/').pop(), a = n.shippingAddress || {};
+    var items = (n.lineItems.nodes || []).filter(function (li) { return Number(li.currentQuantity) > 0; }).map(soPosition_);
+    return { id: id, nr: n.name, at: new Date(n.createdAt).getTime(), fin: n.displayFinancialStatus, ful: n.displayFulfillmentStatus,
+      kunde: (a.company || a.name || (n.customer && n.customer.displayName) || ''), name: a.name || '', firma: a.company || '',
+      adr: [a.address1, a.address2, (a.zip || '') + ' ' + (a.city || '')].filter(function (x) { return String(x || '').trim(); }), land: a.countryCodeV2 || '',
+      tel: a.phone || n.phone || '', email: n.email || '', versand: (n.shippingLine && n.shippingLine.title) || '', notiz: n.note || '',
+      netto: Number(n.currentSubtotalPriceSet && n.currentSubtotalPriceSet.shopMoney.amount || 0), tags: n.tags || [],
+      items: items, stand: (st[id] && st[id].d) || {}, admin: handle ? 'https://admin.shopify.com/store/' + handle + '/orders/' + id : '' };
+  });
+  return { at: Date.now(), orders: out };
+}
+/** Vorbereitungsstand speichern: o = { pw, id, nr, patch:{prep, lots, ready} } */
+function soSetzen_(o) {
+  soPruefen_(o && o.pw);
+  var id = String(o.id || ''); if (!/^\d+$/.test(id)) throw new Error('Bestellung fehlt');
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    var sh = soBlatt_(), st = soStaende_(), alt = (st[id] && st[id].d) || {}, p = o.patch || {};
+    Object.keys(p).forEach(function (k) { alt[k] = p[k]; });
+    if (p.ready === true) { alt.readyAt = Date.now(); alt.readyBy = SR_USER || ''; }
+    if (p.ready === false) { delete alt.readyAt; delete alt.readyBy; }
+    var zeile = [id, String(o.nr || ''), JSON.stringify(alt), new Date()];
+    if (st[id]) sh.getRange(st[id].row, 1, 1, 4).setValues([zeile]); else sh.appendRow(zeile);
+    return alt;
+  } finally { lock.releaseLock(); }
+}

@@ -530,6 +530,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
   <button class="nv" id="nv-lg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>المخزون</span></button>
   <button class="nv side-only" id="nv-inv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9zM7 5H5v16h14V5h-2"/><path d="M8 12l2 2 4-4M8 17h8"/></svg><span>الجرد · Inventur</span></button>
   <button class="nv" id="nv-cash"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg><span>الصندوق</span></button>
+  <button class="nv side-only" id="nv-shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.4 10.2a1.5 1.5 0 001.5 1.1h8.6a1.5 1.5 0 001.5-1.1L21 7H6"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17.5" cy="19.5" r="1.3"/></svg><span>طلبات المتجر</span></button>
   <button class="nv side-only" id="nv-cust"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/></svg><span>العملاء</span></button>
   <button class="nv side-only adm-only" id="nv-acc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/></svg><span>حسابات العملاء</span></button>
   <button class="nv side-only" id="nv-done"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg><span>المكتملة</span></button>
@@ -562,6 +563,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <button class="tile" id="h-lg"><span class="ic">📦</span><b>المخزون</b><span>وارد · صادر · جرد · ملصقات QR</span></button>
       <button class="tile" id="h-inv"><span class="ic">📋</span><b>الجرد حسب الرفوف</b><span>Inventur nach Regal · مسح QR</span><span class="cnt" id="h-inv-n"></span></button>
       <button class="tile" id="h-cust"><span class="ic">👥</span><b>العملاء</b><span>كل عميل وطلباته</span><span class="cnt" id="h-cust-n"></span></button>
+      <button class="tile" id="h-shop"><span class="ic">🛒</span><b>طلبات المتجر</b><span>طلبات Shopify · ملصقات · تحضير</span><span class="cnt" id="h-shop-n"></span></button>
       <button class="tile" id="h-cash"><span class="ic">🏦</span><b>الصندوق والمصروفات</b><span>نقد المستودع · مصروفات · فواتير</span><span class="cnt" id="h-cash-n"></span></button>
       <button class="tile adm-only" id="h-acc"><span class="ic">💶</span><b>حسابات العملاء</b><span>مدفوع · غير مدفوع · كشف حساب</span><span class="cnt" id="h-due"></span></button>
     </div>
@@ -1079,6 +1081,7 @@ function openDebtSheet(d,presetName){
 }
 $('cu-new').onclick=$('acc-new').onclick=()=>openCustSheet(null);
 $('cu-debt').onclick=$('acc-debt').onclick=()=>openDebtSheet(null);
+$('h-shop').onclick=()=>{drawer(false);shopOpen()};$('nv-shop').onclick=()=>$('h-shop').click();
 $('cu-prof').onclick=()=>plSheet('stop');
 function renderCust(){
   const q=nz($('cu-q').value),box=$('cu-list');box.textContent='';
@@ -2108,7 +2111,7 @@ const CLP_L={
   PL:{i:7,sig:{Gefahr:'Niebezpieczeństwo',Achtung:'Uwaga'},enth:'Zawiera',menge:'Ilość netto',typ:'Olejek zapachowy · Fragrance Oil',qr:'Zamów ponownie'}};
 /* Rückverfolgung auf dem Etikett: EINE Charge (Werks-Batch) + Abfülldatum (= Auftragsdatum) + Auftragsnummer */
 const CLP_LOT={DE:{b:'Charge',f:'Abfülldatum',o:'Auftrag'},EN:{b:'Batch',f:'Filling date',o:'Order'},NL:{b:'Batch',f:'Vuldatum',o:'Bestelling'},FR:{b:'Lot',f:'Date de remplissage',o:'Commande'},IT:{b:'Lotto',f:'Data di riempimento',o:'Ordine'},ES:{b:'Lote',f:'Fecha de envasado',o:'Pedido'},PL:{b:'Partia',f:'Data napełnienia',o:'Zamówienie'}};
-const ordNr=l=>'AP-'+stamp(l),ordDatum=l=>new Date(l.offerAt||l.at||Date.now()).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Europe/Berlin'});
+const ordNr=l=>l.shopNr||('AP-'+stamp(l)),ordDatum=l=>new Date(l.offerAt||l.at||Date.now()).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Europe/Berlin'});
 const CLP_TAG={
   DE:'Hochkonzentriertes Premium-Duftöl · Qualitätsgeprüft & chargenrückverfolgbar. Nicht unverdünnt auf die Haut auftragen. Sicherheitsdatenblatt auf Anfrage.',
   EN:'Highly concentrated premium fragrance oil · Quality-tested & batch-traceable. Do not apply undiluted to the skin. Safety data sheet available on request.',
@@ -2255,7 +2258,7 @@ async function clpLocal(l){
   const cust=eigen?eigen.split(/\s*[,;|\n]\s*/).filter(Boolean):null,logo=eigen&&l.clpLogo?await clpImg(l.clpLogo).catch(()=>null):null;
   const anz=it=>it.unit==='kg'?1:Math.max(1,Math.round(+it.q||1));
   const gross=[],proben=[],fehlend=[];
-  oils.forEach(it=>(/^6\s*g$/i.test(String(it.size||'').trim())?proben:gross).push(it));
+  oils.forEach(it=>(it.probe||/^6\s*g$/i.test(String(it.size||'').trim())?proben:gross).push(it));
   const files=[],tag=(l._part?'-Auswahl':'')+'-'+clpName_(l)+'.pdf';
   if(gross.length){
     const pikIds={};const jobs=[];
@@ -3637,6 +3640,81 @@ function pickHandle(text){
   if(!$('omodal').hidden)try{renderOrderModal()}catch(e){}
   if(!left)setTimeout(()=>{camMsg('✅ كل الزيوت جاهزة · Alle Öle bereit','ok');setTimeout(camStop,1600)},700);
 }
+
+/* ---------- 🛒 Shop-Bestellungen: eigener Bereich mit Passwort – liest nur aus Shopify, KEIN Einfluss auf Lager, Inventur oder Kundenkonten ---------- */
+let SO={orders:[],at:0},soTab='open',soSel=null;
+const soPw=()=>{const x=LS.get('soPw',null);return x&&Date.now()-x.t<12*3600e3?x.p:''};
+const soCall=(a,o)=>srv(a,JSON.stringify(Object.assign({pw:soPw()},o||{})));
+const SO_FLAG=c=>String(c||'').toUpperCase().replace(/./g,ch=>String.fromCodePoint(127397+ch.charCodeAt(0)));
+const soShip=o=>String(o.land||'DE').toUpperCase()==='DE'?'DHL Paket':'DHL Express';
+const soPrep=o=>{const st=o.stand||{},n=(o.items||[]).length,c=(st.prep||[]).filter(Boolean).length;return {n,c,ready:!!st.readyAt}};
+/* Shop-Bestellung → Auftrags-Objekt nur für Etiketten (wird nirgends gespeichert) */
+const soAsList=o=>({id:'so'+o.id,customer:o.kunde,country:o.land,at:o.at,shopNr:o.nr,items:o.items.map(i=>Object.assign({},i)),lots:(o.stand||{}).lots||{}});
+function shopPwSheet(after,setMode){
+  openSheet(setMode?'🔑 كلمة سر طلبات المتجر':'🔒 طلبات المتجر',b=>{
+    b.append(el('p','hint',setMode?'اختر كلمة سر لقسم طلبات المتجر (4 أحرف على الأقل). يحتاجها كل من يفتح هذا القسم.':'هذا القسم محمي بكلمة سر.'));
+    const i=el('input');i.type='password';i.placeholder='كلمة السر';i.autocomplete='off';i.dir='ltr';const m=el('div','status');m.hidden=true;
+    const go=el('button','btn primary big',setMode?'حفظ كلمة السر':'فتح');b.append(i,go,m);setTimeout(()=>i.focus(),50);
+    const run=async()=>{const v=i.value;if(!v)return;go.disabled=true;m.hidden=false;m.classList.remove('err');m.textContent='…';
+      try{if(setMode){await srv('so_pw',JSON.stringify({neu:v}))}LS.set('soPw',{p:v,t:Date.now()});await soLoad(true);closeSheet();after&&after()}
+      catch(e){LS.set('soPw',null);m.classList.add('err');m.textContent=/SO_PW_FALSCH/.test(e.message)?'كلمة السر غير صحيحة':/SO_KEIN_PW/.test(e.message)?'لم تُحدَّد كلمة سر بعد – يحددها المدير أولاً':e.message;go.disabled=false}};
+    go.onclick=run;i.onkeydown=e=>{if(e.key==='Enter')run()}})}
+async function soLoad(force){if(!force&&SO.at&&Date.now()-SO.at<60e3)return SO;const r=await soCall('so_list');SO=r;try{const n=r.orders.filter(o=>!soPrep(o).ready).length;const c=$('h-shop-n');if(c)c.textContent=n||''}catch(e){}return SO}
+async function shopOpen(){
+  if(!soPw()){let info={pw:true};try{info=await srv('so_info')}catch(e){}
+    if(!info.pw){if(isAdmin())return shopPwSheet(shopOpen,true);return alert('لم تُحدَّد كلمة سر لطلبات المتجر بعد – يحددها المدير أولاً.')}
+    return shopPwSheet(shopOpen,false)}
+  openSheet('🛒 طلبات المتجر',async b=>{
+    const st=el('p','hint','جاري التحميل…');b.append(st);
+    try{await soLoad()}catch(e){if(/SO_PW_FALSCH|SO_KEIN_PW/.test(e.message)){LS.set('soPw',null);closeSheet();return shopOpen()}st.textContent='⚠️ '+e.message;return}
+    soSel?soDetail(b,soSel):soListView(b)})}
+function soListView(b){b.textContent='';
+  const top=el('div','row');top.style.cssText='gap:6px;flex-wrap:wrap;margin:4px 0 8px';
+  const T=[['open','📦 للتحضير'],['ready','✅ جاهزة'],['all','الكل']];
+  const cnt=k=>SO.orders.filter(o=>k==='all'||(k==='ready')===soPrep(o).ready).length;
+  T.forEach(([k,t])=>{const x=el('button','btn small'+(soTab===k?' primary':''),t+' ('+cnt(k)+')');x.onclick=()=>{soTab=k;soListView(b)};top.append(x)});
+  const rf=el('button','btn small','🔄');rf.onclick=async()=>{rf.disabled=true;try{await soLoad(true)}catch(e){}soListView(b)};top.append(rf);
+  if(isAdmin()){const pw=el('button','btn small','🔑');pw.title='تغيير كلمة السر';pw.onclick=()=>shopPwSheet(null,true);top.append(pw)}
+  b.append(top,el('p','hint','طلبات Shopify غير المشحونة (آخر 21 يوماً). هذا القسم لا يغيّر المخزون ولا الجرد ولا حسابات العملاء.'));
+  const L=SO.orders.filter(o=>soTab==='all'||(soTab==='ready')===soPrep(o).ready).sort((a,c)=>a.at-c.at);
+  if(!L.length)b.append(el('p','hint','لا توجد طلبات ✅'));
+  L.forEach(o=>{const pr=soPrep(o),r=el('button','card');r.style.cssText='display:block;width:100%;text-align:start;padding:10px 12px;margin:8px 0;font:inherit;color:var(--ink);cursor:pointer';
+    const h=el('div','row');h.style.cssText='justify-content:space-between;gap:8px';
+    h.append(el('b',null,o.nr+' · '+o.kunde),el('span','pay '+(pr.ready?'paid':pr.c?'part':'open'),pr.ready?'✅ جاهز':pr.c+' / '+pr.n));
+    const oils=o.items.filter(i=>i.oil).length;
+    r.append(h,el('div','time',SO_FLAG(o.land)+' '+o.land+' · '+soShip(o)+' · '+new Date(o.at).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})+' · '+o.items.length+' صنف'+(oils?' ('+oils+' زيت)':'')+(/AUTHORIZED|PENDING/.test(o.fin)?' · ⏳ الدفع معلّق':'')));
+    r.onclick=()=>{soSel=o.id;soDetail(b,o.id)};b.append(r)})}
+function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;return soListView(b)}b.textContent='';
+  const st=o.stand=o.stand||{},chk=st.prep=st.prep||[];const save=async patch=>{try{o.stand=await soCall('so_set',{id:o.id,nr:o.nr,patch})}catch(e){toast('⚠️ '+e.message)}};
+  const back=el('button','btn small','← كل طلبات المتجر');back.onclick=()=>{soSel=null;soListView(b)};b.append(back);
+  const hd=el('div','card');hd.style.cssText='padding:10px 12px;margin:8px 0';
+  hd.append(el('b',null,o.nr+' · '+o.kunde),el('div','time',new Date(o.at).toLocaleString('de-DE')+' · '+SO_FLAG(o.land)+' '+o.land+' · '+(o.versand||soShip(o))));
+  const ad=el('div','note');ad.dir='ltr';ad.style.whiteSpace='pre-line';ad.textContent=[o.firma,o.name].filter(Boolean).join(' – ')+'\n'+o.adr.join('\n')+(o.tel?'\n☎ '+o.tel:'');hd.append(ad);
+  if(o.notiz)hd.append(el('div','note','📝 '+o.notiz));b.append(hd);
+  const l=soAsList(o);
+  o.items.forEach((it,ix)=>{const r=el('label','ivrow');r.style.gridTemplateColumns='auto 1fr';const cb=document.createElement('input');cb.type='checkbox';cb.checked=!!chk[ix];
+    cb.onchange=()=>{chk[ix]=cb.checked;save({prep:chk});pc.textContent=chk.filter(Boolean).length+' / '+o.items.length};
+    const inf=el('div','ivinfo');inf.append(el('div','ivname',it.q+' × '+it.t+(it.oil?' · '+it.tier:'')));
+    inf.append(el('div','ivtn',(it.oil?it.code+' · '+it.size:(it.size||''))+(it.sku&&!it.oil?' · '+it.sku:'')));
+    if(it.oil){const lo=lotNow(it);if(lo)inf.append(el('div','ivtn','الدفعة · Charge: '+lo.b))}
+    else{try{const a=arDesc(it.t,it.vt);if(a)inf.append(el('div','ivtn',a))}catch(e){}}
+    r.append(cb,inf);b.append(r)});
+  const pc=el('p','note',chk.filter(Boolean).length+' / '+o.items.length);b.append(pc);
+  const act=el('div','row');act.style.cssText='gap:8px;flex-wrap:wrap;margin:10px 0';
+  if(o.items.some(i=>i.oil)){
+    const ep=el('button','btn primary','🖨️ ملصقات CLP → الطابعة');ep.onclick=()=>epsonPrint(l,ep);
+    const pdf=el('button','btn','📄 ملصقات PDF');pdf.onclick=async()=>{pdf.disabled=true;try{const r=await clpMake(l);for(const f of r.files){const file=new File([f.blob],f.name.replace(/\.pdf$/i,'')+' '+o.nr.replace(/\D/g,'')+'.pdf',{type:'application/pdf'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:file.name})}catch(e){}}else{const a=document.createElement('a');a.href=URL.createObjectURL(f.blob);a.download=file.name;a.click()}}
+      if(r.fehlend&&r.fehlend.length)alert('بدون ملصق: '+r.fehlend.join('، '))}catch(e){alert(e.message)}pdf.disabled=false};
+    act.append(ep,pdf)}
+  const rd=el('button','btn'+(st.readyAt?'':' primary'),st.readyAt?'↺ إلغاء «جاهز»':'✅ جاهز للشحن');
+  rd.onclick=async()=>{rd.disabled=true;const on=!st.readyAt;const lots={};if(on)o.items.forEach((it,ix)=>{if(it.oil){const lo=lotNow(it);if(lo)lots[ix]={b:lo.b,fc:lo.fc}}});
+    await save(on?{ready:true,prep:o.items.map(()=>true),lots}:{ready:false});soDetail(b,o.id)};
+  act.append(rd);
+  const sh=el('button','btn','📦 ملصق الشحن · '+soShip(o));sh.onclick=()=>alert('ربط '+soShip(o)+' قيد التجهيز.\nحالياً: أنشئ ملصق الشحن من صفحة الطلب في Shopify.');act.append(sh);
+  if(o.admin&&isAdmin()){const a=el('a','btn','🔗 Shopify');a.href=o.admin;a.target='_blank';a.rel='noopener';act.append(a)}
+  b.append(act);
+  if(st.readyAt)b.append(el('p','time','✅ جاهز '+new Date(st.readyAt).toLocaleString('de-DE')+(st.readyBy?' · '+st.readyBy:'')))}
 
 /* ---------- Kundenprofile & Reaktivierung (Shop + Showroom, nur Inhaber) ---------- */
 var PLK=null,plkP=null;
