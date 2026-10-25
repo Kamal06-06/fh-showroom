@@ -27,7 +27,7 @@ function srDruckHolen_(immer) {
   while (true) {
     if (erst || c.get('SR_NEU')) {
       c.remove('SR_NEU');
-      var out = srDruckSammeln_(p, c, immer || erst);
+      var out = srDruckSammeln_(p, c, immer);
       if (out.length) return out;
     }
     erst = false;
