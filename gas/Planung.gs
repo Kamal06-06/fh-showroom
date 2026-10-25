@@ -526,3 +526,44 @@ function plTelegramBot() {
   Logger.log('Bot: @' + me.username + ' (' + me.first_name + ') · Berichte-Chat: ' + (PropertiesService.getScriptProperties().getProperty('TELEGRAM_CHAT_BERICHTE') || 'noch nicht verbunden'));
   return me.username;
 }
+
+/* =====================================================================
+   Etiketten nur tagsüber: 07:00–19:00 (Berlin). Bestellungen von 19:00–07:00 bleiben liegen
+   und werden ab 07:00 automatisch nacheinander gesendet (5 Bestellungen je Lauf, Lauf alle 5 Min.).
+   /neu in der Gruppe funktioniert weiterhin jederzeit.
+   ===================================================================== */
+var PL_ETK_VON = 7, PL_ETK_BIS = 19;
+function plEtikettZeit_() { var h = Number(Utilities.formatDate(new Date(), 'Europe/Berlin', 'H')); return h >= PL_ETK_VON && h < PL_ETK_BIS; }
+/** ersetzt processEtiketten aus CLP-Etikett.gs (gleicher Ablauf, nur mit Zeitfenster) */
+function processEtiketten() {
+  if (!plEtikettZeit_()) return;                 // nachts nichts senden – ab 07:00 wird nachgeholt
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;
+  var start = Date.now();
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var ab = props.getProperty('ETK_START_DATE');
+    if (!ab) throw new Error('Bitte zuerst setupEtiketten() ausführen.');
+    var orders = etHoleBestellungen_("created_at:>='" + ab + "' -status:cancelled -tag:" + ETIKETT.tag, ETIKETT.maxBestellungenProLauf);
+    if (!orders.length) return;
+    var map = loadCodeMap();
+    orders.forEach(function (order) {
+      if (Date.now() - start > 4 * 60 * 1000) return;
+      if ((order.tags || []).indexOf(ETIKETT.tag) > -1) return;
+      if (props.getProperty('etk_' + order.id)) return;
+      try {
+        etVerarbeiteBestellung_(order, map);
+        addTag(order.id, ETIKETT.tag);
+        props.setProperty('etk_' + order.id, '1');
+      } catch (e) {
+        if (!props.getProperty('etkerr_' + order.id)) {
+          props.setProperty('etkerr_' + order.id, '1');
+          var fehlerText = 'Die Etiketten für ' + order.name + ' konnten nicht erstellt werden:\n\n' + e.message;
+          if (ETIKETT.emailSenden) MailApp.sendEmail(ETIKETT.empfaenger, 'Fehler bei Etiketten ' + order.name, fehlerText);
+          else etTelegram_('❌ ' + fehlerText, null);
+        }
+        Logger.log(order.name + ': ' + e.message);
+      }
+    });
+  } finally { lock.releaseLock(); }
+}
