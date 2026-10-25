@@ -972,23 +972,27 @@ function dhlStrasse_(s) {
   return [s, ''];
 }
 function dhlCut_(s, n) { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n) : s; }
+/** DHL erlaubt je Namenszeile max. 35 Zeichen → an einem Leerzeichen teilen: [Zeile 1, Rest] */
+function dhlTeil_(s) { s = String(s || '').replace(/\s+/g, ' ').trim(); if (s.length <= 35) return [s, ''];
+  var i = s.lastIndexOf(' ', 35); if (i < 10) i = 35; return [s.slice(0, i).trim(), dhlCut_(s.slice(i), 35)]; }
 /** Shopify-Bestellung → DHL-Empfänger (Hausadresse, Packstation oder Postfiliale) */
 function dhlEmpfaenger_(a, email) {
-  var name = dhlCut_(a.name, 50), firma = dhlCut_(a.company, 50), zeilen = [a.address1, a.address2].join(' ');
+  var name = String(a.name || '').replace(/\s+/g, ' ').trim(), firma = String(a.company || '').replace(/\s+/g, ' ').trim(), zeilen = [a.address1, a.address2].join(' ');
   var postNr = (zeilen.match(/(?:post\s*nr|postnummer|kundennr|kd\.?\s*nr)\.?\s*:?\s*(\d{6,10})/i) || zeilen.match(/\b(\d{6,10})\b/) || [])[1] || '';
   var ps = zeilen.match(/packstation\s*(?:nr\.?)?\s*(\d{3})/i), pf = zeilen.match(/(?:postfiliale|filiale|paketshop)\s*(?:nr\.?)?\s*(\d{3,4})/i);
   var w = [];
   if (ps || pf) {
     if (!postNr) w.push('Packstation/Filiale ohne Postnummer – DHL lehnt das ab');
-    var e = { name: name || firma, postNumber: postNr, postalCode: String(a.zip || '').trim(), city: dhlCut_(a.city, 40) };
+    var e = { name: dhlCut_(name || firma, 35), postNumber: postNr, postalCode: String(a.zip || '').trim(), city: dhlCut_(a.city, 40) };
     if (ps) e.lockerID = Number(ps[1]); else e.retailID = Number(pf[1]);
     return { e: e, typ: ps ? 'Packstation ' + ps[1] : 'Postfiliale ' + pf[1], w: w };
   }
   var st = dhlStrasse_(a.address1);
   if (!st[1]) w.push('Keine Hausnummer erkannt: „' + (a.address1 || '') + '“');
-  var e2 = { name1: firma || name, addressStreet: dhlCut_(st[0], 50), postalCode: String(a.zip || '').trim(), city: dhlCut_(a.city, 40), country: 'DEU' };
+  var n1 = dhlTeil_(firma || name), e2 = { name1: n1[0], addressStreet: dhlCut_(st[0], 50), postalCode: String(a.zip || '').trim(), city: dhlCut_(a.city, 40), country: 'DEU' };
   if (st[1]) e2.addressHouse = dhlCut_(st[1], 10);
-  if (firma && name) e2.name2 = name;
+  if (firma && name) { if (n1[1]) { e2.name2 = n1[1]; e2.name3 = dhlCut_(name, 35); } else { var n2 = dhlTeil_(name); e2.name2 = n2[0]; if (n2[1]) e2.name3 = n2[1]; } }
+  else if (n1[1]) e2.name2 = n1[1];
   if (a.address2) e2.additionalAddressInformation1 = dhlCut_(a.address2, 60);
   if (email) e2.email = String(email).trim();
   if (a.phone) e2.phone = dhlCut_(a.phone, 20);
