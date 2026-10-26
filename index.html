@@ -2057,35 +2057,41 @@ function prepListPdf(l,useOrig){
   return doc;
 }
 /* Documents & labels of an order – one tidy panel: each document with 🖨️ print (straight away) and 📤 send (file, WhatsApp, download) */
+/* Status des Druck-PCs: höchstens alle 45 s neu fragen (spart bei jedem Druck eine Server-Runde) */
+let druckSt={t:0,v:null,p:null};
+function druckStatus(){if(druckSt.p)return druckSt.p;if(Date.now()-druckSt.t<45e3)return Promise.resolve(druckSt.v);
+  return druckSt.p=srv('druckstatus').then(v=>{druckSt={t:Date.now(),v,p:null};return v}).catch(()=>{druckSt.p=null;return druckSt.v})}
+/* Etiketten-Werkzeuge im Hintergrund vorladen (Schriften, CLP-Daten, PDF-Renderer), damit der erste Druck nicht wartet */
+let druckWarm=0;function druckVorwaermen(){if(Date.now()-druckWarm<5*60e3)return;druckWarm=Date.now();
+  setTimeout(()=>{clpFonts().catch(()=>{});clpBasis().catch(()=>{});loadPdfJs().catch(()=>{});druckStatus()},50)}
+/* Druck fertig: kurze Meldung statt Fenster, das man wegklicken muss */
+function druckMeldung(btn,o,msg,st,fehler){
+  if(st&&!st.online&&!fehler)msg+=' — ⚠️ جهاز الطباعة في المستودع غير متصل الآن، ستُطبع فور تشغيله';
+  btn.textContent=fehler?'⚠️ خطأ':st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';if(fehler)alert(msg);else toast(msg);
+  setTimeout(()=>{btn.disabled=false;btn.innerHTML=o},1500)}
 /* CLP → Druck-Warteschlange → Mini-PC im Lager druckt auf der Epson ColorWorks */
 async function epsonPrint(l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
   try{const lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»');
-    const [r,st]=await Promise.all([clpMake(lo),srv('druckstatus').catch(()=>null)]);
+    const stP=druckStatus(),r=await clpMake(lo);
     /* Epson hat die 102 × 51-Rolle: nur CLP-Etiketten dorthin. Proben 40 × 30 → Phomemo (Mini-PC, Präfix "P-") */
     const ep=r.files.filter(f=>!/^Proben/.test(f.name)),pr=r.files.filter(f=>/^Proben/.test(f.name));
     if(!ep.length&&!pr.length)throw new Error('لا يوجد ملصق CLP لهذه الأصناف');
-    for(const f of ep)await srv('druck',f.name,await blob64(f.blob));
-    for(const f of pr)await pmQueue(f.blob,f.name);
-    let msg=(ep.length?'✓ أُرسلت إلى طابعة Epson':'')+(pr.length?(ep.length?' · ':'✓ ')+'ملصقات العيّنات 40 × 30 → طابعة Phomemo في المستودع':'')+(r.fehlend&&r.fehlend.length?' · بدون ملصق: '+r.fehlend.join('، '):'');
-    if(st&&!st.online)msg+=' — ⚠️ جهاز الطباعة في المستودع غير متصل الآن، ستُطبع فور تشغيله';
-    btn.textContent=st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';alert(msg)}
-  catch(e){alert('تعذّر الإرسال إلى Epson: '+(e.message||e))}
-  setTimeout(()=>{btn.disabled=false;btn.innerHTML=o},2500)}
+    btn.textContent='جاري الإرسال إلى المستودع…';
+    await Promise.all(ep.map(async f=>srv('druck',f.name,await blob64(f.blob))).concat(pr.map(f=>pmQueue(f.blob,f.name))));
+    const msg=(ep.length?'✓ أُرسلت إلى طابعة Epson':'')+(pr.length?(ep.length?' · ':'✓ ')+'ملصقات العيّنات 40 × 30 → طابعة Phomemo في المستودع':'')+(r.fehlend&&r.fehlend.length?' · بدون ملصق: '+r.fehlend.join('، '):'');
+    druckMeldung(btn,o,msg,await stP)}
+  catch(e){druckMeldung(btn,o,'تعذّر الإرسال إلى الطابعة: '+(e.message||e),null,true)}}
 /* Angebot/Packliste → Druck-Warteschlange → Mini-PC druckt auf dem A4-Drucker (Brother) im Lager. Dateiname mit "A4-" = A4-Drucker */
 /* Präfix "P-" = Phomemo 40 × 30 (Etiketten) */
 async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phomemo':'A4';const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
     if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
     if(kind==='ls'||kind==='lso')await prepImgs(lo);
-    const stP=srv('druckstatus').catch(()=>null);   /* parallel – spart eine Server-Runde */
+    const stP=druckStatus();
     const blob=KINDS[kind].make(lo).output('blob');
     if(pre==='P-')await pmQueue(blob,fname(kind,lo));else await srv('druck',pre+fname(kind,lo),await blob64(blob));
-    const st=await stP;
-    let msg='✓ أُرسلت إلى طابعة '+nm+' في المستودع';
-    if(st&&!st.online)msg+=' — ⚠️ جهاز الطباعة في المستودع غير متصل الآن، ستُطبع فور تشغيله';
-    btn.textContent=st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';alert(msg)}
-  catch(e){alert('تعذّر الإرسال إلى طابعة '+nm+': '+(e.message||e))}
-  setTimeout(()=>{btn.disabled=false;btn.innerHTML=o},2500)}
+    druckMeldung(btn,o,'✓ أُرسلت إلى طابعة '+nm+' في المستودع',await stP)}
+  catch(e){druckMeldung(btn,o,'تعذّر الإرسال إلى طابعة '+nm+': '+(e.message||e),null,true)}}
 async function directPrint(kind,l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري التجهيز…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
     if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
@@ -4049,7 +4055,7 @@ function soListView(b){b.textContent='';soCss();sheetBack=null;if(!soFilt[soTab]
     else{const L2=reg.filter(o=>!(o.stand&&o.stand.dhlx&&o.stand.dhlx.nr));const ex=el('button','btn primary','✈️ DHL Express · '+L2.length);ex.onclick=()=>{if(!L2.length)return alert('كل الطلبات الخارجية لها شحنة ✅');soPickOne(L2)};bar.append(ex)}};
   q.oninput=()=>{soQ=q.value;draw()};
   draw()}
-function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;return soListView(b)}b.textContent='';soCss();soView();sheetBack=()=>{soSel=null;soListView(b);b.scrollTop=0};
+function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;return soListView(b)}druckVorwaermen();b.textContent='';soCss();soView();sheetBack=()=>{soSel=null;soListView(b);b.scrollTop=0};
   const st=o.stand=o.stand||{},chk=st.prep=st.prep||[];const save=async patch=>{try{o.stand=await soCall('so_set',{id:o.id,nr:o.nr,patch})}catch(e){toast('⚠️ '+e.message)}};
   const back=el('button','btn small','← كل الطلبات');back.onclick=()=>{soSel=null;soListView(b)};b.append(back);
   const hd=el('div','so-head');const l1=el('div','so-l1');l1.append(el('b','so-nr','#'+soNr(o)),el('span','so-cust',o.kunde||o.name),el('span','so-st',SO_FLAG(o.land)+' '+o.land));hd.append(l1);
@@ -4354,7 +4360,7 @@ async function soLsPrint(orders,btn,mode){const ob=btn.innerHTML;btn.disabled=tr
     const urls=[...new Set(orders.flatMap(o=>(o.items||[]).map(i=>i.img).filter(Boolean)))];let k=0;
     await Promise.all(Array.from({length:6},async()=>{while(k<urls.length){const u=urls[k++];await soImgLoad(u)}}));
     const blob=soLsPdf(orders).output('blob'),d=new Date(),nm='Lieferschein'+(orders.length>1?'e-'+orders.length+'x':'-'+soNr(orders[0]))+'-'+p2(d.getDate())+p2(d.getMonth()+1)+'-'+p2(d.getHours())+p2(d.getMinutes())+'.pdf';
-    if(mode==='a4'){const stP=srv('druckstatus').catch(()=>null);await srv('druck','A4-'+nm,await blob64(blob));const st=await stP;
+    if(mode==='a4'){const stP=druckStatus();await srv('druck','A4-'+nm,await blob64(blob));const st=await stP;
       btn.textContent=st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';toast(st&&!st.online?'⚠️ جهاز الطباعة في المستودع غير متصل – ستُطبع فور تشغيله':'✓ أُرسلت إلى طابعة A4 في المستودع ('+orders.length+')')}
     else{const file=new File([blob],nm,{type:'application/pdf'});btn.textContent='جاري الفتح…';
       try{await printPdf(blob)}catch(e){if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:nm});else download(nm,blob)}}
@@ -4395,7 +4401,7 @@ function soBulkDhl(list){openSheet('📦 ملصقات DHL شحن داخلي',asy
     const kw=el('div');kw.style.textAlign='center';kw.append(kg,el('div','ad','kg'),np,el('div','ad','طرد'));r.append(cb,inf,kw);b.append(r);rows.push({o,v,cb,kg,np})});
   const cbx=(t,on)=>{const l=el('label','clprow'),i=el('input');i.type='checkbox';i.checked=on;l.append(i,' '+t);b.append(l);return i};
   const dr=cbx('🖨️ اطبع الملصقات مباشرة على طابعة Zebra في المستودع',true),sp=cbx('📧 علِّم الطلبات «مشحونة» في Shopify وأرسل رقم التتبع للعملاء',true);
-  srv('druckstatus').then(x=>{if(x&&!x.online){dr.checked=false;dr.parentNode.append(el('span','hint',' (جهاز الطباعة غير متصل الآن)'))}}).catch(()=>{});
+  druckStatus().then(x=>{if(x&&!x.online){dr.checked=false;dr.parentNode.append(el('span','hint',' (جهاز الطباعة غير متصل الآن)'))}}).catch(()=>{});
   const go=el('button','btn primary big','✅ إنشاء الملصقات (مدفوع)'),log=el('div','so-log');log.hidden=true;b.append(go,log);
   const upd=()=>{const n=rows.filter(r=>r.cb.checked).length;go.textContent='✅ إنشاء '+n+' ملصق DHL (مدفوع)';go.disabled=!n};rows.forEach(r=>r.cb.onchange=upd);upd();
   go.onclick=async()=>{const todo=rows.filter(r=>r.cb.checked);for(const r of todo){const x=Number(String(r.kg.value).replace(',','.')),n=Math.max(1,parseInt(r.np.value,10)||1);if(!(x>0&&x/n<=31.5))return alert('وزن غير صحيح في #'+soNr(r.o)+' (الحد 31.5 kg لكل طرد)')}
@@ -4514,7 +4520,7 @@ function dhlSheet(o,after){openSheet('📦 DHL Paket · '+o.nr,async b=>{soCss()
   const dr=cbx('🖨️ اطبع مباشرة في المستودع ('+(v.fmt==='A4'?'Brother A4':'Zebra')+') – عبر جهاز الطباعة Mini PC',false),sp=cbx('📧 علِّم الطلب «مشحون» في Shopify وأرسل رقم التتبع للعميل',true);
   const row=el('div','row');row.style.cssText='gap:8px;flex-wrap:wrap;margin-top:10px';
   const chk=el('button','btn','🔍 فحص العنوان (مجاني)'),go=el('button','btn primary big','✅ إنشاء الملصق (مدفوع)');row.append(chk,go);b.append(row,m);
-  srv('druckstatus').then(x=>{if(x&&x.online)dr.checked=LS.get('dhlDr',true)}).catch(()=>{});dr.onchange=()=>LS.set('dhlDr',dr.checked);
+  druckStatus().then(x=>{if(x&&x.online)dr.checked=LS.get('dhlDr',true)}).catch(()=>{});dr.onchange=()=>LS.set('dhlDr',dr.checked);
   if(o.ap){sp.checked=false;sp.parentNode.hidden=true;const eb=el('button','btn small','✏️ تعديل العنوان');eb.onclick=()=>o.editAdr&&o.editAdr();c.append(eb)}
   const opt=nur=>({id:o.id,nr:o.nr,adr:o.adr,kgs:kb.kgs(),kg:kb.kgs()[0],prod:pd.value,nurPruefen:nur,druck:dr.checked,shopify:sp.checked&&!o.ap});
   chk.onclick=async()=>{chk.disabled=true;say('جاري الفحص عند DHL…');try{const r=await soCall('dhl_label',opt(true));say((r.ok?'✅ DHL يقبل العنوان والبيانات':'❌ DHL لا يقبل البيانات')+(r.msgs.length?'\n'+r.msgs.join('\n'):''),!r.ok)}catch(x){say('⚠️ '+dhlErr(x),1)}chk.disabled=false};
