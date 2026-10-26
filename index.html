@@ -525,7 +525,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
   <form id="gate-form" class="panel">
     <h1><span class="bn">FRAGRANCE HUB</span><span class="bs">صالة العرض</span></h1>
     <label for="pin">رمز الدخول</label>
-    <input type="password" id="pin" inputmode="numeric" autocomplete="off" dir="ltr">
+    <input type="password" id="pin" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" dir="ltr">
     <button class="btn primary big" id="pin-go">دخول</button>
     <div id="pin-msg" class="status" hidden></div>
   </form>
@@ -682,7 +682,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
         <button class="btn" id="users-btn">👥 الموظفون ورموز الدخول · Mitarbeiter & PINs</button>
       </div>
       <div class="dim" id="setpin-sec" hidden>
-        <label for="newpin">تغيير رمز الدخول (4–8 أرقام)</label><input type="password" id="newpin" inputmode="numeric" dir="ltr" autocomplete="new-password" style="width:150px">
+        <label for="newpin">تغيير كلمة سر المالك (8 أحرف على الأقل: حروف إنجليزية وأرقام)</label><input type="password" id="newpin" dir="ltr" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" style="width:200px">
         <button class="btn small" id="setpin">حفظ الرمز الجديد</button><span id="setpin-msg" class="code"></span>
       </div>
       <div class="dim">
@@ -2621,7 +2621,7 @@ try{const cc=findCust(rec.customer);if(cc&&cc.id&&rec.clpLogo&&(cc.clpLogo!==rec
 };
 
 /* ---------- warehouse ---------- */
-$('setpin').onclick=async()=>{const n=pinDigits($('newpin').value),m=$('setpin-msg');if(n.length<4||n.length>8){m.textContent='4 إلى 8 أرقام';return}
+$('setpin').onclick=async()=>{const n=String($('newpin').value||'').trim(),m=$('setpin-msg');if(n.length<8||n.length>40||!/[A-Za-z]/.test(n)||!/\d/.test(n)){m.textContent='8 أحرف على الأقل: حروف إنجليزية وأرقام';return}
   if(!confirm('تغيير رمز المالك (Inhaber)؟ رموز الموظفين والطابعة لا تتأثر. احفظ الرمز الجديد جيداً.'))return;
   try{await srv('setpin',n);PIN=n;LS.set('pin',n);$('newpin').value='';m.textContent='تم تغيير الرمز ✓'}catch(e){m.textContent='فشل: '+(e.message||e)}};
 $('snd').checked=LS.get('snd',true)!==false;$('snd').onchange=e=>LS.set('snd',e.target.checked);$('snd-test').onclick=beep;
@@ -3233,8 +3233,10 @@ async function tryPin(p,quiet){
   try{const v=await srv('check');LS.set('pin',p);setMe(v);start()}
   catch(e){PIN='';if(!quiet){m.hidden=false;m.classList.add('err');m.textContent=e.message==='PIN'?'رمز الدخول غير صحيح.':/Zu viele/.test(e.message)?'محاولات خاطئة كثيرة. انتظر 10 دقائق ثم حاول.':e.message}}
 }
+/* PIN aus Ziffern (auch arabische Ziffern) oder Passwort mit Buchstaben */
+const pinNorm=s=>{const t=String(s||'').trim().replace(/[\u0660-\u0669]/g,c=>c.charCodeAt(0)-0x660).replace(/[\u06F0-\u06F9]/g,c=>c.charCodeAt(0)-0x6F0);return /^[\d\s]*$/.test(t)?t.replace(/\D/g,''):t};
 const pinDigits=s=>String(s||'').replace(/[\u0660-\u0669]/g,c=>c.charCodeAt(0)-0x660).replace(/[\u06F0-\u06F9]/g,c=>c.charCodeAt(0)-0x6F0).replace(/[^0-9]/g,'');
-$('gate-form').onsubmit=e=>{e.preventDefault();const p=pinDigits($('pin').value);if(p)tryPin(p,false);else{const m=$('pin-msg');m.hidden=false;m.classList.add('err');m.textContent='اكتب الرمز بالأرقام.'}};
+$('gate-form').onsubmit=e=>{e.preventDefault();const p=pinNorm($('pin').value);if(p)tryPin(p,false);else{const m=$('pin-msg');m.hidden=false;m.classList.add('err');m.textContent='اكتب الرمز بالأرقام.'}};
 if(PIN){start();srv('check').then(setMe).catch(e=>{if(e.message==='PIN'){LS.set('pin','');location.reload()}})}
 /* ---------- Lager / المخزون ---------- */
 let lgSel=null;
