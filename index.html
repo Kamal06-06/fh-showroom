@@ -904,6 +904,7 @@ const T={
 };
 /* quantities of an order: oils in kg, liquids (alcohol) in litres, everything else in pieces */
 function itemAmount(it){const q=+it.q||1;if(it.unit==='kg')return {kind:'kg',v:q};if(it.unit==='Stk')return {kind:'pcs',v:q};
+  {const pm=/(\d+)\s*(st(ü|u)ck|stk|pcs)/i.exec(String(it.size||''));if(pm&&!isOil(it))return {kind:'pcs',v:+pm[1]*q}}
   const m=SIZE_RX.exec(String(it.size||''));if(m){const n=+m[1].replace(',','.'),u=m[2].toLowerCase();
     if(isOil(it)){if(u==='kg')return {kind:'kg',v:n*q};if(u==='g')return {kind:'kg',v:n*q/1000}}
     else{if(u==='l')return {kind:'L',v:n*q,pcs:q};if(u==='ml'&&/alkohol|ethanol|alcohol/i.test(it.t||''))return {kind:'L',v:n*q/1000,pcs:q}}}
@@ -2013,9 +2014,12 @@ const PLT={de:{t:'PACKLISTE',nr:'Nr. PL-',date:'Datum: ',cust:'Kunde',no:'Kunden
  it:{t:'PACKING LIST',nr:'N. PL-',date:'Data: ',cust:'Cliente',no:'N. cliente ',note:'Nota: ',pos:'Pos.',art:'Articolo',q:'Qualità',m:'Formato',n:'Pz.',code:'Codice',oils:'Oli profumati',other:'Flaconi & accessori',foot:'Questa lista non contiene prezzi.',sig:'Preparato da: ____________________     Data / ora: ______________'},
  es:{t:'LISTA DE EMBALAJE',nr:'N.º PL-',date:'Fecha: ',cust:'Cliente',no:'N.º cliente ',note:'Nota: ',pos:'Pos.',art:'Artículo',q:'Calidad',m:'Formato',n:'Uds.',code:'Código',oils:'Aceites de perfume',other:'Frascos y accesorios',foot:'Esta lista no contiene precios.',sig:'Preparado por: ____________________     Fecha / hora: ______________'},
  pl:{t:'LISTA PAKOWANIA',nr:'Nr PL-',date:'Data: ',cust:'Klient',no:'Nr klienta ',note:'Uwaga: ',pos:'Poz.',art:'Artykul',q:'Jakosc',m:'Ilosc',n:'Szt.',code:'Kod',oils:'Olejki',other:'Flakony i akcesoria',foot:'Ta lista nie zawiera cen.',sig:'Skompletowal: ____________________     Data / godzina: ______________'}};
+/* Stückzahl je Packung aus der Variante ("100 Stück / Gold" → 100) */
+const packOf=it=>{if(isOil(it)||it.unit)return 1;const m=/(\d+)\s*(st(ü|u)ck|stk|pcs|pz|szt)/i.exec(String(it.size||''));return m?+m[1]:1};
 function prepListPdf(l,useOrig){
   const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});const L=15,R=195,d=new Date(l.at||Date.now()),k=PLT[LANG_OF(l.country)]||PLT.de;let y=20;
-  const X={cb:L,pos:L+8,art:L+17,q:L+104,m:L+126,n:L+146,code:R};
+  /* Spalten: ☐ | Pos | Bild | Artikel (Name, Variante, Code) | Qualität | Inhalt | Menge – nichts überlappt */
+  const IMG=14,X={cb:L+1,pos:L+8.5,img:L+14,art:L+31,q:L+120,m:L+143,n:R-2},AW=X.q-X.art-3,MW=X.n-X.m-14;
   doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('FRAGRANCE HUB GERMANY',L,y);doc.setFontSize(18);doc.text(k.t,R,y,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(90);
   doc.text('Inh. Mohammad Kamal Al Masri',L,y+5);doc.text('Am Alten Kirchplatz 10, 45665 Recklinghausen',L,y+9);doc.text('fragranceshub.de',L,y+13);
@@ -2027,31 +2031,46 @@ function prepListPdf(l,useOrig){
   if(String(l.note||'').trim()){if(latin(l.note)===String(l.note))doc.text(k.note+latin(l.note),L,ya+0.5);else{doc.text(k.note,L,ya+0.5);putText(doc,l.note,L+doc.getTextWidth(k.note)+1,ya+0.5,9,150)}ya+=4.5}
   y=Math.max(y+20,ya+6);
   const head=()=>{doc.setFillColor(20,33,31);doc.rect(L,y-5,R-L,7.5,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
-    doc.text(k.pos,X.pos,y);doc.text(k.art,X.art,y);doc.text(k.q,X.q,y);doc.text(k.m,X.m,y);doc.text(k.n,X.n,y);doc.text(k.code,X.code-1,y,{align:'right'});doc.setTextColor(0);y+=8};
+    doc.text(k.pos,X.pos-1.5,y);doc.text(k.art,X.art,y);doc.text(k.q,X.q,y);doc.text(k.m,X.m,y);doc.text(k.n,X.n,y,{align:'right'});doc.setTextColor(0);y+=6.5};
   head();
   const ORD={standard:1,premium:2,exklusiv:3},grp={};(l.items||[]).forEach(i=>{const g=isOil(i)?(String(i.tier||'').trim()||k.oils):k.other;(grp[g]=grp[g]||[]).push(i)});
   let pos=0;
   Object.keys(grp).sort((a,b)=>(a===k.other)-(b===k.other)||(ORD[a.toLowerCase()]||8)-(ORD[b.toLowerCase()]||8)||a.localeCompare(b)).forEach(g=>{
-    if(y>262){doc.addPage();y=20;head()}
-    doc.setFillColor(246,243,236);doc.rect(L,y-4.3,R-L,6.4,'F');doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text(latin(g).toUpperCase(),X.art,y);y+=7;
+    if(y>258){doc.addPage();y=20;head()}
+    doc.setFillColor(246,243,236);doc.rect(L,y-1,R-L,6.4,'F');doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(60);doc.text(latin(g).toUpperCase(),X.art,y+3.4);doc.setTextColor(0);y+=6.4;
     grp[g].slice().sort((a,b)=>String(a.t).localeCompare(String(b.t))).forEach(i=>{
-      if(y>270){doc.addPage();y=20;head()}pos++;const oil=isOil(i);
-      doc.setDrawColor(90);doc.rect(X.cb+0.5,y-3.4,4,4);
-      doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(String(pos),X.pos,y);
-      const name=useOrig&&oil?(origName(i)||i.t):i.t;doc.setFont('helvetica','bold');doc.setFontSize(9.5);
-      const nm=latin(name)===String(name)?doc.splitTextToSize(String(name).replace(/\s+/g,' '),84).slice(0,2):null;
-      if(nm)nm.forEach((ln,j)=>doc.text(ln,X.art,y+j*4.1));else putText(doc,name,X.art,y,9.5,84);
+      const oil=isOil(i),im=imgs[i.t],name=useOrig&&oil?(origName(i)||i.t):i.t;
+      doc.setFont('helvetica','bold');doc.setFontSize(9.5);
+      const nl=String(name).replace(/[\u2013\u2014]/g,'-').replace(/[\u2018\u2019]/g,"'").replace(/[\u201c\u201d\u201e]/g,'"');
+      const nm=latin(nl)===nl?doc.splitTextToSize(nl.replace(/\s+/g,' '),AW).slice(0,2):null;
+      const sub=!oil&&latin(i.size)?doc.splitTextToSize(latin(i.size),MW+4).slice(0,2):[];
+      const note=!oil&&String(i.note||'').trim();
+      const txtH=(nm?nm.length:1)*4.1+3.8+(note?4.2:0);
+      const rowH=Math.max(im?IMG+3:0,txtH+3,11);
+      if(y+rowH>282){doc.addPage();y=20;head()}
+      pos++;const top=y,mid=top+rowH/2,ty=top+4.6;
+      /* Checkbox + Position, vertikal mittig */
+      doc.setDrawColor(90);doc.setLineWidth(0.25);doc.rect(X.cb,mid-2.5,4.2,4.2);
+      doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(90);doc.text(String(pos),X.pos,mid+1);doc.setTextColor(0);
+      /* Produktbild mit feinem Rahmen */
+      if(im){const iy=top+(rowH-IMG)/2;try{doc.addImage(im,'JPEG',X.img,iy,IMG,IMG)}catch(_){}doc.setDrawColor(225);doc.setLineWidth(0.2);doc.roundedRect(X.img,iy,IMG,IMG,1,1,'S')}
+      /* Name, darunter Code */
+      doc.setFont('helvetica','bold');doc.setFontSize(9.5);
+      if(nm)nm.forEach((ln,j)=>doc.text(ln,X.art,ty+j*4.1));else putText(doc,name,X.art,ty,9.5,AW);
+      let yy=ty+(nm?(nm.length-1)*4.1:0)+3.9;
+      doc.setFont('courier','normal');doc.setFontSize(7.8);doc.setTextColor(110);doc.text(latin(i.code)||'',X.art,yy);doc.setTextColor(0);
+      if(note){yy+=4.2;doc.setTextColor(198,40,40);doc.setFont('helvetica','bold');doc.setFontSize(8.5);putText(doc,'> '+i.note,X.art,yy,8.5,AW);doc.setTextColor(0)}
+      /* Qualität + Inhalt */
       doc.setFont('helvetica','normal');doc.setFontSize(9);
-      if(oil){doc.text(latin(i.tier)||'-',X.q,y);doc.text(latin(i.size)||'-',X.m,y)}
-      doc.setFont('helvetica','bold');doc.text(i.unit?qtxt(i):String(i.q||1),X.n,y);
-      doc.setFont('courier','normal');doc.setFontSize(8);doc.setTextColor(90);doc.text(latin(i.code)||'',X.code-1,y,{align:'right'});doc.setTextColor(0);
-      let yy=y+(nm?(nm.length-1)*4.1:0);
-      if(!oil&&latin(i.size)){yy+=3.9;doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text(doc.splitTextToSize(latin(i.size),84)[0],X.art,yy)}
-      if(!oil&&String(i.note||'').trim()){yy+=4.1;doc.setTextColor(198,40,40);doc.setFont('helvetica','bold');doc.setFontSize(9);putText(doc,'> '+i.note,X.art,yy,9,110);doc.setTextColor(0)}
-      y=yy+2.8;doc.setDrawColor(215);doc.line(L,y,R,y);y+=5.2});
-    y+=1.5});
+      if(oil){doc.text(latin(i.tier)||'-',X.q,ty);doc.text(latin(i.size)||'-',X.m,ty)}
+      else{doc.setTextColor(150);doc.text('-',X.q,ty);doc.setTextColor(0);if(sub.length)sub.forEach((ln,j)=>doc.text(ln,X.m,ty+j*4));else doc.text('-',X.m,ty)}
+      /* Menge, fett und rechtsbündig; bei Packungen die Stückzahl darunter */
+      const pk=packOf(i);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text(i.unit?qtxt(i):String(i.q||1)+(pk>1?' Pkg':''),X.n,ty,{align:'right'});
+      if(pk>1){doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(90);doc.text('= '+numDE(pk*(+i.q||1))+' Stk',X.n,ty+4,{align:'right'});doc.setTextColor(0)}
+      y=top+rowH;doc.setDrawColor(220);doc.setLineWidth(0.2);doc.line(L,y,R,y)});
+    y+=2});
   if(y>245){doc.addPage();y=25}
-  y+=3;const yb=drawAmounts(doc,l,L,y,90);y=Math.max(y,yb)+8;
+  y+=7;const yb=drawAmounts(doc,l,L,y,90);y=Math.max(y,yb)+8;
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(60);doc.text(k.sig,L,y);y+=6;
   doc.setFontSize(8.5);doc.setTextColor(110);doc.text(k.foot+'  ·  '+pos+' '+k.pos.replace('.','')+'.',L,y);doc.setTextColor(0);
   return doc;
@@ -2086,7 +2105,7 @@ async function epsonPrint(l,btn){const o=btn.innerHTML;btn.disabled=true;btn.tex
 async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phomemo':'A4';const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
     if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
-    if(kind==='ls'||kind==='lso')await prepImgs(lo);
+    if(['ls','lso','pl','plo'].includes(kind))await prepImgs(lo);
     const stP=druckStatus();
     const blob=KINDS[kind].make(lo).output('blob');
     if(pre==='P-')await pmQueue(blob,fname(kind,lo));else await srv('druck',pre+fname(kind,lo),await blob64(blob));
@@ -2095,7 +2114,7 @@ async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phome
 async function directPrint(kind,l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري التجهيز…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
     if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
-    if(kind==='ls'||kind==='lso')await prepImgs(lo);
+    if(['ls','lso','pl','plo'].includes(kind))await prepImgs(lo);
     if(kind==='clp'){const r=await clpMake(lo);if(r.fehlend&&r.fehlend.length)alert('بدون ملصق CLP: '+r.fehlend.join('، '));
       if(!r.files.length)throw new Error('لا يوجد ملصق CLP لهذه الأصناف');btn.textContent='جاري فتح الطباعة…';for(const f of r.files)await printPdf(f.blob)}
     else{const blob=KINDS[kind].make(lo).output('blob');btn.textContent='جاري فتح الطباعة…';await printPdf(blob)}}
@@ -2136,7 +2155,7 @@ async function prepImgs(l){
     const p=catalog.find(p=>p.t===it.t);if(!p||!p.i)continue;
     try{
       const bmp=await createImageBitmap(await fetch(p.i).then(r=>{if(!r.ok)throw 0;return r.blob()}));
-      const S=96,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,S,S);
+      const S=200,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,S,S);
       const k=Math.min(S/bmp.width,S/bmp.height),w=bmp.width*k,h=bmp.height*k;x.drawImage(bmp,(S-w)/2,(S-h)/2,w,h);
       imgs[it.t]=c.toDataURL('image/jpeg',0.75);
     }catch(e){}
@@ -2360,8 +2379,8 @@ async function orderFiles(l,which){
   if(['ls','lso','pl','plo','lab','labo'].includes(which)){if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF')}
   if(which==='ls'){await prepImgs(l);out.files.push({name:fname('ls',l),blob:lieferscheinPdf(l).output('blob')})}
   if(which==='lso'){await prepImgs(l);out.files.push({name:fname('lso',l),blob:lieferscheinPdf(l,true).output('blob')})}
-  if(which==='pl')out.files.push({name:fname('pl',l),blob:prepListPdf(l).output('blob')});
-  if(which==='plo')out.files.push({name:fname('plo',l),blob:prepListPdf(l,true).output('blob')});
+  if(which==='pl'){await prepImgs(l);out.files.push({name:fname('pl',l),blob:prepListPdf(l).output('blob')})}
+  if(which==='plo'){await prepImgs(l);out.files.push({name:fname('plo',l),blob:prepListPdf(l,true).output('blob')})}
   if(which==='lab'&&hasOil)out.files.push({name:fname('lab',l),blob:labelsPdf(l).output('blob')});
   if(which==='labo'&&hasOil)out.files.push({name:fname('labo',l),blob:labelsPdfOrig(l).output('blob')});
   if(which==='clp'&&hasOil){
