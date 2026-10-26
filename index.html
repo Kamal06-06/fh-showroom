@@ -858,7 +858,7 @@ let useClp=LS.get('clp',false);
 const API_URL='https://script.google.com/macros/s/AKfycbzU9YIR7tzx1VBzVAVNni93eBBBwGphyzTErrAUOveD2YmvAmiQO81QkyzVcUB5FAUd/exec';
 const IN_GAS=!!(window.google&&google.script&&google.script.run);
 /* ===== Echtzeit (Firebase): Aufträge, Kunden und Kasse live auf allen Geräten + Push-Benachrichtigungen ===== */
-var FS_ON=false,FB_UID=LS.get('fbuid',''),FB=null;
+var FS_ON=false,SO_LIVE=false,FB_UID=LS.get('fbuid',''),FB=null;
 const FB_V='10.14.1',FB_VAPID='BCRM3aYMYJm7wbtlaAhhLv-mCzqor5JOs13IEeaWok6rr-h92AIvzPWJb64TI17aPmaYFzNEQFS7gg9dOCq0VSM';
 const FB_CFG={apiKey:'AIzaSyA1TfKvw_pqp_yA0YrDsnVmvGlNnxqc1Fw',authDomain:'fragrance-hub-app.firebaseapp.com',projectId:'fragrance-hub-app',storageBucket:'fragrance-hub-app.firebasestorage.app',messagingSenderId:'51833249013',appId:'1:51833249013:web:89d2b2bba49e6a6f23b9bc'};
 function fbLoad(){if(window._fbP)return window._fbP;const u=n=>'https://www.gstatic.com/firebasejs/'+FB_V+'/firebase-'+n+'.js';
@@ -873,7 +873,7 @@ function fbLoad(){if(window._fbP)return window._fbP;const u=n=>'https://www.gsta
 function fsShopListen(){const F=FB.F;let last=+LS.get('fsShopAt',0)||0;
   F.onSnapshot(F.doc(FB.fs,'meta','shop'),s=>{if(!s.exists())return;const x=s.data(),at=+x.at||0;if(at<=last)return;const prev=last;last=at;LS.set('fsShopAt',at);
     if(!prev||!can('shop'))return;
-    if(soPw())soLoad(true).then(()=>{soSetCount();if(soOpenNow()){const sb=$('sheet-b');soSel?soDetail(sb,soSel):soListView(sb)}if(!$('view-home').hidden)renderHome()}).catch(()=>{});
+    if(soPw()&&(!SO_LIVE||soOpenNow()))soLoad(true).then(()=>{soSetCount();if(soOpenNow()){const sb=$('sheet-b');soSel?soDetail(sb,soSel):soListView(sb)}if(!$('view-home').hidden)renderHome()}).catch(()=>{});
     if(x.art==='neu'&&Date.now()-at<10*60e3){beep();toast('🛒 طلب جديد من المتجر '+(x.nr||'')+' — اضغط للفتح',()=>shopOpen())}},e=>console.warn('shop signal',e))}
 /* Push: dieses Gerät für Benachrichtigungen anmelden (auch wenn die App geschlossen ist) */
 async function fsPushReg(){try{
@@ -3286,6 +3286,13 @@ function makeDb(){
       err=>{fsLive[n]=false;console.warn('fs listen',n,err);
         if(err&&err.code==='permission-denied'&&fsTry<8){fsTry++;dot();setTimeout(()=>{pingAt=0;fsPing().then(()=>fsListen(n))},2500*fsTry)}
         else{lastErr='الاتصال المباشر متوقف';dot()}})}
+  /* Shop-Bestellungen: fertige Liste vom Server (shop/list) – sofort da, ohne Wartezeit */
+  function fsShopData(tries){const F=FB.F;
+    F.onSnapshot(F.doc(FB.fs,'shop','list'),s=>{if(!s.exists())return;let o;try{o=JSON.parse(s.data().j)}catch(e){return}
+      if(!o||!Array.isArray(o.orders))return;SO_LIVE=true;if(SO.at&&o.at<SO.at&&(SO.orders||[]).length)return;
+      SO=o;soSetCount();IDB.set('so',o);
+      try{if(soOpenNow()&&soPw()){const sb=$('sheet-b');soSel?soDetail(sb,soSel):soListView(sb)}if(!$('view-home').hidden)renderHome()}catch(e){}},
+      e=>{console.warn('shop list',e);if(e&&e.code==='permission-denied'&&tries<6)setTimeout(()=>{pingAt=0;fsPing().then(()=>fsShopData(tries+1))},3000*(tries+1))})}
   async function fsStart(){
     if(IN_GAS||FS_ON)return;
     try{
@@ -3294,6 +3301,7 @@ function makeDb(){
       FS_ON=true;lastErr='';
       ['lists','customers'].concat(can('cash')?['cash']:[]).forEach(fsListen);
       fsShopListen();setTimeout(fsPushReg,3000);dot();
+      if(can('shop'))fsShopData(0);
       {let chAt=-1;FB.F.onSnapshot(FB.F.doc(FB.fs,'meta','chat'),s=>{const at=s.exists()?+s.data().at||0:0;if(chAt<0){chAt=at;return}if(at>chAt){chAt=at;try{chPoll()}catch(_){}}},e=>console.warn('chat signal',e))}
     }catch(e){console.warn('Echtzeit nicht verfügbar – Abgleich wie bisher',e);FS_ON=false}
   }
@@ -3978,13 +3986,13 @@ function shopPwSheet(after,setMode){
 let soP=null;
 function soSetCount(){try{const n=(SO.orders||[]).filter(o=>soPaid(o)&&!soPrep(o).ready).length;const c=$('h-shop-n');if(c)c.textContent=n||''}catch(e){}}
 async function soCache(){if((SO.orders||[]).length)return SO;try{const c=await IDB.get('so');if(c&&c.orders&&!(SO.orders||[]).length){SO=c;SO.at=0;soSetCount()}}catch(e){}return SO}
-function soLoad(force){if(!force&&SO.at&&Date.now()-SO.at<60e3)return Promise.resolve(SO);if(soP)return soP;
+function soLoad(force){if(!force&&(SO_LIVE||SO.at&&Date.now()-SO.at<60e3))return Promise.resolve(SO);if(soP)return soP;
   soP=soCall('so_list').then(r=>{SO=r;soSetCount();IDB.set('so',r);return SO}).finally(()=>{soP=null});return soP}
 const soOpenNow=()=>!$('sheet').hidden&&$('sheet-t').textContent==='🛒 طلبات المتجر';
 async function shopOpen(){if(!can('shop'))return;
   if(!soPw())return shopPwSheet(shopOpen,false);   // Passwort-Fenster sofort, ohne vorher den Server zu fragen
   await soCache();
-  const fresh=SO.at&&Date.now()-SO.at<60e3,has=(SO.orders||[]).length;
+  const fresh=SO_LIVE||SO.at&&Date.now()-SO.at<60e3,has=(SO.orders||[]).length;
   openSheet('🛒 طلبات المتجر',b=>{
     if(has)soSel?soDetail(b,soSel):soListView(b);else b.append(el('p','hint','جاري التحميل…'));
     if(fresh)return;
@@ -4097,8 +4105,9 @@ function soCss(){if($('so-css'))return;const s=document.createElement('style');s
 /* Ansicht merken: nach einem Neuladen bleibt man auf derselben Seite */
 function soView(){try{sessionStorage.setItem('fhSo',JSON.stringify({sel:soSel,reg:soReg,tab:soTab}))}catch(e){}}
 async function appRefresh(){
-  const t=[];try{t.push(Promise.resolve(db&&db.pull()))}catch(e){}
-  if(soPw()&&(soOpenNow()||!$('view-home').hidden))t.push(soLoad(true).then(()=>{soSetCount();if(soOpenNow()){const sb=$('sheet-b');soSel?soDetail(sb,soSel):soListView(sb)}}));
+  const t=[];try{if(!FS_ON)t.push(Promise.resolve(db&&db.pull()))}catch(e){}   // live: Daten sind schon aktuell
+  if(SO_LIVE){try{soSetCount();if(soOpenNow()){const sb=$('sheet-b');soSel?soDetail(sb,soSel):soListView(sb)}}catch(e){}}
+  else if(soPw()&&(soOpenNow()||!$('view-home').hidden))t.push(soLoad(true).then(()=>{soSetCount();if(soOpenNow()){const sb=$('sheet-b');soSel?soDetail(sb,soSel):soListView(sb)}}));
   await Promise.all(t);toast('✅ تم التحديث')}
 /* Ziehen zum Aktualisieren: lädt nur die Daten neu, die Seite bleibt offen */
 (function(){let y0=null,dy=0,tg=null,busy=false;const ind=document.createElement('div');ind.id='ptr';document.body.append(ind);

@@ -62,12 +62,12 @@ function fsSpiegel_(coll, id, obj, art) {
 /* ---------------- Sitzungen (Zugriff für angemeldete Geräte) ---------------- */
 function fsSitzung_(uid) {
   if (!/^[A-Za-z0-9]{10,64}$/.test(String(uid || '')) || SR_DRUCK) return;
-  var cash = true; try { if (typeof srCan_ === 'function') cash = !!srCan_('cash'); } catch (e) {}
+  var cash = true, shop = true; try { if (typeof srCan_ === 'function') { cash = !!srCan_('cash'); shop = !!srCan_('shop'); } } catch (e) {}
   var user = String(SR_USER || ''), c = CacheService.getScriptCache();
-  var key = 'FBS_' + uid + '_' + (cash ? 1 : 0) + '_' + Utilities.base64EncodeWebSafe(Utilities.newBlob(user).getBytes()).slice(0, 60);
+  var key = 'FBS2_' + uid + '_' + (cash ? 1 : 0) + (shop ? 1 : 0) + '_' + Utilities.base64EncodeWebSafe(Utilities.newBlob(user).getBytes()).slice(0, 60);
   if (c.get(key)) return;
   fsCommit_([{ update: { name: fsName_('sessions/' + uid), fields: {
-    user: { stringValue: user }, owner: { booleanValue: !!SR_OWNER }, cash: { booleanValue: cash },
+    user: { stringValue: user }, owner: { booleanValue: !!SR_OWNER }, cash: { booleanValue: cash }, shop: { booleanValue: shop },
     exp: { integerValue: String(Date.now() + 14 * 864e5) }, at: { integerValue: String(Date.now()) } } } }]);
   c.put(key, '1', 6 * 3600);
 }
@@ -124,22 +124,39 @@ function fsShopPing_(art, nr) {
       art: { stringValue: String(art || '') }, nr: { stringValue: String(nr || '') }, at: { integerValue: String(Date.now()) } } } }]);
   } catch (e) { Logger.log('Shop-Signal: ' + e.message); }
 }
-/** jede Minute (aus etTelegramBefehle): leichte Abfrage der letzten Bestellungen */
+/** Shop-Bestellungen fertig aufbereitet in Firestore (shop/list) → die App zeigt sie sofort, ohne auf den Server zu warten */
+function fsShopBauen_() {
+  var alt = soPruefen_;
+  soPruefen_ = function () {};   // Server baut die Liste selbst – das Shop-Passwort bleibt in der App bestehen
+  var data; try { data = soListe_({}); } finally { soPruefen_ = alt; }
+  var j = JSON.stringify(data);
+  if (j.length > 950000) { Logger.log('Shop-Liste zu groß für Firestore: ' + j.length); return false; }
+  fsCommit_([{ update: { name: fsName_('shop/list'), fields: { j: { stringValue: j }, at: { integerValue: String(data.at || Date.now()) } } } }]);
+  var p = PropertiesService.getScriptProperties();
+  p.setProperty('FS_SHOP_BUILD', String(Date.now())); p.deleteProperty('FS_SHOP_DIRTY');
+  return true;
+}
+/** nach Änderungen in der App (Vorbereitung, DHL, Storno …): Liste beim nächsten Lauf neu aufbauen */
+function fsShopDirty_() { try { PropertiesService.getScriptProperties().setProperty('FS_SHOP_DIRTY', '1'); } catch (e) {} }
+/** jede Minute (aus etTelegramBefehle): neue Bestellungen erkennen + Liste aktuell halten */
 function fsShopCheck_() {
   var c = CacheService.getScriptCache();
   if (c.get('FS_SHOP_CHK')) return;
   c.put('FS_SHOP_CHK', '1', 45);
   var d = shopifyGraphQL('query { orders(first: 10, sortKey: CREATED_AT, reverse: true) { nodes { name } } }', {});
   var n = (d && d.orders && d.orders.nodes) || [];
-  if (!n.length) return;
-  var p = PropertiesService.getScriptProperties(), last = p.getProperty('FS_SHOP_LAST') || '', top = n[0].name;
-  if (top === last) return;
-  p.setProperty('FS_SHOP_LAST', top);
-  if (!last) { fsShopPing_('init', top); return; }
+  var p = PropertiesService.getScriptProperties(), last = p.getProperty('FS_SHOP_LAST') || '', top = n.length ? n[0].name : last;
   var neu = [];
-  for (var i = 0; i < n.length && n[i].name !== last; i++) neu.push(n[i].name);
-  fsShopPing_('neu', top);
-  fsPush_('🛒 طلب جديد من المتجر', neu.join('، '), { tag: 'shop', open: 'shop' }, null);
+  if (top !== last) {
+    p.setProperty('FS_SHOP_LAST', top);
+    if (last) for (var i = 0; i < n.length && n[i].name !== last; i++) neu.push(n[i].name);
+  }
+  var bauen = neu.length || !!p.getProperty('FS_SHOP_DIRTY') || Date.now() - (+p.getProperty('FS_SHOP_BUILD') || 0) > 10 * 60e3;
+  if (bauen) { try { fsShopBauen_(); } catch (e) { Logger.log('Shop-Liste: ' + e.message); } }
+  if (neu.length) {
+    fsShopPing_('neu', top);
+    fsPush_('🛒 طلب جديد من المتجر', neu.join('، '), { tag: 'shop', open: 'shop' }, null);
+  }
 }
 
 /* ---------------- Einmalig / Wartung ---------------- */
