@@ -13,6 +13,30 @@ New-Item -ItemType Directory -Force $DONE | Out-Null
 Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -like '*FH-Druck\druck.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 $Host.UI.RawUI.WindowTitle = 'FH Druck - Epson ColorWorks (Fenster offen lassen)'
 
+# Mini-PC darf nicht in den Ruhezustand gehen, solange das Druckprogramm laeuft (sonst warten die Etiketten, bis jemand den PC aufweckt)
+Add-Type -Namespace FhPower -Name Win -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);'
+function WachHalten { [void][FhPower.Win]::SetThreadExecutionState([uint32]2147483649) }  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED
+WachHalten
+foreach ($a in @('standby-timeout-ac 0', 'hibernate-timeout-ac 0')) { try { & powercfg /change $a.Split(' ') 2>$null | Out-Null } catch {} }
+
+# Selbst-Aktualisierung: neue Version des Druckprogramms automatisch von der App-Seite holen und neu starten
+$SELFURL = 'https://app.fragranceshub.de/druck/druck.ps1'
+function SelbstUpdate {
+  try {
+    $neu = (Invoke-WebRequest "$SELFURL`?t=$([DateTime]::UtcNow.Ticks)" -UseBasicParsing -TimeoutSec 30).Content
+    if ($neu -is [byte[]]) { $neu = [Text.Encoding]::UTF8.GetString($neu) }
+    if ($neu -and $neu.Length -gt 5000 -and $neu.Contains('FH-Druck') -and $neu -ne (Get-Content $PSCommandPath -Raw)) {
+      Set-Content -Path $PSCommandPath -Value $neu -Encoding UTF8 -NoNewline
+      if ($neu -ne (Get-Content $PSCommandPath -Raw)) { return }  # Schutz gegen Neustart-Schleife
+      Write-Host 'Neue Version des Druckprogramms geladen - starte neu ...' -ForegroundColor Cyan
+      Start-Process powershell -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
+      exit
+    }
+  } catch {}
+}
+SelbstUpdate
+$script:UpdZeit = Get-Date
+
 # Rohdaten (RAW) direkt an einen Drucker schicken - fuer Phomemo: das App-Bild geht 1:1 an die Etikettenmaschine, ohne Windows-Skalierung
 Add-Type -TypeDefinition @"
 using System; using System.Runtime.InteropServices;
@@ -221,6 +245,7 @@ while ($true) {
     $r = Api 'druckholen' $(if ($n % 20 -eq 0) { '1' } else { '' })
     if ($r.err) {
       Write-Host "Fehler: $($r.err)" -ForegroundColor Red
+      Start-Sleep -Seconds 3
       # PIN falsch oder Sperre wegen Fehlversuchen: nicht alle 3 s weiter probieren (sonst bleibt die App fuer alle gesperrt).
       # 10 Minuten warten und die PIN aus pin.txt neu lesen (dort kann eine neue PIN eingetragen werden).
       if ("$($r.err)" -match 'pin|code|zugang|zu viele|gesperrt') {
@@ -252,9 +277,12 @@ while ($true) {
         } else { Write-Host "Kein passender Drucker - Datei gespeichert: $f" -ForegroundColor Yellow }
       }
     }
-  } catch { Write-Host "$(Get-Date -Format HH:mm:ss)  keine Verbindung ..." -ForegroundColor DarkGray }
+  } catch { Write-Host "$(Get-Date -Format HH:mm:ss)  keine Verbindung ..." -ForegroundColor DarkGray; Start-Sleep -Seconds 3 }
   # alte Dateien (älter als 30 Tage) aufräumen
   if ($n % 1200 -eq 0) { Get-ChildItem $DONE -File | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } | Remove-Item -ErrorAction SilentlyContinue }
+  # alle 3 Stunden nach einer neuen Version schauen
+  if (((Get-Date) - $script:UpdZeit).TotalHours -ge 3) { $script:UpdZeit = Get-Date; WachHalten; SelbstUpdate }
   $n++
-  Start-Sleep -Seconds 3
+  # Der Server wartet selbst bis zu 15 s auf neue Auftraege (Long-Polling) - danach sofort wieder fragen
+  Start-Sleep -Milliseconds 300
 }
