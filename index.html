@@ -3294,6 +3294,7 @@ function makeDb(){
       FS_ON=true;lastErr='';
       ['lists','customers'].concat(can('cash')?['cash']:[]).forEach(fsListen);
       fsShopListen();setTimeout(fsPushReg,3000);dot();
+      {let chAt=-1;FB.F.onSnapshot(FB.F.doc(FB.fs,'meta','chat'),s=>{const at=s.exists()?+s.data().at||0:0;if(chAt<0){chAt=at;return}if(at>chAt){chAt=at;try{chPoll()}catch(_){}}},e=>console.warn('chat signal',e))}
     }catch(e){console.warn('Echtzeit nicht verfügbar – Abgleich wie bisher',e);FS_ON=false}
   }
   const loaded=Promise.all(NAMES.map(n=>IDB.get('rows-'+n).then(r=>{if(Array.isArray(r)&&!store[n]){store[n]=r;emit(n)}else if(!r)ver[n]=''})));
@@ -3848,7 +3849,7 @@ async function chPoll(){if(chBusy||IN_GAS)return;chBusy=true;
       const inc=neu.filter(m=>m.von!==CH.ich);if(!first&&inc.length)chNotify(inc)}
     CH.last=Math.max(CH.last,r.last||0);IDB.set('chat',{msgs:CH.msgs.filter(m=>!m.tmp),last:CH.last,ich:CH.ich});chBadge();chRedraw()}
   catch(e){}chBusy=false}
-function chLoop(){clearTimeout(chTimer);chTimer=setTimeout(async()=>{await chPoll();chLoop()},document.hidden?30000:chOpenNow()?2500:10000)}
+function chLoop(){clearTimeout(chTimer);chTimer=setTimeout(async()=>{await chPoll();chLoop()},FS_ON?(document.hidden?180000:chOpenNow()?20000:60000):(document.hidden?30000:chOpenNow()?2500:10000))}   /* live: neue Nachrichten kommen per Signal (meta/chat), Abfrage nur noch als Sicherheitsnetz */
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){chPoll();chLoop()}});
 if(!IN_GAS)setTimeout(()=>{chCss();chPoll();chLoop()},3000);
 if(!IN_GAS&&navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.chat)chOpen(e.data.chat)});
