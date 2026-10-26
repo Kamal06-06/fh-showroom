@@ -180,6 +180,15 @@ details.od>.odb{padding:4px 12px 12px;display:flex;flex-direction:column;gap:8px
 .ucard .uperm{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 12px;margin-top:8px}
 .ucard .ugrp{font-weight:700;margin-top:10px;font-size:.9em;opacity:.8}
 .ucard.off{opacity:.55}
+.devwait{border:2px solid #c9a24a;background:#fff8e6;border-radius:16px;padding:12px;margin:10px 0}
+.devwait h4{margin:0 0 6px}
+.devrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid #eadfc4}
+.devrow:first-of-type{border-top:0}
+.devrow .dm{flex:1 1 180px}
+.devrow small{opacity:.7;display:block}
+.st-ok{color:#2e7d32}.st-wait{color:#b7791f}.st-block{color:#c62828}
+.logrow{display:grid;grid-template-columns:110px 1fr;gap:2px 10px;padding:6px 0;border-top:1px solid #eee;font-size:.92em}
+.logrow.bad{color:#c62828}
 .lot{display:inline-block;font-size:11.5px;font-weight:600;direction:ltr;border:1px dashed var(--gold);border-radius:6px;padding:1px 6px;margin-top:3px;background:none;color:var(--ink);cursor:pointer;font-family:inherit}
 .claimbox{border:1px solid #e3b4ae;background:#fdf3f2;border-radius:10px;padding:8px 10px;margin:8px 0}.claimbox b{color:#a3322a}.claimrow{border-top:1px solid #f0d6d2;padding:6px 0;font-size:13px}.claimrow:first-of-type{border-top:0}.claimrow img{max-height:60px;border-radius:6px;margin-top:4px}
 .fld2{display:flex;flex-direction:column;gap:4px;margin:8px 0}.fld2 select,.fld2 input,.fld2 textarea{font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface,#fff);color:var(--ink)}
@@ -584,6 +593,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
   <section id="view-home" hidden dir="rtl" lang="ar">
     <div class="hhello"><b id="h-hi"></b><span id="h-date"></span></div>
     <div class="htoday" id="h-today"></div>
+    <div id="h-devwait" class="devwait" hidden></div>
     <div class="hsec">الأقسام</div>
     <div class="home">
       <button class="tile primary p-new" id="h-new"><span class="ic">＋</span><b>طلب جديد</b><span>تسجيل أصناف عميل في الصالة</span></button>
@@ -685,7 +695,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       </div>
       <div class="dim"><button class="btn" id="switch-user">🔒 تبديل المستخدم · Benutzer wechseln</button> <span class="note">للتابلت المشترك: كل موظف يدخل برمزه</span></div>
       <div class="dim" id="users-sec" hidden>
-        <button class="btn" id="users-btn">👥 الموظفون ورموز الدخول · Mitarbeiter & PINs</button>
+        <button class="btn" id="users-btn">👥 الموظفون ورموز الدخول · Mitarbeiter & PINs</button> <button class="btn" id="devs-btn">📱 الأجهزة وسجل الدخول · Geräte & Protokoll</button>
       </div>
       <div class="dim" id="setpin-sec" hidden>
         <label for="newpin">تغيير كلمة سر المالك (8 أحرف على الأقل: حروف إنجليزية وأرقام)</label><input type="password" id="newpin" dir="ltr" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" style="width:200px">
@@ -817,6 +827,13 @@ const joinCity=(plz,ort)=>[String(plz||'').trim(),String(ort||'').trim()].filter
 function setCityUI(v){const [a,b]=splitCity(v);const p=document.getElementById('plz'),c=document.getElementById('city');if(p)p.value=a;if(c)c.value=b}
 const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e};
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+/* Geräte-Kennung für die Freigabe durch den Inhaber */
+const DEV=(()=>{let id=LS.get('devId','');if(!id){id=((window.crypto&&crypto.randomUUID)?crypto.randomUUID():(Math.random().toString(36).slice(2)+Date.now().toString(36)+Math.random().toString(36).slice(2))).replace(/-/g,'');LS.set('devId',id)}
+  const ua=navigator.userAgent||'';const os=/Android/i.test(ua)?'Android':/iPhone|iPad|iPod/i.test(ua)?'iOS':/Windows/i.test(ua)?'Windows':/Mac OS/i.test(ua)?'Mac':/Linux/i.test(ua)?'Linux':'';
+  let mdl='';const mm=ua.match(/Android[^;]*;\s*([^;)]+?)(?:\s+Build|\))/);if(mm&&mm[1].trim()!=='K')mdl=mm[1].trim();if(/iPad/.test(ua))mdl='iPad';else if(/iPhone/.test(ua))mdl='iPhone';
+  const br=/Edg\//.test(ua)?'Edge':/SamsungBrowser/.test(ua)?'Samsung Internet':/CriOS|Chrome\//.test(ua)?'Chrome':/Firefox|FxiOS/.test(ua)?'Firefox':/Safari/.test(ua)?'Safari':'';
+  const tab=/iPad|Tablet/i.test(ua)||(/Android/i.test(ua)&&!/Mobile/i.test(ua))?'تابلت':'';
+  return {id,n:[mdl||tab,os,br].filter(Boolean).join(' · ')||'جهاز'}})();
 let ME=LS.get('me',{user:'',admin:false});
 function isAdmin(){return !!(ME.admin||!ME.user)}
 /* Rechte pro Mitarbeiter (vom Inhaber vergeben) */
@@ -837,9 +854,9 @@ const API_URL='https://script.google.com/macros/s/AKfycbzU9YIR7tzx1VBzVAVNni93eB
 const IN_GAS=!!(window.google&&google.script&&google.script.run);
 if(!IN_GAS){const qs=new URLSearchParams(location.search);window.SR_URL=location.origin+location.pathname;window.SR_CODE=(qs.get('code')||'').slice(0,80)}
 function srv1(action,a,b,c){
-  if(IN_GAS)return new Promise((ok,no)=>google.script.run.withSuccessHandler(r=>{if(r&&r.err)no(new Error(r.err));else ok(r?r.val:null)}).withFailureHandler(e=>no(new Error((e&&e.message)||String(e)))).srApi(PIN,action,a,b,c));
+  if(IN_GAS)return new Promise((ok,no)=>google.script.run.withSuccessHandler(r=>{if(r&&r.err)no(new Error(r.err));else ok(r?r.val:null)}).withFailureHandler(e=>no(new Error((e&&e.message)||String(e)))).srApi(PIN,action,a,b,c,DEV));
   const ac=window.AbortController&&/^(lg_|pull$)/.test(action)?new AbortController():null,tm=ac?setTimeout(()=>ac.abort(),45000):0;
-  return fetch(API_URL+'?app=sr',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({pin:PIN,action,a,b,c}),redirect:'follow',signal:ac?ac.signal:undefined})
+  return fetch(API_URL+'?app=sr',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({pin:PIN,action,a,b,c,dev:DEV}),redirect:'follow',signal:ac?ac.signal:undefined})
     .finally(()=>clearTimeout(tm))
     .then(r=>{if(!r.ok)throw Object.assign(new Error('NET '+r.status),{net:true});return r.json()},e=>{throw Object.assign(new Error('لا يوجد اتصال بالإنترنت'),{net:true})})
     .then(r=>{if(r&&r.err)throw new Error(r.err);return r?r.val:null});
@@ -850,7 +867,7 @@ const IDB=(()=>{let p=null;const open=()=>p||(p=new Promise((ok,no)=>{try{const 
   return {get:k=>tx('readonly',s=>s.get(k)).catch(()=>undefined),set:(k,v)=>tx('readwrite',s=>s.put(v,k)).catch(()=>{})}})();
 /* Passwort geändert / Mitarbeiter gesperrt: gespeicherte Anmeldung ist ungültig -> sofort abmelden */
 function forceLogout(){if(window._fhOut)return;window._fhOut=1;try{sessionStorage.clear()}catch(e){}LS.set('pin','');LS.set('me',{user:'',admin:false});location.reload()}
-async function srv(action,a,b,c){try{return await srv0(action,a,b,c)}catch(e){if(String(e&&e.message)==='PIN'&&PIN&&LS.get('pin','')===PIN)forceLogout();throw e}}
+async function srv(action,a,b,c){try{return await srv0(action,a,b,c)}catch(e){if(/^(PIN|GERAET_WARTET|GERAET_GESPERRT)$/.test(String(e&&e.message))&&PIN&&LS.get('pin','')===PIN)forceLogout();throw e}}
 async function srv0(action,a,b,c){let last;for(let i=0;i<4;i++){try{return await srv1(action,a,b,c)}catch(e){last=e;if(!/lock|تأمين|sperr|time[d ]?out|zeitüber|exceeded|too many|Unexpected token|NET 5\d\d/i.test(String(e.message||e))||i===3)throw e;await new Promise(r=>setTimeout(r,2500*(i+1)))}}throw last}
 let db=null, mcp=null, dl=null, catalog=[], lists=[], lastSent=null, editing=null;
 let waNum=LS.get('wa','');
@@ -3166,6 +3183,7 @@ function makeDb(){
         if(box.some(o=>o.n===n))return;          // local changes still on the way – keep the optimistic copy
         store[n]=r.data[n].map(x=>{let d={};try{d=JSON.parse(x.json)}catch(e){}return {id:x.id,d}});
         ver[n]=r.v[n];persist(n);emit(n)});
+      try{onDevWait(r.devWait)}catch(_){}
       LS.set('ver',ver);if(!box.length)lastErr='';dot();
     }catch(e){dot()}finally{pulling=null}})();
     return pulling;
@@ -3243,8 +3261,12 @@ if(!IN_GAS&&'serviceWorker' in navigator)window.addEventListener('load',()=>navi
 setTimeout(()=>{try{clpWarm()}catch(_){}},5000);
 async function tryPin(p,quiet){
   PIN=p;const m=$('pin-msg');
+  clearTimeout(window._devWaitT);
   try{const v=await srv('check');LS.set('pin',p);setMe(v);start()}
-  catch(e){PIN='';if(!quiet){m.hidden=false;m.classList.add('err');m.textContent=e.message==='PIN'?'رمز الدخول غير صحيح.':/Zu viele/.test(e.message)?'محاولات خاطئة كثيرة. انتظر 10 دقائق ثم حاول.':e.message}}
+  catch(e){PIN='';
+    if(e.message==='GERAET_WARTET'){m.hidden=false;m.classList.remove('err');m.textContent='⏳ هذا جهاز جديد — بانتظار موافقة المالك. سيتم الدخول تلقائياً بعد الموافقة. · Neues Gerät – wartet auf Freigabe.';window._devWaitT=setTimeout(()=>tryPin(p,true),8000);return}
+    if(e.message==='GERAET_GESPERRT'){m.hidden=false;m.classList.add('err');m.textContent='⛔ هذا الجهاز موقوف من المالك. · Gerät gesperrt.';return}
+    if(!quiet){m.hidden=false;m.classList.add('err');m.textContent=e.message==='PIN'?'رمز الدخول غير صحيح.':/Zu viele/.test(e.message)?'محاولات خاطئة كثيرة. انتظر 10 دقائق ثم حاول.':e.message}}
 }
 /* PIN aus Ziffern (auch arabische Ziffern) oder Passwort mit Buchstaben */
 const pinNorm=s=>{const t=String(s||'').trim().replace(/[\u0660-\u0669]/g,c=>c.charCodeAt(0)-0x660).replace(/[\u06F0-\u06F9]/g,c=>c.charCodeAt(0)-0x6F0);return /^[\d\s]*$/.test(t)?t.replace(/\D/g,''):t};
@@ -3655,7 +3677,7 @@ $('iv-scan-file').onchange=async e=>{
 $('h-inv').onclick=()=>{drawer(false);tab('inv')};
 $('nv-inv').onclick=()=>$('h-inv').click();
 $('lg-inv-open').onclick=()=>tab('inv');
-$('lg-order-btn').onclick=orderProposal;$('lg-report-btn').onclick=e=>inventurReport(e.currentTarget);$('users-btn').onclick=usersOpen;setMe(ME);
+$('lg-order-btn').onclick=orderProposal;$('lg-report-btn').onclick=e=>inventurReport(e.currentTarget);$('users-btn').onclick=usersOpen;$('devs-btn').onclick=devsOpen;setMe(ME);
 $('lg-platz-btn').onclick=()=>{if(!lgSel)return;const key=lgSel.oil?String(lgSel.code).toUpperCase()+'|'+lgTierLetter(lgSel.tier):String(lgSel.code).toUpperCase().replace(/-\d{4}$/,'');
   const x=inv.items.find(y=>y.key===key)||{key,code:lgSel.code,tier:lgSel.oil?lgSel.tier:'',oil:lgSel.oil?1:0,title:lgSel.t,unit:lgUnit(lgSel)==='قطعة'?'Stück':lgUnit(lgSel),platz:$('lg-platz').dataset.p||'',bestand:0};
   ivPlatzEdit(x,p=>{$('lg-platz').textContent=p||'–';$('lg-platz').dataset.p=p||''})};
@@ -4915,6 +4937,40 @@ async function usersOpen(){
     const save=el('button','btn primary','حفظ · Speichern');save.onclick=async()=>{save.disabled=true;msg.hidden=false;msg.classList.remove('err');msg.textContent='…';
       try{list=await srv('users_set',JSON.stringify(list));list.forEach(u=>{if(!Array.isArray(u.perms))u.perms=ALT.slice()});draw();msg.textContent='تم الحفظ ✅ · Gespeichert'}catch(e){msg.classList.add('err');msg.textContent=e.message}save.disabled=false};
     const br=el('div','row');br.append(add,save);b.append(br,msg);
+  });
+}
+/* ---------- Geräte-Freigabe + Anmelde-Protokoll (nur Inhaber) ---------- */
+let devWaitN=0;
+const fmtT=t=>t?new Date(t).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'}):'';
+async function devSet(id,st){try{await srv('dev_set',JSON.stringify({id,st}));return true}catch(e){alert(e.message);return false}}
+function onDevWait(list){const box=$('h-devwait');if(!box)return;
+  if(!ME.owner||!Array.isArray(list)||!list.length){box.hidden=true;box.textContent='';devWaitN=0;return}
+  if(list.length>devWaitN){try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(_){}}devWaitN=list.length;
+  box.hidden=false;box.textContent='';box.append(el('h4',null,'📱 أجهزة جديدة بانتظار موافقتك ('+list.length+') · Neue Geräte'));
+  list.forEach(d=>{const r=el('div','devrow'),mm=el('div','dm');mm.append(el('b',null,'👤 '+(d.user||'?')),el('small',null,(d.n||'جهاز')+' · '+fmtT(d.first)));
+    const ok=el('button','btn small primary','✅ موافقة'),no=el('button','btn small danger','❌ رفض');
+    ok.onclick=async()=>{ok.disabled=no.disabled=true;if(await devSet(d.id,'ok'))r.remove();if(!box.querySelector('.devrow'))box.hidden=true};
+    no.onclick=async()=>{if(!confirm('رفض هذا الجهاز وإيقافه؟'))return;ok.disabled=no.disabled=true;if(await devSet(d.id,'block'))r.remove();if(!box.querySelector('.devrow'))box.hidden=true};
+    r.append(mm,ok,no);box.append(r)})}
+function devsOpen(){
+  openSheet('📱 الأجهزة وسجل الدخول · Geräte & Protokoll',async b=>{
+    const tabs=el('div','row'),tD=el('button','btn small primary','📱 الأجهزة'),tL=el('button','btn small','📜 سجل الدخول');tabs.append(tD,tL);b.append(tabs);
+    const box=el('div');b.append(box);
+    const stTxt={ok:['✅ معتمد','st-ok'],wait:['⏳ بانتظار الموافقة','st-wait'],block:['⛔ موقوف','st-block']};
+    const showDevs=async()=>{tD.classList.add('primary');tL.classList.remove('primary');box.textContent='…';let l=[];try{l=await srv('dev_list')||[]}catch(e){box.textContent=e.message;return}
+      box.textContent='';box.append(el('p','hint','كل جهاز يدخل التطبيق يظهر هنا. جهاز أي موظف جديد يحتاج موافقتك. يمكنك إيقاف أي جهاز فوراً (هاتف ضائع، موظف ترك العمل).'));
+      if(!l.length){box.append(el('p','hint','لا توجد أجهزة بعد.'));return}
+      l.forEach(d=>{const r=el('div','devrow'),mm=el('div','dm'),s=stTxt[d.st]||['?',''];
+        mm.append(el('b',null,'👤 '+(d.user||'?')+(d.me?' · (هذا الجهاز)':'')),el('small',null,(d.n||'جهاز')),el('small',null,'آخر دخول: '+fmtT(d.last)+' · أول مرة: '+fmtT(d.first)));
+        const sp=el('span',s[1],s[0]);r.append(mm,sp);
+        if(!d.me){if(d.st!=='ok'){const x=el('button','btn small primary','✅ موافقة');x.onclick=async()=>{if(await devSet(d.id,'ok'))showDevs()};r.append(x)}
+          if(d.st!=='block'){const x=el('button','btn small','⛔ إيقاف');x.onclick=async()=>{if(confirm('إيقاف هذا الجهاز؟ سيخرج من التطبيق فوراً.')&&await devSet(d.id,'block'))showDevs()};r.append(x)}
+          const del=el('button','btn small danger','🗑');del.title='حذف من القائمة';del.onclick=async()=>{if(confirm('حذف الجهاز من القائمة؟ إذا حاول الدخول مجدداً سيحتاج موافقتك.')&&await devSet(d.id,'del'))showDevs()};r.append(del)}
+        box.append(r)})};
+    const showLog=async()=>{tL.classList.add('primary');tD.classList.remove('primary');box.textContent='…';let l=[];try{l=await srv('log_get')||[]}catch(e){box.textContent=e.message;return}
+      box.textContent='';box.append(el('p','hint','آخر 300 عملية دخول ومحاولة. ظاهر لك فقط.'));if(!l.length){box.append(el('p','hint','السجل فارغ.'));return}
+      l.forEach(x=>{const r=el('div','logrow'+(/خاطئة|موقوف|رفض/.test(x.e||'')?' bad':''));r.append(el('span',null,fmtT(x.t)),el('span',null,(x.e||'')+(x.u?' · 👤 '+x.u:'')+(x.d?' · '+x.d:'')));box.append(r)})};
+    tD.onclick=showDevs;tL.onclick=showLog;showDevs();
   });
 }
 function openFromUrl(){const c=window.SR_CODE;if(!c||!catalog.length)return;window.SR_CODE='';drawer(false);tab('lg');if(!lgHandleCode(c)){$('lg-q').value=c;lgSearch()}}
