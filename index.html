@@ -848,7 +848,10 @@ function srv1(action,a,b,c){
 const IDB=(()=>{let p=null;const open=()=>p||(p=new Promise((ok,no)=>{try{const r=indexedDB.open('fh-showroom',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}catch(e){no(e)}}));
   const tx=(m,f)=>open().then(d=>new Promise((ok,no)=>{const t=d.transaction('kv',m),s=t.objectStore('kv'),q=f(s);t.oncomplete=()=>ok(q&&q.result);t.onerror=()=>no(t.error)}));
   return {get:k=>tx('readonly',s=>s.get(k)).catch(()=>undefined),set:(k,v)=>tx('readwrite',s=>s.put(v,k)).catch(()=>{})}})();
-async function srv(action,a,b,c){let last;for(let i=0;i<4;i++){try{return await srv1(action,a,b,c)}catch(e){last=e;if(!/lock|تأمين|sperr|time[d ]?out|zeitüber|exceeded|too many|Unexpected token|NET 5\d\d/i.test(String(e.message||e))||i===3)throw e;await new Promise(r=>setTimeout(r,2500*(i+1)))}}throw last}
+/* Passwort geändert / Mitarbeiter gesperrt: gespeicherte Anmeldung ist ungültig -> sofort abmelden */
+function forceLogout(){if(window._fhOut)return;window._fhOut=1;try{sessionStorage.clear()}catch(e){}LS.set('pin','');LS.set('me',{user:'',admin:false});location.reload()}
+async function srv(action,a,b,c){try{return await srv0(action,a,b,c)}catch(e){if(String(e&&e.message)==='PIN'&&PIN&&LS.get('pin','')===PIN)forceLogout();throw e}}
+async function srv0(action,a,b,c){let last;for(let i=0;i<4;i++){try{return await srv1(action,a,b,c)}catch(e){last=e;if(!/lock|تأمين|sperr|time[d ]?out|zeitüber|exceeded|too many|Unexpected token|NET 5\d\d/i.test(String(e.message||e))||i===3)throw e;await new Promise(r=>setTimeout(r,2500*(i+1)))}}throw last}
 let db=null, mcp=null, dl=null, catalog=[], lists=[], lastSent=null, editing=null;
 let waNum=LS.get('wa','');
 let customers=[], debts=[], offers=[], focusId=null, imgs={};let editOffer=LS.get('editOffer',null);
