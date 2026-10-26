@@ -681,7 +681,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <div class="dim" id="users-sec" hidden>
         <button class="btn" id="users-btn">👥 الموظفون ورموز الدخول · Mitarbeiter & PINs</button>
       </div>
-      <div class="dim" hidden>
+      <div class="dim" id="setpin-sec" hidden>
         <label for="newpin">تغيير رمز الدخول (4–8 أرقام)</label><input type="password" id="newpin" inputmode="numeric" dir="ltr" autocomplete="new-password" style="width:150px">
         <button class="btn small" id="setpin">حفظ الرمز الجديد</button><span id="setpin-msg" class="code"></span>
       </div>
@@ -2622,7 +2622,7 @@ try{const cc=findCust(rec.customer);if(cc&&cc.id&&rec.clpLogo&&(cc.clpLogo!==rec
 
 /* ---------- warehouse ---------- */
 $('setpin').onclick=async()=>{const n=pinDigits($('newpin').value),m=$('setpin-msg');if(n.length<4||n.length>8){m.textContent='4 إلى 8 أرقام';return}
-  if(!confirm('تغيير رمز الدخول؟ سيحتاج كل الموظفين الرمز الجديد.'))return;
+  if(!confirm('تغيير رمز المالك (Inhaber)؟ رموز الموظفين والطابعة لا تتأثر. احفظ الرمز الجديد جيداً.'))return;
   try{await srv('setpin',n);PIN=n;LS.set('pin',n);$('newpin').value='';m.textContent='تم تغيير الرمز ✓'}catch(e){m.textContent='فشل: '+(e.message||e)}};
 $('snd').checked=LS.get('snd',true)!==false;$('snd').onchange=e=>LS.set('snd',e.target.checked);$('snd-test').onclick=beep;
 $('wa-num').value=waNum;$('wa-num').onchange=e=>{waNum=e.target.value.trim();LS.set('wa',waNum)};
@@ -4868,7 +4868,7 @@ async function inventurReport(btn){
 /* ---------- Mitarbeiter (nur Inhaber) ---------- */
 function setMe(v){if(v&&typeof v==='object'){ME={user:v.user||'',admin:!!v.admin};LS.set('me',ME);applyRole();
   if(ME.user){const w=$('who');if(w){w.value=ME.user;LS.set('who',ME.user)}}
-  const u=$('me-badge');if(u){u.textContent=ME.user?'👤 '+ME.user:'';u.hidden=!ME.user}const sec=$('users-sec');if(sec)sec.hidden=!ME.admin}}
+  const u=$('me-badge');if(u){u.textContent=ME.user?'👤 '+ME.user:'';u.hidden=!ME.user}const sec=$('users-sec');if(sec)sec.hidden=!ME.admin;const ps=$('setpin-sec');if(ps)ps.hidden=!ME.admin}}
 async function usersOpen(){
   openSheet('👥 الموظفون · Mitarbeiter',async b=>{
     b.append(el('p','hint','لكل موظف رمز دخول خاص (4–8 أرقام). كل جرد ووارد وصادر وتغيير مكان يُسجَّل باسمه.'),el('p','hint de','Jeder Mitarbeiter bekommt einen eigenen PIN (4–8 Ziffern). Jede Zählung, Buchung und Fachänderung wird mit seinem Namen gespeichert.'));
