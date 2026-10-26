@@ -1034,13 +1034,14 @@ function dhlTeil_(s) { s = String(s || '').replace(/\s+/g, ' ').trim(); if (s.le
   var i = s.lastIndexOf(' ', 35); if (i < 10) i = 35; return [s.slice(0, i).trim(), dhlCut_(s.slice(i), 35)]; }
 /** Shopify-Bestellung → DHL-Empfänger (Hausadresse, Packstation oder Postfiliale) */
 function dhlEmpfaenger_(a, email) {
-  var name = String(a.name || '').replace(/\s+/g, ' ').trim(), firma = String(a.company || '').replace(/\s+/g, ' ').trim(), zeilen = [a.address1, a.address2].join(' ');
-  var postNr = (zeilen.match(/(?:post\s*nr|postnummer|kundennr|kd\.?\s*nr)\.?\s*:?\s*(\d{6,10})/i) || zeilen.match(/\b(\d{6,10})\b/) || [])[1] || '';
-  var ps = zeilen.match(/packstation\s*(?:nr\.?)?\s*(\d{3})/i), pf = zeilen.match(/(?:postfiliale|filiale|paketshop)\s*(?:nr\.?)?\s*(\d{3,4})/i);
+  var name = String(a.name || '').replace(/\s+/g, ' ').trim(), firma = String(a.company || '').replace(/\s+/g, ' ').trim(), zeilen = [a.company, a.address1, a.address2].join(' ');
+  /* Postnummer (6–10 Ziffern) und Packstation-/Filialnummer – auch bei Schreibweisen wie „Packstation: 141“, „Packstation-Nr. 141“, „PostNr 1234567“ */
+  var postNr = (zeilen.match(/(?:post\s*-?\s*(?:nr|nummer)|kunden\s*-?\s*(?:nr|nummer)|kd\.?\s*-?\s*nr|dhl\s*-?\s*(?:nr|nummer))\D{0,6}(\d{6,10})(?!\d)/i) || zeilen.match(/(?:^|\D)(\d{6,10})(?!\d)/) || [])[1] || '';
+  var ps = zeilen.match(/pack\s*-?\s*station\D{0,12}?(\d{3})(?!\d)/i), pf = zeilen.match(/(?:post\s*-?\s*filiale|filiale|paket\s*-?\s*shop)\D{0,12}?(\d{3,4})(?!\d)/i);
   var w = [];
   if ((ps || pf) && String(a.countryCodeV2 || 'DE').toUpperCase() === 'DE') {
     if (!postNr) w.push('Packstation/Filiale ohne Postnummer – DHL lehnt das ab');
-    var e = { name: dhlCut_(name || firma, 35), postNumber: postNr, postalCode: String(a.zip || '').trim(), city: dhlCut_(a.city, 40) };
+    var e = { name: dhlCut_(name || firma, 35), postNumber: postNr, postalCode: String(a.zip || '').trim(), city: dhlCut_(a.city, 40), country: 'DEU' };   // Land ist Pflicht (sonst lehnt DHL ab)
     if (ps) e.lockerID = Number(ps[1]); else e.retailID = Number(pf[1]);
     return { e: e, typ: ps ? 'Packstation ' + ps[1] : 'Postfiliale ' + pf[1], w: w };
   }
@@ -1103,6 +1104,15 @@ function dhlPakete_(alt) {
   return (alt.pakete && alt.pakete.length) ? alt.pakete : [{ nr: alt.nr, kg: alt.kg, file: alt.file, at: alt.at }];
 }
 /* Showroom-Aufträge (طلبات تطبيق الصالة): ID „AP-…“, Adresse kommt aus der App, kein Shopify. PIN prüft schon srApi. */
+/** Dropshipping: Absender = Name des Kunden, Anschrift bleibt unsere (Retouren kommen zu uns): „Firma X · c/o Fragrance Hub Germany“ */
+function dhlAbs_(adr) {
+  var abs = adr && adr.drop ? String(adr.abs || '').replace(/\s+/g, ' ').trim() : '';
+  if (!abs) return DHL_ABSENDER;
+  var s = JSON.parse(JSON.stringify(DHL_ABSENDER)), t = dhlTeil_(abs);
+  s.name1 = t[0];
+  if (t[1]) { s.name2 = t[1]; s.name3 = 'c/o Fragrance Hub Germany'; } else s.name2 = 'c/o Fragrance Hub Germany';
+  return s;
+}
 function dhlAp_(id) { return /^AP-[A-Za-z0-9_-]{3,60}$/.test(String(id || '')); }
 function dhlPw_(o) { if (!dhlAp_(o && o.id)) soPruefen_(o && o.pw); }
 function dhlQuelle_(o, id) {
@@ -1143,7 +1153,7 @@ function dhlLabel_(o) {
     if (ref.length < 8) ref = ('FH ' + ref + '        ').slice(0, 8).trim() + '-' + id.slice(-4);
     var tag = Utilities.formatDate(new Date(), 'Europe/Berlin', 'yyyy-MM-dd');
     var body = { profile: 'STANDARD_GRUPPENPROFIL', shipments: kgs.map(function (kg) { return { product: prod, billingNumber: P.bn, refNo: ref.slice(0, 35),
-      shipDate: tag, shipper: DHL_ABSENDER, consignee: empf, details: { weight: { uom: 'kg', value: kg } } }; }) };
+      shipDate: tag, shipper: dhlAbs_(n.adr), consignee: empf, details: { weight: { uom: 'kg', value: kg } } }; }) };
     var pfad = '/orders?' + (o.nurPruefen ? 'validate=true&' : '') + 'mustEncode=true&printFormat=' + encodeURIComponent(dhlFormat_()) + '&combine=false';
     var r = dhlFetch_('post', pfad, body), j = r.j, items = j.items || [];
     var msgs = dhlFehler_(j);
@@ -1368,6 +1378,7 @@ function dhlxPositionen_(n) {
 function dhlxEmpfaenger_(n, ov) {
   var a = n.shippingAddress || {}; ov = ov || {};
   var land = String(a.countryCodeV2 || '').toUpperCase(), w = [];
+  land = ({ XK: 'KV' })[land] || land;   // DHL Express: Kosovo = KV (Shopify: XK)
   var tel = String(ov.tel || a.phone || n.phone || '').trim(), mail = String(n.email || '').trim();
   if (!tel) w.push('Telefonnummer des Empfängers fehlt – DHL Express braucht sie');
   if (['US', 'CA'].indexOf(land) >= 0 && !a.provinceCode) w.push('Bundesstaat/Provinz fehlt');

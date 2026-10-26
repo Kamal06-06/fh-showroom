@@ -2057,13 +2057,16 @@ const PLT={de:{t:'PACKLISTE',nr:'Nr. PL-',date:'Datum: ',cust:'Kunde',no:'Kunden
  pl:{t:'LISTA PAKOWANIA',nr:'Nr PL-',date:'Data: ',cust:'Klient',no:'Nr klienta ',note:'Uwaga: ',pos:'Poz.',art:'Artykul',q:'Jakosc',m:'Ilosc',n:'Szt.',code:'Kod',oils:'Olejki',other:'Flakony i akcesoria',foot:'Ta lista nie zawiera cen.',sig:'Skompletowal: ____________________     Data / godzina: ______________'}};
 /* Stückzahl je Packung aus der Variante ("100 Stück / Gold" → 100) */
 const packOf=it=>{if(isOil(it)||it.unit)return 1;const m=/(\d+)\s*(st(ü|u)ck|stk|pcs|pz|szt)/i.exec(String(it.size||''));return m?+m[1]:1};
-function prepListPdf(l,useOrig){
-  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4',compress:true});const L=15,R=195,d=new Date(l.at||Date.now()),k=PLT[LANG_OF(l.country)]||PLT.de;let y=20;
+function prepListPdf(l,useOrig,neutral){
+  /* neutral (Dropshipping): ohne Preise, ohne unser Logo/Anschrift – Absender = Kunde, Empfänger = Kunde des Kunden */
+  if(neutral){const D=l.dhlAdr||{};l=Object.assign({},l,{customer:D.firma||D.name||'',custNo:'',note:'',street:[D.firma?D.name:'',D.a1,D.a2].filter(Boolean).join(', '),city:((D.plz||'')+' '+(D.ort||'')).trim(),country:D.land||'DE',_abs:D.abs||''})}
+  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4',compress:true});const L=15,R=195,d=new Date(l.at||Date.now()),k0=PLT[LANG_OF(l.country)]||PLT.de,
+    k=neutral?Object.assign({},k0,LANG_OF(l.country)==='de'?{t:'LIEFERSCHEIN',nr:'Nr. ',cust:'Lieferung an'}:{t:'DELIVERY NOTE',nr:'No. ',cust:'Deliver to'},{sig:'',foot:''}):k0;let y=20;
   /* Spalten: ☐ | Pos | Bild | Artikel (Name, Variante, Code) | Qualität | Inhalt | Menge – nichts überlappt */
   const IMG=14,X={cb:L+1,pos:L+8.5,img:L+14,art:L+31,q:L+120,m:L+143,n:R-2},AW=X.q-X.art-3,MW=X.n-X.m-14;
-  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('FRAGRANCE HUB GERMANY',L,y);doc.setFontSize(18);doc.text(k.t,R,y,{align:'right'});
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(neutral?latin(l._abs||''):'FRAGRANCE HUB GERMANY',L,y);doc.setFontSize(18);doc.text(k.t,R,y,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(90);
-  doc.text('Inh. Mohammad Kamal Al Masri',L,y+5);doc.text('Am Alten Kirchplatz 10, 45665 Recklinghausen',L,y+9);doc.text('fragranceshub.de',L,y+13);
+  if(!neutral){doc.text('Inh. Mohammad Kamal Al Masri',L,y+5);doc.text('Am Alten Kirchplatz 10, 45665 Recklinghausen',L,y+9);doc.text('fragranceshub.de',L,y+13)}
   doc.text(k.nr+stamp(l),R,y+5,{align:'right'});doc.text(k.date+p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.'+d.getFullYear(),R,y+9,{align:'right'});doc.setTextColor(0);y+=24;
   doc.setFontSize(9);doc.setTextColor(90);doc.text(k.cust,L,y);doc.setTextColor(0);
   doc.setFont('helvetica','bold');doc.setFontSize(12);putText(doc,l.customer,L,y+6,12,120);
@@ -2159,7 +2162,7 @@ async function epsonPrint(l,btn){const o=btn.innerHTML;btn.disabled=true;btn.tex
 async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phomemo':'A4';const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
     if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
-    if(['ls','lso','pl','plo'].includes(kind))await prepImgs(lo);
+    if(['ls','lso','pl','plo','pln'].includes(kind))await prepImgs(lo);
     const stP=druckStatus();
     const blob=KINDS[kind].make(lo).output('blob');
     if(pre==='P-')await pmQueue(blob,fname(kind,lo));else await druckQ(pre+fname(kind,lo),await blob64(blob));
@@ -2168,7 +2171,7 @@ async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phome
 async function directPrint(kind,l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري التجهيز…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
     if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
-    if(['ls','lso','pl','plo'].includes(kind))await prepImgs(lo);
+    if(['ls','lso','pl','plo','pln'].includes(kind))await prepImgs(lo);
     if(kind==='clp'){const r=await clpMake(lo);if(r.fehlend&&r.fehlend.length)alert('بدون ملصق CLP: '+r.fehlend.join('، '));
       if(!r.files.length)throw new Error('لا يوجد ملصق CLP لهذه الأصناف');btn.textContent='جاري فتح الطباعة…';for(const f of r.files)await printPdf(f.blob)}
     else{const blob=KINDS[kind].make(lo).output('blob');btn.textContent='جاري فتح الطباعة…';await printPdf(blob)}}
@@ -2182,7 +2185,7 @@ function docsPanel(l){
   const row=(ic,title,sub,kind,opt)=>{opt=opt||{};const r=el('div','drow');const i=el('span','dic',ic);const tx=el('div','dt');tx.append(el('b',null,title),el('small',null,sub));r.append(i,tx);
     const bs=el('div','dbtn');
     if(kind==='clp'){const e=el('button','btn small primary','🏷️ Epson');e.title='يُطبع مباشرة على طابعة الملصقات في المستودع';e.onclick=()=>epsonPrint(l,e);bs.append(e)}
-    if(['ls','lso','pl','plo'].includes(kind)){const a=el('button','btn small primary','🖨️ A4');a.title='يُطبع مباشرة على طابعة A4 (Brother) في المستودع';a.onclick=()=>a4Print(kind,l,a);bs.append(a)}
+    if(['ls','lso','pl','plo','pln'].includes(kind)){const a=el('button','btn small primary','🖨️ A4');a.title='يُطبع مباشرة على طابعة A4 (Brother) في المستودع';a.onclick=()=>a4Print(kind,l,a);bs.append(a)}
     if(kind==='lab'||kind==='labo'){const a=el('button','btn small primary','🏷️ Phomemo');a.title='يُطبع مباشرة على طابعة Phomemo 40 × 30 في المستودع';a.onclick=()=>a4Print(kind,l,a,'P-');bs.append(a)}
     {const p=el('button','btn small','🖨️ طباعة');p.onclick=()=>directPrint(kind,l,p);const s2=el('button','btn small','📤 إرسال');s2.title='ملف PDF · واتساب · تنزيل';s2.onclick=()=>savePdf(kind,l,s2,out);bs.append(p,s2)}
     r.append(bs);box.append(r)};
@@ -2191,6 +2194,7 @@ function docsPanel(l){
   row('💶','عرض السعر بالأسماء الأصلية','Angebot – Originalnamen','lso');
   row('📋','قائمة التحضير · Packliste','بدون أسعار – للموظف أو لإرسالها للعميل','pl');
   row('📋','قائمة التحضير بالأسماء الأصلية','Packliste – Originalnamen · بدون أسعار','plo');
+  if(l.dhlAdr&&l.dhlAdr.drop)row('🔁','ورقة الطرد للمستلم (Dropshipping)','بدون أسعار وبدون شعارك · باسم '+(l.dhlAdr.abs||'العميل'),'pln');
   if(hasOil){sec('🏷️ الملصقات');
     row('⚠️','ملصقات CLP','102 × 51 مم · Epson ColorWorks · وعيّنات 40 × 30','clp');clpWarm(l);
     row('🏷️','ملصقات بسيطة','40 × 30 مم · الاسم والكود والجودة','lab');
@@ -2201,7 +2205,7 @@ function docsPanel(l){
   if(l.clpAddr)ex.push(el('p','note','عنوان العميل على ملصق CLP: '+l.clpAddr+(l.clpLogo?' · مع لوغو العميل':'')));box.extra=ex;
   return box;
 }
-const KINDS={pl:{name:'Packliste',make:l=>prepListPdf(l)},plo:{name:'Packliste-Original',make:l=>prepListPdf(l,true)},lab:{name:'Etiketten',make:labelsPdf},labo:{name:'Etiketten-Original',make:labelsPdfOrig},ls:{name:'Angebotspreis',make:lieferscheinPdf},lso:{name:'Angebotspreis-Original',make:l=>lieferscheinPdf(l,true)}};
+const KINDS={pl:{name:'Packliste',make:l=>prepListPdf(l)},plo:{name:'Packliste-Original',make:l=>prepListPdf(l,true)},pln:{name:'Lieferschein-Neutral',make:l=>prepListPdf(l,false,true)},lab:{name:'Etiketten',make:labelsPdf},labo:{name:'Etiketten-Original',make:labelsPdfOrig},ls:{name:'Angebotspreis',make:lieferscheinPdf},lso:{name:'Angebotspreis-Original',make:l=>lieferscheinPdf(l,true)}};
 const fname=(kind,l)=>KINDS[kind].name+(l._part?'-Auswahl':'')+'-'+custFile(l)+'-'+stamp(l)+'.pdf';
 async function prepImgs(l){
   for(const it of (l.items||[])){
@@ -4393,6 +4397,8 @@ function soAdrSheet(o){const back=()=>openSheet('🛒 طلبات المتجر',b
     if(soHasDhl(o))b.append(el('div','status err','⚠️ لهذا الطلب ملصق DHL بالعنوان القديم ('+o.stand.dhl.nr+'). بعد التعديل ألغِ الملصق وأنشئ ملصقاً جديداً.'));
     const F=[['name','الاسم · Name',L.name],['firma','الشركة · Firma (اختياري)',L.firma],['a1','الشارع ورقم البيت · Straße + Hausnr.',L.a1],['a2','إضافة · Adresszusatz / Packstation-PostNr. (اختياري)',L.a2],['plz','الرمز البريدي · PLZ',L.plz],['ort','المدينة · Ort',L.ort],['land','الدولة (رمز من حرفين) · Land',o.land||'DE'],['tel','الهاتف · Telefon (اختياري)',L.tel||o.tel]],inp={};
     F.forEach(([k,lab,v])=>{const i=el('input');i.dir='ltr';i.autocomplete='off';i.value=v||'';if(k==='land'){i.maxLength=2;i.style.textTransform='uppercase'}if(k==='tel')i.type='tel';inp[k]=field(b,lab,i)});
+    b.append(el('p','hint','📦 Packstation: في «الشارع» اكتب «Packstation 123»، وفي «إضافة» اكتب «Postnummer 12345678».'));
+    adrHilfe({plz:inp.plz,ort:inp.ort,str:inp.a1,land:()=>String(inp.land.value||'DE').toUpperCase()});
     const m=el('div','status');m.hidden=true;const sv=el('button','btn primary big','💾 حفظ في Shopify');b.append(sv,m);
     sv.onclick=async()=>{const a={};Object.keys(inp).forEach(k=>a[k]=inp[k].value.trim());a.land=a.land.toUpperCase();
       if(!a.name||!a.a1||!a.plz||!a.ort){m.hidden=false;m.classList.add('err');m.textContent='الاسم والشارع والرمز البريدي والمدينة مطلوبة';return}
@@ -4639,16 +4645,96 @@ function apObj(l){const o={ap:true,l,id:'AP-'+l.id,nr:'AP-'+stamp(l),adr:apAdr(l
 function apDhl(l){const o=apObj(l);
   if(l.dhl&&l.dhl.nr||(o.adr.a1&&o.adr.plz&&o.adr.ort))return dhlSheet(o,null);
   apDhlAdr(l,o)}
+/* ---------- 📍 Adress-Hilfe (OpenPLZ, kostenlos): PLZ → Ort automatisch, Tippfehler im Straßennamen → Vorschlag (DE · AT · CH) ---------- */
+const ADR_C={},ADR_PLZ={DE:/^\d{5}$/,AT:/^\d{4}$/,CH:/^\d{4}$/};
+const adrNorm=s=>String(s||'').toLowerCase().replace(/ß/g,'ss').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/str(?:asse|aße|\.)?(?=[^a-z]|$)/g,'str').replace(/[^a-z0-9]/g,'');
+function adrLev(a,b){if(a===b)return 0;const m=a.length,n=b.length;if(!m||!n)return m||n;let p=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[n]}
+async function adrGet(u){const r=await fetch(u,{headers:{accept:'application/json'}});if(!r.ok)throw new Error('HTTP '+r.status);return {j:await r.json(),pages:+r.headers.get('x-total-pages')||1}}
+function adrOrte(land,plz){land=String(land||'DE').toUpperCase();plz=String(plz||'').trim();if(!ADR_PLZ[land]||!ADR_PLZ[land].test(plz))return Promise.resolve(null);const k='o'+land+plz;
+  if(!ADR_C[k])ADR_C[k]=adrGet('https://openplzapi.org/'+land.toLowerCase()+'/Localities?postalCode='+plz+'&pageSize=50').then(r=>[...new Set(r.j.map(x=>x.name).filter(Boolean))]).catch(e=>{delete ADR_C[k];throw e});
+  return ADR_C[k]}
+function adrStrassen(land,plz){land=String(land||'DE').toUpperCase();plz=String(plz||'').trim();if(!ADR_PLZ[land]||!ADR_PLZ[land].test(plz))return Promise.resolve(null);const k='s'+land+plz;
+  if(!ADR_C[k])ADR_C[k]=(async()=>{const u=pg=>'https://openplzapi.org/'+land.toLowerCase()+'/Streets?postalCode='+plz+'&page='+pg+'&pageSize=50';
+    const f=await adrGet(u(1));let all=f.j;
+    if(f.pages>1){const rest=await Promise.all(Array.from({length:Math.min(f.pages,40)-1},(_,i)=>adrGet(u(i+2)).then(r=>r.j).catch(()=>[])));rest.forEach(x=>{all=all.concat(x)})}
+    return [...new Set(all.map(x=>x.name).filter(Boolean))]})().catch(e=>{delete ADR_C[k];throw e});
+  return ADR_C[k]}
+const adrSchoen=s=>String(s).replace(/(^|[^A-Za-z])str\.(?=\s|$)/,'$1straße').replace(/Str\.(?=\s|$)/,'Straße').replace(/str\.(?=\s|$)/,'straße');
+/* Straße prüfen → {ok} | {vorschlag, rest} | {unbekannt} | null (nicht prüfbar) */
+async function adrStrPruef(land,plz,str){const s0=String(str||'').trim();if(!s0||/pack\s*-?\s*station|post\s*-?\s*filiale|filiale/i.test(s0))return null;
+  const name=s0.replace(/[\s,]*\d+\s*[a-zA-Z]?(?:\s*[-\/]\s*\d*\s*[a-zA-Z]?)?$/,'').trim()||s0,nn=adrNorm(name);if(nn.length<3)return null;
+  let L;try{L=await adrStrassen(land,plz)}catch(e){return null}if(!L||!L.length)return null;
+  if(L.some(x=>adrNorm(x)===nn))return {ok:true};
+  let best=null,bd=1e9;L.forEach(x=>{const d=adrLev(nn,adrNorm(x));if(d<bd){bd=d;best=x}});
+  if(best&&bd<=Math.max(2,Math.round(nn.length*0.25)))return {vorschlag:adrSchoen(best),rest:s0.slice(name.length)};
+  return {unbekannt:true}}
+/* an ein Formular hängen: PLZ → Ort ausfüllen (mehrere Orte: Auswahl), Straße beim Verlassen prüfen */
+function adrHilfe(o){const plz=o.plz,ort=o.ort,str=o.str,land=o.land||(()=>'DE');if(!plz||!ort)return null;
+  const hO=el('div','hint');hO.hidden=true;(ort.closest('label')||ort).after(hO);
+  const hS=el('div','hint');hS.hidden=true;if(str)(str.closest('label')||str).after(hS);
+  let t1=0,t2=0;
+  const strasse=async()=>{if(!str)return;const r=await adrStrPruef(land(),plz.value,str.value);hS.textContent='';hS.hidden=!r||!!r.ok;if(!r||r.ok)return;
+    if(r.vorschlag){hS.append('🔎 هل تقصد: ');const bt=el('button','btn small primary',(r.vorschlag+r.rest).trim());bt.type='button';bt.onclick=()=>{str.value=(r.vorschlag+r.rest).trim();hS.hidden=true};hS.append(bt)}
+    else hS.textContent='⚠️ هذا الشارع غير موجود في هذا الرمز البريدي – تأكّد من الكتابة'};
+  const orte=async()=>{let L;try{L=await adrOrte(land(),plz.value)}catch(e){return}hO.textContent='';hO.hidden=true;
+    if(!L)return;if(!L.length){hO.hidden=false;hO.textContent='⚠️ الرمز البريدي غير موجود · PLZ unbekannt';return}
+    if(L.length===1){if(adrNorm(ort.value)!==adrNorm(L[0]))ort.value=L[0];hO.hidden=false;hO.textContent='✓ '+L[0]}
+    else if(!L.some(x=>adrNorm(x)===adrNorm(ort.value))){if(!ort.value.trim())ort.value=L[0];hO.hidden=false;hO.append('اختر المدينة: ');
+      L.slice(0,10).forEach(n=>{const c=el('button','btn small',n);c.type='button';c.onclick=()=>{ort.value=n;hO.hidden=true};hO.append(c,' ')})}
+    if(str&&str.value.trim())strasse()};
+  plz.addEventListener('input',()=>{clearTimeout(t1);t1=setTimeout(orte,350)});
+  if(str)str.addEventListener('blur',()=>{clearTimeout(t2);t2=setTimeout(strasse,150)});
+  if(String(plz.value).trim())setTimeout(orte,250);
+  return {orte,strasse}}
+/* Kundenformular (neuer Auftrag): PLZ → Ort, Straße prüfen */
+setTimeout(()=>{try{if($('plz')&&$('city'))adrHilfe({plz:$('plz'),ort:$('city'),str:$('street'),land:()=>($('country')&&$('country').value)||'DE'})}catch(e){}},1500);
+/* Adresse eines Showroom-Auftrags für DHL – Hausadresse, Packstation oder Postfiliale; optional Dropshipping (Versand an den Kunden des Kunden) */
 function apDhlAdr(l,o){openSheet('📦 عنوان الشحن · '+o.nr,b=>{soCss();
-  b.append(el('p','hint','عنوان المستلم على ملصق DHL. داخل ألمانيا: DHL Paket · دول الاتحاد الأوروبي: DHL Europaket (للشركات). يُحفظ لهذا الطلب.'));
-  const a=o.adr,F=[['name','الاسم · Name *'],['firma','الشركة · Firma'],['a1','الشارع ورقم البيت · Straße + Hausnr. *'],['a2','إضافة · Adresszusatz / Packstation-PostNr.'],['plz','الرمز البريدي · PLZ *'],['ort','المدينة · Ort *'],['tel','الهاتف · Telefon'],['email','الإيميل · E-Mail (لإشعار DHL)']],inp={};
-  F.forEach(([k,lab])=>{const i=el('input');i.dir='ltr';i.autocomplete='off';i.value=a[k]||'';if(k==='tel')i.type='tel';if(k==='email')i.type='email';if(k==='plz')i.maxLength=10;inp[k]=field(b,lab,i)});
+  const own=apAdr(Object.assign({},l,{dhlAdr:null})),a=Object.assign({},o.adr||{}),txt=v=>String(v||'').trim();
+  const z=[a.a1,a.a2].join(' '),num=re=>(z.match(re)||[])[1]||'';
+  let art=/pack\s*-?\s*station/i.test(z)?'ps':/post\s*-?\s*filiale|filiale/i.test(z)?'pf':'h';
+  b.append(el('p','hint','عنوان المستلم على ملصق DHL. داخل ألمانيا: DHL Paket · دول الاتحاد الأوروبي: DHL Europaket. يُحفظ لهذا الطلب.'));
+  /* 🔁 Dropshipping */
+  const dl=el('label','clprow'),dc=el('input');dc.type='checkbox';dc.checked=!!a.drop;dl.append(dc,' 🔁 الشحن إلى عميل عميلي (Dropshipping)');b.append(dl);
+  const dbox=el('div','card');dbox.style.cssText='padding:10px 12px;margin:6px 0 10px';
+  dbox.append(el('p','hint','الحساب والفاتورة والدين تبقى باسم «'+custLabel(l)+'». على الملصق يظهر عميلك كمرسِل، والطرد المرتجع يعود إلينا. اكتب بالأسفل اسم وعنوان المستلم.'));
+  const absI=el('input');absI.dir='ltr';absI.autocomplete='off';absI.value=a.abs||own.firma||own.name||l.customer||'';field(dbox,'اسم المرسِل على الملصق · Absender',absI);
+  const prev=el('div','note');prev.dir='ltr';prev.style.whiteSpace='pre-line';const pv=()=>{prev.textContent='Absender:\n'+(txt(absI.value)||'—')+'\nc/o Fragrance Hub Germany\nAm Alten Kirchplatz 10, 45665 Recklinghausen'};pv();absI.oninput=pv;dbox.append(prev);
+  b.append(dbox);dbox.hidden=!dc.checked;
+  /* Art der Adresse */
+  const seg=el('div','row');seg.style.cssText='gap:6px;flex-wrap:wrap;margin:6px 0 4px';const sb={};
+  [['h','🏠 عنوان منزل / شركة'],['ps','📦 Packstation'],['pf','🏤 Postfiliale']].forEach(([k,t])=>{const x=el('button','btn small',t);x.type='button';x.onclick=()=>{art=k;show()};sb[k]=x;seg.append(x)});b.append(seg);
+  const inp={},mk=(k,lab,v,extra)=>{const i=el('input');i.dir='ltr';i.autocomplete='off';i.value=v||'';Object.assign(i,extra||{});inp[k]=field(b,lab,i);return i};
+  mk('name','الاسم · Name *',a.name);mk('firma','الشركة · Firma',a.firma);
+  mk('a1','الشارع ورقم البيت · Straße + Hausnr. *',art==='h'?a.a1:'');mk('a2','إضافة · Adresszusatz (اختياري)',art==='h'?a.a2:'');
+  mk('ps','رقم الـ Packstation · Packstation-Nr. (3 أرقام) *',num(/pack\s*-?\s*station\D{0,12}?(\d{3})(?!\d)/i),{inputMode:'numeric',maxLength:3});
+  mk('pf','رقم الفرع · Postfiliale-Nr. (3–4 أرقام) *',num(/(?:post\s*-?\s*filiale|filiale)\D{0,12}?(\d{3,4})(?!\d)/i),{inputMode:'numeric',maxLength:4});
+  mk('pn','رقم DHL الشخصي للمستلم · Postnummer (6–10 أرقام) *',num(/(?:^|\D)(\d{6,10})(?!\d)/),{inputMode:'numeric',maxLength:10});
+  const pnHint=el('p','hint','الـ Postnummer هو رقم العميل الشخصي عند DHL (في تطبيق «Post & DHL» أو على بطاقة Packstation). بدونه يرفض DHL التوصيل إلى Packstation أو Postfiliale.');(inp.pn.closest('label')||inp.pn).after(pnHint);
+  mk('plz','الرمز البريدي · PLZ *',a.plz,{maxLength:10});mk('ort','المدينة · Ort *',a.ort);
   const ls=el('select');ls.style.cssText='padding:10px;font:inherit;border-radius:10px;width:100%';AP_EU.forEach(c=>{const op=el('option',null,SO_FLAG(c)+' '+c);op.value=c;ls.append(op)});ls.value=AP_EU.includes(a.land)?a.land:'DE';field(b,'الدولة · Land',ls);
+  mk('tel','الهاتف · Telefon',a.tel,{type:'tel'});mk('email','الإيميل · E-Mail (لإشعار DHL)',a.email,{type:'email'});
+  const vis=(k,on)=>{const w=inp[k].closest('label');if(w)w.hidden=!on};
+  function show(){Object.keys(sb).forEach(k=>sb[k].classList.toggle('primary',k===art));vis('a1',art==='h');vis('a2',art==='h');vis('ps',art==='ps');vis('pf',art==='pf');vis('pn',art!=='h');pnHint.hidden=art==='h';
+    if(art!=='h'){ls.value='DE';ls.disabled=true}else ls.disabled=false}
+  show();
+  dc.onchange=()=>{dbox.hidden=!dc.checked;const fill=x=>{['name','firma','a1','a2','plz','ort','tel','email'].forEach(k=>inp[k].value=x[k]||'');['ps','pf','pn'].forEach(k=>inp[k].value='');art='h';show()};
+    if(dc.checked&&txt(inp.name.value)===txt(own.name)&&txt(inp.a1.value)===txt(own.a1)){fill({});inp.name.focus()}
+    else if(!dc.checked&&!txt(inp.name.value))fill(own)};
+  adrHilfe({plz:inp.plz,ort:inp.ort,str:inp.a1,land:()=>ls.value});
   const m=el('div','status');m.hidden=true;const go=el('button','btn primary big','متابعة ←');b.append(go,m);
-  go.onclick=()=>{const x={};Object.keys(inp).forEach(k=>x[k]=inp[k].value.trim());x.land=ls.value;
-    if(!x.name||!x.a1||!x.plz||!x.ort){m.hidden=false;m.classList.add('err');m.textContent='الاسم والشارع والرمز البريدي والمدينة مطلوبة';return}
-    if(x.land==='DE'&&!/^\d{5}$/.test(x.plz)){m.hidden=false;m.classList.add('err');m.textContent='الرمز البريدي في ألمانيا 5 أرقام';return}
+  go.onclick=()=>{const v=k=>txt(inp[k].value),err=t=>{m.hidden=false;m.classList.add('err');m.textContent=t};
+    const x={name:v('name'),firma:v('firma'),plz:v('plz'),ort:v('ort'),land:ls.value,tel:v('tel'),email:v('email'),art};
+    if(!x.name||!x.plz||!x.ort)return err('الاسم والرمز البريدي والمدينة مطلوبة');
+    if(art==='h'){x.a1=v('a1');x.a2=v('a2');if(!x.a1)return err('الشارع ورقم البيت مطلوبان')}
+    else{const pn=v('pn').replace(/\D/g,'');if(!/^\d{6,10}$/.test(pn))return err('رقم Postnummer يجب أن يكون من 6 إلى 10 أرقام');
+      if(art==='ps'){const n=v('ps').replace(/\D/g,'');if(!/^\d{3}$/.test(n))return err('رقم الـ Packstation يتكون من 3 أرقام');x.a1='Packstation '+n}
+      else{const n=v('pf').replace(/\D/g,'');if(!/^\d{3,4}$/.test(n))return err('رقم الـ Postfiliale من 3 أو 4 أرقام');x.a1='Postfiliale '+n}
+      x.a2='Postnummer '+pn;x.land='DE'}
+    if(x.land==='DE'&&!/^\d{5}$/.test(x.plz))return err('الرمز البريدي في ألمانيا 5 أرقام');
     if(x.land!=='DE'&&!x.firma&&!confirm('DHL Europaket مخصّص للشركات. لا يوجد اسم شركة – متابعة؟'))return;
+    if(dc.checked){x.drop=true;x.abs=txt(absI.value);if(!x.abs)return err('اكتب اسم المرسِل (عميلك)')}
     delete dhlVorC[o.id];o.adr=x;l.dhlAdr=x;try{db.doc('lists/'+l.id).update({dhlAdr:x}).catch(()=>{})}catch(e){}dhlSheet(o,null)}})}
 /* DHL-Vorbereitung schon beim Öffnen des Auftrags im Hintergrund holen → Fenster geht sofort auf */
 const dhlVorC={};
@@ -4701,7 +4787,12 @@ function dhlSheet(o,after){openSheet('📦 DHL Paket · '+o.nr,async b=>{soCss()
   const row=el('div','row');row.style.cssText='gap:8px;flex-wrap:wrap;margin-top:10px';
   const chk=el('button','btn','🔍 فحص العنوان (مجاني)'),go=el('button','btn primary big','✅ إنشاء الملصق (مدفوع)');row.append(chk,go);b.append(row,m);
   druckStatus().then(x=>{if(x&&x.online)dr.checked=LS.get('dhlDr',true)}).catch(()=>{});dr.onchange=()=>LS.set('dhlDr',dr.checked);
-  if(o.ap){sp.checked=false;sp.parentNode.hidden=true;const eb=el('button','btn small','✏️ تعديل العنوان');eb.onclick=()=>o.editAdr&&o.editAdr();c.append(eb)}
+  if(o.ap){sp.checked=false;sp.parentNode.hidden=true;const eb=el('button','btn small','✏️ تعديل العنوان');eb.onclick=()=>o.editAdr&&o.editAdr();
+    const ds=el('button','btn small','🔁 إرسال لعميل عميلي (Dropshipping)');ds.onclick=()=>o.editAdr&&o.editAdr();c.append(eb,' ',ds);
+    if(o.adr&&o.adr.drop)c.append(el('div','status','🔁 Dropshipping · المرسِل على الملصق: '+(o.adr.abs||'')+' · c/o Fragrance Hub Germany — الحساب يبقى باسم العميل'))}
+  /* 🔎 Tippfehler im Straßennamen? (DE/AT/CH, kostenlos) */
+  if(e.addressStreet)adrStrPruef(v.land||'DE',e.postalCode,(e.addressStreet+' '+(e.addressHouse||'')).trim()).then(r=>{if(!r||r.ok)return;
+    c.append(el('div','status err',r.vorschlag?'🔎 قد يكون في اسم الشارع خطأ – هل تقصد: '+(r.vorschlag+r.rest).trim()+'؟ صحّح العنوان قبل إنشاء الملصق.':'⚠️ الشارع غير موجود في هذا الرمز البريدي – تأكّد من العنوان قبل إنشاء الملصق.'))}).catch(()=>{});
   const opt=nur=>({id:o.id,nr:o.nr,adr:o.adr,kgs:kb.kgs(),kg:kb.kgs()[0],prod:pd.value,nurPruefen:nur,druck:dr.checked,shopify:sp.checked&&!o.ap});
   chk.onclick=async()=>{chk.disabled=true;say('جاري الفحص عند DHL…');try{const r=await soCall('dhl_label',opt(true));say((r.ok?'✅ DHL يقبل العنوان والبيانات':'❌ DHL لا يقبل البيانات')+(r.msgs.length?'\n'+r.msgs.join('\n'):''),!r.ok)}catch(x){say('⚠️ '+dhlErr(x),1)}chk.disabled=false};
   go.onclick=async()=>{const x=opt(false);if(x.kgs.some(k=>!(k>0)))return say('أدخل الوزن',1);
