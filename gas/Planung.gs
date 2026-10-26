@@ -698,6 +698,42 @@ function soPosition_(li) {
   }
   return { t: li.title, oil: 0, code: '', size: vt, q: q, sku: li.sku || '', vt: vt };
 }
+/** Abholung im Lager? (Shopify „Local Pickup“ → Fulfillment Order mit Liefermethode PICK_UP) */
+function soAbholung_(n) {
+  return ((n.fulfillmentOrders && n.fulfillmentOrders.nodes) || []).some(function (f) { return f.deliveryMethod && f.deliveryMethod.methodType === 'PICK_UP'; });
+}
+/** Zeitpunkt der ersten erfolgreichen Zahlung (Autorisierung/Verkauf/Einzug) – für „später bezahlt“ */
+function soBezahltAm_(n) {
+  var t = (n.transactions || []).filter(function (x) { return x.status === 'SUCCESS' && /AUTHORIZATION|SALE|CAPTURE/.test(x.kind); })
+    .map(function (x) { return new Date(x.createdAt).getTime(); }).sort();
+  return t.length ? t[0] : null;
+}
+/** Kundennotiz auf Arabisch für die Mitarbeiter – kostenlos über LanguageApp, einmal je Notiz zwischengespeichert */
+function soNotizAr_(id, note, st) {
+  note = String(note || '').trim(); if (!note) return '';
+  if (/[؀-ۿ]/.test(note)) return '';            // schon arabisch
+  var c = CacheService.getScriptCache(), k = 'soAr_' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, note, Utilities.Charset.UTF_8));
+  var v = c.get(k); if (v != null) return v;
+  try { v = LanguageApp.translate(note, '', 'ar'); } catch (e) { v = ''; }
+  c.put(k, v || '', 21600);
+  return v || '';
+}
+/** Abholung: „bereit“ → Shopify schickt dem Kunden die Mail „Bereit zur Abholung“; „abgeholt“ → Bestellung erfüllt (ohne Versand-Mail) */
+function soAbholAktion_(id, was) {
+  var fo = shopifyGraphQL('query($id:ID!){order(id:$id){fulfillmentOrders(first:10){nodes{id status deliveryMethod{methodType}}}}}', { id: 'gid://shopify/Order/' + id }).order.fulfillmentOrders.nodes
+    .filter(function (f) { return /OPEN|IN_PROGRESS|SCHEDULED/.test(f.status) && f.deliveryMethod && f.deliveryMethod.methodType === 'PICK_UP'; });
+  if (!fo.length) return was === 'abgeholt' ? 'schon erledigt' : 'keine offene Abholung';
+  var li = fo.map(function (f) { return { fulfillmentOrderId: f.id }; }), d, e;
+  if (was === 'bereit') {
+    d = shopifyGraphQL('mutation($i:FulfillmentOrderLineItemsPreparedForPickupInput!){fulfillmentOrderLineItemsPreparedForPickup(input:$i){userErrors{field message}}}', { i: { lineItemsByFulfillmentOrder: li } });
+    e = d.fulfillmentOrderLineItemsPreparedForPickup.userErrors || [];
+  } else {
+    d = shopifyGraphQL('mutation($f:FulfillmentInput!){fulfillmentCreate(fulfillment:$f){fulfillment{id status} userErrors{field message}}}', { f: { lineItemsByFulfillmentOrder: li, notifyCustomer: false } });
+    e = d.fulfillmentCreate.userErrors || [];
+  }
+  if (e.length) throw new Error('Shopify: ' + e.map(function (x) { return x.message; }).join('; '));
+  return 'ok';
+}
 /** offene Shop-Bestellungen (nicht versendet, nicht storniert, letzte 21 Tage) */
 function soListe_(o) {
   soPruefen_(o && o.pw);
@@ -707,7 +743,7 @@ function soListe_(o) {
   var felder = 'id name createdAt displayFinancialStatus displayFulfillmentStatus note tags email phone ' +
     'customer { displayName } shippingAddress { name company address1 address2 zip city country countryCodeV2 phone } ' +
     'billingAddress { name company address1 address2 zip city country } shippingLine { title } ' +
-    'currentSubtotalPriceSet { shopMoney { amount } } lineItems(first: 80) { nodes { id title variantTitle sku currentQuantity variant { id } customAttributes { key value } image { url(transform: { maxWidth: 160, maxHeight: 160 }) } } }';
+    'currentSubtotalPriceSet { shopMoney { amount } } fulfillmentOrders(first: 5) { nodes { status deliveryMethod { methodType } } } transactions(first: 10) { kind status createdAt } lineItems(first: 80) { nodes { id title variantTitle sku currentQuantity variant { id } customAttributes { key value } image { url(transform: { maxWidth: 160, maxHeight: 160 }) } } }';
   var nodes = shopifyGraphQL('query($q:String!){orders(first:100,query:$q,sortKey:CREATED_AT,reverse:true){nodes{' + felder + '}}}', { q: q }).orders.nodes;
   var BEZAHLT = { PAID: 1, AUTHORIZED: 1, PARTIALLY_PAID: 1, PARTIALLY_REFUNDED: 1 };
   var ok_ = function (n) { return BEZAHLT[String(n.displayFinancialStatus || '').toUpperCase()] || (n.tags || []).indexOf(SO_TAG) >= 0; };   // manuelle App-Bestellungen auch unbezahlt
@@ -735,7 +771,8 @@ function soListe_(o) {
       adr: [a.address1, a.address2, (a.zip || '') + ' ' + (a.city || '')].filter(function (x) { return String(x || '').trim(); }), land: a.countryCodeV2 || '',
       landName: a.country || '', liefer: n.shippingAddress ? { name: a.name || '', firma: a.company || '', a1: a.address1 || '', a2: a.address2 || '', plz: a.zip || '', ort: a.city || '', land: a.country || '', tel: a.phone || '' } : null,
       rechnung: b ? { name: b.name || '', firma: b.company || '', a1: b.address1 || '', a2: b.address2 || '', plz: b.zip || '', ort: b.city || '', land: b.country || '' } : null,
-      tel: a.phone || n.phone || '', email: n.email || '', versand: (n.shippingLine && n.shippingLine.title) || '', notiz: n.note || '',
+      tel: a.phone || n.phone || '', email: n.email || '', versand: (n.shippingLine && n.shippingLine.title) || '', notiz: n.note || '', notizAr: soNotizAr_(id, n.note, st),
+      abh: soAbholung_(n), paidAt: soBezahltAm_(n),
       netto: Number(n.currentSubtotalPriceSet && n.currentSubtotalPriceSet.shopMoney.amount || 0), tags: n.tags || [],
       items: items, stand: (st[id] && st[id].d) || {}, admin: handle ? 'https://admin.shopify.com/store/' + handle + '/orders/' + id : '' };
   });
@@ -762,6 +799,13 @@ function soSetzen_(o) {
     var p = o.patch || {};
     if (p.adr && /^\d+$/.test(id)) { var neu = soAdresseSetzen_(id, p.adr); delete p.adr; if (!Object.keys(p).length) return { adresse: neu }; }
     var sh = soBlatt_(), st = soStaende_(), alt = (st[id] && st[id].d) || {};
+    if (p.abhol && /^\d+$/.test(id)) {
+      var was = p.abhol; delete p.abhol;
+      alt.abholShop = soAbholAktion_(id, was);
+      if (was === 'bereit') { alt.abBereitAt = Date.now(); alt.abBereitBy = SR_USER || ''; }
+      if (was === 'abgeholt') { alt.abgeholtAt = Date.now(); alt.abgeholtBy = SR_USER || ''; alt.readyAt = alt.readyAt || Date.now(); }
+    }
+    if (p.lsAt) { alt.lsN = (Number(alt.lsN) || 0) + 1; alt.lsBy = SR_USER || ''; if (!alt.ls1At) alt.ls1At = p.lsAt; }
     Object.keys(p).forEach(function (k) { alt[k] = p[k]; });
     if (p.ready === true) { alt.readyAt = Date.now(); alt.readyBy = SR_USER || ''; }
     if (p.ready === false) { delete alt.readyAt; delete alt.readyBy; }
