@@ -857,11 +857,41 @@ let PIN=LS.get('pin','');
 let useClp=LS.get('clp',false);
 const API_URL='https://script.google.com/macros/s/AKfycbzU9YIR7tzx1VBzVAVNni93eBBBwGphyzTErrAUOveD2YmvAmiQO81QkyzVcUB5FAUd/exec';
 const IN_GAS=!!(window.google&&google.script&&google.script.run);
+/* ===== Echtzeit (Firebase): Aufträge, Kunden und Kasse live auf allen Geräten + Push-Benachrichtigungen ===== */
+var FS_ON=false,FB_UID=LS.get('fbuid',''),FB=null;
+const FB_V='10.14.1',FB_VAPID='BCRM3aYMYJm7wbtlaAhhLv-mCzqor5JOs13IEeaWok6rr-h92AIvzPWJb64TI17aPmaYFzNEQFS7gg9dOCq0VSM';
+const FB_CFG={apiKey:'AIzaSyA1TfKvw_pqp_yA0YrDsnVmvGlNnxqc1Fw',authDomain:'fragrance-hub-app.firebaseapp.com',projectId:'fragrance-hub-app',storageBucket:'fragrance-hub-app.firebasestorage.app',messagingSenderId:'51833249013',appId:'1:51833249013:web:89d2b2bba49e6a6f23b9bc'};
+function fbLoad(){if(window._fbP)return window._fbP;const u=n=>'https://www.gstatic.com/firebasejs/'+FB_V+'/firebase-'+n+'.js';
+  return window._fbP=Promise.all([import(u('app')),import(u('auth')),import(u('firestore'))]).then(async([A,Au,F])=>{
+    const app=A.initializeApp(FB_CFG),auth=Au.getAuth(app);let fs;
+    try{fs=F.initializeFirestore(app,{ignoreUndefinedProperties:true,localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})})}catch(e){fs=F.getFirestore(app)}
+    let user=await new Promise(ok=>{const off=Au.onAuthStateChanged(auth,x=>{off();ok(x)})});
+    if(!user)user=(await Au.signInAnonymously(auth)).user;
+    FB_UID=user.uid;LS.set('fbuid',FB_UID);FB={app,auth,fs,F};return FB})
+    .catch(e=>{window._fbP=null;throw e})}
+/* neue Shopify-Bestellungen / geänderter Bearbeitungsstand: Signal vom Server → Liste sofort neu laden */
+function fsShopListen(){const F=FB.F;let last=+LS.get('fsShopAt',0)||0;
+  F.onSnapshot(F.doc(FB.fs,'meta','shop'),s=>{if(!s.exists())return;const x=s.data(),at=+x.at||0;if(at<=last)return;const prev=last;last=at;LS.set('fsShopAt',at);
+    if(!prev||!can('shop'))return;
+    if(soPw())soLoad(true).then(()=>{soSetCount();if(soOpenNow()){const sb=$('sheet-b');soSel?soDetail(sb,soSel):soListView(sb)}if(!$('view-home').hidden)renderHome()}).catch(()=>{});
+    if(x.art==='neu'&&Date.now()-at<10*60e3){beep();toast('🛒 طلب جديد من المتجر '+(x.nr||'')+' — اضغط للفتح',()=>shopOpen())}},e=>console.warn('shop signal',e))}
+/* Push: dieses Gerät für Benachrichtigungen anmelden (auch wenn die App geschlossen ist) */
+async function fsPushReg(){try{
+  if(!FS_ON||!('Notification' in window)||Notification.permission!=='granted'||!navigator.serviceWorker)return;
+  const M=await import('https://www.gstatic.com/firebasejs/'+FB_V+'/firebase-messaging.js');if(!(await M.isSupported()))return;
+  const reg=await navigator.serviceWorker.ready,t=await M.getToken(M.getMessaging(FB.app),{vapidKey:FB_VAPID,serviceWorkerRegistration:reg});if(!t)return;
+  const who=String((ME&&ME.user)||''),key=t+'|'+who;if(LS.get('fsTok','')===key)return;
+  await FB.F.setDoc(FB.F.doc(FB.fs,'tokens',FB_UID),{t,user:who,at:Date.now()});LS.set('fsTok',key)}catch(e){console.warn('push',e)}}
+if(!IN_GAS){
+  document.addEventListener('click',()=>{try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission().then(p=>{if(p==='granted')fsPushReg()})}catch(e){}},{once:true});
+  if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',e=>{const o=e.data&&e.data.open;if(!o)return;
+    try{if(o==='shop')shopOpen();else if(String(o).indexOf('list:')===0)openOrder(String(o).slice(5))}catch(x){}});
+}
 if(!IN_GAS){const qs=new URLSearchParams(location.search);window.SR_URL=location.origin+location.pathname;window.SR_CODE=(qs.get('code')||'').slice(0,80)}
-function srv1(action,a,b,c){
+function srv1(action,a,b,c,x){
   if(IN_GAS)return new Promise((ok,no)=>google.script.run.withSuccessHandler(r=>{if(r&&r.err)no(new Error(r.err));else ok(r?r.val:null)}).withFailureHandler(e=>no(new Error((e&&e.message)||String(e)))).srApi(PIN,action,a,b,c,DEV));
   const ac=window.AbortController&&/^(lg_|pull$)/.test(action)?new AbortController():null,tm=ac?setTimeout(()=>ac.abort(),45000):0;
-  return fetch(API_URL+'?app=sr',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({pin:PIN,action,a,b,c,dev:DEV}),redirect:'follow',signal:ac?ac.signal:undefined})
+  return fetch(API_URL+'?app=sr',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({pin:PIN,action,a,b,c,dev:DEV},FB_UID?{fb:FB_UID}:{},x||{})),redirect:'follow',signal:ac?ac.signal:undefined})
     .finally(()=>clearTimeout(tm))
     .then(r=>{if(!r.ok)throw Object.assign(new Error('NET '+r.status),{net:true});return r.json()},e=>{throw Object.assign(new Error('لا يوجد اتصال بالإنترنت'),{net:true})})
     .then(r=>{if(r&&r.err)throw new Error(r.err);return r?r.val:null});
@@ -872,8 +902,8 @@ const IDB=(()=>{let p=null;const open=()=>p||(p=new Promise((ok,no)=>{try{const 
   return {get:k=>tx('readonly',s=>s.get(k)).catch(()=>undefined),set:(k,v)=>tx('readwrite',s=>s.put(v,k)).catch(()=>{})}})();
 /* Passwort geändert / Mitarbeiter gesperrt: gespeicherte Anmeldung ist ungültig -> sofort abmelden */
 function forceLogout(){if(window._fhOut)return;window._fhOut=1;try{sessionStorage.clear()}catch(e){}LS.set('pin','');LS.set('me',{user:'',admin:false});location.reload()}
-async function srv(action,a,b,c){try{return await srv0(action,a,b,c)}catch(e){if(/^(PIN|GERAET_WARTET|GERAET_GESPERRT)$/.test(String(e&&e.message))&&PIN&&LS.get('pin','')===PIN)forceLogout();throw e}}
-async function srv0(action,a,b,c){let last;for(let i=0;i<4;i++){try{return await srv1(action,a,b,c)}catch(e){last=e;if(!/lock|تأمين|sperr|time[d ]?out|zeitüber|exceeded|too many|Unexpected token|NET 5\d\d/i.test(String(e.message||e))||i===3)throw e;await new Promise(r=>setTimeout(r,2500*(i+1)))}}throw last}
+async function srv(action,a,b,c,x){try{return await srv0(action,a,b,c,x)}catch(e){if(/^(PIN|GERAET_WARTET|GERAET_GESPERRT)$/.test(String(e&&e.message))&&PIN&&LS.get('pin','')===PIN)forceLogout();throw e}}
+async function srv0(action,a,b,c,x){let last;for(let i=0;i<4;i++){try{return await srv1(action,a,b,c,x)}catch(e){last=e;if(!/lock|تأمين|sperr|time[d ]?out|zeitüber|exceeded|too many|Unexpected token|NET 5\d\d/i.test(String(e.message||e))||i===3)throw e;await new Promise(r=>setTimeout(r,2500*(i+1)))}}throw last}
 let db=null, mcp=null, dl=null, catalog=[], lists=[], lastSent=null, editing=null;
 let waNum=LS.get('wa','');
 let customers=[], debts=[], offers=[], focusId=null, imgs={};let editOffer=LS.get('editOffer',null);
@@ -3192,6 +3222,9 @@ function makeDb(){
     if(n==='lists')docs.sort((a,b)=>(b.data().at||0)-(a.data().at||0));
     (subs[n]||[]).forEach(f=>{try{f({docs})}catch(e){console.error(e)}})}
   function dot(){const s=$('syncdot');if(!s)return;const n=box.length;
+    if(FS_ON){const live=Object.keys(fsLive).length&&Object.values(fsLive).every(Boolean);
+      s.textContent=!navigator.onLine?'⚪ بدون إنترنت – يُحفظ ويُرسل تلقائياً':lastErr?'🔴 '+lastErr:live?'🟢 مباشر':'🟡 جاري الاتصال…';
+      s.dataset.ok=(navigator.onLine&&live&&!lastErr)?'1':'';s.title=s.textContent+(n?' · '+n+' بانتظار المستودع':'');return}
     s.textContent=!navigator.onLine?'⚪ بدون إنترنت'+(n?' · '+n+' بانتظار الإرسال':''):n?'🟡 جاري الحفظ ('+n+')':lastErr?'🔴 '+lastErr:'🟢 متزامن';s.dataset.ok=(navigator.onLine&&!n&&!lastErr)?'1':'';s.title=s.textContent;}
   window.addEventListener('online',()=>{dot();flush();pull()});window.addEventListener('offline',dot);
   function enqueue(op){box.push(op);LS.set('outbox',box);dot();setTimeout(flush,0)}
@@ -3199,9 +3232,10 @@ function makeDb(){
     if(flushing)return;flushing=true;
     try{while(box.length){const op=box[0];
       try{
-        if(op.op==='add')await srv(op.op,op.n,op.json,op.id);
-        else if(op.op==='update')await srv('update',op.n,op.id,op.json);
-        else await srv('del',op.n,op.id);
+        const fx=op.fs?{fs:1}:undefined;   // schon in Firestore → Server spiegelt nicht zurück
+        if(op.op==='add')await srv(op.op,op.n,op.json,op.id,fx);
+        else if(op.op==='update')await srv('update',op.n,op.id,op.json,fx);
+        else await srv('del',op.n,op.id,undefined,fx);
         lastErr='';
       }catch(e){
         if(e.net){dot();setTimeout(flush,8000);return}
@@ -3213,6 +3247,7 @@ function makeDb(){
     pull();
   }
   async function pull(){
+    if(FS_ON)return fsPing();
     if(pulling)return pulling;
     pulling=(async()=>{try{
       const r=await srv('pull',JSON.stringify(ver));
@@ -3225,17 +3260,53 @@ function makeDb(){
     }catch(e){dot()}finally{pulling=null}})();
     return pulling;
   }
+  /* ---- Echtzeit über Firebase: jede Änderung kommt sofort von allen Geräten ---- */
+  let fsLive={},fsT=LS.get('fsT',{}),fsTry=0,pingAt=0,pingP=null;
+  const enc=o=>{const d={};Object.keys(o||{}).forEach(k=>{if(o[k]!==undefined)d[k]=JSON.stringify(o[k])});return d};
+  const dec=d=>{const o={};Object.keys(d||{}).forEach(k=>{try{o[k]=JSON.parse(d[k])}catch(e){o[k]=d[k]}});return o};
+  function fsW(n,id,o,mode){if(!FS_ON)return 0;const F=FB.F,ref=F.doc(FB.fs,n,id);
+    const p=mode==='del'?F.setDoc(ref,{d:{},del:true,u:F.serverTimestamp()}):F.setDoc(ref,{d:enc(o),del:false,u:F.serverTimestamp()},mode==='add'?{}:{merge:true});
+    p.catch(e=>{lastErr='لم يُحفظ: '+(e.code||e.message||e);dot();console.warn('fs write',e)});return 1}
+  function fsPing(){if(pingP)return pingP;if(Date.now()-pingAt<55e3)return Promise.resolve();pingAt=Date.now();
+    pingP=srv('fs_ping').then(r=>{try{onDevWait(r&&r.devWait)}catch(_){}}).catch(()=>{}).finally(()=>{pingP=null});return pingP}
+  const uOf=x=>x&&x.u&&x.u.toMillis?x.u.toMillis():0;
+  function fsApply(n,snap,full){let maxU=fsT[n]||0;
+    if(full){const m=new Map();snap.docs.forEach(d=>{const x=d.data({serverTimestamps:'estimate'});if(!x.del)m.set(d.id,{id:d.id,d:dec(x.d)});if(!d.metadata.hasPendingWrites&&uOf(x)>maxU)maxU=uOf(x)});store[n]=[...m.values()]}
+    else{const ch=snap.docChanges();if(!ch.length)return;const arr=(store[n]||[]).slice(),idx=new Map(arr.map((r,i)=>[r.id,i]));
+      ch.forEach(c=>{if(c.type==='removed')return;const d=c.doc,x=d.data({serverTimestamps:'estimate'});if(!d.metadata.hasPendingWrites&&uOf(x)>maxU)maxU=uOf(x);
+        const i=idx.get(d.id);if(x.del){if(i!==undefined)arr[i]=null}else if(i!==undefined)arr[i]={id:d.id,d:dec(x.d)};else{idx.set(d.id,arr.length);arr.push({id:d.id,d:dec(x.d)})}});
+      store[n]=arr.filter(Boolean)}
+    if(maxU>(fsT[n]||0)){fsT[n]=maxU;LS.set('fsT',fsT)}
+    persist(n);emit(n)}
+  function fsListen(n){const F=FB.F,t0=fsT[n]||0,full=!t0;let gotServer=false;
+    const q=full?F.collection(FB.fs,n):F.query(F.collection(FB.fs,n),F.where('u','>',F.Timestamp.fromMillis(t0-5*60e3)));
+    F.onSnapshot(q,{includeMetadataChanges:true},snap=>{const ok=!snap.metadata.fromCache;fsLive[n]=ok;dot();
+        if(full){if(!ok&&!gotServer)return;gotServer=true;fsApply(n,snap,true);return}   // erstes Mal: komplettes Bild vom Server
+        fsApply(n,snap,false)},
+      err=>{fsLive[n]=false;console.warn('fs listen',n,err);
+        if(err&&err.code==='permission-denied'&&fsTry<8){fsTry++;dot();setTimeout(()=>{pingAt=0;fsPing().then(()=>fsListen(n))},2500*fsTry)}
+        else{lastErr='الاتصال المباشر متوقف';dot()}})}
+  async function fsStart(){
+    if(IN_GAS||FS_ON)return;
+    try{
+      await Promise.race([fbLoad(),new Promise((_,no)=>setTimeout(()=>no(new Error('timeout')),20000))]);
+      await srv('fs_ping');pingAt=Date.now();            // meldet dieses Gerät beim Server an (Freigabe für die Live-Daten)
+      FS_ON=true;lastErr='';
+      ['lists','customers'].concat(can('cash')?['cash']:[]).forEach(fsListen);
+      fsShopListen();setTimeout(fsPushReg,3000);dot();
+    }catch(e){console.warn('Echtzeit nicht verfügbar – Abgleich wie bisher',e);FS_ON=false}
+  }
   const loaded=Promise.all(NAMES.map(n=>IDB.get('rows-'+n).then(r=>{if(Array.isArray(r)&&!store[n]){store[n]=r;emit(n)}else if(!r)ver[n]=''})));
   const refresh=()=>pull();
   const collection=n=>{const q={orderBy:()=>q,limit:()=>q,
     onSnapshot(next){(subs[n]=subs[n]||[]).push(next);if(store[n])setTimeout(()=>next({docs:(store[n]||[]).map(r=>({id:r.id,data:()=>r.d}))}),0);return()=>{}},
     async add(o){const id=newId(),d=JSON.parse(JSON.stringify(o));(store[n]=store[n]||[]).push({id,d});persist(n);setTimeout(()=>emit(n),0);
-      enqueue({op:'add',n,id,json:JSON.stringify(o)});return {id}}};return q};
-  return {collection,refresh,loaded,pull,flush,dot,pending:()=>box.length,doc(path){const a=path.split('/');return {
+      enqueue({op:'add',n,id,json:JSON.stringify(o),fs:fsW(n,id,o,'add')});return {id}}};return q};
+  return {collection,refresh,loaded,pull,flush,dot,fsStart,pending:()=>box.length,doc(path){const a=path.split('/');return {
     async update(o){const r=(store[a[0]]||[]).find(x=>x.id===a[1]);if(r){Object.assign(r.d,JSON.parse(JSON.stringify(o)));persist(a[0]);setTimeout(()=>emit(a[0]),0)}
-      enqueue({op:'update',n:a[0],id:a[1],json:JSON.stringify(o)})},
+      enqueue({op:'update',n:a[0],id:a[1],json:JSON.stringify(o),fs:fsW(a[0],a[1],o,'update')})},
     async delete(){store[a[0]]=(store[a[0]]||[]).filter(x=>x.id!==a[1]);persist(a[0]);setTimeout(()=>emit(a[0]),0);
-      enqueue({op:'del',n:a[0],id:a[1]})}}}};
+      enqueue({op:'del',n:a[0],id:a[1],fs:fsW(a[0],a[1],null,'del')})}}}};
 }
 /* Repairs customer numbers once data is fresh: two different customers must never share one number
    (their accounts would be mixed), and the same customer saved twice is merged into the first record. */
@@ -3269,7 +3340,7 @@ function start(){
   $('lg-lot-btn').onclick=()=>{clpBasis().catch(()=>{});lotSheet()};$('lg-claim-btn').onclick=claimSheet;
   $('switch-user').onclick=()=>{if(!confirm('تسجيل الخروج وإدخال رمز موظف آخر؟'))return;try{sessionStorage.clear()}catch(e){}LS.set('pin','');LS.set('me',{user:'',admin:false});LS.set('who','');location.reload()};sndUnlock();try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission()}catch(e){}
   $('gate').hidden=true;
-  db=makeDb();saveDraft();loadCatalog();
+  db=makeDb();saveDraft();loadCatalog();db.fsStart();
   setTimeout(()=>{try{ivLoad(false).then(()=>{ivIndex();try{renderItems();if($('q').value.trim())search()}catch(e){}try{if(!$('omodal').hidden)renderOrderModal()}catch(e){}})}catch(e){}},2500);
   db.collection('customers').onSnapshot(snap=>{const all=snap.docs.map(d=>Object.assign({id:d.id},d.data()));customers=all.filter(c=>c&&c.name&&!c.kind);debts=all.filter(c=>c&&c.kind==='debt');offers=all.filter(c=>c&&c.kind==='offer').sort((a,b)=>(b.at||0)-(a.at||0));showCust();if(!$('sheet').hidden&&sheetFor==='offers')renderOffers();
     if(!$('view-acc').hidden)renderAcc();if(!$('view-cust').hidden)renderCust();if(!$('view-wh').hidden&&focusCust)renderLists();if(!$('view-home').hidden)renderHome()});
