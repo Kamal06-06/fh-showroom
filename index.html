@@ -174,6 +174,12 @@ details.od>.odb{padding:4px 12px 12px;display:flex;flex-direction:column;gap:8px
 .qchip small{color:var(--muted);font-weight:500;direction:ltr;unicode-bidi:isolate}.qchip img{width:26px;height:26px;object-fit:contain;border-radius:6px;background:#fff}.qchip:active{background:var(--gold-soft)}
 .qrep{width:100%;justify-content:center;border-color:var(--gold);background:var(--gold-soft);padding:12px 14px;border-radius:12px;font-weight:700}
 .adm-hide .adm-only{display:none!important}
+.np-new .p-new,.np-off .p-off,.np-cust .p-cust,.np-acc .p-acc,.np-cash .p-cash,.np-wh .p-wh,.np-lg .p-lg,.np-inv .p-inv,.np-shop .p-shop{display:none!important}
+.ucard{border:1px solid var(--line,#e2dccf);border-radius:14px;padding:12px;margin:10px 0;background:var(--card,#fff)}
+.ucard .uhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ucard .uperm{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 12px;margin-top:8px}
+.ucard .ugrp{font-weight:700;margin-top:10px;font-size:.9em;opacity:.8}
+.ucard.off{opacity:.55}
 .lot{display:inline-block;font-size:11.5px;font-weight:600;direction:ltr;border:1px dashed var(--gold);border-radius:6px;padding:1px 6px;margin-top:3px;background:none;color:var(--ink);cursor:pointer;font-family:inherit}
 .claimbox{border:1px solid #e3b4ae;background:#fdf3f2;border-radius:10px;padding:8px 10px;margin:8px 0}.claimbox b{color:#a3322a}.claimrow{border-top:1px solid #f0d6d2;padding:6px 0;font-size:13px}.claimrow:first-of-type{border-top:0}.claimrow img{max-height:60px;border-radius:6px;margin-top:4px}
 .fld2{display:flex;flex-direction:column;gap:4px;margin:8px 0}.fld2 select,.fld2 input,.fld2 textarea{font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface,#fff);color:var(--ink)}
@@ -548,15 +554,15 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
 <nav id="appnav" dir="rtl" lang="ar" aria-label="التنقل">
   <div class="nvlogo hlogo" role="button" tabindex="0" title="الصفحة الرئيسية">FRAGRANCE HUB<small>GERMANY</small></div>
   <button class="nv" id="nv-home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9H3z"/><path d="M9 20v-6h6v6"/></svg><span>الرئيسية</span></button>
-  <button class="nv" id="nv-wh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>الطلبات</span><b class="nb" id="nv-open" hidden></b></button>
-  <button class="nv plus" id="nv-new"><span class="pl"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="lbl-plus">طلب جديد</span></button>
-  <button class="nv" id="nv-lg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>المخزون</span></button>
-  <button class="nv side-only" id="nv-inv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9zM7 5H5v16h14V5h-2"/><path d="M8 12l2 2 4-4M8 17h8"/></svg><span>الجرد · Inventur</span></button>
-  <button class="nv" id="nv-cash"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg><span>الصندوق</span></button>
-  <button class="nv side-only" id="nv-shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.4 10.2a1.5 1.5 0 001.5 1.1h8.6a1.5 1.5 0 001.5-1.1L21 7H6"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17.5" cy="19.5" r="1.3"/></svg><span>طلبات المتجر</span></button>
-  <button class="nv side-only" id="nv-cust"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/></svg><span>العملاء</span></button>
-  <button class="nv side-only adm-only" id="nv-acc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/></svg><span>حسابات العملاء</span></button>
-  <button class="nv side-only" id="nv-done"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg><span>المكتملة</span></button>
+  <button class="nv p-wh" id="nv-wh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>الطلبات</span><b class="nb" id="nv-open" hidden></b></button>
+  <button class="nv plus p-new" id="nv-new"><span class="pl"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="lbl-plus">طلب جديد</span></button>
+  <button class="nv p-lg" id="nv-lg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>المخزون</span></button>
+  <button class="nv side-only p-inv" id="nv-inv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9zM7 5H5v16h14V5h-2"/><path d="M8 12l2 2 4-4M8 17h8"/></svg><span>الجرد · Inventur</span></button>
+  <button class="nv p-cash" id="nv-cash"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg><span>الصندوق</span></button>
+  <button class="nv side-only p-shop" id="nv-shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.4 10.2a1.5 1.5 0 001.5 1.1h8.6a1.5 1.5 0 001.5-1.1L21 7H6"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17.5" cy="19.5" r="1.3"/></svg><span>طلبات المتجر</span></button>
+  <button class="nv side-only p-cust" id="nv-cust"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/></svg><span>العملاء</span></button>
+  <button class="nv side-only p-acc" id="nv-acc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/></svg><span>حسابات العملاء</span></button>
+  <button class="nv side-only p-wh" id="nv-done"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg><span>المكتملة</span></button>
 </nav>
 <div class="wrap" dir="rtl" lang="ar">
   <header>
@@ -580,16 +586,16 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
     <div class="htoday" id="h-today"></div>
     <div class="hsec">الأقسام</div>
     <div class="home">
-      <button class="tile primary" id="h-new"><span class="ic">＋</span><b>طلب جديد</b><span>تسجيل أصناف عميل في الصالة</span></button>
-      <button class="tile" id="h-wh"><span class="ic">🗂️</span><b>الطلبات المفتوحة</b><span>قيد التحضير في المستودع</span><span class="cnt" id="h-open">0</span></button>
-      <button class="tile" id="h-off"><span class="ic">📄</span><b>عروض الأسعار</b><span>بدون تجهيز · إرسال للمستودع</span><span class="cnt" id="h-off-n">0</span></button>
-      <button class="tile" id="h-done"><span class="ic">✅</span><b>الطلبات المكتملة</b><span>تم تحضيرها وتسليمها</span><span class="cnt" id="h-done-n">0</span></button>
-      <button class="tile" id="h-lg"><span class="ic">📦</span><b>المخزون</b><span>وارد · صادر · جرد · ملصقات QR</span></button>
-      <button class="tile" id="h-inv"><span class="ic">📋</span><b>الجرد حسب الرفوف</b><span>Inventur nach Regal · مسح QR</span><span class="cnt" id="h-inv-n"></span></button>
-      <button class="tile" id="h-cust"><span class="ic">👥</span><b>العملاء</b><span>كل عميل وطلباته</span><span class="cnt" id="h-cust-n"></span></button>
-      <button class="tile" id="h-shop"><span class="ic">🛒</span><b>طلبات المتجر</b><span>طلبات Shopify · ملصقات · تحضير</span><span class="cnt" id="h-shop-n"></span></button>
-      <button class="tile" id="h-cash"><span class="ic">🏦</span><b>الصندوق والمصروفات</b><span>نقد المستودع · مصروفات · فواتير</span><span class="cnt" id="h-cash-n"></span></button>
-      <button class="tile adm-only" id="h-acc"><span class="ic">💶</span><b>حسابات العملاء</b><span>مدفوع · غير مدفوع · كشف حساب</span><span class="cnt" id="h-due"></span></button>
+      <button class="tile primary p-new" id="h-new"><span class="ic">＋</span><b>طلب جديد</b><span>تسجيل أصناف عميل في الصالة</span></button>
+      <button class="tile p-wh" id="h-wh"><span class="ic">🗂️</span><b>الطلبات المفتوحة</b><span>قيد التحضير في المستودع</span><span class="cnt" id="h-open">0</span></button>
+      <button class="tile p-off" id="h-off"><span class="ic">📄</span><b>عروض الأسعار</b><span>بدون تجهيز · إرسال للمستودع</span><span class="cnt" id="h-off-n">0</span></button>
+      <button class="tile p-wh" id="h-done"><span class="ic">✅</span><b>الطلبات المكتملة</b><span>تم تحضيرها وتسليمها</span><span class="cnt" id="h-done-n">0</span></button>
+      <button class="tile p-lg" id="h-lg"><span class="ic">📦</span><b>المخزون</b><span>وارد · صادر · جرد · ملصقات QR</span></button>
+      <button class="tile p-inv" id="h-inv"><span class="ic">📋</span><b>الجرد حسب الرفوف</b><span>Inventur nach Regal · مسح QR</span><span class="cnt" id="h-inv-n"></span></button>
+      <button class="tile p-cust" id="h-cust"><span class="ic">👥</span><b>العملاء</b><span>كل عميل وطلباته</span><span class="cnt" id="h-cust-n"></span></button>
+      <button class="tile p-shop" id="h-shop"><span class="ic">🛒</span><b>طلبات المتجر</b><span>طلبات Shopify · ملصقات · تحضير</span><span class="cnt" id="h-shop-n"></span></button>
+      <button class="tile p-cash" id="h-cash"><span class="ic">🏦</span><b>الصندوق والمصروفات</b><span>نقد المستودع · مصروفات · فواتير</span><span class="cnt" id="h-cash-n"></span></button>
+      <button class="tile p-acc" id="h-acc"><span class="ic">💶</span><b>حسابات العملاء</b><span>مدفوع · غير مدفوع · كشف حساب</span><span class="cnt" id="h-due"></span></button>
     </div>
     <div class="hcols">
     <div class="hpanel"><div class="hsech"><span class="hsec">للتحضير الآن</span><button class="hlink" id="h-last-all">عرض الكل ‹</button></div><div class="hlist hcards" id="h-last"></div></div>
@@ -813,7 +819,10 @@ const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 let ME=LS.get('me',{user:'',admin:false});
 function isAdmin(){return !!(ME.admin||!ME.user)}
-function applyRole(){document.body.classList.toggle('adm-hide',!isAdmin())}
+/* Rechte pro Mitarbeiter (vom Inhaber vergeben) */
+const PERMS=[['new','طلب جديد','Neuer Auftrag','sales'],['off','عروض الأسعار','Angebote','sales'],['cust','العملاء','Kunden','sales'],['acc','حسابات العملاء والديون','Kundenkonten & Schulden','sales'],['cash','الصندوق والمصروفات','Kasse & Ausgaben','sales'],['wh','تحضير الطلبات والمكتملة','Aufträge vorbereiten','lager'],['lg','المخزون (وارد/صادر)','Lager','lager'],['inv','الجرد حسب الرفوف','Inventur','lager'],['shop','طلبات المتجر وملصقات DHL','Shop-Bestellungen & DHL','lager']];
+function can(p){return isAdmin()||!Array.isArray(ME.perms)||ME.perms.includes(p)}
+function applyRole(){document.body.classList.toggle('adm-hide',!isAdmin());PERMS.forEach(([k])=>document.body.classList.toggle('np-'+k,!can(k)))}
 const stem=sku=>{if(!sku)return'';const m=/^(.*?-SH)(?:-|$)/.exec(sku);return m?m[1]:sku};
 const SIZES=['6 g','100 g','250 g','500 g','1 kg','5 kg'];
 const SHEET='1dlZxa6K2XASqn0oRWImRM2YgM1x7wMM4mzH8DmNiD5A';
@@ -902,6 +911,7 @@ let dim=LS.get('dim2',{w:40,h:30});
 /* ---------- tabs ---------- */
 let navCur=null;const navStack=[];
 function tab(which,fromBack){
+  {const need={new:'new',wh:'wh',lg:'lg',inv:'inv',cash:'cash',cust:'cust',acc:'acc'}[which];if(need&&!can(need))which='home'}
   if(!$('omodal').hidden)closeOrder(true);
   if(!$('sheet').hidden)closeSheet(true);
   const st={which,focusId,focusCust,onlyDone};
@@ -3837,7 +3847,7 @@ async function soCache(){if((SO.orders||[]).length)return SO;try{const c=await I
 function soLoad(force){if(!force&&SO.at&&Date.now()-SO.at<60e3)return Promise.resolve(SO);if(soP)return soP;
   soP=soCall('so_list').then(r=>{SO=r;soSetCount();IDB.set('so',r);return SO}).finally(()=>{soP=null});return soP}
 const soOpenNow=()=>!$('sheet').hidden&&$('sheet-t').textContent==='🛒 طلبات المتجر';
-async function shopOpen(){
+async function shopOpen(){if(!can('shop'))return;
   if(!soPw())return shopPwSheet(shopOpen,false);   // Passwort-Fenster sofort, ohne vorher den Server zu fragen
   await soCache();
   const fresh=SO.at&&Date.now()-SO.at<60e3,has=(SO.orders||[]).length;
@@ -4868,23 +4878,39 @@ async function inventurReport(btn){
 }
 
 /* ---------- Mitarbeiter (nur Inhaber) ---------- */
-function setMe(v){if(v&&typeof v==='object'){ME={user:v.user||'',admin:!!v.admin};LS.set('me',ME);applyRole();
+function setMe(v){if(v&&typeof v==='object'){ME={user:v.user||'',admin:!!v.admin,owner:v.owner===undefined?!!v.admin:!!v.owner,perms:Array.isArray(v.perms)?v.perms:null};LS.set('me',ME);applyRole();
   if(ME.user){const w=$('who');if(w){w.value=ME.user;LS.set('who',ME.user)}}
-  const u=$('me-badge');if(u){u.textContent=ME.user?'👤 '+ME.user:'';u.hidden=!ME.user}const sec=$('users-sec');if(sec)sec.hidden=!ME.admin;const ps=$('setpin-sec');if(ps)ps.hidden=!ME.admin}}
+  const u=$('me-badge');if(u){u.textContent=ME.user?'👤 '+ME.user:'';u.hidden=!ME.user}const sec=$('users-sec');if(sec)sec.hidden=!ME.owner;const ps=$('setpin-sec');if(ps)ps.hidden=!ME.owner}}
 async function usersOpen(){
-  openSheet('👥 الموظفون · Mitarbeiter',async b=>{
-    b.append(el('p','hint','لكل موظف رمز دخول خاص (4–8 أرقام). كل جرد ووارد وصادر وتغيير مكان يُسجَّل باسمه.'),el('p','hint de','Jeder Mitarbeiter bekommt einen eigenen PIN (4–8 Ziffern). Jede Zählung, Buchung und Fachänderung wird mit seinem Namen gespeichert.'));
+  openSheet('👥 الموظفون والصلاحيات · Mitarbeiter & Rechte',async b=>{
+    b.append(el('p','hint','أنشئ حساباً لكل موظف: كلمة سر خاصة (حروف وأرقام، 6 على الأقل) وحدّد بالضبط ما يستطيع فعله. كل عمل يُسجَّل باسمه.'),el('p','hint de','Jeder Mitarbeiter: eigenes Passwort (Buchstaben + Ziffern, mind. 6) und genau festgelegte Rechte. Jede Aktion wird mit seinem Namen gespeichert.'));
     const msg=el('div','status');msg.hidden=true;const box=el('div');b.append(box);
     let list=[];try{list=await srv('users_get')||[]}catch(e){msg.hidden=false;msg.textContent=e.message;b.append(msg);return}
-    const draw=()=>{box.textContent='';list.forEach((u,i)=>{const r=el('div','row');r.style.alignItems='center';
+    const ALT=['new','wh','off','cust','lg','inv','shop','cash'];
+    list.forEach(u=>{if(!Array.isArray(u.perms))u.perms=ALT.slice()});
+    const genPw=()=>{const A='ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz',D='23456789';let x='';for(let i=0;i<6;i++)x+=A[Math.floor(Math.random()*A.length)];x+=D[Math.floor(Math.random()*8)]+D[Math.floor(Math.random()*8)];return x.split('').sort(()=>Math.random()-.5).join('')};
+    const draw=()=>{box.textContent='';list.forEach((u,i)=>{const card=el('div','ucard'+(u.on===false?' off':''));
+      const h=el('div','uhead');
       const n=document.createElement('input');n.value=u.name||'';n.placeholder='الاسم · Name';n.style.width='150px';n.oninput=()=>u.name=n.value;
-      const p=document.createElement('input');p.value=u.pin||'';p.placeholder='PIN';p.inputMode='numeric';p.dir='ltr';p.style.width='100px';p.oninput=()=>u.pin=p.value;
-      const on=el('label','lbl');const c=document.createElement('input');c.type='checkbox';c.checked=u.on!==false;c.onchange=()=>u.on=c.checked;on.append(c,' فعّال · aktiv');
-      const d=el('button','btn small danger','حذف · Löschen');d.onclick=()=>{list.splice(i,1);draw()};r.append(n,p,on,d);box.append(r)})};
+      const p=document.createElement('input');p.type='password';p.value=u.pin||'';p.placeholder='كلمة السر · Passwort';p.dir='ltr';p.style.width='150px';p.autocomplete='new-password';p.autocapitalize='off';p.spellcheck=false;p.oninput=()=>u.pin=p.value;
+      const eye=el('button','btn small','👁');eye.title='إظهار';eye.onclick=()=>{p.type=p.type==='password'?'text':'password'};
+      const gen=el('button','btn small','🎲 توليد');gen.title='كلمة سر قوية جديدة';gen.onclick=()=>{u.pin=genPw();p.value=u.pin;p.type='text'};
+      const on=el('label','lbl');const c=document.createElement('input');c.type='checkbox';c.checked=u.on!==false;c.onchange=()=>{u.on=c.checked;card.classList.toggle('off',!c.checked)};on.append(c,' فعّال · aktiv');
+      const d=el('button','btn small danger','حذف · Löschen');d.onclick=()=>{if(confirm('حذف الموظف «'+(u.name||'')+'»؟')){list.splice(i,1);draw()}};
+      h.append(n,p,eye,gen,on,d);card.append(h);
+      const fl=el('label','lbl');const fc=document.createElement('input');fc.type='checkbox';fc.checked=!!u.full;fl.append(fc,' ⭐ صلاحيات كاملة (مثل المالك، عدا إدارة الموظفين) · Vollzugriff');fl.style.marginTop='8px';fl.style.display='block';card.append(fl);
+      const pw=el('div');pw.hidden=!!u.full;fc.onchange=()=>{u.full=fc.checked;pw.hidden=fc.checked};
+      [['sales','💼 المبيعات والحسابات · Verkauf'],['lager','📦 المستودع · Lager']].forEach(([g,t])=>{pw.append(el('div','ugrp',t));const gr=el('div','uperm');
+        PERMS.filter(x=>x[3]===g).forEach(([k,ar,de])=>{const l=el('label','lbl');const x=document.createElement('input');x.type='checkbox';x.checked=u.perms.includes(k);
+          x.onchange=()=>{u.perms=u.perms.filter(y=>y!==k);if(x.checked)u.perms.push(k)};l.append(x,' '+ar);l.title=de;gr.append(l)});pw.append(gr)});
+      const qr=el('div','row');qr.style.marginTop='6px';
+      const all=el('button','btn small','تحديد الكل');all.onclick=()=>{u.perms=PERMS.map(x=>x[0]);draw()};
+      const none=el('button','btn small','إلغاء الكل');none.onclick=()=>{u.perms=[];draw()};
+      qr.append(all,none);pw.append(qr);card.append(pw);box.append(card)})};
     draw();
-    const add=el('button','btn','➕ موظف جديد · Neuer Mitarbeiter');add.onclick=()=>{list.push({name:'',pin:String(Math.floor(1000+Math.random()*9000)),on:true});draw()};
+    const add=el('button','btn','➕ موظف جديد · Neuer Mitarbeiter');add.onclick=()=>{list.push({name:'',pin:genPw(),on:true,full:false,perms:['new','wh']});draw();setTimeout(()=>{const ins=box.querySelectorAll('.ucard input');if(ins.length)ins[ins.length-1].closest('.ucard').querySelector('input').focus()},50)};
     const save=el('button','btn primary','حفظ · Speichern');save.onclick=async()=>{save.disabled=true;msg.hidden=false;msg.classList.remove('err');msg.textContent='…';
-      try{list=await srv('users_set',JSON.stringify(list));draw();msg.textContent='تم الحفظ ✅ · Gespeichert'}catch(e){msg.classList.add('err');msg.textContent=e.message}save.disabled=false};
+      try{list=await srv('users_set',JSON.stringify(list));list.forEach(u=>{if(!Array.isArray(u.perms))u.perms=ALT.slice()});draw();msg.textContent='تم الحفظ ✅ · Gespeichert'}catch(e){msg.classList.add('err');msg.textContent=e.message}save.disabled=false};
     const br=el('div','row');br.append(add,save);b.append(br,msg);
   });
 }
