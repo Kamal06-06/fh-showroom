@@ -2124,6 +2124,19 @@ function druckStatus(){if(druckSt.p)return druckSt.p;if(Date.now()-druckSt.t<45e
 /* Etiketten-Werkzeuge im Hintergrund vorladen (Schriften, CLP-Daten, PDF-Renderer), damit der erste Druck nicht wartet */
 let druckWarm=0;function druckVorwaermen(){if(Date.now()-druckWarm<5*60e3)return;druckWarm=Date.now();
   setTimeout(()=>{clpFonts().catch(()=>{});clpBasis().catch(()=>{});loadPdfJs().catch(()=>{});druckStatus()},50)}
+/* 🖨️ Druck-Warteschlange im Gerät: das Senden an den Druck-PC läuft im Hintergrund – der Knopf ist sofort fertig.
+   Aufträge bleiben im Gerätespeicher, bis der Server sie angenommen hat (auch nach Neustart / kurzem Netzausfall). */
+let DQL=null,dqBusy=false;
+const dqLoad=async()=>DQL||(DQL=(await IDB.get('druckq'))||[]),dqSave=()=>IDB.set('druckq',DQL);
+async function druckQ(name,b64){await dqLoad();DQL.push({name,b64,t:Date.now()});dqSave();dqRun();return true}
+async function dqRun(){if(dqBusy)return;dqBusy=true;
+  try{await dqLoad();while(DQL.length){const j=DQL[0];
+      try{await srv('druck',j.name,j.b64)}
+      catch(e){if(e.net||Date.now()-j.t<3600e3){setTimeout(dqRun,e.net?8000:15000);return}
+        toast('⚠️ تعذّر إرسال «'+j.name+'» للطباعة: '+(e.message||e))}
+      DQL.shift();dqSave()}}
+  finally{dqBusy=false}}
+setTimeout(()=>{try{dqRun()}catch(e){}},4000);window.addEventListener('online',()=>{try{dqRun()}catch(e){}});
 /* Druck fertig: kurze Meldung statt Fenster, das man wegklicken muss */
 function druckMeldung(btn,o,msg,st,fehler){
   if(st&&!st.online&&!fehler)msg+=' — ⚠️ جهاز الطباعة في المستودع غير متصل الآن، ستُطبع فور تشغيله';
@@ -2137,9 +2150,9 @@ async function epsonPrint(l,btn){const o=btn.innerHTML;btn.disabled=true;btn.tex
     const ep=r.files.filter(f=>!/^Proben/.test(f.name)),pr=r.files.filter(f=>/^Proben/.test(f.name));
     if(!ep.length&&!pr.length)throw new Error('لا يوجد ملصق CLP لهذه الأصناف');
     btn.textContent='جاري الإرسال إلى المستودع…';
-    await Promise.all(ep.map(async f=>srv('druck',f.name,await blob64(f.blob))).concat(pr.map(f=>pmQueue(f.blob,f.name))));
+    await Promise.all(ep.map(async f=>druckQ(f.name,await blob64(f.blob))).concat(pr.map(f=>pmQueue(f.blob,f.name))));
     const msg=(ep.length?'✓ أُرسلت إلى طابعة Epson':'')+(pr.length?(ep.length?' · ':'✓ ')+'ملصقات العيّنات 40 × 30 → طابعة Phomemo في المستودع':'')+(r.fehlend&&r.fehlend.length?' · بدون ملصق: '+r.fehlend.join('، '):'');
-    druckMeldung(btn,o,msg,await stP)}
+    druckMeldung(btn,o,msg,druckSt.v)}
   catch(e){druckMeldung(btn,o,'تعذّر الإرسال إلى الطابعة: '+(e.message||e),null,true)}}
 /* Angebot/Packliste → Druck-Warteschlange → Mini-PC druckt auf dem A4-Drucker (Brother) im Lager. Dateiname mit "A4-" = A4-Drucker */
 /* Präfix "P-" = Phomemo 40 × 30 (Etiketten) */
@@ -2149,8 +2162,8 @@ async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phome
     if(['ls','lso','pl','plo'].includes(kind))await prepImgs(lo);
     const stP=druckStatus();
     const blob=KINDS[kind].make(lo).output('blob');
-    if(pre==='P-')await pmQueue(blob,fname(kind,lo));else await srv('druck',pre+fname(kind,lo),await blob64(blob));
-    druckMeldung(btn,o,'✓ أُرسلت إلى طابعة '+nm+' في المستودع',await stP)}
+    if(pre==='P-')await pmQueue(blob,fname(kind,lo));else await druckQ(pre+fname(kind,lo),await blob64(blob));
+    druckMeldung(btn,o,'✓ أُرسلت إلى طابعة '+nm+' في المستودع',druckSt.v)}
   catch(e){druckMeldung(btn,o,'تعذّر الإرسال إلى طابعة '+nm+': '+(e.message||e),null,true)}}
 async function directPrint(kind,l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري التجهيز…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
@@ -2464,7 +2477,10 @@ function showFilesFull(l,r,out){
   r.files.forEach(f=>{
     const row=el('div','share');
     const a=el('a','btn small primary','فتح PDF');a.href=f.url||(f.blob?(f._bu=f._bu||URL.createObjectURL(f.blob)):'#');a.target='_blank';a.rel='noopener';
-    const w=el('a','btn small wa',f.url?'واتساب':'واتساب (جاري تجهيز الرابط…)');if(f.url)w.href=waHref(head+'\n'+f.name+': '+f.url);else{w.style.opacity='.5';w.style.pointerEvents='none'}w.target='_blank';w.rel='noopener';
+    const canFile=!!(f.blob&&navigator.canShare&&window.File&&navigator.canShare({files:[new File([f.blob],f.name,{type:'application/pdf'})]}));
+    const w=el('a','btn small wa',f.url||canFile?'واتساب':'واتساب (جاري تجهيز الرابط…)');if(f.url)w.href=waHref(head+'\n'+f.name+': '+f.url);else if(!canFile){w.style.opacity='.5';w.style.pointerEvents='none'}w.target='_blank';w.rel='noopener';
+    /* فوراً: الملف نفسه يُرسل عبر نافذة المشاركة (واتساب) – بدون انتظار رفعه إلى Drive */
+    if(!f.url&&canFile){w.href='#';w.onclick=async e=>{e.preventDefault();try{await navigator.share({files:[new File([f.blob],f.name,{type:'application/pdf'})],title:f.name,text:head})}catch(x){if(x&&x.name!=='AbortError')alert('تعذّرت المشاركة: '+(x.message||x))}}}
     const c=el('button','btn small','نسخ الرابط');c.disabled=!f.url;c.onclick=async()=>{try{await navigator.clipboard.writeText(f.url);c.textContent='تم النسخ'}catch(e){c.textContent='تعذّر النسخ'}};
     const d=el('button','btn small','تنزيل');d.onclick=()=>download(f.name,f.blob);d.hidden=!f.blob;
     const pr=el('button','btn small primary','🖨️ طباعة');pr.onclick=async()=>{const o=pr.textContent;pr.disabled=true;pr.textContent='جاري التجهيز…';
@@ -2551,7 +2567,7 @@ async function phomemoPrint(blob,progress){
    der Mini-PC schickt sie unverändert (RAW) an die Phomemo → scharfe Schrift statt gerastertem PDF über den Windows-Treiber */
 async function pmQueue(blob,name){
   const pages=await pmRaw(blob),n=pages.reduce((s,p)=>s+p.length,0),all=new Uint8Array(n);let o=0;pages.forEach(p=>{all.set(p,o);o+=p.length});
-  await srv('druck','P-'+String(name).replace(/\.pdf$/i,'')+'.bin',await blob64(new Blob([all],{type:'application/octet-stream'})));
+  await druckQ('P-'+String(name).replace(/\.pdf$/i,'')+'.bin',await blob64(new Blob([all],{type:'application/octet-stream'})));
   return pages.length}
 async function savePdf(kind,l,btn,out){
   if(LAB_KINDS.includes(kind)){const lo=labOrder(l);if(lo._part&&!lo.items.length){const o=document.querySelector('[data-files="'+orderKey(l)+'"]')||out;o.textContent='اختر صنفاً واحداً على الأقل من «اختيار أصناف للملصقات».';return}l=lo}
@@ -4511,7 +4527,7 @@ async function soLsPrint(orders,btn,mode){const ob=btn.innerHTML;btn.disabled=tr
     const urls=[...new Set(orders.flatMap(o=>(o.items||[]).map(i=>i.img).filter(Boolean)))];let k=0;
     await Promise.all(Array.from({length:6},async()=>{while(k<urls.length){const u=urls[k++];await soImgLoad(u)}}));
     const blob=soLsPdf(orders).output('blob'),d=new Date(),nm='Lieferschein'+(orders.length>1?'e-'+orders.length+'x':'-'+soNr(orders[0]))+'-'+p2(d.getDate())+p2(d.getMonth()+1)+'-'+p2(d.getHours())+p2(d.getMinutes())+'.pdf';
-    if(mode==='a4'){const stP=druckStatus();await srv('druck','A4-'+nm,await blob64(blob));const st=await stP;
+    if(mode==='a4'){druckStatus();await druckQ('A4-'+nm,await blob64(blob));const st=druckSt.v;
       btn.textContent=st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';toast(st&&!st.online?'⚠️ جهاز الطباعة في المستودع غير متصل – ستُطبع فور تشغيله':'✓ أُرسلت إلى طابعة A4 في المستودع ('+orders.length+') · '+((Date.now()-T0)/1000).toFixed(1)+' ث')}
     else{const file=new File([blob],nm,{type:'application/pdf'});btn.textContent='جاري الفتح…';
       try{await printPdf(blob)}catch(e){if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:nm});else download(nm,blob)}}
