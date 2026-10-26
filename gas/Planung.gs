@@ -1112,6 +1112,19 @@ function dhlQuelle_(o, id) {
   return { name: String(o.nr || id), email: a.email || '', lineItems: { nodes: [] }, adr: a,
     shippingAddress: { name: a.name || '', company: a.firma || '', address1: a.a1 || '', address2: a.a2 || '', zip: a.plz || '', city: a.ort || '', countryCodeV2: String(a.land || 'DE').toUpperCase(), phone: a.tel || '' } };
 }
+/** Sperre NUR für diese eine Bestellung (verhindert doppelte Etiketten bei Doppelklick / zwei Geräten).
+    Früher: globale Script-Sperre – die halten aber auch die Hintergrund-Jobs (Planung, Lager, CLP) oft minutenlang → „Bitte gleich nochmal versuchen“.
+    Jetzt blockiert nur dieselbe Bestellung; mehrere Bestellungen laufen parallel. */
+function dhlSperre_(key) {
+  var c = CacheService.getScriptCache(), l = LockService.getUserLock(), k = 'SP_' + key, mein = String(Date.now()) + Math.random();
+  if (!l.tryLock(15000)) throw new Error('DHL_BESCHAEFTIGT');
+  try {
+    var v = c.get(k);
+    if (v && Date.now() - Number(String(v).split('|')[0]) < 120000) throw new Error('DHL_LAEUFT');
+    c.put(k, Date.now() + '|' + mein, 180);
+  } finally { l.releaseLock(); }
+  return { frei: function () { try { var v = c.get(k); if (v && String(v).indexOf(mein) > 0) c.remove(k); } catch (e) {} } };
+}
 function dhlLabel_(o) {
   dhlPw_(o);
   var id = String(o.id || ''); if (!/^\d+$/.test(id) && !dhlAp_(id)) throw new Error('Bestellung fehlt');
@@ -1119,7 +1132,7 @@ function dhlLabel_(o) {
   var kgs = (Array.isArray(o.kgs) && o.kgs.length ? o.kgs : [o.kg]).map(function (x) { return Math.round(Number(String(x).replace(',', '.')) * 1000) / 1000; });
   if (kgs.length > 20) throw new Error('Max. 20 Pakete');
   kgs.forEach(function (kg, i) { if (!(kg > 0)) throw new Error('Gewicht fehlt (Paket ' + (i + 1) + ')'); if (kg > P.max) throw new Error(P.t + ': max. ' + P.max + ' kg (Paket ' + (i + 1) + ')'); });
-  var lock = LockService.getScriptLock(); if (!o.nurPruefen && !lock.tryLock(20000)) throw new Error('Bitte gleich nochmal versuchen');
+  var lock = o.nurPruefen ? null : dhlSperre_('dhl_' + id);
   try {
     var st = soStaende_()[id], alt = st && st.d && st.d.dhl, altP = dhlPakete_(alt);
     if (!o.nurPruefen && altP.length && !o.add) throw new Error('Für diese Bestellung gibt es schon ein Etikett: ' + altP.map(function (p) { return p.nr; }).join(', '));
@@ -1158,7 +1171,7 @@ function dhlLabel_(o) {
     var nrs = neu.map(function (p) { return p.nr; });
     return { ok: true, nr: nrs.join(', '), nrs: nrs, b64: b64s[0], b64s: b64s, gedruckt: gedruckt, druckFehler: druckFehler, shopify: shop, msgs: msgs,
       fehlend: kgs.length - gut.length, dhl: info };
-  } finally { try { lock.releaseLock(); } catch (e) {} }
+  } finally { if (lock) lock.frei(); }
 }
 /** Etikett(en) stornieren – alle Pakete oder nur eins (o.paket = Sendungsnummer). Geht nur, solange DHL die Sendung noch nicht bearbeitet hat (i. d. R. am selben Tag). */
 function dhlStorno_(o) {
@@ -1410,7 +1423,7 @@ function dhlxVor_(o) {
  */
 function dhlxLabel_(o) {
   var id = String(o.id || ''); if (!/^\d+$/.test(id)) throw new Error('Bestellung fehlt');
-  var c = dhlxCfg_(), lock = LockService.getScriptLock(); if (!o.nurPruefen && !lock.tryLock(20000)) throw new Error('Bitte gleich nochmal versuchen');
+  var c = dhlxCfg_(), lock = o.nurPruefen ? null : dhlSperre_('dhlx_' + id);
   try {
     var st = soStaende_()[id], alt = st && st.d && st.d.dhlx;
     if (!o.nurPruefen && alt && alt.nr) throw new Error('Für diese Bestellung gibt es schon eine DHL-Express-Sendung: ' + alt.nr);
@@ -1479,7 +1492,7 @@ function dhlxLabel_(o) {
     soSetzen_({ pw: o.pw, id: id, nr: n.name || o.nr, patch: { dhlx: info } });
     return { ok: true, nr: nr, b64s: labels.map(function (d) { return d.content; }), inv: inv.map(function (d) { return d.content; }), gedruckt: gedruckt, druckFehler: druckFehler,
       shopify: shop, msgs: msgs, dhlx: info, hsGespeichert: hsGespeichert };
-  } finally { try { lock.releaseLock(); } catch (e) {} }
+  } finally { if (lock) lock.frei(); }
 }
 function dhlxShopifyVersand_(id, nr) {
   var fo = shopifyGraphQL('query($id:ID!){order(id:$id){fulfillmentOrders(first:10){nodes{id status}}}}', { id: 'gid://shopify/Order/' + id }).order.fulfillmentOrders.nodes
