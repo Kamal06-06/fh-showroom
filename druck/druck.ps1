@@ -156,10 +156,13 @@ while ($true) {
   # Server antwortet je nach Version mit true oder {ok:true,...}
   if ($r -and ($r.val -eq $true -or $r.val.ok -eq $true)) { Set-Content $PINF $script:PIN; break }
   # Nur bei klarer Antwort "PIN falsch" neu fragen. Keine Verbindung (z. B. WLAN nach dem Einschalten noch nicht da) -> gespeicherte PIN behalten und warten.
-  if ($r -and ($r.val -eq $false -or "$($r.err)" -match 'pin|code|zugang')) {
+  if ($r -and "$($r.err)" -notmatch 'zu viele|gesperrt' -and ($r.val -eq $false -or "$($r.err)" -match 'pin|code|zugang')) {
     Write-Host 'PIN falsch - bitte nochmal.' -ForegroundColor Red
     if (Test-Path $PINF) { Remove-Item $PINF }
     Start-Sleep 2
+  } elseif ($r -and "$($r.err)" -match 'zu viele|gesperrt') {
+    Write-Host 'App wegen Fehlversuchen gesperrt - warte 10 Minuten.' -ForegroundColor Yellow
+    Start-Sleep -Seconds 600
   } else {
     Write-Host 'Warte auf Internetverbindung ...' -ForegroundColor DarkGray
     if (-not (Test-Path $PINF) -and $script:PIN) { Set-Content $PINF $script:PIN }
@@ -216,7 +219,16 @@ while ($true) {
   }
   try {
     $r = Api 'druckholen' $(if ($n % 20 -eq 0) { '1' } else { '' })
-    if ($r.err) { Write-Host "Fehler: $($r.err)" -ForegroundColor Red }
+    if ($r.err) {
+      Write-Host "Fehler: $($r.err)" -ForegroundColor Red
+      # PIN falsch oder Sperre wegen Fehlversuchen: nicht alle 3 s weiter probieren (sonst bleibt die App fuer alle gesperrt).
+      # 10 Minuten warten und die PIN aus pin.txt neu lesen (dort kann eine neue PIN eingetragen werden).
+      if ("$($r.err)" -match 'pin|code|zugang|zu viele|gesperrt') {
+        Write-Host 'PIN falsch/gesperrt - warte 10 Minuten. Neue PIN in pin.txt eintragen.' -ForegroundColor Yellow
+        Start-Sleep -Seconds 600
+        if (Test-Path $PINF) { $script:PIN = (Get-Content $PINF -Raw).Trim() }
+      }
+    }
     elseif ($r.val) {
       if (-not $DRUCKER) { $DRUCKER = Drucker }
       if (-not $DRUCKERA4) { $DRUCKERA4 = DruckerA4 }
