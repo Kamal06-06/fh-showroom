@@ -3517,16 +3517,18 @@ function omDocs(l){const box=el('div','om-pane'),out=el('div','filebox');out.set
     const p=el('button','btn','📱 جهازي');p.title='طباعة من هذا الجهاز';p.onclick=()=>directPrint(kind,l,p);w.append(s,p);return w};
   const doc=(ic,t,sub,kind,printer)=>{const r=el('div','om-doc');r.append(el('span','ic',ic),el('b',null,t),el('small',null,sub),btns(kind,printer));return r};
   /* Namen: Handelsnamen oder Originalnamen – gilt für Angebot, Packliste und einfache Etiketten */
-  const nm=el('div','om-seg');[['t','الأسماء التجارية','Handelsnamen'],['o','الأسماء الأصلية','Originalnamen']].forEach(([k,t])=>{const x=el('button',k===omNames?'on':'',t);x.onclick=()=>{omNames=k;LS.set('omNames',k);renderOrderModal()};nm.append(x)});
-  const d1=el('div','om-box'),h1=el('h4');h1.append('📄 المستندات');d1.append(h1,nm);
-  d1.append(doc('💶','عرض السعر','مع الأسعار · طابعة A4',orig?'lso':'ls','a4'));
-  d1.append(doc('📋','قائمة التحضير','بدون أسعار · طابعة A4',orig?'plo':'pl','a4'));
+  const nm=el('div','om-seg');[['t','🏷️ الأسماء التجارية'],['o','🔤 الأسماء الأصلية']].forEach(([k,t])=>{const x=el('button',k===omNames?'on':'',(k===omNames?'✓ ':'')+t);x.onclick=()=>{omNames=k;LS.set('omNames',k);renderOrderModal()};nm.append(x)});
+  const d0=el('div','om-box');d0.append(el('h4',null,'الأسماء المطبوعة'),el('p','hint','اختر أولاً: تُطبع المستندات وملصق الاسم بهذه الأسماء.'),nm);box.append(d0);
+  const nmT=orig?'بالأسماء الأصلية':'بالأسماء التجارية';
+  const d1=el('div','om-box'),h1=el('h4');h1.append('📄 المستندات');d1.append(h1);
+  d1.append(doc('💶','عرض السعر','مع الأسعار · '+nmT+' · A4',orig?'lso':'ls','a4'));
+  d1.append(doc('📋','قائمة التحضير','بدون أسعار · '+nmT+' · A4',orig?'plo':'pl','a4'));
   if(l.dhlAdr&&l.dhlAdr.drop)d1.append(doc('🔁','ورقة المستلم النهائي','بدون أسعار وبدون شعارك · طابعة A4','pln','a4'));
   box.append(d1);
   if(hasOil){const d2=el('div','om-box'),h2=el('h4');h2.append('🏷️ ملصقات الزيوت');d2.append(h2);
     const lt=el('div','om-seg');[['clp','⚠️ ملصق السلامة · CLP'],['lab','🏷️ ملصق الاسم 40×30']].forEach(([k,t])=>{const x=el('button',k===omLab?'on':'',t);x.onclick=()=>{omLab=k;LS.set('omLab',k);renderOrderModal()};lt.append(x)});d2.append(lt);
-    if(omLab==='clp'){clpWarm(l);d2.append(doc('⚠️','ملصقات السلامة CLP','مع تحذيرات السلامة · طابعة Epson','clp','epson'))}
-    else d2.append(doc('🏷️','ملصق الاسم 40×30','الاسم والكود والجودة · طابعة Phomemo',orig?'labo':'lab','phomemo'));
+    if(omLab==='clp'){clpWarm(l);d2.append(doc('⚠️','ملصقات السلامة CLP','مع تحذيرات السلامة · بالأسماء التجارية دائماً · Epson','clp','epson'))}
+    else d2.append(doc('🏷️','ملصق الاسم 40×30','الاسم والكود والجودة · '+nmT+' · Phomemo',orig?'labo':'lab','phomemo'));
     d2.append(labPicker(l));box.append(d2)}
   box.append(out);return box}
 function buildCardV2(l){omCss();
