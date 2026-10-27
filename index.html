@@ -576,6 +576,18 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
 
 .ir-pack{width:100%}
 @media (max-width:640px){.ir-top{flex-wrap:wrap;row-gap:8px}.ir-main{flex:1 1 calc(100% - 60px)}.ir-q{margin-inline-start:auto}.ir-name{white-space:normal}}
+
+/* ===== Keine Fenster mehr (27.10.2026): jede Ansicht ist eine ganze Seite – raus nur über «رجوع» oder ⌂ ===== */
+#sheet{padding:0!important;background:var(--surface)!important;z-index:80!important;align-items:stretch!important}
+#sheet .sh{max-width:none!important;width:100%!important;height:100dvh!important;max-height:none!important;border-radius:0!important;box-shadow:none!important;overflow-y:auto!important;padding:calc(6px + env(safe-area-inset-top)) 16px calc(60px + env(safe-area-inset-bottom))!important}
+#sheet .grab{display:none!important}
+#sheet #sheet-b{max-width:1100px;margin:0 auto}
+#sheet .shh{position:sticky;top:calc(-6px - env(safe-area-inset-top));z-index:3;background:var(--surface);padding:8px 0;max-width:1100px;margin:0 auto 10px;border-bottom:1px solid var(--line)}
+#omodal{padding:0!important;background:var(--bg)!important;z-index:80!important;align-items:stretch!important;justify-content:stretch!important}
+#omodal .om{max-width:none!important;width:100%!important;height:100dvh!important;max-height:none!important;border-radius:0!important;box-shadow:none!important}
+#omodal .omh{padding:calc(8px + env(safe-area-inset-top)) 16px 8px!important}
+#om-b{flex:1 1 auto;min-height:0;overflow-y:auto!important;padding:14px 16px calc(60px + env(safe-area-inset-bottom))!important}
+#om-b>*{max-width:1000px;margin-inline:auto}
 </style>
 </head>
 <body>
@@ -2748,7 +2760,7 @@ function openSheet(t,fill){const k=scrKey(t),top=scrTop(),e={k:'sheet',t,fill};
   if(navMode==='back'){let i=-1;SCR.forEach((x,j)=>{if(x.k==='sheet'&&scrKey(x.t)===k)i=j});if(i>=0){SCR.length=i;SCR.push(e)}else if(top)SCR[SCR.length-1]=e;else SCR.push(e)}
   else if(navMode!=='restore'){if(top&&top.k==='sheet'&&scrKey(top.t)===k)SCR[SCR.length-1]=e;else SCR.push(e)}
   $('omodal').hidden=true;drawSheet(t,fill)}
-function drawSheet(t,fill){$('sheet-t').textContent=t;$('sheet').classList.toggle('chat',/^💬/.test(t));{const sh=$('sheet'),stay=!sh.hidden&&sh.classList.contains('page');sh.classList.toggle('page',/^(🛒|🚚|👤)/.test(t)||stay);}const b=$('sheet-b'),sb=0;[['settings-body','settings-holder'],['cs-form','cs-form-holder']].forEach(([x,h])=>{const e=$(x);if(e&&b.contains(e))$(h).append(e)});b.textContent='';sheetBack=null;fill(b);$('sheet').hidden=false;scrHist()}
+function drawSheet(t,fill){$('sheet-t').textContent=t;$('sheet').classList.toggle('chat',/^💬/.test(t));{const sh=$('sheet'),stay=!sh.hidden&&sh.classList.contains('page');sh.classList.add('page');}const b=$('sheet-b'),sb=0;[['settings-body','settings-holder'],['cs-form','cs-form-holder']].forEach(([x,h])=>{const e=$(x);if(e&&b.contains(e))$(h).append(e)});b.textContent='';sheetBack=null;fill(b);$('sheet').hidden=false;scrHist()}
 function scrShow(noHist){const top=scrTop();
   if(!top){$('sheet').hidden=true;try{sessionStorage.removeItem('fhSo')}catch(e){}$('omodal').hidden=true;omId=null;$('om-b').textContent='';document.documentElement.style.overflow='';
     if(sheetPushed){sheetPushed=false;if(!noHist){skipPop=true;try{history.back()}catch(e){skipPop=false}}}return}
@@ -3511,9 +3523,9 @@ function omDocs(l){const box=el('div','om-pane'),out=el('div','filebox');out.set
   if(l.dhlAdr&&l.dhlAdr.drop)d1.append(doc('🔁','ورقة المستلم النهائي','بدون أسعار وبدون شعارك · طابعة A4','pln','a4'));
   box.append(d1);
   if(hasOil){const d2=el('div','om-box'),h2=el('h4');h2.append('🏷️ ملصقات الزيوت');d2.append(h2);
-    const lt=el('div','om-seg');[['clp','⚠️ CLP'],['lab','🏷️ بسيط']].forEach(([k,t])=>{const x=el('button',k===omLab?'on':'',t);x.onclick=()=>{omLab=k;LS.set('omLab',k);renderOrderModal()};lt.append(x)});d2.append(lt);
-    if(omLab==='clp'){clpWarm(l);d2.append(doc('⚠️','ملصقات CLP','مع تحذيرات السلامة · طابعة Epson','clp','epson'))}
-    else d2.append(doc('🏷️','ملصقات بسيطة','الاسم والكود والجودة · طابعة Phomemo',orig?'labo':'lab','phomemo'));
+    const lt=el('div','om-seg');[['clp','⚠️ ملصق السلامة · CLP'],['lab','🏷️ ملصق التعريف']].forEach(([k,t])=>{const x=el('button',k===omLab?'on':'',t);x.onclick=()=>{omLab=k;LS.set('omLab',k);renderOrderModal()};lt.append(x)});d2.append(lt);
+    if(omLab==='clp'){clpWarm(l);d2.append(doc('⚠️','ملصقات السلامة CLP','مع تحذيرات السلامة · طابعة Epson','clp','epson'))}
+    else d2.append(doc('🏷️','ملصقات التعريف','الاسم والكود والجودة · طابعة Phomemo',orig?'labo':'lab','phomemo'));
     d2.append(labPicker(l));box.append(d2)}
   box.append(out);return box}
 function buildCardV2(l){omCss();
