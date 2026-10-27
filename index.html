@@ -273,6 +273,29 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
  .wrap{max-width:1100px}
 }
 /* Startseite */
+/* ===== Struktur v3 (27.10.2026): 5 Bereiche – Start · Verkauf · Versand · Kunden · Lager ===== */
+.hquick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 2px}
+.hq{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);font:inherit;text-align:start;cursor:pointer}
+.hq b{font-size:14px;line-height:1.25}.hq span{font-size:11px;color:var(--muted)}
+.hq.pri{background:#141210;border-color:#141210;color:#fff}.hq.pri b{color:#c9a24a}.hq.pri span{color:#cfc6b4}
+.hq:active,.hgh:active{transform:scale(.99)}
+.hgrp{margin-top:14px}.hgrp[hidden]{display:none}
+.hgh{width:100%;border:0;background:none;font:inherit;color:var(--ink);cursor:pointer;padding:0;text-align:start}
+.hgh .hsec{margin:0}.hgh .hsec small{font-weight:400;color:var(--muted);font-size:12px}
+.hubhead{display:flex;align-items:baseline;gap:10px;margin:6px 2px 12px}.hubhead h2{margin:0;font-size:21px}.hubhead span{color:var(--muted);font-size:13px}
+.hubx{margin-top:16px}
+@media (max-width:899px){
+ .hquick{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #nv-new{position:fixed;inset-inline-start:16px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:31;width:auto;height:52px;flex-direction:row;gap:6px;padding:0 18px 0 14px;border-radius:999px;background:#141210;color:#c9a24a;font-size:14px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.28)}
+ #nv-new .pl{display:contents}#nv-new .lbl-plus{display:inline}#nv-new svg{width:20px;height:20px}
+ body.on-new #nv-new,body.has-sb #nv-new{display:none}
+}
+@media (min-width:900px){
+ .nv.sub{font-size:13px;padding:7px 14px;padding-inline-start:46px;color:#a59c8b}
+ .nv.sub svg{display:none}
+ .nv.sec{margin-top:8px}
+}
+
 .hhello b{font-size:20px;display:block;line-height:1.3}.hhello span{font-size:12.5px;color:var(--muted)}
 .htoday{background:#141210;border-radius:18px;padding:14px 6px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;color:#fff}
 .htoday button{background:none;border:0;font:inherit;color:inherit;text-align:center;cursor:pointer;padding:0 2px}
@@ -567,15 +590,19 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
 <nav id="appnav" dir="rtl" lang="ar" aria-label="التنقل">
   <div class="nvlogo hlogo" role="button" tabindex="0" title="الصفحة الرئيسية">FRAGRANCE HUB<small>GERMANY</small></div>
   <button class="nv" id="nv-home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9H3z"/><path d="M9 20v-6h6v6"/></svg><span>الرئيسية</span></button>
-  <button class="nv p-wh" id="nv-wh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>الطلبات</span><b class="nb" id="nv-open" hidden></b></button>
+  <button class="nv sec" id="nv-s-sales"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h5"/></svg><span>المبيعات</span><b class="nb" id="nv-s-open" hidden></b></button>
+  <button class="nv sub side-only p-wh" id="nv-wh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>الطلبات المفتوحة</span><b class="nb" id="nv-open" hidden></b></button>
+  <button class="nv sub side-only p-wh" id="nv-done"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg><span>الطلبات المكتملة</span></button>
+  <button class="nv sub side-only p-shop" id="nv-shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.4 10.2a1.5 1.5 0 001.5 1.1h8.6a1.5 1.5 0 001.5-1.1L21 7H6"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17.5" cy="19.5" r="1.3"/></svg><span>طلبات المتجر</span></button>
+  <button class="nv sec p-shop" id="nv-s-ship"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 7h11v9H2zM13 10h4l3 3v3h-7"/><circle cx="6" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg><span>الشحن</span><b class="nb" id="nv-s-shipn" hidden></b></button>
+  <button class="nv sec" id="nv-s-cust"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/></svg><span>العملاء</span></button>
+  <button class="nv sub side-only p-cust" id="nv-cust"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/></svg><span>قائمة العملاء</span></button>
+  <button class="nv sub side-only p-acc" id="nv-acc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/></svg><span>حسابات العملاء</span></button>
+  <button class="nv sub side-only p-cash" id="nv-cash"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg><span>الصندوق والمصروفات</span></button>
+  <button class="nv sec" id="nv-s-stock"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>المستودع</span></button>
+  <button class="nv sub side-only p-lg" id="nv-lg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>المخزون</span></button>
+  <button class="nv sub side-only p-inv" id="nv-inv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9zM7 5H5v16h14V5h-2"/><path d="M8 12l2 2 4-4M8 17h8"/></svg><span>الجرد حسب الرفوف</span></button>
   <button class="nv plus p-new" id="nv-new"><span class="pl"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="lbl-plus">طلب جديد</span></button>
-  <button class="nv p-lg" id="nv-lg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>المخزون</span></button>
-  <button class="nv side-only p-inv" id="nv-inv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9zM7 5H5v16h14V5h-2"/><path d="M8 12l2 2 4-4M8 17h8"/></svg><span>الجرد · Inventur</span></button>
-  <button class="nv p-cash" id="nv-cash"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg><span>الصندوق</span></button>
-  <button class="nv side-only p-shop" id="nv-shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.4 10.2a1.5 1.5 0 001.5 1.1h8.6a1.5 1.5 0 001.5-1.1L21 7H6"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17.5" cy="19.5" r="1.3"/></svg><span>طلبات المتجر</span></button>
-  <button class="nv side-only p-cust" id="nv-cust"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/></svg><span>العملاء</span></button>
-  <button class="nv side-only p-acc" id="nv-acc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/></svg><span>حسابات العملاء</span></button>
-  <button class="nv side-only p-wh" id="nv-done"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg><span>المكتملة</span></button>
 </nav>
 <div class="wrap" dir="rtl" lang="ar">
   <header>
@@ -598,25 +625,41 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
     <div class="hhello"><b id="h-hi"></b><span id="h-date"></span></div>
     <div class="htoday" id="h-today"></div>
     <div id="h-devwait" class="devwait" hidden></div>
-    <div class="hsec">الأقسام</div>
+    <div class="hquick">
+      <button class="hq pri p-new" id="hq-new"><b>＋ طلب جديد</b><span>Neuer Auftrag</span></button>
+      <button class="hq p-off" id="hq-off"><b>📄 عروض الأسعار</b><span>Angebote</span></button>
+      <button class="hq p-shop" id="hq-dhl"><b>📦 ملصق DHL</b><span>DHL Paket</span></button>
+      <button class="hq p-lg" id="hq-lg"><b>🔎 بحث في المخزون</b><span>Bestand</span></button>
+    </div>
+    <button class="tile primary p-new" id="h-new"><span class="ic">＋</span><b>طلب جديد</b><span>تسجيل أصناف عميل في الصالة</span></button>
+    <div class="hgrp" data-hub="sales"><button class="hsech hgh" data-hub="sales"><span class="hsec">🧾 المبيعات <small>· Verkauf</small></span><span class="hlink">فتح القسم ‹</span></button>
     <div class="home">
-      <button class="tile primary p-new" id="h-new"><span class="ic">＋</span><b>طلب جديد</b><span>تسجيل أصناف عميل في الصالة</span></button>
       <button class="tile p-wh" id="h-wh"><span class="ic">🗂️</span><b>الطلبات المفتوحة</b><span>قيد التحضير في المستودع</span><span class="cnt" id="h-open">0</span></button>
       <button class="tile p-off" id="h-off"><span class="ic">📄</span><b>عروض الأسعار</b><span>بدون تجهيز · إرسال للمستودع</span><span class="cnt" id="h-off-n">0</span></button>
       <button class="tile p-wh" id="h-done"><span class="ic">✅</span><b>الطلبات المكتملة</b><span>تم تحضيرها وتسليمها</span><span class="cnt" id="h-done-n">0</span></button>
-      <button class="tile p-lg" id="h-lg"><span class="ic">📦</span><b>المخزون</b><span>وارد · صادر · جرد · ملصقات QR</span></button>
-      <button class="tile p-inv" id="h-inv"><span class="ic">📋</span><b>الجرد حسب الرفوف</b><span>Inventur nach Regal · مسح QR</span><span class="cnt" id="h-inv-n"></span></button>
-      <button class="tile p-cust" id="h-cust"><span class="ic">👥</span><b>العملاء</b><span>كل عميل وطلباته</span><span class="cnt" id="h-cust-n"></span></button>
       <button class="tile p-shop" id="h-shop"><span class="ic">🛒</span><b>طلبات المتجر</b><span>طلبات Shopify · ملصقات · تحضير</span><span class="cnt" id="h-shop-n"></span></button>
+    </div></div>
+    <div class="hgrp" data-hub="ship"><button class="hsech hgh" data-hub="ship"><span class="hsec">🚚 الشحن <small>· Versand</small></span><span class="hlink">فتح القسم ‹</span></button>
+    <div class="home">
       <button class="tile p-shop" id="h-ship"><span class="ic">🚚</span><b>مركز الشحن</b><span>Versand · سجل الشحنات · Zebra</span><span class="cnt" id="h-ship-n"></span></button>
       <button class="tile p-shop" id="h-dhl"><span class="ic">📦</span><b>ملصق DHL داخل ألمانيا</b><span>DHL Paket · لأي مستلم</span></button>
-      <button class="tile p-cash" id="h-cash"><span class="ic">🏦</span><b>الصندوق والمصروفات</b><span>نقد المستودع · مصروفات · فواتير</span><span class="cnt" id="h-cash-n"></span></button>
+    </div></div>
+    <div class="hgrp" data-hub="cust"><button class="hsech hgh" data-hub="cust"><span class="hsec">👥 العملاء والحسابات <small>· Kunden & Finanzen</small></span><span class="hlink">فتح القسم ‹</span></button>
+    <div class="home">
+      <button class="tile p-cust" id="h-cust"><span class="ic">👥</span><b>العملاء</b><span>كل عميل وطلباته</span><span class="cnt" id="h-cust-n"></span></button>
       <button class="tile p-acc" id="h-acc"><span class="ic">💶</span><b>حسابات العملاء</b><span>مدفوع · غير مدفوع · كشف حساب</span><span class="cnt" id="h-due"></span></button>
-    </div>
+      <button class="tile p-cash" id="h-cash"><span class="ic">🏦</span><b>الصندوق والمصروفات</b><span>نقد المستودع · مصروفات · فواتير</span><span class="cnt" id="h-cash-n"></span></button>
+    </div></div>
+    <div class="hgrp" data-hub="stock"><button class="hsech hgh" data-hub="stock"><span class="hsec">🏭 المستودع <small>· Lager</small></span><span class="hlink">فتح القسم ‹</span></button>
+    <div class="home">
+      <button class="tile p-lg" id="h-lg"><span class="ic">📦</span><b>المخزون</b><span>وارد · صادر · جرد · ملصقات QR</span></button>
+      <button class="tile p-inv" id="h-inv"><span class="ic">📋</span><b>الجرد حسب الرفوف</b><span>Inventur nach Regal · مسح QR</span><span class="cnt" id="h-inv-n"></span></button>
+    </div></div>
     <div class="hcols">
     <div class="hpanel"><div class="hsech"><span class="hsec">للتحضير الآن</span><button class="hlink" id="h-last-all">عرض الكل ‹</button></div><div class="hlist hcards" id="h-last"></div></div>
     </div>
   </section>
+  <section id="view-hub" hidden dir="rtl" lang="ar"><div class="hubhead"><h2 id="hub-t"></h2><span id="hub-de"></span></div><div id="hub-b"></div></section>
   <section id="view-new" style="display:contents">
     <div class="status editbar" id="editbar" hidden><span id="edit-txt"></span> <button class="btn small" id="edit-cancel">إلغاء التعديل</button></div>
     <div class="status editbar" id="draftbar" hidden><span id="draft-txt"></span> <button class="btn small" id="draft-keep">متابعة المسودة</button> <button class="btn small danger" id="draft-clear">مسح وبدء طلب جديد</button></div>
@@ -980,8 +1023,9 @@ function tab(which,fromBack){
   if(which==='lg'&&$('lg-box').hidden&&!$('lg-q').value&&($('lg-low').hidden||Date.now()-(window._lgAt||0)>300000)){window._lgAt=Date.now();try{$('lg-low-btn').click()}catch(e){}}
 }
 function navMark(w){const m={home:'nv-home',wh:onlyDone?'nv-done':'nv-wh',new:'nv-new',lg:'nv-lg',inv:'nv-inv',cash:'nv-cash',cust:'nv-cust',acc:'nv-acc'};
-  document.querySelectorAll('#appnav .nv').forEach(b=>b.classList.toggle('on',b.id===m[w]))}
-function navBadge(){const n=lists.filter(l=>l.status!=='done').length,b=$('nv-open');if(b){b.hidden=!n;b.textContent=n}}
+  const sec={wh:'nv-s-sales',lg:'nv-s-stock',inv:'nv-s-stock',cash:'nv-s-cust',cust:'nv-s-cust',acc:'nv-s-cust','hub-sales':'nv-s-sales','hub-cust':'nv-s-cust','hub-stock':'nv-s-stock'};
+  document.querySelectorAll('#appnav .nv').forEach(b=>b.classList.toggle('on',b.id===m[w]||b.id===sec[w]))}
+function navBadge(){const n=lists.filter(l=>l.status!=='done').length;['nv-open','nv-s-open'].forEach(i=>{const b=$(i);if(b){b.hidden=!n;b.textContent=n}});try{const k=vzOffen().length,b=$('nv-s-shipn');if(b){b.hidden=!k;b.textContent=k}}catch(e){}}
 function goBack(){
   if(!$('sheet').hidden){closeSheet(true);return}
   if(!$('drawer').hidden){drawer(false);return}
@@ -992,12 +1036,12 @@ function goBack(){
 $('tab-back').onclick=()=>{if(!$('omodal').hidden){closeOrder();return}if(!IN_GAS&&navStack.length&&$('drawer').hidden)history.back();else goBack()};
 if(!IN_GAS){try{history.replaceState({fh:0},'')}catch(e){}window.addEventListener('popstate',()=>{if(skipPop){skipPop=false;return}if(!$('sheet').hidden){if(sheetBack){const f=sheetBack;sheetBack=null;try{history.pushState({sh:1},'')}catch(e){}f();return}sheetPushed=false;closeSheet(true);return}if(!$('omodal').hidden){omPushed=false;closeOrder(true);return}if(!$('drawer').hidden){drawer(false);try{history.pushState({fh:navStack.length},'')}catch(e){}return}goBack()})}
 function tabRaw(which){
-  const n=which==='new', lg=which==='lg', h=which==='home', iv=which==='inv';
-  $('view-home').hidden=!h;
+  const n=which==='new', lg=which==='lg', h=which==='home', iv=which==='inv', hb=String(which).startsWith('hub-');
+  $('view-home').hidden=!h;$('view-hub').hidden=!hb;if(hb)renderHub(which.slice(4));document.body.classList.toggle('on-new',n);
   $('view-new').hidden=!n; $('view-new').style.display=n?'contents':'none';
   if(n&&db)try{ivLoad(false,true).then(()=>{ivIndex();renderItems()}).catch(()=>{})}catch(e){}
   const ac=which==='acc',cu=which==='cust',cs=which==='cash';$('view-acc').hidden=!ac;if(ac)renderAcc();$('view-cust').hidden=!cu;if(cu)renderCust();$('view-cash').hidden=!cs;if(cs)renderCash();
-  $('view-wh').hidden=n||lg||h||ac||cu||cs||iv;
+  $('view-wh').hidden=n||lg||h||ac||cu||cs||iv||hb;
   $('view-lg').hidden=!lg;
   $('view-inv').hidden=!iv;if(iv)ivShow();
   $('tab-new').hidden=n||h;
@@ -1217,6 +1261,25 @@ function openCustDel(g){
 $('cu-q').oninput=renderCust;
 $('sb-send').onclick=()=>$('send').click();
 $('tab-set').onclick=()=>openSheet('⚙️ الإعدادات',b=>b.append($('settings-body')));
+
+/* ---------- الأقسام · Bereiche: Start · Verkauf · Versand · Kunden & Finanzen · Lager ---------- */
+const HUBS={sales:{t:'🧾 المبيعات',de:'Verkauf · Aufträge · Angebote · Shop',tiles:['h-new','h-wh','h-off','h-done','h-shop']},
+  cust:{t:'👥 العملاء والحسابات',de:'Kunden · Konten · Kasse',tiles:['h-cust','h-acc','h-cash']},
+  stock:{t:'🏭 المستودع',de:'Lager · Bestand · Inventur',tiles:['h-lg','h-inv']}};
+const tileVis=t=>t&&getComputedStyle(t).display!=='none';
+function hubGo(k){drawer(false);if(k==='ship'){if(can('shop'))vzOpen();return}tab('hub-'+k)}
+function renderHub(k){const H=HUBS[k];if(!H)return;$('hub-t').textContent=H.t;$('hub-de').textContent=H.de;const b=$('hub-b');b.textContent='';
+  try{renderHome()}catch(e){}   /* Zahlen auf den Kacheln aktuell halten */
+  const g=el('div','home');H.tiles.forEach(id=>{const t=$(id);if(!t)return;const c=t.cloneNode(true);c.removeAttribute('id');c.querySelectorAll('[id]').forEach(x=>x.removeAttribute('id'));
+    if(id==='h-new'){c.style.setProperty('display','flex','important')}c.onclick=()=>t.click();g.append(c)});b.append(g);
+  if(k==='stock'&&isAdmin()){const x=el('div','hubx');x.append(el('div','hsec','أدوات المدير · Verwaltung'));const g2=el('div','hquick');
+    [['🧾 طلبية للمصنع','Bestellvorschlag','lg-order-btn'],['📊 تقرير الجرد','Inventurbericht','lg-report-btn']].forEach(([t,d,id])=>{const q=el('button','hq');q.append(el('b',null,t),el('span',null,d));q.onclick=()=>{const o=$(id);if(o)o.click()};g2.append(q)});x.append(g2);b.append(x)}
+  if(k==='sales'){const x=el('div','hubx'),p=$('h-last');if(p){x.append(el('div','hsec','للتحضير الآن · Vorbereitung'));const c=p.cloneNode(true);c.removeAttribute('id');
+    [...c.querySelectorAll('button')].forEach((bt,i)=>{const o=p.querySelectorAll('button')[i];bt.onclick=()=>o&&o.click()});x.append(c);b.append(x)}}}
+function hubGroups(){document.querySelectorAll('#view-home .hgrp').forEach(g=>{g.hidden=![...g.querySelectorAll('.tile')].some(tileVis)})}
+$('nv-s-sales').onclick=()=>hubGo('sales');$('nv-s-ship').onclick=()=>hubGo('ship');$('nv-s-cust').onclick=()=>hubGo('cust');$('nv-s-stock').onclick=()=>hubGo('stock');
+document.querySelectorAll('.hgh').forEach(x=>x.onclick=()=>hubGo(x.dataset.hub));
+$('hq-new').onclick=()=>$('h-new').click();$('hq-off').onclick=()=>$('h-off').click();$('hq-dhl').onclick=()=>{if(can('shop'))vzPaket()};$('hq-lg').onclick=()=>$('h-lg').click();
 $('nv-home').onclick=goHome;$('nv-wh').onclick=()=>$('h-wh').click();$('nv-new').onclick=()=>$('h-new').click();
 $('nv-lg').onclick=()=>{drawer(false);$('h-lg').click()};$('nv-cash').onclick=()=>$('h-cash').click();$('nv-cust').onclick=()=>$('h-cust').click();
 $('nv-acc').onclick=()=>$('h-acc').click();$('nv-done').onclick=()=>$('h-done').click();$('h-last-all').onclick=()=>$('h-wh').click();
@@ -1250,7 +1313,7 @@ async function renderHome(){
   const openL=lists.filter(l=>l.status!=='done');
   $('h-open').textContent=openL.length;$('h-done-n').textContent=lists.length-openL.length;$('h-cust-n').textContent=custAll().length;
   const due=lists.concat(debtLists()).reduce((s,l)=>s+payOf(l).open,0),eurS=n=>Math.round(n).toLocaleString('de-DE')+' €';$('h-due').textContent=due>0.004?eurS(due):'';$('h-cash-n').textContent=cash.length?eurS(cashSums().box):'';
-  homeTop(openL);$('h-off-n').textContent=offers.length;{const n=$('h-ship-n');if(n)try{n.textContent=vzOffen().length||''}catch(e){}}
+  homeTop(openL);$('h-off-n').textContent=offers.length;try{hubGroups()}catch(e){}{const n=$('h-ship-n');if(n)try{n.textContent=vzOffen().length||''}catch(e){}}
   const last=$('h-last');last.textContent='';
   if(!openL.length)last.append(el('p','hint',lists.length?'لا توجد طلبات للتحضير ✓':'لا توجد طلبات بعد.'));
   openL.slice().sort((a,b)=>(isReady(b)-isReady(a))||(a.at||0)-(b.at||0)).slice(0,6).forEach(l=>{
