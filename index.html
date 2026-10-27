@@ -3437,6 +3437,164 @@ async function lexDraft(l,btn,out){if(!isAdmin())return;const o=btn.textContent;
   try{const r=await srv('lex_draft',JSON.stringify(lexPayload(l)));await db.doc('lists/'+l.id).update({lex:{id:r.id,url:r.url,at:Date.now(),by:WHO()}});
     btn.textContent='✓ تم إنشاء المسودة';const a=el('a','btn primary','🧾 فتح المسودة في Lexware');a.href=r.url;a.target='_blank';a.rel='noopener';out.append(a,el('p','note',r.kontakt?'رُبطت بالعميل الموجود في Lexware.':'العميل غير موجود في Lexware بنفس الاسم — العنوان مكتوب يدوياً في المسودة. راجع الضريبة لعملاء خارج ألمانيا.'))}
   catch(e){btn.disabled=false;btn.textContent=o;const m=String(e.message||e);out.append(el('p','status err',/LEXWARE_KEY_FEHLT/.test(m)?'مفتاح Lexware غير مضبوط بعد في الخادم.':/Unbekannte Aktion/.test(m)?'الخادم لم يُحدَّث بعد لميزة Lexware.':/NUR_INHABER/.test(m)?'هذه الميزة للمدير فقط.':'فشل: '+m))}}
+/* ================= 🗂️ نافذة الطلب · Auftragsfenster (v2, 27.10.2026) =================
+   Kopf mit allem Wichtigen, darunter 5 Reiter: التحضير · المستندات والملصقات · الشحن · الحساب · إدارة */
+let omTab=null,omTabFor=null,omNames=LS.get('omNames','t'),omLab=LS.get('omLab','clp');
+function omCss(){if($('om-css'))return;const s=document.createElement('style');s.id='om-css';s.textContent=`
+.om-sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:8px 0 4px}
+.om-sum div{background:var(--soft);border-radius:12px;padding:8px 6px;text-align:center;min-width:0}
+.om-sum b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.om-sum span{font-size:10.5px;color:var(--muted)}
+.om-tabs{position:sticky;top:-1px;z-index:5;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;background:var(--soft);padding:4px;border-radius:14px;margin:10px 0 12px}
+.om-tabs button{border:0;background:none;border-radius:10px;padding:8px 2px;font:inherit;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;line-height:1.2;position:relative}
+.om-tabs button small{display:block;font-weight:500;font-size:10px}
+.om-tabs button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 5px #0002}
+.om-tabs button .dot{position:absolute;top:4px;inset-inline-end:6px;width:7px;height:7px;border-radius:50%;background:#a3460f}
+.om-pane{display:flex;flex-direction:column;gap:10px}
+.om-box{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:12px}
+.om-box>h4{margin:0 0 4px;font-size:14.5px;display:flex;align-items:center;gap:8px}.om-box>h4 small{font-weight:400;font-size:11.5px;color:var(--muted)}.om-box>h4 .sp{flex:1}
+.om-box>p.hint{margin:2px 0 10px}
+.om-doc{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.om-doc:first-of-type{border-top:0}
+.om-doc .ic{font-size:22px;grid-row:span 2}
+.om-doc b{font-size:14px}.om-doc small{color:var(--muted);font-size:12px}
+.om-btns{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.om-btns .btn{flex:1 1 0;min-width:0;white-space:nowrap}
+.om-btns .btn.primary{flex:2 1 0}
+.om-seg{display:flex;gap:4px;background:var(--soft);padding:3px;border-radius:12px;margin:2px 0 10px}
+.om-seg button{flex:1;border:0;background:none;border-radius:9px;padding:7px 4px;font:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+.om-seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 4px #0002}
+.om-kv{display:grid;grid-template-columns:120px 1fr;gap:6px 10px;font-size:13.5px}.om-kv>span:nth-child(odd){color:var(--muted)}
+.om-wide{width:100%}
+.om-dz{border-color:#e7c6bd}
+`;document.head.append(s)}
+/* Dokumente & Etiketten – ein Klick = Druck am richtigen Drucker im Lager; PDF/WhatsApp als zweite Wahl */
+function omDocs(l){const box=el('div','om-pane'),out=el('div','filebox');out.setAttribute('data-files',orderKey(l));
+  if(clpReady(l)){const all=fileCache[orderKey(l)]||{files:[],note:''};(l.clpFiles||[]).forEach(f=>{if(!all.files.find(x=>x.name===f.name))all.files.push({name:f.name,url:f.url})});if(l.clpNote)all.note=l.clpNote;fileCache[orderKey(l)]=all}
+  if(fileCache[orderKey(l)])showFiles(l,fileCache[orderKey(l)],out);
+  const orig=omNames==='o',hasOil=(l.items||[]).some(isOil);
+  const btns=(kind,printer)=>{const w=el('div','om-btns');
+    if(printer==='a4'){const a=el('button','btn primary','🖨️ طباعة A4 في المستودع');a.onclick=()=>a4Print(kind,l,a);w.append(a)}
+    if(printer==='epson'){const a=el('button','btn primary','🖨️ طباعة على Epson');a.onclick=()=>epsonPrint(l,a);w.append(a)}
+    if(printer==='phomemo'){const a=el('button','btn primary','🖨️ طباعة على Phomemo');a.onclick=()=>a4Print(kind,l,a,'P-');w.append(a)}
+    const s=el('button','btn','📤 PDF · واتساب');s.onclick=()=>savePdf(kind,l,s,out);
+    const p=el('button','btn','📱 من هذا الجهاز');p.onclick=()=>directPrint(kind,l,p);w.append(s,p);return w};
+  const doc=(ic,t,sub,kind,printer)=>{const r=el('div','om-doc');r.append(el('span','ic',ic),el('b',null,t),el('small',null,sub),btns(kind,printer));return r};
+  /* Namen: Handelsnamen oder Originalnamen – gilt für Angebot, Packliste und einfache Etiketten */
+  const nm=el('div','om-seg');[['t','الأسماء التجارية','Handelsnamen'],['o','الأسماء الأصلية','Originalnamen']].forEach(([k,t])=>{const x=el('button',k===omNames?'on':'',t);x.onclick=()=>{omNames=k;LS.set('omNames',k);renderOrderModal()};nm.append(x)});
+  const d1=el('div','om-box'),h1=el('h4');h1.append('📄 المستندات',el('small',null,'Dokumente'));d1.append(h1,nm);
+  d1.append(doc('💶','عرض السعر · Angebotspreis','بالأسعار والخصم والمجموع'+(orig?' · بالأسماء الأصلية':''),orig?'lso':'ls','a4'));
+  d1.append(doc('📋','قائمة التحضير · Packliste','بدون أسعار – للموظف أو للعميل'+(orig?' · بالأسماء الأصلية':''),orig?'plo':'pl','a4'));
+  if(l.dhlAdr&&l.dhlAdr.drop)d1.append(doc('🔁','ورقة الطرد للمستلم النهائي','Dropshipping · بدون أسعار ولا شعارك · باسم '+(l.dhlAdr.abs||'العميل'),'pln','a4'));
+  box.append(d1);
+  if(hasOil){const d2=el('div','om-box'),h2=el('h4');h2.append('🏷️ ملصقات الزيوت',el('small',null,'Etiketten'));d2.append(h2);
+    const lt=el('div','om-seg');[['clp','⚠️ ملصق CLP · 102×51'],['lab','🏷️ ملصق بسيط · 40×30']].forEach(([k,t])=>{const x=el('button',k===omLab?'on':'',t);x.onclick=()=>{omLab=k;LS.set('omLab',k);renderOrderModal()};lt.append(x)});d2.append(lt);
+    if(omLab==='clp'){clpWarm(l);d2.append(doc('⚠️','ملصقات CLP للزيوت','بيانات السلامة والتحذيرات · طابعة Epson ColorWorks'+(l.clpAddr?' · بعنوان العميل':'')+(l.clpLogo?' + شعاره':''),'clp','epson'))}
+    else d2.append(doc('🏷️','ملصقات بسيطة','الاسم والكود والجودة · طابعة Phomemo'+(orig?' · بالأسماء الأصلية':''),orig?'labo':'lab','phomemo'));
+    d2.append(labPicker(l));box.append(d2)}
+  box.append(out);return box}
+function buildCardV2(l){omCss();
+  if(omTabFor!==l.id){omTabFor=l.id;omTab=null}
+  const done=l.status==='done',items=l.items||[],t=totals(l),n=items.reduce((s,i)=>s+qn(i),0),rdy=isReady(l);
+  const c=el('div','card om'+(done?' done':''));
+  /* ---------- Kopf ---------- */
+  const h=el('div','ohead');const hl=el('div');hl.append(el('div','cust',custLabel(l)));
+  const meta=el('div','meta');meta.append(el('span','pill '+(done?'done':rdy?'ready':'new'),done?'مكتمل':rdy?'✓ جاهز للتسليم':'قيد التحضير'+(prepN(l)?' · '+prepN(l)+'/'+items.length:'')),payBtn(l),el('span',null,new Date(l.at).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})));
+  if(l.by)meta.append(el('span',null,'· 👤 '+l.by));hl.append(meta);
+  const hr=el('div');hr.style.textAlign='left';hr.append(el('div','tot',money(t.net)),el('div','meta','netto'));h.append(hl,hr);c.append(h);
+  const sm=el('div','om-sum'),S=(v,k)=>{const d=el('div');d.append(el('b',null,v),el('span',null,k));sm.append(d)};
+  S(cntTxt(items),'الأصناف');S(l.lief&&LIEF[l.lief]?LIEF[l.lief].split(' ')[0]+' '+({pickup:'استلام',de:'شحن DE',ab:'شحن خارجي'})[l.lief]:'—','التسليم');
+  S(l.dhl&&l.dhl.nr?'✅ '+(l.dhl.n||1)+' طرد':(l.lief==='pickup'?'—':'لا يوجد'),'ملصق الشحن');S(l.lex?'🧾 '+new Date(l.lex.at).toLocaleDateString('de-DE'):'—','الفاتورة');c.append(sm);
+  if(l.note)c.append(el('p','note','📝 '+l.note));
+  {const cr=findCust(l.customer)||{},ph=l.phone||cr.phone||'',em=l.email||cr.email||'';const cb=el('div','row');cb.style.cssText='gap:6px;margin:6px 0 0;flex-wrap:wrap';
+    if(ph){const a=el('a','btn small ctc','💬 واتساب');a.href=custWa(ph,'');a.target='_blank';a.rel='noopener';cb.append(a)}
+    if(em){const a=el('a','btn small ctc','✉️ إيميل');a.href='mailto:'+em;cb.append(a)}
+    const kc=el('button','btn small','👤 بطاقة العميل');kc.onclick=()=>{const g=custAll().find(x=>x.name===l.customer);if(g){closeOrder();kkOpen(g)}};cb.append(kc);c.append(cb)}
+  /* ---------- Reiter ---------- */
+  const cl=claimsOf(l).length;
+  const TABS=[['prep','📦 التحضير','Packen'],['docs','🖨️ الطباعة','Drucken'],['ship','🚚 الشحن','Versand'],['acc','💶 الحساب','Preis & Zahlung'],['more','⚙️ إدارة','Verwalten']];
+  if(!omTab)omTab=done?'docs':'prep';
+  const tb=el('div','om-tabs'),pane=el('div');
+  TABS.forEach(([k,t,de])=>{if(k==='acc'&&!(isAdmin()||can('acc')))return;const x=el('button',k===omTab?'on':'');x.append(t,el('small',null,de));
+    if(k==='ship'&&l.lief&&l.lief!=='pickup'&&!(l.dhl&&l.dhl.nr))x.append(el('i','dot'));if(k==='more'&&cl)x.append(el('i','dot'));
+    x.onclick=()=>{omTab=k;renderOrderModal();const b=$('om-b');const tt=b.querySelector('.om-tabs');if(tt)b.scrollTop=Math.max(0,tt.offsetTop-8)};tb.append(x)});
+  c.append(tb,pane);
+  /* ---------- 📦 التحضير ---------- */
+  if(omTab==='prep'){const p=el('div','om-pane');
+    const odb=el('div','om-box');const chk=prepOf(l);const prog=el('div','prog');
+    const upd=()=>{const k=items.filter((_,i)=>chk[i]).length;prog.textContent=k?('جُهّز '+k+' من '+items.length+' سطر'):''};
+    if(rdy)odb.append(el('div','readybar','✅ كل الأصناف جاهزة'+(l.readyBy?' · 👤 '+l.readyBy:'')+' — '+agoTxt(l.readyAt)));
+    const OIL='🧭 الزيوت حسب مسار المستودع · Öle nach Laufweg',REST='فوارغ وإكسسوارات · Flakons & Zubehör',grp={};
+    items.forEach((i,ix)=>{const key=isOil(i)?OIL:REST;(grp[key]=grp[key]||[]).push([i,ix])});
+    if(!done&&!rdy&&grp[OIL]){const sb=el('button','btn primary','📷 تحضير بالمسح · Mit Scan prüfen');sb.onclick=()=>pickStart(l);odb.append(sb)}
+    [OIL,REST].filter(k=>grp[k]).forEach(k=>{
+      odb.append(el('div','igrp',k+' · '+grp[k].reduce((s,x)=>s+qn(x[0]),0)));
+      grp[k].sort((a,b)=>k===OIL?(ivSortKey(itPlatz(a[0])).localeCompare(ivSortKey(itPlatz(b[0])))||String(a[0].t).localeCompare(String(b[0].t))):String(a[0].t).localeCompare(String(b[0].t))).forEach(([i,ix])=>{
+        const r=el('div','irow'+(chk[ix]?' ok':''));
+        const cb=el('input');cb.type='checkbox';cb.checked=!!chk[ix];cb.title='تم تجهيزه';cb.onchange=()=>{chk[ix]=cb.checked;r.classList.toggle('ok',cb.checked);upd();if(prepSet(l,chk))beepOk()};
+        const q=el('div','iq',qtxt(i));const mid=el('div');
+        if(isOil(i)){const pl=itPlatz(i),tl=String(i.tier||'').trim();const tg=el('div','ipl');tg.append(el('b',null,pl||'—'));if(tl)tg.append(el('span','ivq '+tl.charAt(0).toUpperCase(),tl));mid.append(tg)}
+        mid.append(el('div','nm',i.t));if(i.code)mid.append(el('div','cd',i.code));if(isOil(i)){const lo=lotsOf(l)[ix],cur=lo?null:lotNow(i),bt=el('button','lot',lo?'Charge '+lo.b+' ✎':cur?'Charge '+cur.b+' (مقترحة) ✎':'+ Charge');bt.title='رقم دفعة المصنع (Charge / Batch)';bt.onclick=e=>{e.preventDefault();e.stopPropagation();lotEdit(l,ix,()=>{try{renderOrderModal()}catch(_){}})};mid.append(bt)}
+        if(!isOil(i)&&i.size){const d=el('div','cd',i.size),cs=capOf(i);if(cs)d.prepend(mkImg(cs,'capi'));mid.append(d)}{const ad=arOf(i);if(ad)mid.append(arEl(ad))}if(i.note)mid.append(el('div','nt','✎ '+i.note));
+        const sz=el('div','isz',isOil(i)?(i.size||''):'');const pr=el('div','pr2',(i.price!=null&&i.price!=='')?money(i.price)+(itRab(i)?' −'+itRab(i)+'%':''):'');
+        const left=el('div');left.style.display='flex';left.style.gap='6px';left.style.alignItems='center';left.append(cb,q);{const src=imgOf(i);if(src)mid.prepend(mkImg(src,'ithumb'))}
+        r.append(left,mid,sz,pr);odb.append(r)})});
+    upd();odb.append(prog);p.append(odb);
+    const tog=el('button','btn big tog om-wide'+(done?'':' primary')+(rdy?' pulse':''),done?'↩︎ إعادة فتح الطلب':rdy?'✓ تم التسليم · إغلاق الطلب':'✓ تم التحضير');
+    tog.onclick=async()=>{tog.disabled=true;try{await db.doc('lists/'+l.id).update({status:done?'new':'done',doneAt:Date.now()})}catch(e){tog.disabled=false}};p.append(tog);
+    const nb=el('button','btn om-wide','💬 ملاحظة للفريق عن هذا الطلب');nb.onclick=()=>{chCss();chOpen(null,{id:l.id,name:custLabel(l)})};p.append(nb);
+    pane.append(p)}
+  /* ---------- 🖨️ الطباعة ---------- */
+  if(omTab==='docs')pane.append(omDocs(l));
+  /* ---------- 🚚 الشحن ---------- */
+  if(omTab==='ship'){const p=el('div','om-pane'),b1=el('div','om-box'),h1=el('h4');h1.append('🚚 التسليم',el('small',null,'Lieferung'));b1.append(h1);
+    const kv=el('div','om-kv'),KV=(k,v,ltr)=>{const s=el('span',null,v||'—');if(ltr)s.dir='ltr';kv.append(el('span',null,k),s)};
+    KV('طريقة التسليم',l.lief&&LIEF[l.lief]?LIEF[l.lief]:'غير محددة');
+    if(l.lief!=='pickup'){const a=apAdr(l);KV('المستلم',[a.firma,a.name].filter(Boolean).join(' · '),1);KV('العنوان',[a.a1,a.a2,[a.plz,a.ort].filter(Boolean).join(' '),a.land].filter(Boolean).join(', '),1);if(a.drop)KV('المرسِل',a.abs+' c/o Fragrance Hub (Dropshipping)')}
+    if(+l.versand)KV('أجور الشحن',money(+l.versand));b1.append(kv);
+    const ls=el('div','om-seg');ls.style.marginTop='10px';Object.keys(LIEF).forEach(k=>{const x=el('button',k===l.lief?'on':'',LIEF[k]);x.onclick=async()=>{try{await db.doc('lists/'+l.id).update({lief:k});l.lief=k;renderOrderModal()}catch(e){alert(e.message||e)}};ls.append(x)});
+    b1.append(el('p','hint','تغيير طريقة التسليم:'),ls);p.append(b1);
+    if(apIsDE(l)&&l.lief!=='pickup'){const b2=el('div','om-box'),h2=el('h4');h2.append('📦 ملصق DHL',el('small',null,'Versandetikett'));b2.append(h2);const dn=l.dhl&&l.dhl.nr;
+      if(dn){const d=el('div','note');d.append('✅ '+(l.dhl.n||1)+' طرد · ',el('bdi',null,l.dhl.nr),' · '+vzWhen(l.dhl.at));b2.append(d)}
+      const db2=el('button','btn big om-wide'+(dn?'':' primary'),dn?'إدارة الملصق: طباعة · طرد إضافي · إلغاء':(apLand(l)==='DE'?'📦 إنشاء ملصق DHL داخل ألمانيا':'✈️ إنشاء ملصق DHL Europaket'));db2.onclick=()=>apDhl(l);b2.append(db2);
+      const ea=el('button','btn om-wide','✏️ عنوان الشحن · Packstation · Dropshipping');ea.style.marginTop='6px';ea.onclick=()=>apDhlAdr(l,apObj(l));b2.append(ea);
+      if(!dn){const a=apAdr(l);if(a.a1&&a.plz)dhlVorGet({id:'AP-'+l.id,adr:a,kg:apKg(l)})}p.append(b2)}
+    else if(l.lief==='pickup')p.append(el('p','hint','هذا الطلب للاستلام من المستودع – لا يحتاج ملصق شحن.'));
+    pane.append(p)}
+  /* ---------- 💶 الحساب ---------- */
+  if(omTab==='acc'){const p=el('div','om-pane');
+    const b1=el('div','om-box'),h1=el('h4');h1.append('💳 الدفع',el('small',null,'Zahlung'));b1.append(h1,payRow(l));p.append(b1);
+    const b2=el('div','om-box'),h2=el('h4');h2.append('🏷️ الخصم والشحن',el('small',null,'Rabatt & Versand'));b2.append(h2);
+    const g=el('div');g.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px';
+    const num=(lab,val,key,step)=>{const i=el('input');i.type='number';i.min=0;i.step=step||0.5;i.inputMode='decimal';i.value=val||'';i.placeholder='0';i.onchange=async()=>{try{await db.doc('lists/'+l.id).update({[key]:+i.value||0})}catch(e){}};field(g,lab,i);return i};
+    num('خصم % · Rabatt',l.rabatt,'rabatt');num('خصم مبلغ ثابت €',l.rabattFix,'rabattFix');
+    const sc=el('select');[['all','على كل الطلب'],['oil','على الزيوت فقط']].forEach(([v,n2])=>{const o=el('option',null,n2);o.value=v;sc.append(o)});sc.value=l.rabScope||'all';sc.onchange=async()=>{try{await db.doc('lists/'+l.id).update({rabScope:sc.value})}catch(e){}};field(g,'الخصم على',sc);
+    num('أجور الشحن €',l.versand,'versand');b2.append(g);
+    const tl=el('div','sumrow');tl.style.marginTop='10px';tl.append(el('span',null,t.disc||t.ship?'قبل الخصم '+money(t.sub)+(t.disc?' · خصم −'+money(t.disc):'')+(t.ship?' · شحن +'+money(t.ship):''):'المجموع الصافي'),el('div','sum',money(t.net)));b2.append(tl);p.append(b2);
+    const b3=el('div','om-box'),h3=el('h4');h3.append('⚖️ التسعير الخاص',el('small',null,'Sonderpreise'));b3.append(h3);const kr=el('div','om-btns');
+    const kgb=el('button','btn',l.kg?'⚖️ إلغاء سعر الكيلو':'⚖️ احتساب بسعر الكيلو');kgb.onclick=async()=>{kgb.disabled=true;kgb.textContent='…';try{await repriceOrder(l,!l.kg);renderLists()}catch(e){kgb.disabled=false;kgb.textContent='فشل: '+(e.message||e)}};kr.append(kgb);
+    {const cc=findCust(l.customer),sk=cc&&cc.sk&&cc.sk.on?cc.sk:null,has=items.some(i=>i.skAuto||i.skHint);
+     if(sk||has){const skb=el('button','btn',sk?'⭐ تطبيق خصم العميل الخاص':'⭐ إزالة خصم العميل الخاص');skb.onclick=async()=>{skb.disabled=true;skb.textContent='…';
+       try{const its=JSON.parse(JSON.stringify(l.items||[]));applySK(its,sk);await db.doc('lists/'+l.id).update({items:its});l.items=its;delete fileCache[orderKey(l)];renderLists()}catch(e){skb.disabled=false;skb.textContent='فشل: '+(e.message||e)}};kr.append(skb)}}
+    b3.append(kr);p.append(b3);
+    if(isAdmin()){const b4=el('div','om-box'),h4=el('h4');h4.append('🧾 الفاتورة',el('small',null,'Lexware'));b4.append(h4);const lo=el('div');
+      if(l.lex&&l.lex.url){const a=el('a','btn om-wide','🧾 فتح المسودة · '+new Date(l.lex.at).toLocaleDateString('de-DE'));a.href=l.lex.url;a.target='_blank';a.rel='noopener';b4.append(a)}
+      const lb=el('button','btn om-wide'+(l.lex?'':' primary'),l.lex?'إنشاء مسودة فاتورة جديدة':'🧾 إنشاء مسودة فاتورة في Lexware');lb.style.marginTop='6px';lb.onclick=()=>{if(l.lex&&!confirm('توجد مسودة سابقة لهذا الطلب. إنشاء مسودة أخرى؟'))return;lexDraft(l,lb,lo)};b4.append(lb,lo);p.append(b4)}
+    pane.append(p)}
+  /* ---------- ⚙️ إدارة ---------- */
+  if(omTab==='more'){const p=el('div','om-pane');
+    const b1=el('div','om-box'),h1=el('h4');h1.append('✎ تعديل الطلب',el('small',null,'Auftrag ändern'));b1.append(h1,el('p','hint','إضافة أصناف، تغيير الكميات أو حذف صنف. يُحدَّث المخزون والمستندات تلقائياً.'));
+    const ed=el('button','btn primary big om-wide','✎ تعديل الأصناف والكميات');ed.onclick=()=>editList(l);b1.append(ed);p.append(b1);
+    const b2=el('div','om-box'),h2=el('h4');h2.append('↩︎ مرتجع / شكوى',el('small',null,'Reklamation'));b2.append(h2);
+    if(cl)claimsOf(l).forEach((x,i)=>b2.append(claimRow(l,x,i,()=>{try{renderOrderModal()}catch(e){}})));else b2.append(el('p','hint','لا توجد مرتجعات أو شكاوى لهذا الطلب.'));
+    const cb=el('button','btn om-wide','＋ تسجيل مرتجع أو شكوى');cb.onclick=()=>claimForm(l);b2.append(cb);p.append(b2);
+    if(l.clpAddr){const b3=el('div','om-box'),h3=el('h4');h3.append('🏷️ بيانات ملصق CLP');b3.append(h3,el('p','note','عنوان العميل على ملصق CLP: '+l.clpAddr+(l.clpLogo?' · مع شعار العميل':'')));p.append(b3)}
+    if(isAdmin()){const b4=el('div','om-box om-dz'),h4=el('h4');h4.append('🗑 حذف الطلب',el('small',null,'nur bei Stornierung'));b4.append(h4,el('p','hint','فقط إذا أُلغي الطلب. لا يمكن التراجع، وتعود الكميات إلى المخزون.'));
+      const del=el('button','btn danger om-wide','حذف الطلب (ملغى)');let armed=0;
+      del.onclick=async()=>{if(!armed){armed=1;del.textContent='اضغط مرة ثانية لتأكيد الحذف';setTimeout(()=>{armed=0;del.textContent='حذف الطلب (ملغى)'},4000);return}
+        del.disabled=true;try{await db.doc('lists/'+l.id).delete()}catch(e){del.disabled=false;del.textContent='لم يُحذف: '+(e.message||e.code||e)}};b4.append(del);p.append(b4)}
+    pane.append(p)}
+  return c}
+
 let omId=null,omPushed=false,omSig='';
 function openOrder(id){
   omId=id;renderOrderModal();
@@ -3447,7 +3605,7 @@ function openOrder(id){
 function renderOrderModal(){
   const l=lists.find(x=>x.id===omId);if(!l){closeOrder();return}
   const b=$('om-b'),st=b.scrollTop;omSig=JSON.stringify(l);
-  $('om-t').textContent=(l.status==='done'?'✅ طلب مكتمل':'🗂️ طلب للتحضير')+' · AP-'+stamp(l);b.textContent='';b.append(buildCard(l,true));b.scrollTop=st;
+  $('om-t').textContent=(l.status==='done'?'✅ طلب مكتمل':'🗂️ طلب للتحضير')+' · AP-'+stamp(l);b.textContent='';b.append(buildCardV2(l));b.scrollTop=st;
 }
 function refreshOrderModal(){const l=lists.find(x=>x.id===omId);if(!l){closeOrder();return}if(JSON.stringify(l)!==omSig){const a=document.activeElement;if(a&&$('om-b').contains(a)&&/INPUT|SELECT|TEXTAREA/.test(a.tagName)&&a.type!=='checkbox')return;renderOrderModal()}}
 function closeOrder(fromPop){
