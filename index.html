@@ -5127,7 +5127,7 @@ function vzSendungen(){const out=[];
   customers.forEach(c=>(c.ship||[]).forEach(s=>{if(s&&s.nr)out.push({src:'frei',c,s,id:s.id,nr:s.nr,n:s.n||1,kg:s.kg,at:s.at,name:c.name+(c.no?' ('+c.no+')':''),ref:s.ref})}));
   return out.sort((a,b)=>(b.at||0)-(a.at||0))}
 function vzOffen(){const lim=Date.now()-45*864e5;
-  return lists.filter(l=>l.kind!=='debt'&&(l.items||[]).length&&apIsDE(l)&&!(l.dhl&&l.dhl.nr)&&(l.at||0)>lim&&(l.dhlAdr||l.lief==='de'||l.lief==='ab')).sort((a,b)=>(b.at||0)-(a.at||0))}
+  return lists.filter(l=>l.kind!=='debt'&&(l.items||[]).length&&apIsDE(l)&&!(l.dhl&&l.dhl.nr)&&(l.at||0)>lim&&(l.lief==='de'||l.lief==='ab')).sort((a,b)=>(b.at||0)-(a.at||0))}
 function vzOpen(){openSheet('🚚 مركز الشحن · Versandzentrale',b=>{soCss();vzCss();
   const act=el('div','vz-act'),A=(cls,ic,t,s,f)=>{const x=el('button',cls);x.append(el('b',null,ic+' '+t),el('span',null,s));x.onclick=f;act.append(x)};
   A('pri','📦','ملصق DHL داخل ألمانيا','DHL Paket · بدون طلب أو لأي عنوان',()=>vzPaket());
