@@ -4485,14 +4485,14 @@ function setBuild(){setCss();const body=$('settings-body');if(!body||body.datase
   const box=(t)=>{const b=el('div','set-box');b.append(el('h4',null,t));body.append(b);return b};
   /* 👤 حسابي */
   const me=box('👤 حسابي');const head=el('div','set-me');head.id='set-me';me.append(head);
-  [find('switch-user'),find('setpin')].forEach(d=>{if(d)me.append(d)});
+  bioRow(me);[find('switch-user'),find('setpin')].forEach(d=>{if(d)me.append(d)});
   /* 👥 الفريق */
   const us=find('users-btn');if(us){const tb=box('👥 الفريق والأجهزة');tb.id='set-team';tb.append(us)}
   /* 🔔 الإشعارات */
   const nb=box('🔔 الإشعارات والنغمات');const sd=find('snd');if(sd){sd.querySelectorAll('#snd-test').forEach(x=>x.remove());nb.append(sd)}
   const tsel=(lab,key,def)=>{const r=el('div','dim'),w=el('div','set-row'),s=el('select');Object.keys(TONES).filter(k=>k!=='funk').forEach(k=>{const o=el('option',null,TONES[k].t);o.value=k;s.append(o)});s.value=LS.get(key,def);
     const pl=el('button','btn small','▶ استماع');pl.onclick=()=>playTone(s.value);s.onchange=()=>{LS.set(key,s.value);playTone(s.value)};const tw=el('div','set-tone');tw.append(s,pl);w.append(el('label',null,lab),tw);r.append(w);nb.append(r)};
-  tsel('🗂️ نغمة الطلب الجديد في المستودع','toneOrder','klassik');tsel('💬 نغمة رسائل الفريق','toneChat','ding');
+  toneRow(nb,'🗂️ نغمة الطلب الجديد في المستودع','toneOrder2','toneOrder');toneRow(nb,'💬 نغمة رسائل الفريق','toneChat2','toneChat');
   {const r=el('div','dim'),l=el('label','clprow'),c=el('input');c.type='checkbox';c.checked=LS.get('funkAuto',true)!==false;c.onchange=()=>LS.set('funkAuto',c.checked);l.append(c,' 📻 تشغيل رسائل اللاسلكي تلقائياً عند وصولها');r.append(l);nb.append(r)}
   /* 🖨️ الطباعة */
   const lw=find('lw');if(lw){const pb=box('🖨️ الطباعة');pb.append(lw)}
@@ -4545,6 +4545,68 @@ async function funkPlay(m){if(funkHeard.has(m.id))return;funkHeard.add(m.id);LS.
   if(LS.get('funkAuto',true)===false)return;try{playTone('funk');const u=m.url||await chGetMed(m);const a=new Audio(u);await new Promise(r=>setTimeout(r,250));await a.play();toast('📻 '+dispN(m.von))}catch(e){toast('📻 رسالة لاسلكي من '+dispN(m.von)+' – اضغط للاستماع',()=>chOpen(chKey(m)))}}
 
 if(!IN_GAS)setTimeout(funkInit,3500);
+/* ---------- 🎵 Töne v2: Original-Ton, Oud (Saiten-Synthese), ruhige Töne, eigener Ton vom Gerät ---------- */
+const TONES2={
+  klassik:{t:'🔔 النغمة الأصلية'},
+  oud1:{t:'🪕 عود · حجاز',ks:[[293.7,0],[311.1,.22],[370,.44],[392,.66],[370,.95]]},
+  oud2:{t:'🪕 عود · نهاوند',ks:[[261.6,0],[293.7,.2],[311.1,.4],[349.2,.6],[392,.85],[392,1.05]]},
+  oud3:{t:'🪕 عود · ضربة قصيرة',ks:[[196,0],[293.7,.12],[392,.3]]},
+  sanft1:{t:'🌙 هادئ · أجراس ناعمة',soft:[[659.3,0,1.6],[987.8,.35,1.8]]},
+  sanft2:{t:'🌙 هادئ · نسمة',soft:[[523.3,0,1.4],[659.3,.3,1.4],[784,.6,1.8]]},
+  mine:{t:'📁 نغمة من جهازي'}};
+const ksCache={};
+/* Karplus-Strong: gezupfte Saite mit warmem Klang (wie eine Oud) */
+function ksBuf(f,dur){const k=f+'|'+dur;if(ksCache[k])return ksCache[k];const sr=audioCtx.sampleRate,n=Math.floor(sr*dur),b=audioCtx.createBuffer(1,n,sr),d=b.getChannelData(0),N=Math.max(2,Math.round(sr/f)),q=new Float32Array(N);
+  for(let i=0;i<N;i++)q[i]=(Math.random()*2-1)*(1-i/N*0.3);let idx=0,prev=0;
+  for(let i=0;i<n;i++){const cur=q[idx],nx=q[(idx+1)%N],v=0.4985*(cur+nx);q[idx]=v*0.9985+prev*0.0;prev=v;d[i]=cur*(i<200?i/200:1);idx=(idx+1)%N}
+  return ksCache[k]=b}
+async function playTone2(key,purpose){try{sndUnlock();
+  if(key==='klassik'||!TONES2[key]){playTone('klassik');return}
+  if(key==='mine'){const u=await IDB.get('tone-'+purpose);if(!u){playTone('klassik');return}const a=new Audio(u);a.volume=1;await a.play();return}
+  const T=TONES2[key],t=audioCtx.currentTime+0.02;
+  if(T.ks){const lp=audioCtx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=2400;const g=audioCtx.createGain();g.gain.value=0.9;lp.connect(g).connect(audioCtx.destination);
+    T.ks.forEach(([f,o])=>{const s=audioCtx.createBufferSource();s.buffer=ksBuf(f,1.6);s.connect(lp);s.start(t+o)});return}
+  if(T.soft){T.soft.forEach(([f,o,d])=>{const g=audioCtx.createGain(),s=audioCtx.createOscillator(),s2=audioCtx.createOscillator();s.type='sine';s2.type='sine';s.frequency.value=f;s2.frequency.value=f*2;
+    const g2=audioCtx.createGain();g2.gain.value=0.15;s.connect(g);s2.connect(g2).connect(g);g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(0.0001,t+o);g.gain.linearRampToValueAtTime(0.28,t+o+0.08);g.gain.exponentialRampToValueAtTime(0.0001,t+o+d);[s,s2].forEach(x=>{x.start(t+o);x.stop(t+o+d+0.05)})})}}catch(e){}}
+beep=function(){if(LS.get('snd',true)===false)return;playTone2(LS.get('toneOrder2','klassik'),'toneOrder');try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}};
+chSound=function(){if(LS.get('snd',true)===false)return;playTone2(LS.get('toneChat2','klassik'),'toneChat')};
+function toneRow(nb,lab,key,purpose){const r=el('div','dim'),w=el('div','set-row'),s=el('select');Object.keys(TONES2).forEach(k=>{const o=el('option',null,TONES2[k].t);o.value=k;s.append(o)});s.value=LS.get(key,'klassik');
+  const pl=el('button','btn small','▶ استماع');pl.onclick=()=>playTone2(s.value,purpose);
+  const fi=el('input');fi.type='file';fi.accept='audio/*';fi.hidden=true;const up=el('button','btn small','📁 اختيار ملف');up.hidden=s.value!=='mine';up.onclick=()=>fi.click();
+  const st=el('span','hint');IDB.get('tone-'+purpose).then(u=>{if(u&&s.value==='mine')st.textContent='✓ نغمتك محفوظة'}).catch(()=>{});
+  fi.onchange=async()=>{const f=fi.files[0];fi.value='';if(!f)return;if(f.size>1.5e6){st.textContent='⚠️ الملف كبير – اختر نغمة أقصر (أقل من 1.5 ميغابايت)';return}
+    const u=await new Promise((ok,no)=>{const rd=new FileReader();rd.onload=()=>ok(rd.result);rd.onerror=no;rd.readAsDataURL(f)});await IDB.set('tone-'+purpose,u);LS.set(key,'mine');s.value='mine';st.textContent='✓ حُفظت: '+f.name;playTone2('mine',purpose)};
+  s.onchange=()=>{LS.set(key,s.value);up.hidden=s.value!=='mine';if(s.value==='mine'){IDB.get('tone-'+purpose).then(u=>{if(!u)fi.click();else playTone2('mine',purpose)})}else playTone2(s.value,purpose)};
+  const tw=el('div','set-tone');tw.style.flexWrap='wrap';tw.append(s,pl,up,fi);w.append(el('label',null,lab),tw);r.append(w,st);nb.append(r)}
+/* ---------- 🔒 Sperre mit Fingerabdruck / Gesicht (WebAuthn, nur auf diesem Gerät) ---------- */
+const b64u=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const unb64u=s=>Uint8Array.from(atob(String(s).replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+const bioOk=()=>!!(window.PublicKeyCredential&&navigator.credentials&&window.isSecureContext);
+async function bioSetup(){if(!bioOk())throw new Error('هذا الجهاز أو المتصفح لا يدعم البصمة');
+  if(PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable&&!(await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()))throw new Error('لا توجد بصمة أو قفل وجه مفعّل على هذا الجهاز');
+  const ch=crypto.getRandomValues(new Uint8Array(32)),uid=crypto.getRandomValues(new Uint8Array(16)),nm=String(dispN(WHO()||ME.user||'user'));
+  const c=await navigator.credentials.create({publicKey:{challenge:ch,rp:{name:'Fragrance Hub'},user:{id:uid,name:nm,displayName:nm},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+    authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'discouraged'},timeout:60000,attestation:'none'}});
+  LS.set('bioId',b64u(c.rawId));LS.set('bioOn',true)}
+async function bioCheck(){const id=LS.get('bioId','');if(!id)return true;
+  await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),allowCredentials:[{type:'public-key',id:unb64u(id),transports:['internal']}],userVerification:'required',timeout:60000}});return true}
+let bioLocked=false,bioHidAt=0;
+function bioLock(){if(!LS.get('bioOn',false)||!LS.get('bioId','')||bioLocked)return;if(!ME||!ME.user)return;bioLocked=true;
+  let ov=$('bio-ov');if(!ov){ov=el('div');ov.id='bio-ov';ov.setAttribute('dir','rtl');document.body.append(ov);
+    const s=document.createElement('style');s.textContent='#bio-ov{position:fixed;inset:0;z-index:9000;background:#141210;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center}#bio-ov[hidden]{display:none}#bio-ov .lg{font-family:Cormorant Garamond,Georgia,serif;letter-spacing:.18em;color:#c9a24a;font-size:22px;font-weight:700}#bio-ov .ic{font-size:64px}#bio-ov button{min-height:52px;padding:0 28px;border-radius:14px;border:0;font:inherit;font-size:17px;font-weight:700;cursor:pointer}#bio-ov .go{background:#c9a24a;color:#141210}#bio-ov .alt{background:none;color:#cfc6b4;text-decoration:underline;font-weight:400;font-size:14px}#bio-ov .er{color:#f3b4ab;font-size:14px;min-height:20px}';document.head.append(s)}
+  ov.textContent='';const er=el('div','er'),go=el('button','go','🔓 فتح بالبصمة أو الوجه'),alt=el('button','alt','الدخول بكلمة السر بدلاً من ذلك');
+  ov.append(el('div','lg','FRAGRANCE HUB'),el('div','ic','🔒'),el('div',null,'التطبيق مقفل · '+dispN(WHO()||ME.user||'')),go,er,alt);ov.hidden=false;
+  const tryOpen=async()=>{er.textContent='';go.disabled=true;try{await bioCheck();ov.hidden=true;bioLocked=false}catch(e){er.textContent='لم يتم التحقق – حاول مرة أخرى'}go.disabled=false};
+  go.onclick=tryOpen;alt.onclick=()=>{if(confirm('ستخرج من التطبيق وتدخل بكلمة السر من جديد. متابعة؟'))forceLogout()};setTimeout(tryOpen,300)}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)bioHidAt=Date.now();else if(bioHidAt&&Date.now()-bioHidAt>60000)bioLock()});
+if(!IN_GAS)setTimeout(bioLock,400);
+function bioRow(box){const r=el('div','dim'),w=el('div','set-row'),l=el('label','clprow'),c=el('input');c.type='checkbox';c.checked=!!(LS.get('bioOn',false)&&LS.get('bioId',''));
+  const st=el('span','hint');l.append(c,' 🔒 قفل التطبيق بالبصمة أو الوجه');w.append(l);r.append(w,st);box.append(r);
+  if(!bioOk()){c.disabled=true;st.textContent='غير متاح في هذا المتصفح'}else st.textContent=c.checked?'يُطلب عند فتح التطبيق وبعد دقيقة في الخلفية · على هذا الجهاز فقط':'على هذا الجهاز فقط';
+  c.onchange=async()=>{if(c.checked){try{await bioSetup();st.textContent='✓ مفعّل – يُطلب عند فتح التطبيق وبعد دقيقة في الخلفية'}catch(e){c.checked=false;st.textContent='⚠️ '+(e&&e.name==='NotAllowedError'?'أُلغي التسجيل':(e.message||e))}}
+    else{try{await bioCheck();LS.set('bioOn',false);LS.set('bioId','');st.textContent='أُلغي القفل'}catch(e){c.checked=true;st.textContent='⚠️ لإلغاء القفل يجب التحقق بالبصمة أولاً'}}}}
+
 /* ---------- 🛒 Shop-Bestellungen: eigener Bereich mit Passwort – liest nur aus Shopify, KEIN Einfluss auf Lager, Inventur oder Kundenkonten ---------- */
 let SO={orders:[],at:0},soTab='open',soSel=null;
 const soPw=()=>{const x=LS.get('soPw',null);return x&&Date.now()-x.t<12*3600e3?x.p:''};
