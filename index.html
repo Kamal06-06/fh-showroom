@@ -3523,15 +3523,15 @@ function omDocs(l){const box=el('div','om-pane'),out=el('div','filebox');out.set
   if(l.dhlAdr&&l.dhlAdr.drop)d1.append(doc('🔁','ورقة المستلم النهائي','بدون أسعار وبدون شعارك · طابعة A4','pln','a4'));
   box.append(d1);
   if(hasOil){const d2=el('div','om-box'),h2=el('h4');h2.append('🏷️ ملصقات الزيوت');d2.append(h2);
-    const lt=el('div','om-seg');[['clp','⚠️ ملصق السلامة · CLP'],['lab','🏷️ ملصق التعريف']].forEach(([k,t])=>{const x=el('button',k===omLab?'on':'',t);x.onclick=()=>{omLab=k;LS.set('omLab',k);renderOrderModal()};lt.append(x)});d2.append(lt);
+    const lt=el('div','om-seg');[['clp','⚠️ ملصق السلامة · CLP'],['lab','🏷️ ملصق الاسم 40×30']].forEach(([k,t])=>{const x=el('button',k===omLab?'on':'',t);x.onclick=()=>{omLab=k;LS.set('omLab',k);renderOrderModal()};lt.append(x)});d2.append(lt);
     if(omLab==='clp'){clpWarm(l);d2.append(doc('⚠️','ملصقات السلامة CLP','مع تحذيرات السلامة · طابعة Epson','clp','epson'))}
-    else d2.append(doc('🏷️','ملصقات التعريف','الاسم والكود والجودة · طابعة Phomemo',orig?'labo':'lab','phomemo'));
+    else d2.append(doc('🏷️','ملصق الاسم 40×30','الاسم والكود والجودة · طابعة Phomemo',orig?'labo':'lab','phomemo'));
     d2.append(labPicker(l));box.append(d2)}
   box.append(out);return box}
 function buildCardV2(l){omCss();
   if(omTabFor!==l.id){omTabFor=l.id;omTab=null}
   const done=l.status==='done',items=l.items||[],t=totals(l),n=items.reduce((s,i)=>s+qn(i),0),rdy=isReady(l);
-  const c=el('div','card om'+(done?' done':''));
+  const c=el('div','card omc'+(done?' done':''));
   /* ---------- Kopf ---------- */
   const h=el('div','ohead');const hl=el('div');hl.append(el('div','cust',custLabel(l)));
   const meta=el('div','meta');meta.append(el('span','pill '+(done?'done':rdy?'ready':'new'),done?'مكتمل':rdy?'✓ جاهز للتسليم':'قيد التحضير'+(prepN(l)?' · '+prepN(l)+'/'+items.length:'')),payBtn(l),el('span',null,new Date(l.at).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})));
