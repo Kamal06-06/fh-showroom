@@ -4186,7 +4186,7 @@ function soListView(b){b.textContent='';soCss();sheetBack=null;if(!soFilt[soTab]
   const tb=el('div','so-tool');const q=el('input');q.type='search';q.placeholder='🔍 رقم الطلب، العميل أو المدينة';q.value=soQ;q.autocomplete='off';
   const ib=(t,ti,f)=>{const x=el('button','so-ib',t);x.title=ti;x.setAttribute('aria-label',ti);x.onclick=f;return x};
   const rf=ib('🔄','تحديث',async()=>{rf.disabled=true;rf.classList.add('spin');try{await soLoad(true)}catch(e){toast('⚠️ '+e.message)}soListView(b)});
-  tb.append(q,rf,ib('➕','طلب يدوي',()=>soNeuSheet()));
+  tb.append(q,rf,ib('➕','طلب يدوي',()=>soNeuSheet()),ib('🦓','طباعة ملف PDF على Zebra',()=>zebraDatei()));
   if(isAdmin()&&soReg!=='abh'){tb.append(ib('⚙️',soReg==='de'?'إعدادات DHL':'إعدادات DHL Express',()=>soReg==='de'?dhlSetup():dhlxSetup()),ib('🔑','تغيير كلمة السر',()=>shopPwSheet(null,true)))}
   b.append(tb);
   {const nw=reg.filter(soNeedsPrint).sort(soOrder),lp=nw.filter(soLatePaid);
@@ -4583,6 +4583,12 @@ function soPickList(b,orders,initial){const sel=new Set(orders.filter(initial||(
     const inf=el('div');inf.append(el('b',null,'#'+soNr(o)+' · '+(o.kunde||o.name)),el('div','ad',(soAbh(o)?'🏬 استلام · ':'')+soOrt(o)+' · '+o.items.length+' Pos.'+(soPrinted(o)?' · '+soLsInfo(o.stand):' · 🆕 جديد')));if(soPrinted(o))r.classList.add('done');r.append(cb,inf,el('span'));b.append(r);boxes.push([o,cb,r])});
   all.onclick=()=>{boxes.forEach(([o,cb])=>{cb.checked=true;sel.add(o.id)});b.dispatchEvent(new Event('selchange'))};none.onclick=()=>{boxes.forEach(([o,cb])=>{cb.checked=false;sel.delete(o.id)});b.dispatchEvent(new Event('selchange'))};
   return {sel,boxes}}
+/* 🦓 Beliebige PDF (z. B. DHL-Express-Etikett aus Shopify) über den Druck-PC auf die Zebra drucken */
+function zebraDatei(){const fi=document.createElement('input');fi.type='file';fi.accept='application/pdf,.pdf';fi.multiple=true;
+  fi.onchange=async()=>{const fs=[...fi.files].filter(f=>/\.pdf$/i.test(f.name)||f.type==='application/pdf');if(!fs.length)return alert('اختر ملف PDF');
+    try{for(const f of fs){const nm='Z-'+f.name.replace(/[^\w.\-]+/g,'_').replace(/\.pdf$/i,'')+'-'+Date.now()+'.pdf';await druckQ(nm,await blob64(f))}
+      druckStatus();toast('🦓 أُرسل '+fs.length+' ملف إلى Zebra في المستودع')}catch(e){alert('تعذّر الإرسال: '+(e.message||e))}};
+  fi.click()}
 function soPickOne(list){openSheet('✈️ DHL Express · اختر الطلب',b=>{soCss();sheetBack=soBackTo(null);b.append(el('p','hint','شحنات الخارج تختلف في الجمارك والوزن – تُنشأ لكل طلب على حدة.'));
   list.forEach(o=>{const r=el('button','so-card');const l1=el('div','so-l1');l1.append(el('b','so-nr','#'+soNr(o)),el('span','so-cust',o.kunde||o.name),el('span','so-st',SO_FLAG(o.land)+' '+o.land));r.append(l1,el('div','so-l2',soOrt(o)+' · '+o.items.length+' صنف'));
     r.onclick=()=>dhlxSheet(o,()=>soPickOne(list));b.append(r)})})}
