@@ -296,6 +296,7 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
 /* ===== Struktur v3 (27.10.2026): 5 Bereiche – Start · Verkauf · Versand · Kunden · Lager ===== */
 .hquick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 2px}
 .hq{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);font:inherit;text-align:start;cursor:pointer}
+.hq-rd{grid-column:1/-1;flex-direction:row!important;align-items:center!important;justify-content:space-between}
 .hq b{font-size:14px;line-height:1.25}.hq span{font-size:11px;color:var(--muted)}
 .hq.pri{background:#141210;border-color:#141210;color:#fff}.hq.pri b{color:#c9a24a}.hq.pri span{color:#cfc6b4}
 .hq:active,.hgh:active{transform:scale(.99)}
@@ -662,6 +663,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <button class="hq p-off" id="hq-off"><b>📄 عروض الأسعار</b><span>Angebote</span></button>
       <button class="hq p-shop" id="hq-dhl"><b>📦 ملصق DHL</b><span>DHL Paket</span></button>
       <button class="hq p-lg" id="hq-lg"><b>🔎 بحث في المخزون</b><span>Bestand</span></button>
+      <button class="hq hq-rd" id="hq-rd"><b>🎧 راديو سوريا</b><span>Radio Syrien</span></button>
     </div>
     <button class="tile primary p-new" id="h-new"><span class="ic">＋</span><b>طلب جديد</b><span>تسجيل أصناف عميل في الصالة</span></button>
     <div class="hgrp" data-hub="sales"><button class="hsech hgh" data-hub="sales"><span class="hsec">🧾 المبيعات <small>· Verkauf</small></span><span class="hlink">فتح القسم ‹</span></button>
@@ -1470,7 +1472,7 @@ function renderHub(k){const H=HUBS[k];if(!H)return;$('hub-t').textContent=H.t;$(
 function hubGroups(){document.querySelectorAll('#view-home .hgrp').forEach(g=>{g.hidden=![...g.querySelectorAll('.tile')].some(tileVis)})}
 $('nv-s-sales').onclick=()=>hubGo('sales');$('nv-s-ship').onclick=()=>hubGo('ship');$('nv-s-cust').onclick=()=>hubGo('cust');$('nv-s-stock').onclick=()=>hubGo('stock');
 document.querySelectorAll('.hgh').forEach(x=>x.onclick=()=>hubGo(x.dataset.hub));
-$('hq-new').onclick=()=>$('h-new').click();$('hq-off').onclick=()=>$('h-off').click();$('hq-dhl').onclick=()=>{if(can('shop'))vzPaket()};$('hq-lg').onclick=()=>$('h-lg').click();
+$('hq-new').onclick=()=>$('h-new').click();$('hq-off').onclick=()=>$('h-off').click();$('hq-dhl').onclick=()=>{if(can('shop'))vzPaket()};$('hq-lg').onclick=()=>$('h-lg').click();$('hq-rd').onclick=()=>radioOpen();
 $('nv-home').onclick=goHome;$('nv-wh').onclick=()=>$('h-wh').click();$('nv-new').onclick=()=>$('h-new').click();
 $('nv-lg').onclick=()=>{drawer(false);$('h-lg').click()};$('nv-cash').onclick=()=>$('h-cash').click();$('nv-cust').onclick=()=>$('h-cust').click();
 $('nv-acc').onclick=()=>$('h-acc').click();$('nv-done').onclick=()=>$('h-done').click();$('h-last-all').onclick=()=>$('h-wh').click();
@@ -4542,7 +4544,7 @@ function funkInit(){if(IN_GAS||$('funk'))return;if(!ME||!ME.user){setTimeout(fun
 /* eingehende Funk-Nachricht: sofort abspielen */
 const funkHeard=new Set(LS.get('funkHeard',[]));
 async function funkPlay(m){if(funkHeard.has(m.id))return;funkHeard.add(m.id);LS.set('funkHeard',[...funkHeard].slice(-200));
-  if(LS.get('funkAuto',true)===false)return;try{playTone('funk');const u=m.url||await chGetMed(m);const a=new Audio(u);await new Promise(r=>setTimeout(r,250));await a.play();toast('📻 '+dispN(m.von))}catch(e){toast('📻 رسالة لاسلكي من '+dispN(m.von)+' – اضغط للاستماع',()=>chOpen(chKey(m)))}}
+  if(LS.get('funkAuto',true)===false)return;try{playTone('funk');const u=m.url||await chGetMed(m);const a=new Audio(u);const rv=radioAu&&!radioAu.paused?radioAu.volume:null;if(rv!==null)radioAu.volume=Math.min(rv,0.12);a.onended=a.onerror=()=>{if(rv!==null&&radioAu)radioAu.volume=rv};await new Promise(r=>setTimeout(r,250));await a.play();toast('📻 '+dispN(m.von))}catch(e){toast('📻 رسالة لاسلكي من '+dispN(m.von)+' – اضغط للاستماع',()=>chOpen(chKey(m)))}}
 
 if(!IN_GAS)setTimeout(funkInit,3500);
 /* ---------- 🎵 Töne v2: Original-Ton, Oud (Saiten-Synthese), ruhige Töne, eigener Ton vom Gerät ---------- */
@@ -4585,6 +4587,51 @@ function toneRow(nb,lab,key,purpose){const r=el('div','dim'),w=el('div','set-row
     const u=await new Promise((ok,no)=>{const rd=new FileReader();rd.onload=()=>ok(rd.result);rd.onerror=no;rd.readAsDataURL(f)});await IDB.set('tone-'+purpose,u);LS.set(key,'mine');s.value='mine';st.textContent='✓ حُفظت: '+f.name;playTone2('mine',purpose)};
   s.onchange=()=>{LS.set(key,s.value);up.hidden=s.value!=='mine';if(s.value==='mine'){IDB.get('tone-'+purpose).then(u=>{if(!u)fi.click();else playTone2('mine',purpose)})}else playTone2(s.value,purpose)};
   const tw=el('div','set-tone');tw.style.flexWrap='wrap';tw.append(s,pl,up,fi);w.append(el('label',null,lab),tw);r.append(w,st);nb.append(r)}
+/* ================= 🎧 راديو سوريا (Radio Browser – kostenloses Senderverzeichnis, live geladen) ================= */
+let radioAu=null,radioCur=LS.get('radioCur',null),radioList=null;
+function radioCss(){if($('radio-css'))return;const s=document.createElement('style');s.id='radio-css';s.textContent=`
+.rd-now{display:flex;align-items:center;gap:12px;background:#141210;color:#fff;border-radius:16px;padding:14px;margin-bottom:12px}
+.rd-now .ic{font-size:30px}.rd-now b{display:block;font-size:16px;color:#c9a24a}.rd-now span{font-size:12.5px;color:#cfc6b4}
+.rd-now button{margin-inline-start:auto;width:52px;height:52px;border-radius:50%;border:0;background:#c9a24a;color:#141210;font-size:22px;cursor:pointer;flex:none}
+.rd-vol{display:flex;align-items:center;gap:10px;margin:0 0 12px}.rd-vol input{flex:1}
+.rd-list{display:flex;flex-direction:column;gap:8px}
+.rd-st{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface);font:inherit;color:var(--ink);text-align:start;cursor:pointer;width:100%}
+.rd-st.on{border-color:#c9a24a;box-shadow:0 0 0 2px #c9a24a55}
+.rd-st img,.rd-st .ph{width:44px;height:44px;border-radius:10px;object-fit:cover;background:var(--soft);display:grid;place-items:center;font-size:20px}
+.rd-st b{font-size:14.5px}.rd-st small{display:block;font-size:11.5px;color:var(--muted)}
+#rd-chip{position:fixed;top:calc(8px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:34;display:flex;align-items:center;gap:8px;background:#141210;color:#c9a24a;border-radius:999px;padding:6px 8px 6px 14px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:80vw}
+#rd-chip[hidden]{display:none}#rd-chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+#rd-chip button{width:30px;height:30px;border-radius:50%;border:0;background:#c9a24a;color:#141210;cursor:pointer;flex:none}
+`;document.head.append(s)}
+async function radioLoad(){if(radioList)return radioList;
+  const hosts=['de1.api.radio-browser.info','de2.api.radio-browser.info','fi1.api.radio-browser.info'];let j=null;
+  for(const h of hosts){try{const r=await fetch('https://'+h+'/json/stations/bycountrycodeexact/SY?hidebroken=true&order=clickcount&reverse=true&limit=80');if(r.ok){j=await r.json();break}}catch(e){}}
+  if(!j)throw new Error('تعذّر تحميل قائمة المحطات');
+  const seen=new Set();radioList=j.filter(x=>{const u=String(x.url_resolved||x.url||'');if(!/^https:/i.test(u)||/\.m3u8|\.pls|\?pl=m3u/i.test(u))return false;
+    if(/meat\s*loaf/i.test(x.name))return false;const k=String(x.name).toLowerCase().replace(/[^a-z؀-ۿ]/g,'').slice(0,12)+'|'+u.replace(/stream-\d+\./,'stream.');if(seen.has(k))return false;seen.add(k);return true})
+    .map(x=>({n:String(x.name).trim(),u:x.url_resolved||x.url,f:x.favicon||'',tags:x.tags||'',id:x.stationuuid}));
+  return radioList}
+function radioChip(){radioCss();let c=$('rd-chip');if(!c){c=el('div');c.id='rd-chip';c.setAttribute('dir','rtl');const t=el('span');t.onclick=()=>radioOpen();const b=el('button');b.onclick=()=>radioToggle();c.append(t,b);document.body.append(c)}
+  const on=radioAu&&!radioAu.paused;c.hidden=!on;if(on){c.firstChild.textContent='🎧 '+(radioCur?radioCur.n:'');c.lastChild.textContent='⏸'}}
+function radioPlay(st){radioCur=st;LS.set('radioCur',st);if(!radioAu){radioAu=new Audio();radioAu.preload='none';radioAu.onplaying=()=>{radioChip();radioRedraw()};radioAu.onpause=()=>{radioChip();radioRedraw()};
+    radioAu.onerror=()=>{toast('⚠️ المحطة لا تبث الآن – جرّب محطة أخرى');radioChip();radioRedraw()}}
+  radioAu.src=st.u;radioAu.volume=LS.get('radioVol',0.8);radioAu.play().catch(e=>toast('⚠️ '+(e.message||e)));
+  try{if('mediaSession' in navigator){navigator.mediaSession.metadata=new MediaMetadata({title:st.n,artist:'راديو سوريا · Fragrance Hub',artwork:st.f?[{src:st.f,sizes:'96x96'}]:[{src:'icon-192.png',sizes:'192x192'}]});
+    navigator.mediaSession.setActionHandler('play',()=>radioAu.play());navigator.mediaSession.setActionHandler('pause',()=>radioAu.pause())}}catch(e){}
+  radioRedraw()}
+function radioToggle(){if(!radioAu||!radioAu.src){if(radioCur)radioPlay(radioCur);else radioOpen();return}if(radioAu.paused){radioAu.src=radioCur.u;radioAu.play().catch(()=>{})}else{radioAu.pause();radioAu.removeAttribute('src');radioAu.load()}}
+function radioRedraw(){if(!/^🎧/.test($('sheet-t').textContent)||$('sheet').hidden)return;const b=$('sheet-b');radioDraw(b)}
+function radioOpen(){radioCss();openSheet('🎧 راديو سوريا',b=>radioDraw(b))}
+function radioDraw(b){b.textContent='';const on=radioAu&&!radioAu.paused;
+  const now=el('div','rd-now'),ic=el('div','ic','📻'),t=el('div'),pb=el('button',null,on?'⏸':'▶');t.append(el('b',null,radioCur?radioCur.n:'اختر محطة'),el('span',null,on?'● يبث الآن':radioCur?'متوقف':'المحطات السورية الأكثر استماعاً'));pb.onclick=()=>radioToggle();now.append(ic,t,pb);b.append(now);
+  const vw=el('div','rd-vol'),vi=el('input');vi.type='range';vi.min='0';vi.max='1';vi.step='0.05';vi.value=LS.get('radioVol',0.8);vi.oninput=()=>{LS.set('radioVol',+vi.value);if(radioAu)radioAu.volume=+vi.value};vw.append('🔈',vi,'🔊');b.append(vw);
+  const L=el('div','rd-list');b.append(L);
+  if(!radioList){L.append(el('p','hint','جاري تحميل المحطات…'));radioLoad().then(()=>radioRedraw()).catch(e=>{L.textContent='';L.append(el('p','status err','⚠️ '+e.message))});return}
+  radioList.forEach(st=>{const r=el('button','rd-st'+(radioCur&&radioCur.u===st.u&&on?' on':''));
+    if(st.f){const im=el('img');im.src=st.f;im.alt='';im.loading='lazy';im.onerror=()=>im.replaceWith(el('span','ph','📻'));r.append(im)}else r.append(el('span','ph','📻'));
+    const tx=el('div');tx.append(el('b',null,st.n),el('small',null,String(st.tags).split(',').slice(0,3).join(' · ')));r.append(tx,el('span',null,radioCur&&radioCur.u===st.u&&on?'🔊':'▶'));
+    r.onclick=()=>{if(radioCur&&radioCur.u===st.u&&on)radioToggle();else radioPlay(st)};L.append(r)});
+  b.append(el('p','hint','القائمة من دليل المحطات المجاني Radio Browser وتتحدّث تلقائياً. يستمر البث أثناء التنقل في التطبيق، ويتوقف عند إغلاقه. رسائل اللاسلكي تخفض صوت الراديو تلقائياً.'))}
 /* ---------- 🔒 Sperre mit Fingerabdruck / Gesicht (WebAuthn, nur auf diesem Gerät) ---------- */
 const b64u=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const unb64u=s=>Uint8Array.from(atob(String(s).replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
