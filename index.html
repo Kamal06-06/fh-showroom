@@ -4548,9 +4548,10 @@ if(!IN_GAS)setTimeout(funkInit,3500);
 /* ---------- 🎵 Töne v2: Original-Ton, Oud (Saiten-Synthese), ruhige Töne, eigener Ton vom Gerät ---------- */
 const TONES2={
   klassik:{t:'🔔 النغمة الأصلية'},
-  oud1:{t:'🪕 عود · حجاز',ks:[[293.7,0],[311.1,.22],[370,.44],[392,.66],[370,.95]]},
-  oud2:{t:'🪕 عود · نهاوند (طويل وناعم)',soft:1,ks:[[261.6,0],[293.7,.42],[311.1,.84],[349.2,1.26],[392,1.68],[415.3,2.15],[392,2.55],[349.2,2.95],[311.1,3.35],[293.7,3.8],[311.1,4.2],[293.7,4.6],[261.6,5.05]]},
-  oud3:{t:'🪕 عود · ضربة قصيرة',ks:[[196,0],[293.7,.12],[392,.3]]},
+  fanfare:{t:'🎺 انطلاقة',mel:[[523.3,0,.14],[659.3,.13,.14],[784,.26,.14],[1046.5,.39,.55]]},
+  hamas:{t:'⚡ حماسي',mel:[[392,0,.12],[523.3,.11,.12],[659.3,.22,.12],[784,.33,.12],[659.3,.44,.12],[784,.55,.12],[1046.5,.66,.6]]},
+  nasr:{t:'🏆 نصر',mel:[[523.3,0,.11],[523.3,.13,.11],[523.3,.26,.11],[659.3,.42,.3],[587.3,.72,.14],[659.3,.86,.14],[784,1.0,.7]]},
+  saed:{t:'🚀 صاعد',mel:[[587.3,0,.1],[740,.09,.1],[880,.18,.1],[1174.7,.27,.45],[880,.62,.1],[1174.7,.71,.55]]},
   sanft1:{t:'🌙 هادئ · أجراس ناعمة',soft:[[659.3,0,1.6],[987.8,.35,1.8]]},
   sanft2:{t:'🌙 هادئ · نسمة',soft:[[523.3,0,1.4],[659.3,.3,1.4],[784,.6,1.8]]},
   mine:{t:'📁 نغمة من جهازي'}};
@@ -4567,6 +4568,10 @@ async function playTone2(key,purpose){try{sndUnlock();
   if(T.ks){const lp=audioCtx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=T.soft?1500:2400;const g=audioCtx.createGain();g.gain.value=T.soft?0.75:0.9;lp.connect(g).connect(audioCtx.destination);
     if(T.soft){const dl=audioCtx.createDelay(1),fb=audioCtx.createGain(),wet=audioCtx.createGain();dl.delayTime.value=0.23;fb.gain.value=0.28;wet.gain.value=0.35;lp.connect(dl);dl.connect(fb).connect(dl);dl.connect(wet).connect(audioCtx.destination)}
     T.ks.forEach(([f,o],i)=>{const s=audioCtx.createBufferSource();s.buffer=ksBuf(f,T.soft?(i===T.ks.length-1?3:2.2):1.6,T.soft);s.connect(lp);s.start(t+o)});return}
+  if(T.mel){const cp=audioCtx.createDynamicsCompressor();cp.threshold.value=-14;cp.ratio.value=4;const mg=audioCtx.createGain();mg.gain.value=0.9;cp.connect(mg).connect(audioCtx.destination);
+    T.mel.forEach(([f,o,d])=>{const g=audioCtx.createGain(),a=audioCtx.createOscillator(),b=audioCtx.createOscillator(),gb=audioCtx.createGain();a.type='triangle';b.type='sine';a.frequency.value=f;b.frequency.value=f*2;gb.gain.value=0.18;
+      a.connect(g);b.connect(gb).connect(g);g.connect(cp);const end=t+o+d+0.25;
+      g.gain.setValueAtTime(0.0001,t+o);g.gain.linearRampToValueAtTime(0.32,t+o+0.012);g.gain.setValueAtTime(0.32,t+o+d*0.6);g.gain.exponentialRampToValueAtTime(0.0001,end);[a,b].forEach(x=>{x.start(t+o);x.stop(end+0.05)})});return}
   if(T.soft){T.soft.forEach(([f,o,d])=>{const g=audioCtx.createGain(),s=audioCtx.createOscillator(),s2=audioCtx.createOscillator();s.type='sine';s2.type='sine';s.frequency.value=f;s2.frequency.value=f*2;
     const g2=audioCtx.createGain();g2.gain.value=0.15;s.connect(g);s2.connect(g2).connect(g);g.connect(audioCtx.destination);
     g.gain.setValueAtTime(0.0001,t+o);g.gain.linearRampToValueAtTime(0.28,t+o+0.08);g.gain.exponentialRampToValueAtTime(0.0001,t+o+d);[s,s2].forEach(x=>{x.start(t+o);x.stop(t+o+d+0.05)})})}}catch(e){}}
