@@ -272,6 +272,16 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
  header .bn{display:none}
  .wrap{max-width:1100px}
 }
+/* ===== Auftrag in 5 Schritten (27.10.2026) ===== */
+.stepper{position:sticky;top:0;z-index:12;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;background:var(--bg,#fff);padding:8px 0 8px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+.stepper button{display:flex;flex-direction:column;align-items:center;gap:3px;border:0;background:none;font:inherit;font-size:12px;color:var(--muted);cursor:pointer;padding:2px}
+.stepper i{font-style:normal;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line);font-weight:700;font-size:13px;background:var(--surface)}
+.stepper button.ok i{background:#141210;border-color:#141210;color:#c9a24a}.stepper button.ok{color:var(--ink)}
+.stepper button.need i{border-color:#c9a24a;color:#a3460f}
+.sec-title h2 small.de,.panel h2 small.de{font-weight:400;font-size:12px;color:var(--muted)}
+.lief{margin-top:6px}
+.sumbar{display:flex;justify-content:space-between;align-items:center;margin:10px 0;font-weight:700}
+#view-new .panel{scroll-margin-top:64px}
 /* Startseite */
 /* ===== Struktur v3 (27.10.2026): 5 Bereiche – Start · Verkauf · Versand · Kunden · Lager ===== */
 .hquick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 2px}
@@ -663,13 +673,14 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
   <section id="view-new" style="display:contents">
     <div class="status editbar" id="editbar" hidden><span id="edit-txt"></span> <button class="btn small" id="edit-cancel">إلغاء التعديل</button></div>
     <div class="status editbar" id="draftbar" hidden><span id="draft-txt"></span> <button class="btn small" id="draft-keep">متابعة المسودة</button> <button class="btn small danger" id="draft-clear">مسح وبدء طلب جديد</button></div>
-    <div class="panel">
-      <h2><span class="step">1</span> العميل</h2>
+    <nav class="stepper" id="stepper" aria-label="خطوات الطلب">
+      <button data-st="1"><i>1</i><span>العميل</span></button><button data-st="2"><i>2</i><span>الأصناف</span></button><button data-st="3"><i>3</i><span>الأسعار</span></button><button data-st="4"><i>4</i><span>التسليم</span></button><button data-st="5"><i>5</i><span>الحفظ</span></button>
+    </nav>
+    <div class="panel" id="st-1">
+      <div class="sec-title"><h2><span class="step">1</span> العميل <small class="de">· Kunde</small></h2></div>
       <div class="custbox"><label for="cust">اسم العميل <span id="cust-no" class="code"></span></label><input type="text" id="cust" autocomplete="off" placeholder="مثال: Parfümerie Müller"><div id="cust-sug" class="sug" hidden></div></div>
       <div id="cust-quick" class="quick" hidden></div>
-
       <label class="clprow" id="kg-box"><input type="checkbox" id="kgprice"> تسعير بالكيلو لهذا العميل (100 / 250 / 500 غ من سعر 1 كغ) <span id="kg-st" class="code"></span></label>
-      <details class="sub" id="cust-more"><summary>واتساب · إيميل · العنوان · ملاحظة <span id="cust-more-s" class="code"></span></summary>
       <div class="row grow" style="margin-top:8px">
         <div><label for="cphone">💬 واتساب / هاتف · WhatsApp</label><input type="tel" id="cphone" dir="ltr" autocomplete="off" placeholder="+49 …"></div>
         <div><label for="cemail">✉️ الإيميل · E-Mail</label><input type="email" id="cemail" dir="ltr" autocomplete="off" placeholder="name@firma.de"></div>
@@ -677,22 +688,11 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <div class="row grow">
         <div><label for="note">ملاحظة (اختياري)</label><input type="text" id="note" autocomplete="off" placeholder="مثال: يستلم خلال ساعة"></div>
       </div>
-      <div class="row grow" style="margin-top:8px">
-        <div><label for="street">الشارع ورقم المبنى</label><input type="text" id="street" autocomplete="off" placeholder="Bahnhofstraße 86"></div>
-        <div style="flex:0 0 110px;min-width:100px"><label for="plz">الرمز البريدي · PLZ</label><input type="text" id="plz" autocomplete="off" inputmode="numeric" maxlength="8" dir="ltr" placeholder="44623"></div>
-        <div><label for="city">المدينة · Ort</label><input type="text" id="city" autocomplete="off" placeholder="Herne"></div>
-        <div><label for="country">الدولة <span id="lang-note" class="code"></span></label><select id="country">
-          <option value="DE">Deutschland</option><option value="AT">Österreich</option><option value="CH">Schweiz</option>
-          <option value="NL">Niederlande</option><option value="BE">Belgien</option><option value="FR">Frankreich</option>
-          <option value="IT">Italien</option><option value="ES">Spanien</option><option value="PL">Polen</option>
-          <option value="GB">United Kingdom</option><option value="XX">أخرى (English)</option></select></div>
-      </div>
-      </details>
       <button class="btn" id="cust-save" type="button" style="width:100%;margin-top:10px">💾 حفظ بيانات العميل (بدون طلب)</button>
     </div>
 
-    <div class="panel">
-      <h2><span class="step">2</span> الأصناف</h2>
+    <div class="panel" id="st-2">
+      <div class="sec-title"><h2><span class="step">2</span> الأصناف <small class="de">· Artikel</small></h2></div>
       <div>
         <div class="lbl">حجم الزيت عند الإضافة</div>
         <div class="sizes" id="sizes"></div>
@@ -708,24 +708,52 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <div id="free-add" hidden><div class="hint">لم تجد الصنف؟ أضف ما كتبته كما هو واختر الوحدة (Einheit):</div><div class="unitpick"><button class="btn small" id="free-stk">＋ بالقطعة (Stück)</button><button class="btn small" id="free-kg">＋ بالكيلو (kg)</button></div></div>
     </div>
 
-    <div class="panel">
-      <div class="sec-title"><h2><span class="step">3</span> السلة <span id="count" class="time"></span></h2><button class="btn small" id="clear">مسح الكل</button></div>
+    <div class="panel" id="st-3">
+      <div class="sec-title"><h2><span class="step">3</span> السلة والأسعار <small class="de">· Warenkorb & Preise</small> <span id="count" class="time"></span></h2><button class="btn small" id="clear">مسح الكل</button></div>
       <div class="labels" id="items"></div>
       <p class="hint" id="empty">السلة فارغة. ابحث عن صنف أو امسح QR فيظهر هنا.</p>
       <div class="sumrow"><span>المجموع الصافي</span><div class="sum" id="sum">0,00 EUR</div></div>
-      <details class="sub" id="disc-box"><summary>الخصم والشحن <span id="disc-sum" class="code"></span></summary>
+      <div class="lbl" style="margin-top:12px">الخصم · Rabatt <span id="disc-sum" class="code"></span></div>
       <div class="row grow">
         <div><label for="rab">خصم Rabatt %</label><input type="number" id="rab" min="0" max="100" step="0.5" placeholder="0" inputmode="decimal"></div>
         <div><label for="rabscope">الخصم على</label><select id="rabscope"><option value="all">كل الطلب</option><option value="oil">الزيوت فقط</option></select></div>
         <div><label for="rabfix">خصم مبلغ ثابت €</label><input type="number" id="rabfix" min="0" step="0.5" placeholder="0" inputmode="decimal"></div>
-        <div><label for="versand">أجور الشحن € (Versand)</label><input type="number" id="versand" min="0" step="0.5" placeholder="0" inputmode="decimal"></div>
       </div>
-      </details>
+    </div>
+
+    <div class="panel" id="st-4">
+      <div class="sec-title"><h2><span class="step">4</span> طريقة التسليم <small class="de">· Lieferung</small></h2></div>
+      <div class="so-seg lief" id="lief">
+        <button type="button" data-l="pickup">🏬 استلام من المستودع<small>Abholung</small></button>
+        <button type="button" data-l="de">📦 شحن داخل ألمانيا<small>DHL Paket</small></button>
+        <button type="button" data-l="ab">✈️ شحن خارج ألمانيا<small>DHL Europaket / Express</small></button>
+      </div>
+      <p class="hint" id="lief-hint">اختر طريقة التسليم ليعرف المستودع كيف يجهّز الطلب.</p>
+      <div id="lief-box" hidden>
+        <div class="lbl">عنوان الشحن · Lieferadresse</div>
+      <div class="row grow" style="margin-top:8px">
+        <div><label for="street">الشارع ورقم المبنى</label><input type="text" id="street" autocomplete="off" placeholder="Bahnhofstraße 86"></div>
+        <div style="flex:0 0 110px;min-width:100px"><label for="plz">الرمز البريدي · PLZ</label><input type="text" id="plz" autocomplete="off" inputmode="numeric" maxlength="8" dir="ltr" placeholder="44623"></div>
+        <div><label for="city">المدينة · Ort</label><input type="text" id="city" autocomplete="off" placeholder="Herne"></div>
+        <div><label for="country">الدولة <span id="lang-note" class="code"></span></label><select id="country">
+          <option value="DE">Deutschland</option><option value="AT">Österreich</option><option value="CH">Schweiz</option>
+          <option value="NL">Niederlande</option><option value="BE">Belgien</option><option value="FR">Frankreich</option>
+          <option value="IT">Italien</option><option value="ES">Spanien</option><option value="PL">Polen</option>
+          <option value="GB">United Kingdom</option><option value="XX">أخرى (English)</option></select></div>
+      </div>
+        <div class="row grow"><div style="flex:0 0 200px"><label for="versand">أجور الشحن € · Versandkosten</label><input type="number" id="versand" min="0" step="0.5" placeholder="0" inputmode="decimal"></div></div>
+        <p class="hint">ملصق DHL يُنشأ بعد التجهيز من «مركز الشحن» أو من بطاقة الطلب. لإرسال الطرد إلى عميل عميلك (Dropshipping) أو إلى Packstation اختر ذلك عند إنشاء الملصق.</p>
+      </div>
+    </div>
+
+    <div class="panel" id="st-5">
+      <div class="sec-title"><h2><span class="step">5</span> الملصقات والحفظ <small class="de">· Etiketten & Abschluss</small></h2></div>
       <details class="sub" id="clp-box"><summary>خيارات الملصق · CLP · عنوان ولوغو العميل</summary>
       <label class="clprow"><input type="checkbox" id="use-clp"> ملصقات الزيوت مع CLP (102 × 51 مم) بدل الملصق البسيط</label>
       <div id="clp-addr-box" hidden><label for="clp-addr">عنوان العميل على ملصق CLP بدل عنواني (اختياري)</label><input type="text" id="clp-addr" autocomplete="off" dir="ltr" placeholder="Firma, Straße Nr., PLZ Ort, Tel."></div>
 <div id="clp-logo-box" style="display:flex;align-items:center;gap:10px;margin:8px 0;flex-wrap:wrap"><input type="file" id="clp-logo-file" accept="image/*" hidden><button type="button" class="btn" id="clp-logo-btn">＋ لوغو العميل فوق العنوان (اختياري)</button><img id="clp-logo-img" alt="" hidden style="height:40px;max-width:150px;object-fit:contain;background:#fff;border:1px solid #ccc;border-radius:6px;padding:2px"><button type="button" class="btn" id="clp-logo-del" hidden>× إزالة اللوغو</button><span id="clp-logo-st" class="note"></span></div>
       </details>
+      <div class="sumbar"><span id="sum5"></span></div>
       <button class="btn big" id="offer" disabled style="margin-bottom:8px">📄 حفظ كعرض سعر (بدون تجهيز)</button>
       <button class="btn primary big" id="send" disabled>إرسال إلى المستودع</button>
       <div id="send-status" class="status" hidden></div>
@@ -1645,6 +1673,21 @@ $('rabfix').oninput=e=>{draft.rabattFix=+e.target.value||0;saveDraft();renderIte
 $('versand').oninput=e=>{draft.versand=+e.target.value||0;saveDraft();renderItems()};
 $('kgprice').checked=!!draft.kg;$('rabscope').value=draft.rabScope||'all';$('rabscope').onchange=e=>{draft.rabScope=e.target.value;saveDraft();renderItems()};
 $('kgprice').onchange=e=>{draft.kg=e.target.checked;draft.kgOff=!e.target.checked;applyKg(draft.items,draft.kg);saveDraft();renderItems();showCust()};
+
+/* ---------- Auftrag in 5 Schritten: Kunde · Artikel · Preise · Lieferung · Abschluss ---------- */
+const LIEF={pickup:'🏬 استلام من المستودع',de:'📦 شحن داخل ألمانيا',ab:'✈️ شحن خارج ألمانيا'};
+function liefUI(){const v=draft.lief||'';document.querySelectorAll('#lief button').forEach(b=>b.classList.toggle('on',b.dataset.l===v));
+  const ship=v==='de'||v==='ab';$('lief-box').hidden=!ship;
+  $('lief-hint').textContent=!v?'اختر طريقة التسليم ليعرف المستودع كيف يجهّز الطلب.':v==='pickup'?'يستلم العميل الطلب بنفسه من المستودع – لا يلزم عنوان ولا ملصق شحن.':v==='de'?'أدخل عنوان الشحن داخل ألمانيا. الرمز البريدي يكمل المدينة تلقائياً.':'أدخل عنوان الشحن والدولة. داخل الاتحاد الأوروبي: DHL Europaket للشركات، وخارجه DHL Express.';
+  if(v==='de'&&$('country').value!=='DE'){$('country').value='DE';draft.country='DE';try{showLang()}catch(e){}}}
+document.querySelectorAll('#lief button').forEach(b=>b.onclick=()=>{draft.lief=draft.lief===b.dataset.l?'':b.dataset.l;if(draft.lief!=='de'&&draft.lief!=='ab'&&!draft.versand){}saveDraft();liefUI();updStepper();if(draft.lief==='de'||draft.lief==='ab')setTimeout(()=>{const f=$('street');if(f&&!f.value)f.focus()},150)});
+function updStepper(){const st=$('stepper');if(!st)return;const has=draft.items.length>0,adrOk=!!(draft.street&&draft.city);
+  const S={1:!!String(draft.cust||'').trim(),2:has,3:has&&draft.items.every(i=>i.price!=null&&i.price!==''),4:draft.lief==='pickup'||((draft.lief==='de'||draft.lief==='ab')&&adrOk),5:false};
+  st.querySelectorAll('button').forEach(b=>{const k=b.dataset.st;b.classList.toggle('ok',!!S[k]);b.classList.toggle('need',k==='4'&&has&&!S[4]||k==='3'&&has&&!S[3])});
+  const s5=$('sum5');if(s5)s5.textContent=has?draft.items.length+' صنف · المجموع '+$('sum').textContent+(draft.lief?' · '+LIEF[draft.lief]:''):'السلة فارغة'}
+document.querySelectorAll('#stepper button').forEach(b=>b.onclick=()=>{const p=$('st-'+b.dataset.st);if(p)p.scrollIntoView({behavior:'smooth',block:'start'})});
+['street','city','plz','cust'].forEach(id=>{const e=$(id);if(e)e.addEventListener('input',()=>setTimeout(updStepper,50))});
+setTimeout(()=>{try{liefUI();updStepper()}catch(e){}},300);
 function saveDraft(){draft.at=Date.now();LS.set('draft3',draft);$('send').disabled=!draft.items.length||!db;$('offer').disabled=!draft.items.length}
 /* Mengen-Staffeln intern: Varianten, die sich nur in der Menge unterscheiden (Muster / Karton … / N Stück), werden zu EINEM Eintrag.
    Im Auftrag wählt man die Packung; bei Karton-Staffeln gilt der Preis automatisch nach der Kartonzahl. */
@@ -1681,11 +1724,12 @@ function renderItems(){
   $('send').disabled=!draft.items.length||!db;
   $('offer').disabled=!draft.items.length;
   {const t2=totals(draft);$('disc-sum').textContent=(t2.disc?' −'+money(t2.disc):'')+(t2.ship?' · شحن '+money(t2.ship):'')}
+  try{liefUI();updStepper()}catch(e){}
   updSendbar();
   const stale=draft.items.length&&!editing&&(Date.now()-(draft.at||0))>15*60000;$('draftbar').hidden=!stale;
   if(stale)$('draft-txt').textContent='⚠️ مسودة غير مرسلة من '+new Date(draft.at||Date.now()).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})+' · '+n+' صنف'+(draft.cust?' · '+draft.cust:'')+' — هل تريد متابعتها أم البدء بطلب جديد؟';
 }
-function resetDraft(){try{setEditOffer(null)}catch(e){}try{$('cphone').value='';$('cemail').value=''}catch(e){}$('clp-addr').value='';$('cust-no').textContent='';draft={cust:'',note:'',rabatt:0,rabattFix:0,versand:0,kg:false,items:[],street:'',city:'',country:'DE',phone:'',email:''};$('cust').value='';$('versand').value='';$('rabscope').value='all';$('kgprice').checked=false;$('kg-st').textContent='';$('street').value='';setCityUI('');$('country').value='DE';showLang();$('note').value='';$('rab').value='';$('rabfix').value='';saveDraft();renderItems();showLogo()}
+function resetDraft(){try{setEditOffer(null)}catch(e){}try{$('cphone').value='';$('cemail').value=''}catch(e){}$('clp-addr').value='';$('cust-no').textContent='';draft={lief:'',cust:'',note:'',rabatt:0,rabattFix:0,versand:0,kg:false,items:[],street:'',city:'',country:'DE',phone:'',email:''};$('cust').value='';$('versand').value='';$('rabscope').value='all';$('kgprice').checked=false;$('kg-st').textContent='';$('street').value='';setCityUI('');$('country').value='DE';showLang();$('note').value='';$('rab').value='';$('rabfix').value='';saveDraft();renderItems();showLogo()}
 $('clear').onclick=resetDraft;
 function setEditing(l){
   editing=l?{id:l.id,customer:l.customer}:null;LS.set('edit3',editing);
@@ -1693,7 +1737,7 @@ function setEditing(l){
   $('send').textContent=editing?'حفظ التعديلات على الطلب':'إرسال إلى المستودع';
 }
 function editList(l){
-  draft={phone:l.phone||'',email:l.email||'',clpLogo:l.clpLogo||'',clpAddr:l.clpAddr||'',street:l.street||'',city:l.city||'',country:l.country||'DE',cust:l.customer||'',note:l.note||'',rabatt:+l.rabatt||0,rabattFix:+l.rabattFix||0,versand:+l.versand||0,rabScope:l.rabScope||'all',kg:!!l.kg,kgOff:!l.kg,items:JSON.parse(JSON.stringify(l.items||[]))};$('kgprice').checked=!!l.kg;$('rabscope').value=l.rabScope||'all';
+  draft={lief:l.lief||'',phone:l.phone||'',email:l.email||'',clpLogo:l.clpLogo||'',clpAddr:l.clpAddr||'',street:l.street||'',city:l.city||'',country:l.country||'DE',cust:l.customer||'',note:l.note||'',rabatt:+l.rabatt||0,rabattFix:+l.rabattFix||0,versand:+l.versand||0,rabScope:l.rabScope||'all',kg:!!l.kg,kgOff:!l.kg,items:JSON.parse(JSON.stringify(l.items||[]))};$('kgprice').checked=!!l.kg;$('rabscope').value=l.rabScope||'all';
   $('cphone').value=draft.phone||'';$('cemail').value=draft.email||'';$('clp-addr').value=draft.clpAddr||'';$('street').value=draft.street;setCityUI(draft.city);$('country').value=draft.country;showLang();$('cust').value=draft.cust;showCust();$('note').value=draft.note;$('rab').value=draft.rabatt||'';$('rabfix').value=draft.rabattFix||'';$('versand').value=draft.versand||'';
   showLogo();try{setEditOffer(null)}catch(e){}setEditing(l);saveDraft();renderItems();sendStatus('');$('last-actions').hidden=true;tab('new');$('q').focus();
 }
@@ -2737,7 +2781,7 @@ $('offer').onclick=async()=>{
   b.disabled=!draft.items.length;
 };
 function offerToDraft(o){
-  draft={phone:o.phone||'',email:o.email||'',clpLogo:o.clpLogo||'',clpAddr:o.clpAddr||'',street:o.street||'',city:o.city||'',country:o.country||'DE',cust:o.customer||'',note:o.note||'',rabatt:+o.rabatt||0,rabattFix:+o.rabattFix||0,versand:+o.versand||0,rabScope:o.rabScope||'all',kg:!!o.kg,kgOff:!o.kg,items:JSON.parse(JSON.stringify(o.items||[]))};
+  draft={lief:o.lief||'',phone:o.phone||'',email:o.email||'',clpLogo:o.clpLogo||'',clpAddr:o.clpAddr||'',street:o.street||'',city:o.city||'',country:o.country||'DE',cust:o.customer||'',note:o.note||'',rabatt:+o.rabatt||0,rabattFix:+o.rabattFix||0,versand:+o.versand||0,rabScope:o.rabScope||'all',kg:!!o.kg,kgOff:!o.kg,items:JSON.parse(JSON.stringify(o.items||[]))};
   $('kgprice').checked=!!o.kg;$('rabscope').value=draft.rabScope;$('cphone').value=draft.phone;$('cemail').value=draft.email;$('clp-addr').value=draft.clpAddr;$('street').value=draft.street;setCityUI(draft.city);$('country').value=draft.country;showLang();$('cust').value=draft.cust;showCust();$('note').value=draft.note;$('rab').value=draft.rabatt||'';$('rabfix').value=draft.rabattFix||'';$('versand').value=draft.versand||'';
   showLogo();setEditing(null);setEditOffer(o);saveDraft();renderItems();sendStatus('تعديل عرض السعر: '+o.customer+' — عدّل الأصناف ثم اضغط «حفظ التعديلات على عرض السعر».');$('last-actions').hidden=true;closeSheet();tab('new');
 }
@@ -2775,6 +2819,8 @@ function renderOffers(){
 $('h-off').onclick=()=>{drawer(false);offMsg='';renderOffers()};
 /* Prüfung vor dem Senden: typische Fehler abfangen, bevor der Auftrag ins Lager geht */
 function preCheck(){const w=[],its=draft.items;
+  if(!draft.lief)w.push({t:'لم تُحدَّد طريقة التسليم',d:'الخطوة 4: استلام من المستودع أو شحن داخل/خارج ألمانيا'});
+  else if(draft.lief!=='pickup'&&!(draft.street&&draft.city))w.push({t:'عنوان الشحن ناقص',d:'الخطوة 4: الشارع ورقم المبنى والرمز البريدي والمدينة'});
   const noP=its.filter(i=>i.price==null||i.price==='');if(noP.length)w.push({t:'⛔ أصناف بدون سعر ('+noP.length+')',d:noP.map(i=>i.t+(i.size?' · '+i.size:'')).slice(0,5).join('، ')});
   its.forEach(i=>{if(i.grp&&/^muster/i.test(i.gk||'')&&(+i.q||1)>=10)w.push({t:'عينات كثيرة: '+i.t,d:(+i.q||1)+' × Muster (1 Set) — هل تقصد كرتون؟'})});
   const seen={};its.forEach(i=>{const k=i.t+'|'+(i.tier||'')+'|'+(i.size||'')+'|'+(i.gk||'');if(seen[k])w.push({t:'صنف مكرر في سطرين',d:i.t+' '+(i.tier||'')+' '+(i.size||'')});seen[k]=1});
@@ -2792,7 +2838,7 @@ $('send').onclick=async()=>{
   {const w=preCheck();if(w.length&&!(await confirmChecks(w,'الإرسال')))return}
   $('send').disabled=true;
   const offId=editOffer&&editOffer.id,offAt=editOffer&&editOffer.at,was0=!!editing;
-  const rec={customer:draft.cust.trim(),note:(draft.note||'').trim(),rabatt:+draft.rabatt||0,rabattFix:+draft.rabattFix||0,versand:+draft.versand||0,rabScope:draft.rabScope||'all',kg:!!draft.kg,clpAddr:(draft.clpAddr||'').trim(),clpLogo:draft.clpLogo||'',street:(draft.street||'').trim(),city:(draft.city||'').trim(),country:draft.country||'DE',phone:(draft.phone||'').trim(),email:(draft.email||'').trim(),items:draft.items,status:'new',at:Date.now()};
+  const rec={customer:draft.cust.trim(),note:(draft.note||'').trim(),rabatt:+draft.rabatt||0,rabattFix:+draft.rabattFix||0,versand:+draft.versand||0,rabScope:draft.rabScope||'all',kg:!!draft.kg,clpAddr:(draft.clpAddr||'').trim(),clpLogo:draft.clpLogo||'',street:(draft.street||'').trim(),city:(draft.city||'').trim(),country:draft.country||'DE',phone:(draft.phone||'').trim(),email:(draft.email||'').trim(),lief:draft.lief||'',items:draft.items,status:'new',at:Date.now()};
   if(!editing&&WHO())rec.by=WHO();if(editing&&WHO())rec.editedBy=WHO();
   if(offId&&!was0)rec.offerAt=offAt;if(was0)delete rec.status;
   try{
@@ -3156,7 +3202,8 @@ function buildCard(l,full){
     const tog=el('button','btn big tog'+(done?'':' primary')+(isReady(l)?' pulse':''),done?'↩︎ إعادة فتح الطلب':isReady(l)?'✓ تم التسليم · إغلاق الطلب':'✓ تم التحضير');
     tog.onclick=async()=>{tog.disabled=true;try{await db.doc('lists/'+l.id).update({status:done?'new':'done',doneAt:Date.now()})}catch(e){tog.disabled=false}};
     c.append(tog);
-    if(apIsDE(l)){const dn=l.dhl&&l.dhl.nr,db2=el('button','btn'+(dn?'':' primary'),dn?(apLand(l)==='DE'?'📦 DHL شحن داخلي ✅ ':'✈️ DHL شحن خارجي ✅ ')+(l.dhl.n>1?l.dhl.n+' طرود':dn):(apLand(l)==='DE'?'📦 ملصق DHL شحن داخلي':'✈️ ملصق DHL شحن خارجي'));db2.style.cssText='width:100%;margin-top:8px';db2.onclick=()=>apDhl(l);c.append(db2);if(!dn){const a=apAdr(l);if(a.a1&&a.plz)dhlVorGet({id:'AP-'+l.id,adr:a,kg:apKg(l)})}}
+    if(l.lief&&LIEF[l.lief]){const lp=el('div','status',LIEF[l.lief]+(l.lief!=='pickup'&&l.street?' · '+[l.street,l.city].filter(Boolean).join(', '):''));lp.style.marginTop='8px';c.append(lp)}
+    if(apIsDE(l)&&l.lief!=='pickup'){const dn=l.dhl&&l.dhl.nr,db2=el('button','btn'+(dn?'':' primary'),dn?(apLand(l)==='DE'?'📦 DHL شحن داخلي ✅ ':'✈️ DHL شحن خارجي ✅ ')+(l.dhl.n>1?l.dhl.n+' طرود':dn):(apLand(l)==='DE'?'📦 ملصق DHL شحن داخلي':'✈️ ملصق DHL شحن خارجي'));db2.style.cssText='width:100%;margin-top:8px';db2.onclick=()=>apDhl(l);c.append(db2);if(!dn){const a=apAdr(l);if(a.a1&&a.plz)dhlVorGet({id:'AP-'+l.id,adr:a,kg:apKg(l)})}}
     {const nb=el('button','btn','💬 ملاحظة للفريق عن هذا الطلب');nb.style.cssText='width:100%;margin-top:8px';nb.onclick=()=>{chCss();chOpen(null,{id:l.id,name:custLabel(l)})};c.append(nb)}
     if(claimsOf(l).length){const cb2=el('div','claimbox');cb2.append(el('b',null,'⚠️ مرتجعات / شكاوى ('+claimsOf(l).length+')'));claimsOf(l).forEach((x,i)=>cb2.append(claimRow(l,x,i,()=>{try{renderOrderModal()}catch(e){}})));c.append(cb2)}
     const acts=docsPanel(l);c.append(acts);
@@ -4936,7 +4983,7 @@ function vzSendungen(){const out=[];
   customers.forEach(c=>(c.ship||[]).forEach(s=>{if(s&&s.nr)out.push({src:'frei',c,s,id:s.id,nr:s.nr,n:s.n||1,kg:s.kg,at:s.at,name:c.name+(c.no?' ('+c.no+')':''),ref:s.ref})}));
   return out.sort((a,b)=>(b.at||0)-(a.at||0))}
 function vzOffen(){const lim=Date.now()-45*864e5;
-  return lists.filter(l=>l.kind!=='debt'&&(l.items||[]).length&&apIsDE(l)&&!(l.dhl&&l.dhl.nr)&&(l.at||0)>lim&&l.dhlAdr).sort((a,b)=>(b.at||0)-(a.at||0))}
+  return lists.filter(l=>l.kind!=='debt'&&(l.items||[]).length&&apIsDE(l)&&!(l.dhl&&l.dhl.nr)&&(l.at||0)>lim&&(l.dhlAdr||l.lief==='de'||l.lief==='ab')).sort((a,b)=>(b.at||0)-(a.at||0))}
 function vzOpen(){openSheet('🚚 مركز الشحن · Versandzentrale',b=>{soCss();vzCss();
   const act=el('div','vz-act'),A=(cls,ic,t,s,f)=>{const x=el('button',cls);x.append(el('b',null,ic+' '+t),el('span',null,s));x.onclick=f;act.append(x)};
   A('pri','📦','ملصق DHL داخل ألمانيا','DHL Paket · بدون طلب أو لأي عنوان',()=>vzPaket());
