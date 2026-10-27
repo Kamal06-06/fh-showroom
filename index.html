@@ -643,6 +643,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
           <option value="GB">United Kingdom</option><option value="XX">أخرى (English)</option></select></div>
       </div>
       </details>
+      <button class="btn" id="cust-save" type="button" style="width:100%;margin-top:10px">💾 حفظ بيانات العميل (بدون طلب)</button>
     </div>
 
     <div class="panel">
@@ -1562,6 +1563,17 @@ async function ensureCustomer(name,adr){
   const r=await db.collection('customers').add(rec);
   customers.push(Object.assign({id:r&&r.id},rec));return no;
 }
+/* Kundendaten ohne Auftrag speichern */
+$('cust-save').onclick=async()=>{const b=$('cust-save'),name=$('cust').value.trim();
+  if(!name){toast('اكتب اسم العميل أولاً');$('cust').focus();return}
+  const city=joinCity($('plz').value,$('city').value),rec={phone:$('cphone').value.trim(),email:$('cemail').value.trim(),street:$('street').value.trim(),city,country:$('country').value||'DE',kg:!!$('kgprice').checked};
+  b.disabled=true;const t0=b.textContent;b.textContent='جاري الحفظ…';
+  try{const old=findCust(name),upd={};Object.keys(rec).forEach(k=>{if(k==='kg'||k==='country'||rec[k])upd[k]=rec[k]});
+    let no;if(old&&old.id){await db.doc('customers/'+old.id).update(upd);Object.assign(old,upd);no=old.no}
+    else{no=await ensureCustomer(name,{street:rec.street,city:rec.city,country:rec.country});const nc=findCust(name);if(nc&&nc.id){await db.doc('customers/'+nc.id).update(upd);Object.assign(nc,upd)}}
+    showCust();try{renderCust()}catch(_){}toast('✓ تم حفظ العميل'+(no?' · '+no:''))}
+  catch(e){toast('فشل الحفظ: '+(e.message||e))}
+  finally{b.disabled=false;b.textContent=t0}};
 $('note').oninput=e=>{draft.note=e.target.value;saveDraft()};
 $('rab').oninput=e=>{draft.rabatt=+e.target.value||0;saveDraft();renderItems()};
 $('rabfix').oninput=e=>{draft.rabattFix=+e.target.value||0;saveDraft();renderItems()};
