@@ -761,7 +761,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
           <option value="IT">Italien</option><option value="ES">Spanien</option><option value="PL">Polen</option>
           <option value="GB">United Kingdom</option><option value="XX">أخرى (English)</option></select></div>
       </div>
-        <div class="row grow"><div style="flex:0 0 200px"><label for="versand">أجور الشحن € · Versandkosten</label><input type="number" id="versand" min="0" step="0.5" placeholder="0" inputmode="decimal"></div></div>
+        <div class="row grow"><div style="flex:0 0 160px"><label for="pakete">📦 عدد الطرود</label><input type="number" id="pakete" min="1" max="20" step="1" value="1" inputmode="numeric"></div><div style="flex:0 0 200px"><label for="versand">أجور الشحن €</label><input type="number" id="versand" min="0" step="0.5" placeholder="0" inputmode="decimal"></div></div>
         <p class="hint">ملصق DHL يُنشأ بعد التجهيز من «مركز الشحن» أو من بطاقة الطلب. لإرسال الطرد إلى عميل عميلك (Dropshipping) أو إلى Packstation اختر ذلك عند إنشاء الملصق.</p>
       </div>
     </div>
@@ -1836,11 +1836,12 @@ $('kgprice').onchange=e=>{draft.kg=e.target.checked;draft.kgOff=!e.target.checke
 
 /* ---------- Auftrag in 5 Schritten: Kunde · Artikel · Preise · Lieferung · Abschluss ---------- */
 const LIEF={pickup:'🏬 استلام من المستودع',de:'📦 شحن داخل ألمانيا',ab:'✈️ شحن خارج ألمانيا'};
-function liefUI(){const v=draft.lief||'';document.querySelectorAll('#lief button').forEach(b=>b.classList.toggle('on',b.dataset.l===v));
+function liefUI(){const v=draft.lief||'';{const pk=$('pakete');if(pk&&document.activeElement!==pk)pk.value=Math.max(1,+draft.pakete||1)}document.querySelectorAll('#lief button').forEach(b=>b.classList.toggle('on',b.dataset.l===v));
   const ship=v==='de'||v==='ab';$('lief-box').hidden=!ship;
   $('lief-hint').textContent=!v?'اختر طريقة التسليم ليعرف المستودع كيف يجهّز الطلب.':v==='pickup'?'يستلم العميل الطلب بنفسه من المستودع – لا يلزم عنوان ولا ملصق شحن.':v==='de'?'أدخل عنوان الشحن داخل ألمانيا. الرمز البريدي يكمل المدينة تلقائياً.':'أدخل عنوان الشحن والدولة. داخل الاتحاد الأوروبي: DHL Europaket للشركات، وخارجه DHL Express.';
   if(v==='de'&&$('country').value!=='DE'&&!draft.dhlAdr){$('country').value='DE';draft.country='DE';try{showLang()}catch(e){}}
   try{kkCss();kkLiefChips()}catch(e){}}
+$('pakete').oninput=e=>{draft.pakete=Math.max(1,Math.min(20,parseInt(e.target.value,10)||1));saveDraft()};
 document.querySelectorAll('#lief button').forEach(b=>b.onclick=()=>{draft.lief=draft.lief===b.dataset.l?'':b.dataset.l;if(draft.lief!=='de'&&draft.lief!=='ab'&&!draft.versand){}saveDraft();liefUI();updStepper();if(draft.lief==='de'||draft.lief==='ab')setTimeout(()=>{const f=$('street');if(f&&!f.value)f.focus()},150)});
 function updStepper(){const st=$('stepper');if(!st)return;const has=draft.items.length>0,adrOk=!!(draft.street&&draft.city);
   const S={1:!!String(draft.cust||'').trim(),2:has,3:has&&draft.items.every(i=>i.price!=null&&i.price!==''),4:draft.lief==='pickup'||((draft.lief==='de'||draft.lief==='ab')&&adrOk),5:false};
@@ -1890,7 +1891,7 @@ function renderItems(){
   const stale=draft.items.length&&!editing&&(Date.now()-(draft.at||0))>15*60000;$('draftbar').hidden=!stale;
   if(stale)$('draft-txt').textContent='⚠️ مسودة غير مرسلة من '+new Date(draft.at||Date.now()).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})+' · '+n+' صنف'+(draft.cust?' · '+draft.cust:'')+' — هل تريد متابعتها أم البدء بطلب جديد؟';
 }
-function resetDraft(){try{setEditOffer(null)}catch(e){}try{$('cphone').value='';$('cemail').value=''}catch(e){}$('clp-addr').value='';$('cust-no').textContent='';draft={lief:'',dhlAdr:null,cust:'',note:'',rabatt:0,rabattFix:0,versand:0,kg:false,items:[],street:'',city:'',country:'DE',phone:'',email:''};$('cust').value='';$('versand').value='';$('rabscope').value='all';$('kgprice').checked=false;$('kg-st').textContent='';$('street').value='';setCityUI('');$('country').value='DE';showLang();$('note').value='';$('rab').value='';$('rabfix').value='';saveDraft();renderItems();showLogo()}
+function resetDraft(){try{setEditOffer(null)}catch(e){}try{$('cphone').value='';$('cemail').value=''}catch(e){}$('clp-addr').value='';$('cust-no').textContent='';draft={lief:'',pakete:1,dhlAdr:null,cust:'',note:'',rabatt:0,rabattFix:0,versand:0,kg:false,items:[],street:'',city:'',country:'DE',phone:'',email:''};$('cust').value='';$('versand').value='';$('rabscope').value='all';$('kgprice').checked=false;$('kg-st').textContent='';$('street').value='';setCityUI('');$('country').value='DE';showLang();$('note').value='';$('rab').value='';$('rabfix').value='';saveDraft();renderItems();showLogo()}
 $('clear').onclick=resetDraft;
 function setEditing(l){
   editing=l?{id:l.id,customer:l.customer}:null;LS.set('edit3',editing);
@@ -1898,7 +1899,7 @@ function setEditing(l){
   $('send').textContent=editing?'حفظ التعديلات على الطلب':'إرسال إلى المستودع';
 }
 function editList(l){
-  draft={lief:l.lief||'',dhlAdr:l.dhlAdr||null,phone:l.phone||'',email:l.email||'',clpLogo:l.clpLogo||'',clpAddr:l.clpAddr||'',street:l.street||'',city:l.city||'',country:l.country||'DE',cust:l.customer||'',note:l.note||'',rabatt:+l.rabatt||0,rabattFix:+l.rabattFix||0,versand:+l.versand||0,rabScope:l.rabScope||'all',kg:!!l.kg,kgOff:!l.kg,items:JSON.parse(JSON.stringify(l.items||[]))};$('kgprice').checked=!!l.kg;$('rabscope').value=l.rabScope||'all';
+  draft={lief:l.lief||'',pakete:+l.pakete||1,dhlAdr:l.dhlAdr||null,phone:l.phone||'',email:l.email||'',clpLogo:l.clpLogo||'',clpAddr:l.clpAddr||'',street:l.street||'',city:l.city||'',country:l.country||'DE',cust:l.customer||'',note:l.note||'',rabatt:+l.rabatt||0,rabattFix:+l.rabattFix||0,versand:+l.versand||0,rabScope:l.rabScope||'all',kg:!!l.kg,kgOff:!l.kg,items:JSON.parse(JSON.stringify(l.items||[]))};$('kgprice').checked=!!l.kg;$('rabscope').value=l.rabScope||'all';
   $('cphone').value=draft.phone||'';$('cemail').value=draft.email||'';$('clp-addr').value=draft.clpAddr||'';$('street').value=draft.street;setCityUI(draft.city);$('country').value=draft.country;showLang();$('cust').value=draft.cust;showCust();$('note').value=draft.note;$('rab').value=draft.rabatt||'';$('rabfix').value=draft.rabattFix||'';$('versand').value=draft.versand||'';
   showLogo();try{setEditOffer(null)}catch(e){}setEditing(l);saveDraft();renderItems();sendStatus('');$('last-actions').hidden=true;tab('new');$('q').focus();
 }
@@ -2961,7 +2962,7 @@ $('offer').onclick=async()=>{
   b.disabled=!draft.items.length;
 };
 function offerToDraft(o){
-  draft={lief:o.lief||'',dhlAdr:o.dhlAdr||null,phone:o.phone||'',email:o.email||'',clpLogo:o.clpLogo||'',clpAddr:o.clpAddr||'',street:o.street||'',city:o.city||'',country:o.country||'DE',cust:o.customer||'',note:o.note||'',rabatt:+o.rabatt||0,rabattFix:+o.rabattFix||0,versand:+o.versand||0,rabScope:o.rabScope||'all',kg:!!o.kg,kgOff:!o.kg,items:JSON.parse(JSON.stringify(o.items||[]))};
+  draft={lief:o.lief||'',pakete:+o.pakete||1,dhlAdr:o.dhlAdr||null,phone:o.phone||'',email:o.email||'',clpLogo:o.clpLogo||'',clpAddr:o.clpAddr||'',street:o.street||'',city:o.city||'',country:o.country||'DE',cust:o.customer||'',note:o.note||'',rabatt:+o.rabatt||0,rabattFix:+o.rabattFix||0,versand:+o.versand||0,rabScope:o.rabScope||'all',kg:!!o.kg,kgOff:!o.kg,items:JSON.parse(JSON.stringify(o.items||[]))};
   $('kgprice').checked=!!o.kg;$('rabscope').value=draft.rabScope;$('cphone').value=draft.phone;$('cemail').value=draft.email;$('clp-addr').value=draft.clpAddr;$('street').value=draft.street;setCityUI(draft.city);$('country').value=draft.country;showLang();$('cust').value=draft.cust;showCust();$('note').value=draft.note;$('rab').value=draft.rabatt||'';$('rabfix').value=draft.rabattFix||'';$('versand').value=draft.versand||'';
   showLogo();setEditing(null);setEditOffer(o);saveDraft();renderItems();sendStatus('تعديل عرض السعر: '+o.customer+' — عدّل الأصناف ثم اضغط «حفظ التعديلات على عرض السعر».');$('last-actions').hidden=true;closeSheet();tab('new');
 }
@@ -3018,7 +3019,7 @@ $('send').onclick=async()=>{
   {const w=preCheck();if(w.length&&!(await confirmChecks(w,'الإرسال')))return}
   $('send').disabled=true;
   const offId=editOffer&&editOffer.id,offAt=editOffer&&editOffer.at,was0=!!editing;
-  const rec={customer:draft.cust.trim(),note:(draft.note||'').trim(),rabatt:+draft.rabatt||0,rabattFix:+draft.rabattFix||0,versand:+draft.versand||0,rabScope:draft.rabScope||'all',kg:!!draft.kg,clpAddr:(draft.clpAddr||'').trim(),clpLogo:draft.clpLogo||'',street:(draft.street||'').trim(),city:(draft.city||'').trim(),country:draft.country||'DE',phone:(draft.phone||'').trim(),email:(draft.email||'').trim(),lief:draft.lief||'',dhlAdr:draft.lief==='pickup'?null:(draft.dhlAdr||null),items:draft.items,status:'new',at:Date.now()};
+  const rec={customer:draft.cust.trim(),note:(draft.note||'').trim(),rabatt:+draft.rabatt||0,rabattFix:+draft.rabattFix||0,versand:+draft.versand||0,rabScope:draft.rabScope||'all',kg:!!draft.kg,clpAddr:(draft.clpAddr||'').trim(),clpLogo:draft.clpLogo||'',street:(draft.street||'').trim(),city:(draft.city||'').trim(),country:draft.country||'DE',phone:(draft.phone||'').trim(),email:(draft.email||'').trim(),lief:draft.lief||'',pakete:Math.max(1,+draft.pakete||1),dhlAdr:draft.lief==='pickup'?null:(draft.dhlAdr||null),items:draft.items,status:'new',at:Date.now()};
   if(!editing&&WHO())rec.by=WHO();if(editing&&WHO())rec.editedBy=WHO();
   if(offId&&!was0)rec.offerAt=offAt;if(was0)delete rec.status;
   try{
@@ -3539,7 +3540,7 @@ function buildCardV2(l){omCss();
   const hr=el('div');hr.style.textAlign='left';hr.append(el('div','tot',money(t.net)),el('div','meta','netto'));h.append(hl,hr);c.append(h);
   const sm=el('div','om-sum'),S=(v,k)=>{const d=el('div');d.append(el('b',null,v),el('span',null,k));sm.append(d)};
   S(String(items.length),'أصناف');S(l.lief?({pickup:'🏬 استلام',de:'📦 ألمانيا',ab:'✈️ خارج'})[l.lief]||'—':'—','التسليم');
-  S(l.dhl&&l.dhl.nr?'✅ '+(l.dhl.n||1):'—','ملصق DHL');S(l.lex?'✅':'—','الفاتورة');c.append(sm);
+  S(l.dhl&&l.dhl.nr?'✅ '+(l.dhl.n||1):(l.lief==='de'||l.lief==='ab'?'⏳ '+Math.max(1,+l.pakete||1):'—'),'ملصق DHL');S(l.lex?'✅':'—','الفاتورة');c.append(sm);
   if(l.note)c.append(el('p','note','📝 '+l.note));
   {const cr=findCust(l.customer)||{},ph=l.phone||cr.phone||'',em=l.email||cr.email||'';const cb=el('div','row');cb.style.cssText='gap:6px;margin:6px 0 0;flex-wrap:wrap';
     if(ph){const a=el('a','btn small ctc','💬 واتساب');a.href=custWa(ph,'');a.target='_blank';a.rel='noopener';cb.append(a)}
@@ -3587,6 +3588,8 @@ function buildCardV2(l){omCss();
     KV('طريقة التسليم',l.lief&&LIEF[l.lief]?LIEF[l.lief]:'غير محددة');
     if(l.lief!=='pickup'){const a=apAdr(l);KV('المستلم',[a.firma,a.name].filter(Boolean).join(' · '),1);KV('العنوان',[a.a1,a.a2,[a.plz,a.ort].filter(Boolean).join(' '),a.land].filter(Boolean).join(', '),1);if(a.drop)KV('المرسِل',a.abs+' c/o Fragrance Hub (Dropshipping)')}
     if(+l.versand)KV('أجور الشحن',money(+l.versand));b1.append(kv);
+    if(l.lief==='de'||l.lief==='ab'){const pw=el('div','row');pw.style.cssText='gap:8px;align-items:center;margin-top:10px';const pi=el('input');pi.type='number';pi.min='1';pi.max='20';pi.inputMode='numeric';pi.value=Math.max(1,+l.pakete||1);pi.style.width='80px';
+      pi.onchange=async()=>{const n=Math.max(1,Math.min(20,parseInt(pi.value,10)||1));try{await db.doc('lists/'+l.id).update({pakete:n});l.pakete=n}catch(e){}};pw.append(el('span',null,'📦 عدد الطرود'),pi);b1.append(pw)}
     const ls=el('div','om-seg');ls.style.marginTop='10px';Object.keys(LIEF).forEach(k=>{const x=el('button',k===l.lief?'on':'',LIEF[k]);x.onclick=async()=>{try{await db.doc('lists/'+l.id).update({lief:k});l.lief=k;renderOrderModal()}catch(e){alert(e.message||e)}};ls.append(x)});
     b1.append(el('p','hint','تغيير طريقة التسليم:'),ls);p.append(b1);
     if(apIsDE(l)&&l.lief!=='pickup'){const b2=el('div','om-box'),h2=el('h4');h2.append('📦 ملصق DHL');b2.append(h2);const dn=l.dhl&&l.dhl.nr;
@@ -5057,7 +5060,7 @@ function soBulkDhl(list,opt){opt=opt||{};const AP=!!opt.ap,lab=o=>o.ap?o.nr:'#'+
     const e=v.empf||{};inf.append(el('div','ad',e.lockerID?'Packstation '+e.lockerID+' · '+e.postalCode+' '+e.city:e.retailID?'Postfiliale '+e.retailID+' · '+e.postalCode+' '+e.city:((e.addressStreet||'')+' '+(e.addressHouse||'❓')+', '+(e.postalCode||'')+' '+(e.city||'')).trim()));
     if(has)inf.append(el('div','ad','✅ يوجد ملصق: '+v.dhl.nr));warn.forEach(w=>inf.append(el('div','status err','⚠️ '+w)));if(o.editAdr&&(v.err||warn.length)){const ea=el('button','btn small','✏️ العنوان');ea.onclick=e=>{e.preventDefault();o.editAdr()};inf.append(ea)}
     const kg=el('input');kg.type='number';kg.step='0.1';kg.min='0.1';kg.inputMode='decimal';kg.value=v.kg||1;kg.title='kg (مجموع)';kg.onfocus=()=>kg.select();
-    const np=el('input');np.type='number';np.step='1';np.min='1';np.max='20';np.inputMode='numeric';np.value='1';np.title='عدد الطرود';np.onfocus=()=>np.select();np.style.marginTop='4px';
+    const np=el('input');np.type='number';np.step='1';np.min='1';np.max='20';np.inputMode='numeric';np.value=String(o.pak||1);np.title='عدد الطرود';np.onfocus=()=>np.select();np.style.marginTop='4px';
     const kw=el('div');kw.style.textAlign='center';kw.append(kg,el('div','ad','kg'),np,el('div','ad','طرد'));r.append(cb,inf,kw);b.append(r);rows.push({o,v,cb,kg,np})});
   const cbx=(t,on)=>{const l=el('label','clprow'),i=el('input');i.type='checkbox';i.checked=on;l.append(i,' '+t);b.append(l);return i};
   const dr=cbx('🖨️ اطبع الملصقات مباشرة على طابعة Zebra في المستودع',true),sp=cbx('📧 علِّم الطلبات «مشحونة» في Shopify وأرسل رقم التتبع للعملاء',!AP);if(AP)sp.parentNode.hidden=true;
@@ -5103,7 +5106,7 @@ async function dhlMerge(b64s){b64s=[].concat(b64s).filter(Boolean);if(b64s.lengt
   catch(e){return b64Blob(b64s[0])}}
 const dhlPak=d=>!d||!d.nr?[]:(d.pakete&&d.pakete.length?d.pakete:[{nr:d.nr,kg:d.kg,file:d.file,at:d.at}]);
 /* Gewichtsfelder für n Pakete (Gesamtgewicht wird gleichmäßig verteilt, jedes Feld änderbar) */
-function dhlKgBox(b,total){const box=el('div');const nIn=el('input');nIn.type='number';nIn.min='1';nIn.max='20';nIn.step='1';nIn.value='1';nIn.inputMode='numeric';nIn.dir='ltr';
+function dhlKgBox(b,total,n0){const box=el('div');const nIn=el('input');nIn.type='number';nIn.min='1';nIn.max='20';nIn.step='1';nIn.value=String(Math.max(1,+n0||1));nIn.inputMode='numeric';nIn.dir='ltr';
   field(b,'📦 عدد الطرود لهذا الطلب',nIn);b.append(box);let ins=[];
   const draw=()=>{const n=Math.max(1,Math.min(20,parseInt(nIn.value,10)||1)),per=Math.max(0.1,Math.round((Number(total)||1)/n*10)/10);box.textContent='';ins=[];
     for(let i=0;i<n;i++){const k=el('input');k.type='number';k.step='0.1';k.min='0.1';k.inputMode='decimal';k.dir='ltr';k.value=n===1?(total||1):per;ins.push(field(box,n===1?'الوزن بالكيلو (مع التغليف) · اقتراح من أوزان المنتجات':'وزن الطرد '+(i+1)+' (kg)',k))}};
@@ -5118,10 +5121,10 @@ function apAdr(l){const c=findCust(l.customer)||{},st=l.street||c.street||'',ci=
   return Object.assign({name:pt.length===2?pt[0]:(l.customer||''),firma:pt.length===2?pt[1]:'',a1:st,a2:'',plz:m?m[1]:'',ort:m?m[2]:ci,land:apLand(l),tel:l.phone||c.phone||'',email:l.email||c.email||''},l.dhlAdr||{})}
 function apKg(l){let g=0;(l.items||[]).forEach(it=>{if(isOil(it))g+=(it.unit==='kg'?1000:sizeG(it.size))*(+it.q||1)});return g?Math.max(0.5,Math.ceil((g/1000*1.15+0.3)*10)/10):0}
 function apBulkDhl(){const lim=Date.now()-45*864e5;
-  const cand=lists.filter(l=>l.kind!=='debt'&&(l.items||[]).length&&apIsDE(l)&&!(l.dhl&&l.dhl.nr)&&(l.at||0)>lim).sort((a,b)=>(b.at||0)-(a.at||0));
-  if(!cand.length)return alert('لا توجد طلبات بدون ملصق DHL (آخر 45 يوماً)');
+  const cand=lists.filter(l=>l.kind!=='debt'&&(l.items||[]).length&&(l.lief==='de'||l.lief==='ab')&&apIsDE(l)&&!(l.dhl&&l.dhl.nr)&&(l.at||0)>lim).sort((a,b)=>(b.at||0)-(a.at||0));
+  if(!cand.length)return alert('لا توجد طلبات شحن بدون ملصق.\n\nيظهر الطلب هنا عندما تختار له «شحن» في الخطوة 4 من الطلب الجديد، أو في تبويب «الشحن» داخل الطلب.');
   soBulkDhl(cand.map(l=>{const o=apObj(l);o.kunde=custLabel(l);o.when=new Date(l.at||Date.now()).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+(l.status==='done'?' · مكتمل':' · مفتوح');return o}),{ap:true})}
-function apObj(l){const o={ap:true,l,id:'AP-'+l.id,nr:'AP-'+stamp(l),adr:apAdr(l),kg:apKg(l),stand:{},
+function apObj(l){const o={ap:true,l,id:'AP-'+l.id,nr:'AP-'+stamp(l),adr:apAdr(l),kg:apKg(l),pak:Math.max(1,+l.pakete||1),stand:{},
     onStand:d=>{const v=d?{nr:d.nr,n:(d.pakete||[]).length||1,at:d.at||Date.now()}:null;l.dhl=v;try{db.doc('lists/'+l.id).update({dhl:v}).catch(()=>{})}catch(e){}try{renderOrderModal()}catch(e){}},
     editAdr:()=>apDhlAdr(l,o)};return o}
 function apDhl(l){const o=apObj(l);
@@ -5262,7 +5265,7 @@ function dhlSheet(o,after){openSheet('📦 DHL Paket · '+o.nr,async b=>{soCss()
   /* neues Etikett */
   const c=el('div','card');c.style.cssText='padding:10px 12px;margin:8px 0';
   c.append(el('b',null,'المستلم كما سيظهر على الملصق · '+v.typ),adrTxt());(v.warn||[]).forEach(w=>c.append(el('div','status err','⚠️ '+w)));b.append(c);
-  const kb=dhlKgBox(b,v.kg);
+  const kb=dhlKgBox(b,v.kg,o.pak);
   const pd={value:v.prod||'V01PAK'};   /* DE: DHL Paket · EU: DHL Europaket (Kleinpaket auf Wunsch entfernt) */
   if(pd.value==='V54EPAK')c.append(el('div','status','✈️ DHL Europaket · '+SO_FLAG(v.land)+' '+v.land+' – شحن خارجي داخل الاتحاد الأوروبي (حتى 31.5 kg)'));
   const dr=cbx('🖨️ اطبع مباشرة في المستودع ('+(v.fmt==='A4'?'Brother A4':'Zebra')+') – عبر جهاز الطباعة Mini PC',false),sp=cbx('📧 علِّم الطلب «مشحون» في Shopify وأرسل رقم التتبع للعميل',true);
