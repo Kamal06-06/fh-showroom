@@ -289,6 +289,9 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
 #sheet .shh,#omodal .omh{justify-content:flex-start!important}
 #sheet .shh>b,#omodal .omh>b{flex:1;min-width:0}
 #tab-back{min-height:44px;padding:0 16px;font-size:15px;font-weight:700}
+.strsug{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:var(--surface);margin:4px 0 8px;overflow:hidden;box-shadow:0 6px 18px #0002}
+.strsug button{border:0;border-bottom:1px solid var(--line);background:none;color:var(--ink);font:inherit;font-size:15px;text-align:start;padding:12px 14px;cursor:pointer;direction:ltr}
+.strsug button:last-child{border-bottom:0}.strsug button:active{background:var(--soft)}.strsug .hint{padding:10px 12px;margin:0}
 /* Startseite */
 /* ===== Struktur v3 (27.10.2026): 5 Bereiche – Start · Verkauf · Versand · Kunden · Lager ===== */
 .hquick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 2px}
@@ -752,9 +755,9 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <div id="lief-box" hidden>
         <div class="lbl">عنوان الشحن · Lieferadresse</div>
       <div class="row grow" style="margin-top:8px">
-        <div><label for="street">الشارع ورقم المبنى</label><input type="text" id="street" autocomplete="off" placeholder="Bahnhofstraße 86"></div>
         <div style="flex:0 0 110px;min-width:100px"><label for="plz">الرمز البريدي · PLZ</label><input type="text" id="plz" autocomplete="off" inputmode="numeric" maxlength="8" dir="ltr" placeholder="44623"></div>
         <div><label for="city">المدينة · Ort</label><input type="text" id="city" autocomplete="off" placeholder="Herne"></div>
+        <div><label for="street">الشارع ورقم المبنى · يظهر الاقتراح أثناء الكتابة</label><input type="text" id="street" autocomplete="off" placeholder="Bahnhofstraße 86"></div>
         <div><label for="country">الدولة <span id="lang-note" class="code"></span></label><select id="country">
           <option value="DE">Deutschland</option><option value="AT">Österreich</option><option value="CH">Schweiz</option>
           <option value="NL">Niederlande</option><option value="BE">Belgien</option><option value="FR">Frankreich</option>
@@ -5166,12 +5169,23 @@ function adrHilfe(o){const plz=o.plz,ort=o.ort,str=o.str,land=o.land||(()=>'DE')
     else hS.textContent='⚠️ هذا الشارع غير موجود في هذا الرمز البريدي – تأكّد من الكتابة'};
   const orte=async()=>{let L;try{L=await adrOrte(land(),plz.value)}catch(e){return}hO.textContent='';hO.hidden=true;
     if(!L)return;if(!L.length){hO.hidden=false;hO.textContent='⚠️ الرمز البريدي غير موجود · PLZ unbekannt';return}
-    if(L.length===1){if(adrNorm(ort.value)!==adrNorm(L[0]))ort.value=L[0];hO.hidden=false;hO.textContent='✓ '+L[0]}
-    else if(!L.some(x=>adrNorm(x)===adrNorm(ort.value))){if(!ort.value.trim())ort.value=L[0];hO.hidden=false;hO.append('اختر المدينة: ');
-      L.slice(0,10).forEach(n=>{const c=el('button','btn small',n);c.type='button';c.onclick=()=>{ort.value=n;hO.hidden=true};hO.append(c,' ')})}
+    if(L.length===1){if(adrNorm(ort.value)!==adrNorm(L[0])){ort.value=L[0];ort.dispatchEvent(new Event('input'))}hO.hidden=false;hO.textContent='✓ '+L[0]}
+    else if(!L.some(x=>adrNorm(x)===adrNorm(ort.value))){if(!ort.value.trim()){ort.value=L[0];ort.dispatchEvent(new Event('input'))}hO.hidden=false;hO.append('اختر المدينة: ');
+      L.slice(0,10).forEach(n=>{const c=el('button','btn small',n);c.type='button';c.onclick=()=>{ort.value=n;ort.dispatchEvent(new Event('input'));hO.hidden=true};hO.append(c,' ')})}
     if(str&&str.value.trim())strasse()};
-  plz.addEventListener('input',()=>{clearTimeout(t1);t1=setTimeout(orte,350)});
-  if(str)str.addEventListener('blur',()=>{clearTimeout(t2);t2=setTimeout(strasse,150)});
+  /* 🔎 Straßen-Vorschläge ab dem ersten Buchstaben (aus allen Straßen der PLZ, kostenlos über OpenPLZ) */
+  let sg=null,t3=0;if(str){sg=el('div','strsug');sg.hidden=true;(str.closest('label')||str).after(sg)}
+  const vorschlag=async()=>{if(!str||!sg)return;if(str._skip){str._skip=0;return}const v=String(str.value),name=v.replace(/[\s,]*\d+\s*[a-zA-Z]?(?:\s*[-\/]\s*\d*\s*[a-zA-Z]?)?\s*$/,'').trim(),hn=v.slice(name.length).trim(),q=adrNorm(name);
+    sg.textContent='';sg.hidden=true;if(!q||document.activeElement!==str)return;
+    const P=String(plz.value).trim(),ok=ADR_PLZ[String(land()).toUpperCase()]&&ADR_PLZ[String(land()).toUpperCase()].test(P);
+    if(!ok){if(ADR_PLZ[String(land()).toUpperCase()]){sg.hidden=false;sg.append(el('div','hint','أدخل الرمز البريدي أولاً ليقترح التطبيق أسماء الشوارع'))}return}
+    let L;try{L=await adrStrassen(land(),P)}catch(e){return}if(!L||!L.length||document.activeElement!==str)return;
+    const a=L.filter(x=>adrNorm(x).startsWith(q)),b=L.filter(x=>!adrNorm(x).startsWith(q)&&adrNorm(x).includes(q)),M=a.concat(b).slice(0,6);
+    if(!M.length||(M.length===1&&adrNorm(M[0])===q))return;sg.hidden=false;
+    M.forEach(n=>{const x=el('button',null,n);x.type='button';x.onmousedown=e=>e.preventDefault();x.onclick=()=>{str.value=n+' '+hn;sg.hidden=true;str.focus();try{str.setSelectionRange(str.value.length,str.value.length)}catch(e){}str._skip=1;str.dispatchEvent(new Event('input'));sg.hidden=true;if(!hn)hS.hidden=true};sg.append(x)})};
+  if(str){str.addEventListener('input',()=>{clearTimeout(t3);t3=setTimeout(vorschlag,120)});str.addEventListener('focus',()=>{clearTimeout(t3);t3=setTimeout(vorschlag,50)})}
+  plz.addEventListener('input',()=>{clearTimeout(t1);t1=setTimeout(()=>{orte();const P=String(plz.value).trim(),C=ADR_PLZ[String(land()).toUpperCase()];if(C&&C.test(P))adrStrassen(land(),P).catch(()=>{})},350)});
+  if(str)str.addEventListener('blur',()=>{clearTimeout(t2);t2=setTimeout(()=>{if(sg)sg.hidden=true;strasse()},200)});
   if(String(plz.value).trim())setTimeout(orte,250);
   return {orte,strasse}}
 /* Kundenformular (neuer Auftrag): PLZ → Ort, Straße prüfen */
