@@ -608,6 +608,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <button class="tile p-inv" id="h-inv"><span class="ic">📋</span><b>الجرد حسب الرفوف</b><span>Inventur nach Regal · مسح QR</span><span class="cnt" id="h-inv-n"></span></button>
       <button class="tile p-cust" id="h-cust"><span class="ic">👥</span><b>العملاء</b><span>كل عميل وطلباته</span><span class="cnt" id="h-cust-n"></span></button>
       <button class="tile p-shop" id="h-shop"><span class="ic">🛒</span><b>طلبات المتجر</b><span>طلبات Shopify · ملصقات · تحضير</span><span class="cnt" id="h-shop-n"></span></button>
+      <button class="tile p-shop" id="h-zebra"><span class="ic">🦓</span><b>طباعة ملصق شحن</b><span>ملف PDF ← Zebra في المستودع</span></button>
       <button class="tile p-cash" id="h-cash"><span class="ic">🏦</span><b>الصندوق والمصروفات</b><span>نقد المستودع · مصروفات · فواتير</span><span class="cnt" id="h-cash-n"></span></button>
       <button class="tile p-acc" id="h-acc"><span class="ic">💶</span><b>حسابات العملاء</b><span>مدفوع · غير مدفوع · كشف حساب</span><span class="cnt" id="h-due"></span></button>
     </div>
@@ -1179,7 +1180,7 @@ function openDebtSheet(d,presetName){
 }
 $('cu-new').onclick=$('acc-new').onclick=()=>openCustSheet(null);
 $('cu-debt').onclick=$('acc-debt').onclick=()=>openDebtSheet(null);
-$('h-shop').onclick=()=>{drawer(false);shopOpen()};$('chat-btn').onclick=()=>{chCss();chOpen()};$('nv-shop').onclick=()=>$('h-shop').click();
+$('h-shop').onclick=()=>{drawer(false);shopOpen()};$('h-zebra').onclick=()=>zebraDatei();$('chat-btn').onclick=()=>{chCss();chOpen()};$('nv-shop').onclick=()=>$('h-shop').click();
 $('cu-prof').onclick=()=>plSheet('stop');
 function renderCust(){
   const q=nz($('cu-q').value),box=$('cu-list');box.textContent='';
@@ -4186,7 +4187,7 @@ function soListView(b){b.textContent='';soCss();sheetBack=null;if(!soFilt[soTab]
   const tb=el('div','so-tool');const q=el('input');q.type='search';q.placeholder='🔍 رقم الطلب، العميل أو المدينة';q.value=soQ;q.autocomplete='off';
   const ib=(t,ti,f)=>{const x=el('button','so-ib',t);x.title=ti;x.setAttribute('aria-label',ti);x.onclick=f;return x};
   const rf=ib('🔄','تحديث',async()=>{rf.disabled=true;rf.classList.add('spin');try{await soLoad(true)}catch(e){toast('⚠️ '+e.message)}soListView(b)});
-  tb.append(q,rf,ib('➕','طلب يدوي',()=>soNeuSheet()),ib('🦓','طباعة ملف PDF على Zebra',()=>zebraDatei()));
+  tb.append(q,rf,ib('➕','طلب يدوي',()=>soNeuSheet()));
   if(isAdmin()&&soReg!=='abh'){tb.append(ib('⚙️',soReg==='de'?'إعدادات DHL':'إعدادات DHL Express',()=>soReg==='de'?dhlSetup():dhlxSetup()),ib('🔑','تغيير كلمة السر',()=>shopPwSheet(null,true)))}
   b.append(tb);
   {const nw=reg.filter(soNeedsPrint).sort(soOrder),lp=nw.filter(soLatePaid);
