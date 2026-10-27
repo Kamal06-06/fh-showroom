@@ -2123,6 +2123,8 @@ function prepListPdf(l,useOrig,neutral){
       /* Menge, fett und rechtsbündig; bei Packungen die Stückzahl darunter */
       const pk=packOf(i);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text(i.unit?qtxt(i):String(i.q||1)+(pk>1?' Pkg':''),X.n,ty,{align:'right'});
       if(pk>1){doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(90);doc.text('= '+numDE(pk*(+i.q||1))+' Stk',X.n,ty+4,{align:'right'});doc.setTextColor(0)}
+      /* Duftöl mehrfach: Gesamtgewicht deutlich darunter (z. B. 2 × 1 kg → = 2 kg) */
+      if(oil&&!i.unit&&(+i.q||1)>1){const g=sizeG(i.size)*(+i.q||1);if(g>0){doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(198,40,40);doc.text('= '+(g>=1000?numDE(Math.round(g)/1000)+' kg':numDE(Math.round(g))+' g'),X.n,ty+4.6,{align:'right'});doc.setTextColor(0)}}
       y=top+rowH;doc.setDrawColor(220);doc.setLineWidth(0.2);doc.line(L,y,R,y)});
     y+=2});
   if(y>245){doc.addPage();y=25}
