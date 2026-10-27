@@ -728,6 +728,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
         <button type="button" data-l="de">📦 شحن داخل ألمانيا<small>DHL Paket</small></button>
         <button type="button" data-l="ab">✈️ شحن خارج ألمانيا<small>DHL Europaket / Express</small></button>
       </div>
+      <div class="kk-chips" id="lief-chips" hidden></div>
       <p class="hint" id="lief-hint">اختر طريقة التسليم ليعرف المستودع كيف يجهّز الطلب.</p>
       <div id="lief-box" hidden>
         <div class="lbl">عنوان الشحن · Lieferadresse</div>
@@ -1264,7 +1265,7 @@ function renderCust(){
   if(!shown.length)box.append(el('p','hint','لا يوجد عميل مطابق.'));
   shown.forEach(g=>{const b=el('button','hrow');const left=el('div');{const cr=findCust(g.name);left.append(el('b',null,g.name+(g.no?' ('+g.no+')':'')),el('div','time',ordCount(g)+' · الإجمالي '+money(g.net)+(cr&&cr.phone?' · 📞 '+cr.phone:'')))}
     const rt=el('span');rt.style.display='flex';rt.style.flexDirection='column';rt.style.gap='4px';rt.style.alignItems='flex-end';rt.append(el('span','pay '+(g.open>0.004?'open':'paid'),g.open>0.004?'مفتوح '+money(g.open):(g.orders.length?'مسدَّد':'—')),kgToggle(g.name));b.append(left,rt);
-    b.onclick=()=>{if(b._lp){b._lp=0;return}focusId=null;focusCust=g.key;tab('wh');renderLists()};longPress(b,()=>openCustDel(g));box.append(b)});
+    b.onclick=()=>{if(b._lp){b._lp=0;return}kkOpen(g)};longPress(b,()=>openCustDel(g));box.append(b)});
 }
 /* long press (≈0.6 s, or right click) */
 function longPress(node,fn){let t=0,x=0,y=0;const stop=()=>{clearTimeout(t);t=0};
@@ -1289,6 +1290,148 @@ function openCustDel(g){
 $('cu-q').oninput=renderCust;
 $('sb-send').onclick=()=>$('send').click();
 $('tab-set').onclick=()=>openSheet('⚙️ الإعدادات',b=>b.append($('settings-body')));
+
+
+/* ================= 👤 بطاقة العميل · Kundenkarte =================
+   Alles zu einem Kunden an einem Ort: Kontakt, Adressbuch (Rechnung, Lieferadressen, Endempfänger, Packstation),
+   Logo für CLP-Etiketten, Preise, Konto, Aufträge und Sendungen. */
+function kkCss(){if($('kk-css'))return;const s=document.createElement('style');s.id='kk-css';s.textContent=`
+.kk-head{display:flex;gap:12px;align-items:center;margin:2px 0 12px}
+.kk-av{width:52px;height:52px;border-radius:16px;background:#141210;color:#c9a24a;display:grid;place-items:center;font-size:22px;font-weight:700;flex:none}
+.kk-head h3{margin:0;font-size:19px;line-height:1.25}.kk-head .t{font-size:12.5px;color:var(--muted)}
+.kk-kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 12px}
+.kk-kpi div{background:var(--soft);border-radius:12px;padding:8px 6px;text-align:center}.kk-kpi b{display:block;font-size:15px;font-variant-numeric:tabular-nums}.kk-kpi span{font-size:11px;color:var(--muted)}
+.kk-kpi .red b{color:#a3460f}
+.kk-act{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin:0 0 6px}
+.kk-act button,.kk-act a{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 8px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer;text-decoration:none;text-align:center}
+.kk-act .pri{background:#141210;color:#c9a24a;border-color:#141210;font-weight:700}
+.kk-sec{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:10px 0;background:var(--surface)}
+.kk-sec>h4{margin:0 0 8px;font-size:14.5px;display:flex;align-items:center;gap:8px}.kk-sec>h4 small{font-weight:400;color:var(--muted);font-size:11.5px}.kk-sec>h4 .sp{flex:1}
+.kk-kv{display:grid;grid-template-columns:110px 1fr;gap:4px 10px;font-size:13.5px}.kk-kv span:nth-child(odd){color:var(--muted)}
+.kk-adr{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;padding:8px 0;border-top:1px solid var(--line)}.kk-adr:first-of-type{border-top:0}
+.kk-adr .a{font-size:13px;white-space:pre-line;direction:ltr;text-align:left;margin-top:3px}
+.kk-tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;background:var(--soft);color:var(--muted)}
+.kk-tag.r{background:#f6efe0;color:#7a5a00}
+.kk-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line);background:none;border-inline:0;border-bottom:0;width:100%;font:inherit;color:var(--ink);text-align:start;cursor:pointer}
+.kk-row:first-of-type{border-top:0}.kk-row .t{font-size:12px;color:var(--muted)}
+.kk-chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.kk-chips button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+.kk-chips button.on{background:#141210;color:#c9a24a;border-color:#141210}
+`;document.head.append(s)}
+const KK_TYP={rech:'🧾 عنوان الفاتورة',liefer:'🏠 عنوان شحن',end:'🔁 مستلم نهائي (عميل العميل)',ps:'📦 Packstation / فرع بريد'};
+const kkId=()=>'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+/* Adressen eines Kunden: Rechnungsadresse (aus den Stammdaten) + gespeicherte Lieferadressen */
+function kkAdressen(c){const out=[];if(!c)return out;const [p0,o0]=splitCity(c.city);
+  if(c.street||c.city)out.push({id:'rech',typ:'rech',name:c.name,firma:'',a1:c.street||'',a2:'',plz:p0,ort:o0,land:c.country||'DE',tel:c.phone||'',email:c.email||''});
+  (c.addrs||[]).forEach(a=>{if(a&&a.id)out.push(a)});
+  if(c.dhlAdr&&c.dhlAdr.a1&&!out.some(a=>a.a1===c.dhlAdr.a1&&a.plz===c.dhlAdr.plz))out.push(Object.assign({id:'last',typ:/^(packstation|postfiliale)/i.test(c.dhlAdr.a1)?'ps':'liefer',label:'آخر عنوان شحن'},c.dhlAdr));
+  return out}
+const kkTxt=a=>[a.firma&&a.firma!==a.name?a.firma:'',a.name,a.a1,a.a2,[a.plz,a.ort].filter(Boolean).join(' '),a.land&&a.land!=='DE'?(COUNTRIES[a.land]||a.land):'',a.tel?'☎ '+a.tel:''].filter(x=>String(x||'').trim()).join('\n');
+/* Adresse → DHL-Adresse eines Auftrags (Endempfänger = Dropshipping mit dem Kunden als Absender) */
+function kkDhl(c,a){const x={name:a.name||c.name,firma:a.firma||'',a1:a.a1||'',a2:a.a2||'',plz:a.plz||'',ort:a.ort||'',land:a.land||'DE',tel:a.tel||'',email:a.email||'',art:/^packstation/i.test(a.a1||'')?'ps':/^postfiliale/i.test(a.a1||'')?'pf':'h'};
+  if(a.typ==='end'){x.drop=true;x.abs=c.name}return x}
+async function kkSave(c,upd){if(!c||!c.id)throw new Error('العميل غير محفوظ بعد');await db.doc('customers/'+c.id).update(upd);Object.assign(c,upd)}
+async function kkEnsure(g){let c=findCust(g.name);if(c&&c.id)return c;await ensureCustomer(g.name,{});return findCust(g.name)}
+function kkOpen(g){openSheet('👤 بطاقة العميل · Kundenkarte',b=>{soCss();kkCss();
+  const c=findCust(g.name)||{name:g.name,no:g.no};const orders=g.orders.filter(l=>l.kind!=='debt').sort((a,b2)=>(b2.at||0)-(a.at||0));
+  const last=orders[0];
+  /* Kopf */
+  const hd=el('div','kk-head'),av=el('div','kk-av',(String(g.name).trim().charAt(0)||'?').toUpperCase()),ti=el('div');
+  ti.append(el('h3',null,g.name),el('div','t',[g.no||c.no,c.at?'عميل منذ '+new Date(c.at).toLocaleDateString('de-DE'):'',last?'آخر طلب: '+agoTxt(last.at):''].filter(Boolean).join(' · ')));hd.append(av,ti);b.append(hd);
+  const kp=el('div','kk-kpi'),K=(v,t,cls)=>{const d=el('div',cls||'');d.append(el('b',null,v),el('span',null,t));kp.append(d)};
+  K(String(orders.length),'طلبات · Aufträge');K(Math.round(g.net).toLocaleString('de-DE')+' €','الإجمالي · Umsatz');K(Math.round(g.paid).toLocaleString('de-DE')+' €','المدفوع · Bezahlt');K(g.open>0.004?Math.round(g.open).toLocaleString('de-DE')+' €':'0 €','المفتوح · Offen',g.open>0.004?'red':'');
+  if(isAdmin()||can('acc'))b.append(kp);
+  /* Aktionen */
+  const act=el('div','kk-act'),A=(t,f,cls)=>{const x=el('button',cls||'',t);x.onclick=f;act.append(x);return x};
+  if(can('new'))A('＋ طلب جديد',()=>{closeSheet(true);try{if(draft.items.length&&draft.cust&&draft.cust!==g.name&&!confirm('في الطلب الحالي أصناف للعميل «'+draft.cust+'». استبدال العميل؟'))return}catch(e){}tab('new');const cc=findCust(g.name);if(cc)pickCust(cc);else{$('cust').value=g.name;draft.cust=g.name;saveDraft();showCust()}},'pri');
+  if(c.phone){const a=el('a',null,'💬 واتساب');a.href=custWa(c.phone);a.target='_blank';a.rel='noopener';act.append(a)}
+  if(can('shop'))A('📦 ملصق DHL',()=>{const ad=kkAdressen(c);vzPaket(ad.length?vzObj(null,kkDhl(c,ad[ad.length-1]),null):vzObj(null,{name:g.name,land:c.country||'DE',tel:c.phone||'',email:c.email||''},null))});
+  A('🗂️ كل الطلبات',()=>{closeSheet(true);focusId=null;focusCust=g.key;tab('wh');renderLists()});
+  A('✎ تعديل البيانات',()=>openCustSheet(findCust(g.name)||null,nm=>kkOpen(custAll().find(x=>x.name===nm)||g)));
+  b.append(act);
+  /* Kontakt */
+  const s1=el('div','kk-sec');s1.append(el('h4',null,'📇 بيانات التواصل · Kontakt'));const kv=el('div','kk-kv');
+  [['الهاتف',c.phone],['الإيميل',c.email],['الدولة',c.country?(COUNTRIES[c.country]||c.country):''],['ملاحظة',c.note]].forEach(([k,v])=>{if(!v)return;const sv=el('span',null,v);if(k!=='ملاحظة')sv.dir='ltr';kv.append(el('span',null,k),sv)});
+  if(!kv.children.length)kv.append(el('span',null,'—'),el('span','hint','لا توجد بيانات – اضغط «تعديل البيانات»'));
+  s1.append(kv);
+  const kgw=el('div');kgw.style.marginTop='8px';kgw.append(kgToggle(g.name));if(c.sk&&c.sk.on)kgw.append(' ',el('span','pay paid','⭐ خصم خاص: '+c.sk.small+'% (100–500 غ) · '+c.sk.kg+'% (1 كغ)'));s1.append(kgw);b.append(s1);
+  /* Adressbuch */
+  const s2=el('div','kk-sec'),h2=el('h4');h2.append('📍 العناوين · Adressen',el('small',null,'تُستخدم في الطلبات وملصقات DHL'),el('span','sp'));
+  const add=el('button','btn small','＋ عنوان');add.onclick=()=>kkAdrForm(g,null);h2.append(add);s2.append(h2);
+  const ads=kkAdressen(c);if(!ads.length)s2.append(el('p','hint','لا توجد عناوين بعد.'));
+  ads.forEach(a=>{const r=el('div','kk-adr'),i=el('div');i.append(el('span','kk-tag'+(a.typ==='rech'?' r':''),a.label?a.label+' · '+(KK_TYP[a.typ]||''):(KK_TYP[a.typ]||'')),el('div','a',kkTxt(a)));
+    const bt=el('div','row');bt.style.cssText='gap:6px;flex-wrap:nowrap';
+    if(a.typ==='rech'){const e=el('button','btn small','✎');e.title='تعديل';e.onclick=()=>openCustSheet(findCust(g.name)||null,nm=>kkOpen(custAll().find(x=>x.name===nm)||g));bt.append(e)}
+    else{const e=el('button','btn small','✎');e.title='تعديل';e.onclick=()=>kkAdrForm(g,a);bt.append(e)}
+    r.append(i,bt);s2.append(r)});
+  b.append(s2);
+  /* Logo & Etiketten */
+  const s3=el('div','kk-sec');s3.append(el('h4',null,'🏷️ الملصقات · Etiketten'));
+  if(c.clpLogo){const im=el('img');im.src=c.clpLogo;im.alt='';im.style.cssText='height:44px;max-width:170px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:8px;padding:3px';s3.append(im)}
+  s3.append(el('p','hint',c.clpLogo?'شعار العميل يُضاف تلقائياً فوق عنوانه على ملصقات CLP عند اختياره في طلب جديد.':'لا يوجد شعار. يُحفظ الشعار تلقائياً عند إضافته في الطلب (الخطوة 5).'+(c.clpAddr?'':'')));
+  if(c.clpAddr){const d=el('div','note');d.dir='ltr';d.textContent='CLP: '+c.clpAddr;s3.append(d)}
+  b.append(s3);
+  /* Aufträge */
+  const s4=el('div','kk-sec');s4.append(el('h4',null,'🧾 آخر الطلبات · Aufträge'));
+  if(!orders.length)s4.append(el('p','hint','لا توجد طلبات.'));
+  orders.slice(0,8).forEach(l=>{const r=el('button','kk-row'),i=el('div');i.append(el('b',null,'AP-'+stamp(l)),el('div','t',new Date(l.at).toLocaleDateString('de-DE')+' · '+cntTxt(l.items)+' · '+money(payOf(l).net)+(l.lief&&LIEF[l.lief]?' · '+LIEF[l.lief]:'')+' · '+(l.status==='done'?'مكتمل':'مفتوح')));
+    r.append(i,payBadge(l));r.onclick=()=>{closeSheet(true);openOrder(l.id)};s4.append(r)});
+  if(orders.length>8){const m=el('button','hlink','عرض كل الطلبات ('+orders.length+') ‹');m.onclick=()=>{closeSheet(true);focusId=null;focusCust=g.key;tab('wh');renderLists()};s4.append(m)}
+  if(isAdmin()||can('acc')){const out=el('div','filebox'),st=el('button','btn','📄 كشف حساب PDF · Kontoauszug');st.style.marginTop='8px';st.onclick=()=>makeStatement(g,st,out);s4.append(st,out)}
+  b.append(s4);
+  /* Sendungen */
+  const sh=[];orders.forEach(l=>{if(l.dhl&&l.dhl.nr)sh.push({nr:l.dhl.nr,n:l.dhl.n||1,at:l.dhl.at||l.at,id:'AP-'+l.id,t:'طلب AP-'+stamp(l)})});(c.ship||[]).forEach(x=>{if(x&&x.nr)sh.push({nr:x.nr,n:x.n||1,at:x.at,id:x.id,t:'ملصق مستقل'+(x.ref?' · '+x.ref:'')})});
+  if(sh.length){const s5=el('div','kk-sec');s5.append(el('h4',null,'🚚 الشحنات · Sendungen'));sh.sort((a,b2)=>(b2.at||0)-(a.at||0)).slice(0,8).forEach(x=>{const r=el('div','kk-adr'),i=el('div');
+      const nr=el('div','t');nr.append(el('bdi',null,x.nr));i.append(el('b',null,x.t),el('div','t',vzWhen(x.at)+' · '+x.n+' طرد'),nr);
+      const bt=el('div','row');bt.style.cssText='gap:6px;flex-wrap:nowrap';const tr=el('a','btn small','🔗');tr.href=dhlTrack(x.nr);tr.target='_blank';tr.rel='noopener';tr.title='تتبّع';
+      const pr=el('button','btn small','🖨️');pr.title='إعادة الطباعة';pr.onclick=async()=>{pr.disabled=true;try{await soCall('dhl_druck',{id:x.id,druck:true});toast('✓ أُرسل إلى Zebra')}catch(e){alert(dhlErr(e))}pr.disabled=false};
+      bt.append(pr,tr);r.append(i,bt);s5.append(r)});b.append(s5)}
+})}
+/* Adresse anlegen / bearbeiten */
+function kkAdrForm(g,a0){openSheet('📍 عنوان · Adresse',b=>{soCss();kkCss();sheetBack=()=>kkOpen(g);
+  const a=Object.assign({typ:'liefer',land:'DE'},a0||{}),txt=v=>String(v||'').trim();
+  const bk=el('button','btn small','← بطاقة العميل');bk.onclick=()=>kkOpen(g);b.append(bk,el('p','hint','العميل: '+g.name));
+  let typ=a.typ==='rech'?'liefer':a.typ;const seg=el('div','so-seg'),sb={};
+  [['liefer','🏠 عنوان شحن','Lieferadresse'],['end','🔁 مستلم نهائي','Endempfänger'],['ps','📦 Packstation','Packstation / Filiale']].forEach(([k,t,de])=>{const x=el('button');x.type='button';x.append(t,el('small',null,de));x.onclick=()=>{typ=k;show()};sb[k]=x;seg.append(x)});b.append(seg);
+  const eh=el('p','hint','المستلم النهائي = عميل عميلك (Dropshipping). على الملصق يظهر «'+g.name+' c/o Fragrance Hub Germany» كمرسِل، والحساب يبقى باسم «'+g.name+'».');b.append(eh);
+  const inp={},mk=(k,lab,v,x)=>{const i=el('input');i.dir='ltr';i.autocomplete='off';i.value=v||'';Object.assign(i,x||{});inp[k]=field(b,lab,i);return i};
+  mk('label','اسم مختصر للعنوان (اختياري) · Bezeichnung',a.label,{dir:'auto',placeholder:'مثال: الفرع في Essen'});
+  mk('name','اسم المستلم · Name *',a.name||(a0?'':g.name));mk('firma','الشركة · Firma',a.firma);
+  const z=[a.a1,a.a2].join(' ');
+  mk('a1','الشارع ورقم المبنى · Straße + Hausnr. *',/^(packstation|postfiliale)/i.test(a.a1||'')?'':a.a1);mk('a2','إضافة · Adresszusatz',/^postnummer/i.test(a.a2||'')?'':a.a2);
+  mk('psn','رقم المحطة أو الفرع · Packstation-/Filial-Nr. *',(z.match(/(?:packstation|postfiliale)\D{0,6}(\d{3,4})/i)||[])[1]||'',{inputMode:'numeric',maxLength:4});
+  mk('pn','رقم DHL الشخصي · Postnummer *',(z.match(/postnummer\D{0,3}(\d{6,10})/i)||[])[1]||'',{inputMode:'numeric',maxLength:10});
+  const cw=el('div');cw.style.cssText='display:grid;grid-template-columns:130px 1fr;gap:8px';b.append(cw);
+  const pz=el('input');pz.dir='ltr';pz.maxLength=10;pz.value=a.plz||'';inp.plz=field(cw,'الرمز البريدي · PLZ *',pz);
+  const ot=el('input');ot.dir='ltr';ot.value=a.ort||'';inp.ort=field(cw,'المدينة · Ort *',ot);
+  const ls=countrySel(a.land);ls.style.cssText='padding:10px;font:inherit;border-radius:10px;width:100%';field(b,'الدولة · Land',ls);
+  mk('tel','الهاتف · Telefon',a.tel,{type:'tel'});
+  const vis=(k,on)=>{const w=inp[k].closest('label');if(w)w.hidden=!on};
+  function show(){Object.keys(sb).forEach(k=>sb[k].classList.toggle('on',k===typ));const ps=typ==='ps';vis('a1',!ps);vis('a2',!ps);vis('psn',ps);vis('pn',ps);eh.hidden=typ!=='end';if(ps){ls.value='DE';ls.disabled=true}else ls.disabled=false}
+  show();adrHilfe({plz:inp.plz,ort:inp.ort,str:inp.a1,land:()=>ls.value});
+  const m=el('div','status');m.hidden=true;const row=el('div','row');row.style.cssText='gap:8px;flex-wrap:wrap;margin-top:12px';
+  const sv=el('button','btn primary big','💾 حفظ العنوان');row.append(sv);
+  if(a0&&a0.id&&a0.id!=='last'){const del=el('button','btn danger','🗑 حذف');let arm=0;del.onclick=async()=>{if(!arm){arm=1;del.textContent='اضغط مرة ثانية للتأكيد';setTimeout(()=>{arm=0;del.textContent='🗑 حذف'},4000);return}
+    try{const c=await kkEnsure(g);await kkSave(c,{addrs:(c.addrs||[]).filter(x=>x.id!==a0.id)});toast('✓ حُذف العنوان');kkOpen(g)}catch(e){m.hidden=false;m.classList.add('err');m.textContent=e.message||e}};row.append(del)}
+  b.append(row,m);
+  sv.onclick=async()=>{const v=k=>txt(inp[k].value),err=t=>{m.hidden=false;m.classList.add('err');m.textContent=t};
+    const x={id:(a0&&a0.id&&a0.id!=='last')?a0.id:kkId(),typ,label:v('label'),name:v('name'),firma:v('firma'),plz:v('plz'),ort:v('ort'),land:ls.value,tel:v('tel')};
+    if(!x.name&&!x.firma)return err('اسم المستلم مطلوب');if(!x.name)x.name=x.firma;if(!x.plz||!x.ort)return err('الرمز البريدي والمدينة مطلوبان');
+    if(typ==='ps'){const n=v('psn').replace(/\D/g,''),pn=v('pn').replace(/\D/g,'');if(!/^\d{3,4}$/.test(n))return err('رقم المحطة أو الفرع من 3 أو 4 أرقام');if(!/^\d{6,10}$/.test(pn))return err('رقم Postnummer من 6 إلى 10 أرقام');
+      x.a1=(n.length===3?'Packstation ':'Postfiliale ')+n;x.a2='Postnummer '+pn;x.land='DE'}
+    else{x.a1=v('a1');x.a2=v('a2');if(!x.a1)return err('الشارع ورقم المبنى مطلوبان');if(!/\d/.test(x.a1))return err('رقم المبنى ناقص')}
+    if(x.land==='DE'&&!/^\d{5}$/.test(x.plz))return err('الرمز البريدي في ألمانيا من 5 أرقام');
+    sv.disabled=true;try{const c=await kkEnsure(g);const arr=(c.addrs||[]).filter(y=>y.id!==x.id);arr.push(x);await kkSave(c,{addrs:arr.slice(-30)});toast('✓ حُفظ العنوان');kkOpen(g)}catch(e){err('لم يُحفظ: '+(e.message||e));sv.disabled=false}};
+})}
+/* Adress-Auswahl im Auftrag (Schritt 4): gespeicherte Adressen des Kunden als Schnellwahl */
+function kkLiefChips(){const box=$('lief-chips');if(!box)return;box.textContent='';const c=findCust(String(draft.cust||'').trim());const ads=kkAdressen(c);
+  box.hidden=!ads.length||!(draft.lief==='de'||draft.lief==='ab');if(box.hidden)return;
+  box.append(el('span','hint','العناوين المحفوظة:'));
+  ads.forEach(a=>{const x=el('button',null,(KK_TYP[a.typ]||'').split(' ')[0]+' '+(a.label||(a.typ==='rech'?'عنوان الفاتورة':[a.name,a.ort].filter(Boolean).join(' · '))));x.type='button';
+    const on=draft.dhlAdr?(draft.dhlAdr.a1===a.a1&&draft.dhlAdr.plz===a.plz):(a.typ==='rech'&&draft.street===a.a1);x.classList.toggle('on',!!on);
+    x.onclick=()=>{draft.street=[a.a1].filter(Boolean).join('');draft.city=joinCity(a.plz,a.ort);draft.country=a.land||'DE';$('street').value=draft.street;setCityUI(draft.city);$('country').value=draft.country;try{showLang()}catch(e){}
+      draft.dhlAdr=a.typ==='rech'?null:kkDhl(c,a);if(draft.lief==='de'&&draft.country!=='DE')draft.lief='ab';saveDraft();liefUI();kkLiefChips();updStepper()};box.append(x)});
+  if(draft.dhlAdr){const d=el('div','note');d.style.width='100%';d.textContent=(draft.dhlAdr.drop?'🔁 مستلم نهائي · المرسِل على الملصق: '+draft.dhlAdr.abs+' c/o Fragrance Hub · ':'📍 ')+kkTxt(draft.dhlAdr).replace(/\n/g,' · ');box.append(d)}}
 
 /* ---------- الأقسام · Bereiche: Start · Verkauf · Versand · Kunden & Finanzen · Lager ---------- */
 const HUBS={sales:{t:'🧾 المبيعات',de:'Verkauf · Aufträge · Angebote · Shop',tiles:['h-new','h-wh','h-off','h-done','h-shop']},
@@ -1627,11 +1770,11 @@ function renderFreq(){const box=$('freq');if(!box)return;box.textContent='';if($
   top.forEach(({i,n})=>{const b=el('button','qchip');b.type='button';{const src2=setSrc(i.sku||i.code)||(!isOil(i)?capSrc(i.t,i.size):'');if(src2)b.append(mkImg(src2,''))}
     b.append(el('span',null,itemLabel(i)));if(mine.length)b.append(el('small',null,'×'+n));b.onclick=()=>{const c=Object.assign({},i,{q:1});addCopies([c]);toast('أُضيف: '+itemLabel(i))};r.append(b)});
   box.append(r);box.hidden=false}
-function pickCust(c){$('cust').value=c.name;draft.cust=c.name;
+function pickCust(c){$('cust').value=c.name;draft.cust=c.name;draft.dhlAdr=null;
       if(c.street||c.city||c.country){draft.street=c.street||'';draft.city=c.city||'';draft.country=c.country||'DE';$('street').value=draft.street;setCityUI(draft.city);$('country').value=draft.country;showLang()}
       if(c.clpLogo){draft.clpLogo=c.clpLogo;if(c.clpAddr&&!(draft.clpAddr||'').trim()){draft.clpAddr=c.clpAddr;$('clp-addr').value=c.clpAddr}showLogo()}
       if(c.phone){draft.phone=c.phone;$('cphone').value=c.phone}if(c.email){draft.email=c.email;$('cemail').value=c.email}
-saveDraft();$('cust-sug').hidden=true;showCust()}
+saveDraft();$('cust-sug').hidden=true;showCust();try{liefUI()}catch(e){}}
 function suggest(){
   const box=$('cust-sug'),k=custKey($('cust').value);box.textContent='';
   const hits=k?customers.filter(c=>custKey(c.name).includes(k)&&custKey(c.name)!==k).slice(0,6):[];
@@ -1679,14 +1822,15 @@ const LIEF={pickup:'🏬 استلام من المستودع',de:'📦 شحن د�
 function liefUI(){const v=draft.lief||'';document.querySelectorAll('#lief button').forEach(b=>b.classList.toggle('on',b.dataset.l===v));
   const ship=v==='de'||v==='ab';$('lief-box').hidden=!ship;
   $('lief-hint').textContent=!v?'اختر طريقة التسليم ليعرف المستودع كيف يجهّز الطلب.':v==='pickup'?'يستلم العميل الطلب بنفسه من المستودع – لا يلزم عنوان ولا ملصق شحن.':v==='de'?'أدخل عنوان الشحن داخل ألمانيا. الرمز البريدي يكمل المدينة تلقائياً.':'أدخل عنوان الشحن والدولة. داخل الاتحاد الأوروبي: DHL Europaket للشركات، وخارجه DHL Express.';
-  if(v==='de'&&$('country').value!=='DE'){$('country').value='DE';draft.country='DE';try{showLang()}catch(e){}}}
+  if(v==='de'&&$('country').value!=='DE'&&!draft.dhlAdr){$('country').value='DE';draft.country='DE';try{showLang()}catch(e){}}
+  try{kkCss();kkLiefChips()}catch(e){}}
 document.querySelectorAll('#lief button').forEach(b=>b.onclick=()=>{draft.lief=draft.lief===b.dataset.l?'':b.dataset.l;if(draft.lief!=='de'&&draft.lief!=='ab'&&!draft.versand){}saveDraft();liefUI();updStepper();if(draft.lief==='de'||draft.lief==='ab')setTimeout(()=>{const f=$('street');if(f&&!f.value)f.focus()},150)});
 function updStepper(){const st=$('stepper');if(!st)return;const has=draft.items.length>0,adrOk=!!(draft.street&&draft.city);
   const S={1:!!String(draft.cust||'').trim(),2:has,3:has&&draft.items.every(i=>i.price!=null&&i.price!==''),4:draft.lief==='pickup'||((draft.lief==='de'||draft.lief==='ab')&&adrOk),5:false};
   st.querySelectorAll('button').forEach(b=>{const k=b.dataset.st;b.classList.toggle('ok',!!S[k]);b.classList.toggle('need',k==='4'&&has&&!S[4]||k==='3'&&has&&!S[3])});
   const s5=$('sum5');if(s5)s5.textContent=has?draft.items.length+' صنف · المجموع '+$('sum').textContent+(draft.lief?' · '+LIEF[draft.lief]:''):'السلة فارغة'}
 document.querySelectorAll('#stepper button').forEach(b=>b.onclick=()=>{const p=$('st-'+b.dataset.st);if(p)p.scrollIntoView({behavior:'smooth',block:'start'})});
-['street','city','plz','cust'].forEach(id=>{const e=$(id);if(e)e.addEventListener('input',()=>setTimeout(updStepper,50))});
+['street','city','plz','cust'].forEach(id=>{const e=$(id);if(e)e.addEventListener('input',()=>{if(id!=='cust'&&draft.dhlAdr){draft.dhlAdr=null;saveDraft()}setTimeout(()=>{updStepper();if(id==='cust')try{kkLiefChips()}catch(e){}},50)})});
 setTimeout(()=>{try{liefUI();updStepper()}catch(e){}},300);
 function saveDraft(){draft.at=Date.now();LS.set('draft3',draft);$('send').disabled=!draft.items.length||!db;$('offer').disabled=!draft.items.length}
 /* Mengen-Staffeln intern: Varianten, die sich nur in der Menge unterscheiden (Muster / Karton … / N Stück), werden zu EINEM Eintrag.
@@ -1729,7 +1873,7 @@ function renderItems(){
   const stale=draft.items.length&&!editing&&(Date.now()-(draft.at||0))>15*60000;$('draftbar').hidden=!stale;
   if(stale)$('draft-txt').textContent='⚠️ مسودة غير مرسلة من '+new Date(draft.at||Date.now()).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})+' · '+n+' صنف'+(draft.cust?' · '+draft.cust:'')+' — هل تريد متابعتها أم البدء بطلب جديد؟';
 }
-function resetDraft(){try{setEditOffer(null)}catch(e){}try{$('cphone').value='';$('cemail').value=''}catch(e){}$('clp-addr').value='';$('cust-no').textContent='';draft={lief:'',cust:'',note:'',rabatt:0,rabattFix:0,versand:0,kg:false,items:[],street:'',city:'',country:'DE',phone:'',email:''};$('cust').value='';$('versand').value='';$('rabscope').value='all';$('kgprice').checked=false;$('kg-st').textContent='';$('street').value='';setCityUI('');$('country').value='DE';showLang();$('note').value='';$('rab').value='';$('rabfix').value='';saveDraft();renderItems();showLogo()}
+function resetDraft(){try{setEditOffer(null)}catch(e){}try{$('cphone').value='';$('cemail').value=''}catch(e){}$('clp-addr').value='';$('cust-no').textContent='';draft={lief:'',dhlAdr:null,cust:'',note:'',rabatt:0,rabattFix:0,versand:0,kg:false,items:[],street:'',city:'',country:'DE',phone:'',email:''};$('cust').value='';$('versand').value='';$('rabscope').value='all';$('kgprice').checked=false;$('kg-st').textContent='';$('street').value='';setCityUI('');$('country').value='DE';showLang();$('note').value='';$('rab').value='';$('rabfix').value='';saveDraft();renderItems();showLogo()}
 $('clear').onclick=resetDraft;
 function setEditing(l){
   editing=l?{id:l.id,customer:l.customer}:null;LS.set('edit3',editing);
@@ -1737,7 +1881,7 @@ function setEditing(l){
   $('send').textContent=editing?'حفظ التعديلات على الطلب':'إرسال إلى المستودع';
 }
 function editList(l){
-  draft={lief:l.lief||'',phone:l.phone||'',email:l.email||'',clpLogo:l.clpLogo||'',clpAddr:l.clpAddr||'',street:l.street||'',city:l.city||'',country:l.country||'DE',cust:l.customer||'',note:l.note||'',rabatt:+l.rabatt||0,rabattFix:+l.rabattFix||0,versand:+l.versand||0,rabScope:l.rabScope||'all',kg:!!l.kg,kgOff:!l.kg,items:JSON.parse(JSON.stringify(l.items||[]))};$('kgprice').checked=!!l.kg;$('rabscope').value=l.rabScope||'all';
+  draft={lief:l.lief||'',dhlAdr:l.dhlAdr||null,phone:l.phone||'',email:l.email||'',clpLogo:l.clpLogo||'',clpAddr:l.clpAddr||'',street:l.street||'',city:l.city||'',country:l.country||'DE',cust:l.customer||'',note:l.note||'',rabatt:+l.rabatt||0,rabattFix:+l.rabattFix||0,versand:+l.versand||0,rabScope:l.rabScope||'all',kg:!!l.kg,kgOff:!l.kg,items:JSON.parse(JSON.stringify(l.items||[]))};$('kgprice').checked=!!l.kg;$('rabscope').value=l.rabScope||'all';
   $('cphone').value=draft.phone||'';$('cemail').value=draft.email||'';$('clp-addr').value=draft.clpAddr||'';$('street').value=draft.street;setCityUI(draft.city);$('country').value=draft.country;showLang();$('cust').value=draft.cust;showCust();$('note').value=draft.note;$('rab').value=draft.rabatt||'';$('rabfix').value=draft.rabattFix||'';$('versand').value=draft.versand||'';
   showLogo();try{setEditOffer(null)}catch(e){}setEditing(l);saveDraft();renderItems();sendStatus('');$('last-actions').hidden=true;tab('new');$('q').focus();
 }
@@ -2590,7 +2734,7 @@ async function pregenClp(id,rec){
   }catch(e){console.warn('CLP pregen',e)}
 }
 let sheetPushed=false,skipPop=false,sheetBack=null;   /* sheetBack: Zurück-Taste im Fenster → vorherige Ansicht statt Startseite */
-function openSheet(t,fill){$('sheet-t').textContent=t;$('sheet').classList.toggle('chat',/^💬/.test(t));{const sh=$('sheet'),stay=!sh.hidden&&sh.classList.contains('page');sh.classList.toggle('page',/^(🛒|🚚)/.test(t)||stay);$('sheet-x').textContent=sh.classList.contains('page')?'🏠 الرئيسية':'إغلاق'}const b=$('sheet-b'),sb=0;[['settings-body','settings-holder'],['cs-form','cs-form-holder']].forEach(([x,h])=>{const e=$(x);if(e&&b.contains(e))$(h).append(e)});b.textContent='';sheetBack=null;fill(b);$('sheet').hidden=false;if(!IN_GAS&&!sheetPushed){try{history.pushState({sh:1},'');sheetPushed=true}catch(e){}}}
+function openSheet(t,fill){$('sheet-t').textContent=t;$('sheet').classList.toggle('chat',/^💬/.test(t));{const sh=$('sheet'),stay=!sh.hidden&&sh.classList.contains('page');sh.classList.toggle('page',/^(🛒|🚚|👤)/.test(t)||stay);$('sheet-x').textContent=sh.classList.contains('page')?'🏠 الرئيسية':'إغلاق'}const b=$('sheet-b'),sb=0;[['settings-body','settings-holder'],['cs-form','cs-form-holder']].forEach(([x,h])=>{const e=$(x);if(e&&b.contains(e))$(h).append(e)});b.textContent='';sheetBack=null;fill(b);$('sheet').hidden=false;if(!IN_GAS&&!sheetPushed){try{history.pushState({sh:1},'');sheetPushed=true}catch(e){}}}
 function closeSheet(fromPop){if($('sheet').hidden)return;if($('sheet').classList.contains('page'))try{sessionStorage.removeItem('fhSo')}catch(e){}$('sheet').hidden=true;if(sheetPushed&&!fromPop){skipPop=true;try{history.back()}catch(e){skipPop=false}}sheetPushed=false}
 $('sheet-x').onclick=()=>closeSheet();$('sheet').onclick=e=>{if(e.target===$('sheet')&&!$('sheet').classList.contains('page'))closeSheet()};
 let sheetFor='';
@@ -2781,7 +2925,7 @@ $('offer').onclick=async()=>{
   b.disabled=!draft.items.length;
 };
 function offerToDraft(o){
-  draft={lief:o.lief||'',phone:o.phone||'',email:o.email||'',clpLogo:o.clpLogo||'',clpAddr:o.clpAddr||'',street:o.street||'',city:o.city||'',country:o.country||'DE',cust:o.customer||'',note:o.note||'',rabatt:+o.rabatt||0,rabattFix:+o.rabattFix||0,versand:+o.versand||0,rabScope:o.rabScope||'all',kg:!!o.kg,kgOff:!o.kg,items:JSON.parse(JSON.stringify(o.items||[]))};
+  draft={lief:o.lief||'',dhlAdr:o.dhlAdr||null,phone:o.phone||'',email:o.email||'',clpLogo:o.clpLogo||'',clpAddr:o.clpAddr||'',street:o.street||'',city:o.city||'',country:o.country||'DE',cust:o.customer||'',note:o.note||'',rabatt:+o.rabatt||0,rabattFix:+o.rabattFix||0,versand:+o.versand||0,rabScope:o.rabScope||'all',kg:!!o.kg,kgOff:!o.kg,items:JSON.parse(JSON.stringify(o.items||[]))};
   $('kgprice').checked=!!o.kg;$('rabscope').value=draft.rabScope;$('cphone').value=draft.phone;$('cemail').value=draft.email;$('clp-addr').value=draft.clpAddr;$('street').value=draft.street;setCityUI(draft.city);$('country').value=draft.country;showLang();$('cust').value=draft.cust;showCust();$('note').value=draft.note;$('rab').value=draft.rabatt||'';$('rabfix').value=draft.rabattFix||'';$('versand').value=draft.versand||'';
   showLogo();setEditing(null);setEditOffer(o);saveDraft();renderItems();sendStatus('تعديل عرض السعر: '+o.customer+' — عدّل الأصناف ثم اضغط «حفظ التعديلات على عرض السعر».');$('last-actions').hidden=true;closeSheet();tab('new');
 }
@@ -2838,7 +2982,7 @@ $('send').onclick=async()=>{
   {const w=preCheck();if(w.length&&!(await confirmChecks(w,'الإرسال')))return}
   $('send').disabled=true;
   const offId=editOffer&&editOffer.id,offAt=editOffer&&editOffer.at,was0=!!editing;
-  const rec={customer:draft.cust.trim(),note:(draft.note||'').trim(),rabatt:+draft.rabatt||0,rabattFix:+draft.rabattFix||0,versand:+draft.versand||0,rabScope:draft.rabScope||'all',kg:!!draft.kg,clpAddr:(draft.clpAddr||'').trim(),clpLogo:draft.clpLogo||'',street:(draft.street||'').trim(),city:(draft.city||'').trim(),country:draft.country||'DE',phone:(draft.phone||'').trim(),email:(draft.email||'').trim(),lief:draft.lief||'',items:draft.items,status:'new',at:Date.now()};
+  const rec={customer:draft.cust.trim(),note:(draft.note||'').trim(),rabatt:+draft.rabatt||0,rabattFix:+draft.rabattFix||0,versand:+draft.versand||0,rabScope:draft.rabScope||'all',kg:!!draft.kg,clpAddr:(draft.clpAddr||'').trim(),clpLogo:draft.clpLogo||'',street:(draft.street||'').trim(),city:(draft.city||'').trim(),country:draft.country||'DE',phone:(draft.phone||'').trim(),email:(draft.email||'').trim(),lief:draft.lief||'',dhlAdr:draft.lief==='pickup'?null:(draft.dhlAdr||null),items:draft.items,status:'new',at:Date.now()};
   if(!editing&&WHO())rec.by=WHO();if(editing&&WHO())rec.editedBy=WHO();
   if(offId&&!was0)rec.offerAt=offAt;if(was0)delete rec.status;
   try{
