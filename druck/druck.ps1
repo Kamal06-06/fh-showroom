@@ -25,6 +25,7 @@ function SelbstUpdate {
   try {
     $neu = (Invoke-WebRequest "$SELFURL`?t=$([DateTime]::UtcNow.Ticks)" -UseBasicParsing -TimeoutSec 30).Content
     if ($neu -is [byte[]]) { $neu = [Text.Encoding]::UTF8.GetString($neu) }
+    if ($neu) { $neu = $neu.TrimStart([char]0xFEFF) }  # BOM nur einmal (sonst Fehler in Zeile 1)
     if ($neu -and $neu.Length -gt 5000 -and $neu.Contains('FH-Druck') -and $neu -ne (Get-Content $PSCommandPath -Raw)) {
       Set-Content -Path $PSCommandPath -Value $neu -Encoding UTF8 -NoNewline
       if ($neu -ne (Get-Content $PSCommandPath -Raw)) { return }  # Schutz gegen Neustart-Schleife
