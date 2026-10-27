@@ -135,6 +135,12 @@ function PdfZuZpl($datei) {
     WartenAkt ($pg.RenderToStreamAsync($ms, $opt))
     $st = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ms.GetInputStreamAt(0))
     $bmp = New-Object System.Drawing.Bitmap($st)
+    # DHL Express Commerce liefert A4 quer (Etikett links, ca. 104 x 199 mm) -> Etikettenbereich ausschneiden
+    if ($pg.Size.Width -gt $pg.Size.Height * 1.2) {
+      $w = $bmp.Width; $h = $bmp.Height
+      $r = New-Object System.Drawing.Rectangle([int]($w * 80 / 842), [int]($h * 16 / 595), [int]($w * 292 / 842), [int]($h * 564 / 595))
+      $teil = $bmp.Clone($r, $bmp.PixelFormat); $bmp.Dispose(); $bmp = $teil
+    }
     [void]$zpl.Append([FhZebra]::Zpl($bmp, 832, 1600, 140))
     $bmp.Dispose(); $st.Dispose(); $ms.Dispose(); $pg.Dispose()
   }
