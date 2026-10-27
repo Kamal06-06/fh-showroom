@@ -4615,7 +4615,7 @@ function radioChip(){radioCss();let c=$('rd-chip');if(!c){c=el('div');c.id='rd-c
   const on=radioAu&&!radioAu.paused;c.hidden=!on;if(on){c.firstChild.textContent='🎧 '+(radioCur?radioCur.n:'');c.lastChild.textContent='⏸'}}
 function radioPlay(st){radioCur=st;LS.set('radioCur',st);if(!radioAu){radioAu=new Audio();radioAu.preload='none';radioAu.onplaying=()=>{radioChip();radioRedraw()};radioAu.onpause=()=>{radioChip();radioRedraw()};
     radioAu.onerror=()=>{toast('⚠️ المحطة لا تبث الآن – جرّب محطة أخرى');radioChip();radioRedraw()}}
-  radioAu.src=st.u;radioAu.volume=LS.get('radioVol',0.8);radioAu.play().catch(e=>toast('⚠️ '+(e.message||e)));
+  radioAu.src=st.u;radioAu.volume=LS.get('radioVol',0.8);radioAu.play().catch(e=>{if(e&&e.name!=='NotAllowedError'&&e.name!=='AbortError')toast('⚠️ المحطة لا تبث الآن – جرّب محطة أخرى')});
   try{if('mediaSession' in navigator){navigator.mediaSession.metadata=new MediaMetadata({title:st.n,artist:'راديو سوريا · Fragrance Hub',artwork:st.f?[{src:st.f,sizes:'96x96'}]:[{src:'icon-192.png',sizes:'192x192'}]});
     navigator.mediaSession.setActionHandler('play',()=>radioAu.play());navigator.mediaSession.setActionHandler('pause',()=>radioAu.pause())}}catch(e){}
   radioRedraw()}
