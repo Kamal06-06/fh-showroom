@@ -4730,7 +4730,13 @@ const SO_FLAG=c=>String(c||'').toUpperCase().replace(/./g,ch=>String.fromCodePoi
 const soShip=o=>String(o.land||'DE').toUpperCase()==='DE'?'DHL Paket':'DHL Express';
 const soPrep=o=>{const st=o.stand||{},n=(o.items||[]).length,c=(st.prep||[]).filter(Boolean).length;return {n,c,ready:!!st.readyAt||!!st.abBereitAt||o.ful==='FULFILLED'}};
 /* Shop-Bestellung → Auftrags-Objekt nur für Etiketten (wird nirgends gespeichert) */
-const soAsList=o=>({id:'so'+o.id,customer:o.kunde,country:o.land,at:o.at,shopNr:o.nr,items:o.items.map(i=>Object.assign({},i)),lots:(o.stand||{}).lots||{}});
+/* 🧪 Probierset nach Wahl: gewählte Düfte stehen als Eigenschaften „Duft 1…n“ an der Position → je Duft eine 6-g-Premium-Probe */
+const psDuefte=it=>(it.props||[]).filter(p=>/^duft\s*\d+/i.test(String(p[0]||''))).map(p=>String(p[1]||'').trim()).filter(Boolean);
+function psFind(name){const f=fold(name).trim();let p=catalog.find(x=>x.oil&&x.kt===f)||catalog.find(x=>x.oil&&x.kt.startsWith(f))||catalog.find(x=>x.oil&&x.kt.includes(f));if(!p)return null;
+  const v=p.v.find(v=>/premium/i.test(String(v[0]||'').split(' / ').pop()))||p.v[0];return {t:p.t,code:v?stem(v[1]):''}}
+function psItems(o){const out=[];(o.items||[]).forEach(it=>{const d=psDuefte(it);if(!d.length)return;const n=Math.max(1,+it.rq||+it.q||1),z={};
+  d.forEach(nm=>{const h=psFind(nm),k=(h?h.code:'')+'|'+nm;if(z[k])z[k].q+=n;else out.push(z[k]={t:h?h.t:nm,oil:1,tier:'Premium',code:h?h.code:'',size:'6 g',probe:true,q:n,sku:'',ps:true})})});return out}
+const soAsList=o=>({id:'so'+o.id,customer:o.kunde,country:o.land,at:o.at,shopNr:o.nr,items:o.items.map(i=>Object.assign({},i)).concat(psItems(o)),lots:(o.stand||{}).lots||{}});
 function shopPwSheet(after,setMode){
   openSheet(setMode?'🔑 كلمة سر طلبات المتجر':'🔒 طلبات المتجر',b=>{
     b.append(el('p','hint',setMode?'اختر كلمة سر لقسم طلبات المتجر (4 أحرف على الأقل). يحتاجها كل من يفتح هذا القسم.':'هذا القسم محمي بكلمة سر.'));
@@ -5037,7 +5043,7 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
   const a1=el('div','so-act');
   const lsA4=el('button','btn primary','🖨️ طباعة في المستودع (A4)');lsA4.onclick=()=>soLsPrint([o],lsA4,'a4');
   const lsP=el('button','btn','📄 PDF / طباعة هنا');lsP.onclick=()=>soLsPrint([o],lsP,'pdf');a1.append(lsA4,lsP);b.append(a1);
-  if(o.items.some(i=>i.oil)){sec('🏷️ ملصقات الزيوت');const a2=el('div','so-act');
+  if(l.items.some(i=>i.oil)){sec('🏷️ ملصقات الزيوت');const a2=el('div','so-act');
     const isPr=it=>it.oil&&(it.probe||/^6\s*g$/i.test(String(it.size||'').trim())),sub=f=>Object.assign({},l,{items:l.items.map((it,i)=>Object.assign({},it,{_ix:i})).filter(f)});
     const nPr=l.items.filter(isPr).length,nGr=l.items.filter(it=>it.oil&&!isPr(it)).length;
     if(nPr){const pm=el('button','btn'+(nGr?'':' primary'),'🏷️ ملصقات العينات → Phomemo · '+nPr);pm.onclick=()=>epsonPrint(sub(isPr),pm);a2.append(pm)}
@@ -5246,6 +5252,7 @@ function soLsData(o){const R={oils:[],other:[],nPos:0,nOil:0,oilG:0,nStk:0};
       (it.props||[]).forEach(pr=>{if(pr[0]==='Sprühkopf')sprc=String(pr[1]||'')});
       if(!per)per=1;const total=per*qty;R.nStk+=total;
       let rows=[];if(isset)rows=[['Kappe',cap.includes('Ohne')?'OHNE KAPPE':cap],['Sprühkopf',spr.includes('Ohne')?'OHNE SPRÜHKOPF':sprc||'Farbe siehe Bestellung']];else if(rest)rows=[['-',rest]];
+      {const dd=psDuefte(it);if(dd.length){rows=dd.map((nm,k)=>{const h=psFind(nm);return ['Duft '+(k+1),nm+(h&&h.code?'  ·  '+h.code:'')+'  (Premium 6 g)']})}}
       R.other.push({name:String(it.t).replace(' - Set nach Wahl (Sprühkopf & Kappe)',' - Komplett-Set'),sku,menge,rows,total,per,qty,isset,spr,cap,img:it.img})}});
   return R}
 const soImgC={};
@@ -5315,7 +5322,7 @@ function soLsPdf(orders){
         T(it.name,x,yy,{b:1,pt:P(14),mw:nmw});yy+=M(16);T(it.sku+(it.menge?' · '+it.menge:''),x,yy,{font:'courier',pt:P(11),c:[102,102,102]});yy+=M(8);
         it.rows.forEach(([lab,val])=>{yy+=M(6);let xx=x;const rc=yy+M(13);
           if(lab!=='-'){T(lab.toUpperCase(),xx,rc+M(4),{b:1,pt:P(11),c:GRAY,cs:M(1)});xx+=M(82)}
-          const hx=String(val).toLowerCase().replace(/-/g,' ').split(' ').map(w=>SO_HEX[w]).filter(Boolean);
+          const hx=/^Duft /.test(lab)?[]:String(val).toLowerCase().replace(/-/g,' ').split(' ').map(w=>SO_HEX[w]).filter(Boolean);
           if(hx.length){hx.forEach(c=>{if(c==='klar'){doc.setFillColor(255,255,255)}else{const n=parseInt(c.slice(1),16);doc.setFillColor(n>>16,(n>>8)&255,n&255)}doc.setDrawColor(...NAVY);doc.setLineWidth(M(1.5));doc.rect(xx,rc-M(10),M(20),M(20),'FD');
             if(c==='klar'){doc.setDrawColor(200);doc.setLineWidth(M(1));for(let k=-12;k<20;k+=6)doc.line(xx+Math.max(0,M(k)),rc-M(10)+Math.max(0,-M(k)),xx+Math.min(M(20),M(k+20)),rc-M(10)+Math.min(M(20),M(20-k)))}
             xx+=M(20)});xx+=M(8)}
