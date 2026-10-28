@@ -1503,7 +1503,7 @@ function homeTop(openL){
   const box=$('h-today');box.textContent='';box.classList.add('ops');
   {const fb=$('fin-btn');if(fb)fb.hidden=!isAdmin()}
   const rdyN=openL.filter(isReady).length,late=openL.filter(l=>!isReady(l)&&l.kind!=='debt'&&(l.at||0)<Date.now()-864e5).length;
-  let wait=0,shopN='–',lab=0;wait=lists.filter(l=>l.kind!=='debt'&&l.status!=='done'&&(l.lief==='de'||l.lief==='ab')&&(l.items||[]).length&&!(l.dhl&&l.dhl.nr)).length;try{shopN=(SO.orders||[]).filter(o=>soPaid(o)&&!soPrep(o).ready).length}catch(e){}try{lab=vzSendungen().filter(x=>(x.at||0)>=sod).reduce((a,x)=>a+(x.n||1),0)}catch(e){}
+  let wait=0,shopN='–',lab=0;wait=lists.filter(l=>l.kind!=='debt'&&l.status!=='done'&&(l.lief==='de'||l.lief==='ab')&&(l.items||[]).length&&!apShipDone(l)).length;try{shopN=(SO.orders||[]).filter(o=>soPaid(o)&&!soPrep(o).ready).length}catch(e){}try{lab=vzSendungen().filter(x=>(x.at||0)>=sod).reduce((a,x)=>a+(x.n||1),0)}catch(e){}
   const T=(v,t,f,cls,id)=>{const b=el('button',cls||'');if(id)b.id=id;b.append(el('b',null,String(v)),el('span',null,t));if(f)b.onclick=f;else b.style.cursor='default';box.append(b)};
   const SOo=(()=>{try{return (SO.orders||[]).filter(o=>!o.cancel&&!o.cancelled)}catch(e){return []}})(),soOpen=SOo.filter(o=>soPaid(o)&&!soShipped(o));
   const soToday=SOo.filter(o=>(o.at||0)>=sod).length,soTodo=soOpen.filter(o=>!soPrep(o).ready).length,soRdy=soOpen.filter(o=>soPrep(o).ready).length,soLate=soOpen.filter(o=>(o.at||0)<Date.now()-864e5).length,SH=()=>$('h-shop').click(),WH=()=>$('h-wh').click();
@@ -5639,6 +5639,7 @@ function vzCss(){if($('vz-css'))return;const s=document.createElement('style');s
 .vz-row .bt{display:flex;gap:6px;flex-wrap:nowrap}
 .vz-tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--soft);color:var(--muted);margin-inline-start:6px}
 .vz-empty{color:var(--muted);font-size:13.5px;padding:8px 2px}
+.vz-fresh{border-inline-start:4px solid var(--ok)}.vz-mv{color:var(--ok);font-weight:600}
 .vz-price{font-size:13px;margin:6px 0 2px;padding:8px 10px;border-radius:10px;background:var(--soft)}
 .vz-price.stale{background:#fff4d6;color:#7a5a00}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .vz-price.stale{background:#3a3014;color:#f3d27a}}
@@ -5650,8 +5651,16 @@ function vzSendungen(){const out=[];
   lists.forEach(l=>{if(l.kind!=='debt'&&l.dhl&&l.dhl.nr)out.push({src:'ap',l,id:'AP-'+l.id,nr:l.dhl.nr,n:l.dhl.n||1,at:l.dhl.at||l.at,name:custLabel(l)})});
   customers.forEach(c=>(c.ship||[]).forEach(s=>{if(s&&s.nr)out.push({src:'frei',c,s,id:s.id,nr:s.nr,n:s.n||1,kg:s.kg,at:s.at,name:c.name+(c.no?' ('+c.no+')':''),ref:s.ref})}));
   return out.sort((a,b)=>(b.at||0)-(a.at||0))}
+/* Versand komplett = für alle Pakete des Auftrags ein Etikett erstellt */
+function apShipDone(l){return !!(l&&l.dhl&&l.dhl.nr)&&(+l.dhl.n||1)>=(+l.pakete||1)}
+const VZ_LOG_MS=2*3600e3;   /* nach 2 Stunden: ins Sendungsprotokoll, Auftrag wird automatisch abgeschlossen */
 function vzOffen(){const lim=Date.now()-45*864e5;
-  return lists.filter(l=>l.kind!=='debt'&&(l.items||[]).length&&apIsDE(l)&&!(l.dhl&&l.dhl.nr)&&(l.at||0)>lim&&(l.lief==='de'||l.lief==='ab')).sort((a,b)=>(b.at||0)-(a.at||0))}
+  return lists.filter(l=>l.kind!=='debt'&&l.status!=='done'&&(l.items||[]).length&&apIsDE(l)&&!apShipDone(l)&&(l.at||0)>lim&&(l.lief==='de'||l.lief==='ab')).sort((a,b)=>(b.at||0)-(a.at||0))}
+/* Showroom-Aufträge: 2 Stunden nach vollständigem Versand automatisch abschließen → Vorbereitungslisten bleiben leer */
+async function apAutoClose(){try{if(!ME||!ME.user||typeof lists==='undefined')return;const t=Date.now()-VZ_LOG_MS;
+  for(const l of lists){if(l.kind==='debt'||l.status==='done'||!apShipDone(l)||(+l.dhl.at||0)>t)continue;
+    try{await db.doc('lists/'+l.id).update({status:'done',doneAt:Date.now(),doneBy:'Versand ✓'})}catch(e){}}}catch(e){}}
+setInterval(apAutoClose,5*60e3);setTimeout(apAutoClose,20e3);
 function vzOpen(){openSheet('🚚 مركز الشحن · Versandzentrale',b=>{soCss();vzCss();
   const act=el('div','vz-act'),A=(cls,ic,t,s,f)=>{const x=el('button',cls);x.append(el('b',null,ic+' '+t),el('span',null,s));x.onclick=f;act.append(x)};
   A('pri','📦','ملصق DHL داخل ألمانيا','DHL Paket · بدون طلب أو لأي عنوان',()=>vzPaket());
@@ -5664,28 +5673,35 @@ function vzOpen(){openSheet('🚚 مركز الشحن · Versandzentrale',b=>{so
   const h1=el('div','vz-h');h1.append(el('b',null,'⏳ طلبات تنتظر ملصق الشحن'),el('small',null,'Warten auf Etikett · '+off.length));b.append(h1);
   if(!off.length)b.append(el('div','vz-empty','لا توجد طلبات من الصالة تنتظر ملصقاً ✓'));
   off.slice(0,15).forEach(l=>{const r=el('div','vz-row'),i=el('div'),a=apAdr(l);
-    i.append(el('b',null,custLabel(l)),el('div','t',[a.plz,a.ort].filter(Boolean).join(' ')+' · '+vzWhen(l.at)+' · '+cntTxt(l.items)));
+    i.append(el('b',null,custLabel(l)),el('div','t',[a.plz,a.ort].filter(Boolean).join(' ')+' · '+vzWhen(l.at)+' · '+cntTxt(l.items)+(l.dhl&&l.dhl.nr?' · 📦 '+(+l.dhl.n||1)+' من '+(+l.pakete||1)+' طرود':'')));
     const bt=el('div','bt'),go=el('button','btn small primary','📦 إنشاء الملصق');go.onclick=()=>apDhl(l);bt.append(go);r.append(i,bt);b.append(r)});
-  /* سجل الشحنات */
-  const all=vzSendungen();
-  const h2=el('div','vz-h');h2.append(el('b',null,'📋 سجل الشحنات'),el('small',null,'Sendungen · DHL Paket'));b.append(h2);
-  const q=el('input');q.type='search';q.placeholder='🔎 بحث بالاسم أو رقم الشحنة · Suche';q.style.cssText='width:100%;padding:10px 12px;font:inherit;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);box-sizing:border-box';b.append(q);
-  const chips=el('div','so-chips');chips.style.marginTop='8px';let per='7';
-  [['1','اليوم · Heute'],['7','7 أيام'],['all','الكل · Alle']].forEach(([k,t])=>{const c=el('button','so-chip'+(k===per?' on':''),t);c.onclick=()=>{per=k;[...chips.children].forEach(x=>x.classList.toggle('on',x===c));draw()};chips.append(c)});b.append(chips);
-  const box=el('div');b.append(box);
-  const m=el('div','status');m.hidden=true;m.style.whiteSpace='pre-line';b.append(m);const say=(t,err)=>{m.hidden=false;m.classList.toggle('err',!!err);m.textContent=t};
-  function draw(){box.textContent='';const s=q.value.trim().toLowerCase(),lim=per==='all'?0:Date.now()-(+per)*864e5;
-    const L=all.filter(x=>(x.at||0)>=lim&&(!s||(x.name+' '+x.nr+' '+(x.ref||'')).toLowerCase().includes(s)));
-    if(!L.length){box.append(el('div','vz-empty',all.length?'لا توجد شحنات في هذه الفترة.':'لا توجد شحنات بعد. الشحنات الجديدة تظهر هنا تلقائياً.'));return}
-    L.slice(0,60).forEach(x=>{const r=el('div','vz-row'),i=el('div');
+  /* شحنات آخر ساعتين – ثم تنتقل إلى السجل */
+  const ok=x=>x.src!=='ap'||apShipDone(x.l),ALL=vzSendungen().filter(ok),cut=Date.now()-VZ_LOG_MS;
+  const fresh=ALL.filter(x=>(x.at||0)>cut),all=ALL.filter(x=>(x.at||0)<=cut);
+  const m=el('div','status');m.hidden=true;m.style.whiteSpace='pre-line';const say=(t,err)=>{m.hidden=false;m.classList.toggle('err',!!err);m.textContent=t};
+  const row=(x,box,soon)=>{const r=el('div','vz-row'+(soon?' vz-fresh':'')),i=el('div');
       const nm=el('b',null,x.name);nm.append(el('span','vz-tag',x.src==='ap'?'طلب صالة':'ملصق مستقل'));
       const nr=el('div','t');nr.append(el('bdi',null,x.nr),' · '+x.n+' طرد'+(x.kg?' · '+String(x.kg).replace('.',',')+' kg':'')+' · '+vzWhen(x.at));
       i.append(nm,nr);if(x.ref)i.append(el('div','t','المرجع: '+x.ref));
+      if(soon){const mn=Math.max(1,Math.ceil(((x.at||0)+VZ_LOG_MS-Date.now())/60000));i.append(el('div','t vz-mv','⏳ ينتقل إلى السجل بعد '+(mn>=60?Math.floor(mn/60)+':'+String(mn%60).padStart(2,'0')+' س':mn+' د')))}
       const bt=el('div','bt');
       const pr=el('button','btn small','🖨️');pr.title='إعادة الطباعة على Zebra · Nachdruck';pr.onclick=async()=>{pr.disabled=true;try{await soCall('dhl_druck',{id:x.id,druck:true});say('✓ أُرسل الملصق '+x.nr+' إلى Zebra (بدون تكلفة)')}catch(e){say('⚠️ '+dhlErr(e),1)}pr.disabled=false};
       const tr=el('a','btn small','🔗');tr.title='تتبّع الشحنة · Verfolgen';tr.href=dhlTrack(x.nr);tr.target='_blank';tr.rel='noopener';
       const op=el('button','btn small','⋯');op.title='التفاصيل · إلغاء · طرد إضافي';op.onclick=()=>x.src==='ap'?dhlSheet(apObj(x.l),vzOpen):dhlSheet(vzObj(x.c,x.s.adr,x.s),vzOpen);
-      bt.append(pr,tr,op);r.append(i,bt);box.append(r)})}
+      bt.append(pr,tr,op);r.append(i,bt);box.append(r)};
+  {const h=el('div','vz-h');h.append(el('b',null,'🚚 شُحنت الآن'),el('small',null,'Gerade versendet · '+fresh.length));b.append(h);
+    if(!fresh.length)b.append(el('div','vz-empty','لا توجد شحنات خلال آخر ساعتين.'));else{const fb=el('div');fresh.forEach(x=>row(x,fb,true));b.append(fb)}}
+  b.append(m);
+  /* سجل الشحنات – فقط الشحنات المكتملة بعد ساعتين */
+  const h2=el('div','vz-h');h2.append(el('b',null,'📋 سجل الشحنات'),el('small',null,'Versandprotokoll · '+all.length));b.append(h2);
+  const q=el('input');q.type='search';q.placeholder='🔎 بحث بالاسم أو رقم الشحنة · Suche';q.style.cssText='width:100%;padding:10px 12px;font:inherit;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);box-sizing:border-box';b.append(q);
+  const chips=el('div','so-chips');chips.style.marginTop='8px';let per='7';
+  [['1','اليوم · Heute'],['7','7 أيام'],['all','الكل · Alle']].forEach(([k,t])=>{const c=el('button','so-chip'+(k===per?' on':''),t);c.onclick=()=>{per=k;[...chips.children].forEach(x=>x.classList.toggle('on',x===c));draw()};chips.append(c)});b.append(chips);
+  const box=el('div');b.append(box);
+  function draw(){box.textContent='';const s=q.value.trim().toLowerCase(),lim=per==='all'?0:per==='1'?(()=>{const d=new Date();d.setHours(0,0,0,0);return d.getTime()})():Date.now()-(+per)*864e5;
+    const L=(s?ALL:all).filter(x=>(x.at||0)>=lim&&(!s||(x.name+' '+x.nr+' '+(x.ref||'')).toLowerCase().includes(s)));
+    if(!L.length){box.append(el('div','vz-empty',all.length?'لا توجد شحنات في هذه الفترة.':'السجل فارغ. الشحنات تنتقل إلى هنا بعد ساعتين من إنشاء الملصق.'));return}
+    L.slice(0,60).forEach(x=>row(x,box,false))}
   q.oninput=draw;draw();
   b.append(el('p','hint','الملصق يمكن إلغاؤه مجاناً في نفس اليوم ما دام الطرد لم يُسلَّم لـ DHL. Etiketten sind am selben Tag kostenlos stornierbar.'))})}
 /* Versandobjekt für ein Etikett ohne Auftrag – nutzt dieselbe DHL-Anbindung wie die Showroom-Aufträge (ID „AP-L…“) */
