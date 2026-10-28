@@ -5739,6 +5739,7 @@ function vzRedraw(){if($('sheet').hidden||!vzView)return;const t=$('sheet-t').te
 setInterval(()=>{const h=new Date().getHours();if(h>=7&&h<21)trkRefresh().then(c=>{if(c)vzRedraw()})},60*60e3);setTimeout(()=>trkRefresh().then(c=>{trkHome();if(c)vzRedraw()}),30e3);
 function vzOpen(){vzView={k:null};openSheet('🗄️ أرشيف الشحنات · Versandarchiv',b=>{vzMainFill(b);trkRefresh().then(c=>{if(c)vzRedraw()})})}
 function vzMainFill(b){soCss();vzCss();vzView={k:null};
+  if(isAdmin()&&!DHL_MAILS.paket&&!LS.get('dhlMailDefSet',false)&&soPw()){LS.set('dhlMailDefSet',true);soCall('dhl_track',{items:[],cfg:{paket:DHL_MAIL_DEF.paket}}).then(r=>{if(r&&r.mails){DHL_MAILS=r.mails;LS.set('dhlMails',DHL_MAILS)}}).catch(()=>LS.set('dhlMailDefSet',false))}
   const t0=(()=>{const d=new Date();d.setHours(0,0,0,0);return d.getTime()})(),w0=Date.now()-7*864e5;
   const pr=vzProbs();if(pr.length){const a=el('button','va-alert');a.type='button';a.append(el('b',null,'⚠️ '+pr.length+' شحنة بها مشكلة في التسليم'),el('span',null,'Zustellproblem · اضغط للعرض ‹'));a.onclick=()=>vzArch(vzProbKind(),'failure');b.append(a)}
   if(trkErr&&TRK_ERR[trkErr])b.append(el('p','status err',TRK_ERR[trkErr]));
@@ -5780,14 +5781,15 @@ function vzArchFill(b,k){soCss();vzCss();const A=VZ_ARCH[k];if(!vzView||vzView.k
       r.append(i,bt);box.append(r)})}
   q.oninput=draw;draw()}
 /* 🛟 Reklamation / Nachforschungsauftrag – DHL bietet dafür keine offene Schnittstelle: fertiger Text + direkter Weg zum Portal */
-const VZ_REK_URL={nf:'https://www.dhl.de/nachforschungsauftrag',gkp:'https://geschaeftskunden.dhl.de',schaden:'https://www.dhl.de/dam/jcr:582dc504-3ad1-43b3-b722-4060607cfc12/dhl-schadensanzeige.pdf',express:'https://mydhl.express.dhl/de/de/forms/csm/claim.html'};
+const VZ_REK_URL={nf:'https://geschaeftskunden.dhl.de/content/inquiryrequest/submitInquiryRequest',anl:'https://geschaeftskunden.dhl.de/content/inquiryrequest/inquiryList',gkp:'https://geschaeftskunden.dhl.de/content/content/contactForm',schaden:'https://www.dhl.de/dam/jcr:582dc504-3ad1-43b3-b722-4060607cfc12/dhl-schadensanzeige.pdf',express:'https://mydhl.express.dhl/de/de/forms/csm/claim.html'};
 let DHL_MAILS=LS.get('dhlMails',{paket:'',express:''});
+const DHL_MAIL_DEF={paket:'gkspaket@deutschepost.de'};   /* Kundenservice Geschäftskunden laut GKP › Kontakt */
 /* 📞 Offizielle Rufnummern (dhl.de · Kontakt Express / GKP-Infoblatt) – Paket und Express strikt getrennt */
 const VZ_TEL={
-  paket:{t:'📦 DHL Paket · للأعمال',l:[['خدمة عملاء DHL Paket','Kundenservice Paket','+492284333112','الإثنين–الجمعة 8–20'],['دعم بوابة الأعمال','Geschäftskundenportal Support','+4922876367679','الإثنين–الجمعة 8–18']]},
+  paket:{t:'📦 DHL Paket · للأعمال',l:[['خدمة عملاء الأعمال (شكاوى وتحقيق)','Kundenservice Geschäftskunden','+4922828609800','الإثنين–الجمعة 8–19'],['دعم بوابة الأعمال (تقني)','Geschäftskundenportal Support','+4922876367679','الإثنين–الجمعة 8–18']]},
   express:{t:'✈️ DHL Express · ألمانيا',l:[['شحنات Express خارج ألمانيا','Internationaler Express','+4922890243513','الإثنين–الجمعة 7–19'],['شحنات Express داخل ألمانيا','Nationaler Express','+4922890243511','الإثنين–الجمعة 7–19'],['شحنة فائتة / تغيير التسليم','ODD Support','+4922890243514','الإثنين–الجمعة 7–19'],['الجمارك','Zoll-Support','+4934186963999','الإثنين–الجمعة 8–18'],['الدعم التقني (MyDHL)','Technischer Support','+4922890243517','الإثنين–الجمعة 8:30–16:30']]}};
-const telFmt=n=>n.replace(/^\+49(228|341)(\d+)/,(m,a,b)=>'+49 '+a+' '+b);
-function vzTel(box,k){const T=VZ_TEL[k],w=el('div','va-tel va-tel-'+k);w.append(el('b',null,'📞 '+T.t));T.l.forEach(([ar,de,n,h])=>{const a=el('a','va-tl');a.href='tel:'+n;const tx=el('div');tx.append(el('span',null,ar),el('small',null,de+' · '+h));a.append(tx,el('em',null,telFmt(n)));w.append(a)});box.append(w)}
+const telFmt=n=>n.replace(/^\+49(228|341|175)(\d+)/,(m,a,b)=>'+49 '+a+' '+b);
+function vzTel(box,k){const T=VZ_TEL[k],w=el('div','va-tel va-tel-'+k);w.append(el('b',null,'📞 '+T.t));T.l.forEach(([ar,de,n,h])=>{const a=el('a','va-tl');a.href='tel:'+n;const tx=el('div');tx.append(el('span',null,ar),el('small',null,de+' · '+h));if(!h)tx.lastChild.textContent=de;a.append(tx,el('em',null,telFmt(n)));w.append(a)});box.append(w)}
 const rekAt=r=>r==null?0:typeof r==='object'?(r.at||0):+r||0;
 /* 📨 Kontakt mit DHL: fertige Vorlagen je Fall (Arabisch für den Mitarbeiter, Deutsch für DHL) */
 const VZ_FALL={
@@ -5833,15 +5835,15 @@ function vzKontaktFall(x,f){const ex=x.src==='shopx',F=VZ_FALL[f],an=ex?DHL_MAIL
         toast('✅ أُرسلت الشكوى إلى DHL ('+an+') ونسخة إلى info@');scrBack();setTimeout(()=>{try{scrBack()}catch(e){}},50)}
       catch(e){go.disabled=false;go.textContent='📨 إرسال إلى DHL الآن';alert(/DHL_MAIL_FEHLT/.test(e.message)?'لم يُضبط عنوان DHL للتواصل بعد.':'تعذّر الإرسال: '+e.message)}};
     row.append(go);b.append(el('p','hint','تُرسل الرسالة من info@fragranceshub.de إلى '+an+' وتصلك نسخة. الرد يصل إلى بريد الشركة.'))}
-  else{const u=ex?VZ_REK_URL.express:(f==='schaden'?VZ_REK_URL.schaden:VZ_REK_URL.gkp);const go=el('button','btn primary big',ex?'✈️ نموذج الشكوى لدى DHL Express · Claim':f==='schaden'?'📄 نموذج الضرر DHL Paket · Schadensanzeige':'🏢 بوابة DHL للأعمال · Paket › Nachforschung');
+  else{const u=ex?VZ_REK_URL.express:(f==='schaden'?VZ_REK_URL.schaden:(f==='verlust'||f==='verz')?VZ_REK_URL.nf:VZ_REK_URL.gkp);const go=el('button','btn primary big',ex?'✈️ نموذج الشكوى لدى DHL Express · Claim':f==='schaden'?'📄 نموذج الضرر DHL Paket · Schadensanzeige':(f==='verlust'||f==='verz')?'🔎 «Nachforschung beauftragen» في بوابة الأعمال':'📝 نموذج التواصل في بوابة الأعمال');
     go.onclick=()=>{window.open(u,'_blank','noopener');vzCopy(ta.value).then(ok=>toast(ok?'📋 نُسخ النص – ألصقه في نموذج DHL':'انسخ النص من المعاينة'))};row.append(go);
     {const cw=el('div','va-copy');const C=(lab,v)=>{if(!v)return;const c=el('button','btn small',lab+': '+v+' 📋');c.onclick=()=>vzCopy(v).then(()=>toast('✓ نُسخ: '+v));cw.append(c)};C('Sendungsnummer',x.nr);C('PLZ',x.plz);b.append(el('p','hint','نموذج DHL يطلب أولاً رقم الشحنة والرمز البريدي – انسخهما من هنا:'),cw)}
-    b.append(el('p','hint',ex?'DHL Express: الشكوى عبر نموذج «Forderung» الرسمي لـ DHL Express ألمانيا. النص الألماني منسوخ – ألصقه في خانة التفاصيل.':'DHL Paket للأعمال: سجّل الدخول في بوابة الأعمال ثم «Paket» ← «Nachforschung» وأدخل رقم الشحنة. النص الألماني منسوخ للصق. دعم البوابة: 0228 76367679 (الإثنين–الجمعة 8–18).'))}
+    b.append(el('p','hint',ex?'DHL Express: الشكوى عبر نموذج «Forderung» الرسمي لـ DHL Express ألمانيا. النص الألماني منسوخ – ألصقه في خانة التفاصيل.':'DHL Paket للأعمال: تُفتح الصفحة الصحيحة في بوابة الأعمال مباشرة (يجب أن تكون مسجّلاً فيها). النص الألماني منسوخ للصق.'))}
   const ok=el('button','btn','✓ تم التواصل · erledigt');ok.onclick=async()=>{ok.disabled=true;try{const r=await soCall('dhl_track',{items:[],rek:{nr:trkNr(x),at:Date.now()}});if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}}catch(e){TRK_REK[trkNr(x)]={at:Date.now(),fall:f};LS.set('trkRek',TRK_REK)}toast('✓ سُجّل في الأرشيف');ok.disabled=false};
   if(!an)row.append(ok);
   b.append(row);
   vzTel(b,ex?'express':'paket');
-  if(!ex){const more=el('div','va-more');const L=(t,u)=>{const a=el('a','so-lnk',t);a.href=u;a.target='_blank';a.rel='noopener';more.append(a)};L('🏢 Geschäftskundenportal',VZ_REK_URL.gkp);L('📄 Schadensanzeige',VZ_REK_URL.schaden);b.append(more)}})}
+  if(!ex){const more=el('div','va-more');const L=(t,u)=>{const a=el('a','so-lnk',t);a.href=u;a.target='_blank';a.rel='noopener';more.append(a)};L('🔎 Nachforschung beauftragen',VZ_REK_URL.nf);L('📋 Anliegenliste · متابعة الطلبات',VZ_REK_URL.anl);L('📝 Kontaktformular',VZ_REK_URL.gkp);L('📄 Schadensanzeige',VZ_REK_URL.schaden);b.append(more)}})}
 /* ⚙️ Kontaktadressen DHL (nur Inhaber) */
 function vzMailSetup(box){if(!isAdmin())return;const d=el('details','va-set'),sm=el('summary',null,'⚙️ عناوين التواصل مع DHL · Kontakt-E-Mails');d.append(sm);
   const mk=(lab,v)=>{const w=el('label','va-in'),i=el('input');i.type='email';i.value=v||'';i.placeholder='name@dhl.com';w.append(el('span',null,lab),i);d.append(w);return i};
