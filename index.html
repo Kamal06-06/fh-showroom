@@ -4623,7 +4623,7 @@ function radioNext(){const go=()=>{const L=radioTabList();if(!L||!L.length)retur
 function radioStop(){if(radioAu){radioAu.pause();radioAu.removeAttribute('src');radioAu.load()}radioShown=false;radioChip()}
 function radioChip(){radioCss();let c=$('rd-chip');const mk=(t,f,lab)=>{const b=el('button',null,t);b.type='button';b.setAttribute('aria-label',lab);b.onclick=e=>{e.stopPropagation();f()};return b};
   if(!c){c=el('div');c.id='rd-chip';c.setAttribute('dir','rtl');const t=el('span');t.onclick=()=>radioOpen();c.append(t,mk('','',''),mk('⏭',radioNext,'المحطة التالية'),mk('✕',radioStop,'إيقاف وإخفاء'));c.children[1].onclick=e=>{e.stopPropagation();radioToggle()};c.children[1].setAttribute('aria-label','تشغيل / إيقاف');c.lastChild.className='x';document.body.append(c)}
-  const on=!!(radioAu&&!radioAu.paused);if(on)radioShown=true;c.hidden=!radioShown;c.firstChild.textContent='🎧 '+(radioCur?radioCur.n:'');c.children[1].textContent=on?'⏸':'▶';
+  const on=!!(radioAu&&!radioAu.paused);if(on)radioShown=true;c.hidden=true;c.firstChild.textContent='🎧 '+(radioCur?radioCur.n:'');c.children[1].textContent=on?'⏸':'▶';
   const h=$('hq-rd-ctl');if(h){h.textContent='';if(radioCur){h.append(mk(on?'⏸':'▶',radioToggle,'تشغيل / إيقاف'),mk('⏭',radioNext,'المحطة التالية'))}else h.append(el('span',null,'Radio Syrien'))}
   const hb=$('hq-rd')&&$('hq-rd').querySelector('b');if(hb)hb.textContent=on&&radioCur?'🎧 '+radioCur.n:'🎧 راديو سوريا'}
 function radioPlay(st){radioCur=st;LS.set('radioCur',st);if(!radioAu){radioAu=new Audio();radioAu.preload='none';radioAu.onplaying=()=>{radioChip();radioRedraw()};radioAu.onpause=()=>{radioChip();radioRedraw()};
