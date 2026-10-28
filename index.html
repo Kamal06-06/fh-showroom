@@ -5938,13 +5938,13 @@ async function schadenOffiziell(x,d){const L=await pdfLibLaden(),b64=await schFo
   const KX=(px,py)=>T('X',px-3.6,py+4.2,9,FB);
   if(d.grund.includes('schaden'))KX(177,245);if(d.grund.includes('fehlt'))KX(484,245);
   String(x.nr).replace(/\D/g,'').split('').slice(0,26).forEach((z,i)=>T(z,170+i*22.2+7,312,10,FB));
-  const BW=(440-176)/K-4;[['Fragrance Hub Germany · Inh. Mohammad Kamal Al Masri',372],['Am Alten Kirchplatz 10',402],['45665 Recklinghausen',432],['Deutschland',462]].forEach(([t,py])=>T(fit(t,BW,8),176,py,8));
-  const E=d.emp;[[E.name,372],[E.str,402],[E.ort,432],[E.land,462]].forEach(([t,py])=>T(fit(t,BW,8),483,py,8));
+  const BW=(440-176)/K-4;[['Fragrance Hub Germany · Inh. Mohammad Kamal Al Masri',372],['Am Alten Kirchplatz 10',402],['45665 Recklinghausen',432],['Deutschland',462]].forEach(([t,py])=>{const sz=F.widthOfTextAtSize(pdfTxt(t),8)>BW?7:8;T(fit(t,BW,sz),176,py,sz)});
+  const E=d.emp;[[E.name,372],[E.str,402],[E.ort,432],[E.land,462]].forEach(([t,py])=>{const sz=F.widthOfTextAtSize(pdfTxt(t||''),8)>BW?7:8;T(fit(t||'',BW,sz),483,py,sz)});
   const zeilen=(txt,ys)=>{const max=(747-170)/K-2;let line='',i=0;pdfTxt(txt).split(' ').forEach(w=>{const t=line?line+' '+w:w;if(F.widthOfTextAtSize(t,8.5)>max){if(i<ys.length)T(line,171,ys[i++],8.5);line=w}else line=t});if(line&&i<ys.length)T(line,171,ys[i],8.5)};
   zeilen(d.ok.join(', '),[524,543,561,579,597]);zeilen([d.kaputt.join(', '),d.txt].filter(Boolean).join(' – '),[639,658,676,694,712]);zeilen(d.fehlt.join(', '),[755,773,791,809,827]);
   if(d.nach==='zurueck')KX(177,876);if(d.nach==='erneut')KX(473,876);if(d.nach==='vernichten')KX(177,894);
-  T('Recklinghausen, '+new Date().toLocaleDateString('de-DE'),549,950,7.5);
-  if(d.sig){const im=await doc.embedPng(d.sig),s=Math.min(70/im.width,26/im.height);pg.drawImage(im,{x:X(660),y:Y(953),width:im.width*s,height:im.height*s})}
+  T('Recklinghausen, '+new Date().toLocaleDateString('de-DE'),549,950,7);
+  if(d.sig){const im=await doc.embedPng(d.sig),s=Math.min(58/im.width,26/im.height);pg.drawImage(im,{x:X(670),y:Y(953),width:im.width*s,height:im.height*s})}
   if(d.stp){const im=await doc.embedPng(d.stp),s=Math.min(170/im.width,62/im.height);pg.drawImage(im,{x:X(512),y:Y(1090),width:im.width*s,height:im.height*s})}
   for(const f of d.fotos){const p=doc.addPage([595.28,841.89]);const im=await doc.embedJpg(f),s=Math.min(515/im.width,740/im.height);p.drawText(pdfTxt('Foto zur Schadensanzeige – Sendung '+x.nr),{x:40,y:805,size:10,font:FB});p.drawImage(im,{x:40,y:790-im.height*s,width:im.width*s,height:im.height*s})}
   return await doc.saveAsBase64()}
