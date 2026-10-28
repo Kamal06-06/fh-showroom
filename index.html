@@ -997,7 +997,7 @@ if(!IN_GAS){
 if(!IN_GAS){const qs=new URLSearchParams(location.search);window.SR_URL=location.origin+location.pathname;window.SR_CODE=(qs.get('code')||'').slice(0,80)}
 function srv1(action,a,b,c,x){
   if(IN_GAS)return new Promise((ok,no)=>google.script.run.withSuccessHandler(r=>{if(r&&r.err)no(new Error(r.err));else ok(r?r.val:null)}).withFailureHandler(e=>no(new Error((e&&e.message)||String(e)))).srApi(PIN,action,a,b,c,DEV));
-  const ac=window.AbortController&&/^(lg_|pull$)/.test(action)?new AbortController():null,tm=ac?setTimeout(()=>ac.abort(),45000):0;
+  const ac=window.AbortController?new AbortController():null,tm=ac?setTimeout(()=>ac.abort(),/^(lg_|pull$)/.test(action)?45000:120000):0;
   return fetch(API_URL+'?app=sr',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({pin:PIN,action,a,b,c,dev:DEV},FB_UID?{fb:FB_UID}:{},x||{})),redirect:'follow',signal:ac?ac.signal:undefined})
     .finally(()=>clearTimeout(tm))
     .then(r=>{if(!r.ok)throw Object.assign(new Error('NET '+r.status),{net:true});return r.json()},e=>{throw Object.assign(new Error('لا يوجد اتصال بالإنترنت'),{net:true})})
@@ -1008,6 +1008,10 @@ const IDB=(()=>{let p=null;const open=()=>p||(p=new Promise((ok,no)=>{try{const 
   const tx=(m,f)=>open().then(d=>new Promise((ok,no)=>{const t=d.transaction('kv',m),s=t.objectStore('kv'),q=f(s);t.oncomplete=()=>ok(q&&q.result);t.onerror=()=>no(t.error)}));
   return {get:k=>tx('readonly',s=>s.get(k)).catch(()=>undefined),set:(k,v)=>tx('readwrite',s=>s.put(v,k)).catch(()=>{})}})();
 /* Passwort geändert / Mitarbeiter gesperrt: gespeicherte Anmeldung ist ungültig -> sofort abmelden */
+/* Sicherheitsnetz: unerwartete Fehler werden kurz angezeigt statt die App still hängen zu lassen */
+(function(){let last=0;const show=m=>{const now=Date.now();if(now-last<4000)return;last=now;try{toast('⚠️ حدث خطأ بسيط – أعد المحاولة · '+String(m||'').slice(0,80))}catch(e){}};
+  addEventListener('error',e=>{if(!e||!e.message)return;if(e.filename&&e.filename.indexOf(location.origin)!==0)return;if(/ResizeObserver|Script error/i.test(e.message))return;console.warn('app error',e.message,e.lineno);show(e.message)});
+  addEventListener('unhandledrejection',e=>{const m=e&&e.reason&&(e.reason.message||e.reason);if(!m||/AbortError|NotAllowedError|share|cancel/i.test(String(m)))return;console.warn('app rejection',m)})})();
 function forceLogout(){if(window._fhOut)return;window._fhOut=1;try{sessionStorage.clear()}catch(e){}LS.set('pin','');LS.set('me',{user:'',admin:false});location.reload()}
 async function srv(action,a,b,c,x){try{return await srv0(action,a,b,c,x)}catch(e){if(/^(PIN|GERAET_WARTET|GERAET_GESPERRT)$/.test(String(e&&e.message))&&PIN&&LS.get('pin','')===PIN)forceLogout();throw e}}
 async function srv0(action,a,b,c,x){let last;for(let i=0;i<4;i++){try{return await srv1(action,a,b,c,x)}catch(e){last=e;if(!/lock|تأمين|sperr|time[d ]?out|zeitüber|exceeded|too many|Unexpected token|NET 5\d\d/i.test(String(e.message||e))||i===3)throw e;await new Promise(r=>setTimeout(r,2500*(i+1)))}}throw last}
@@ -6614,7 +6618,7 @@ async function inventurReport(btn){
 /* ---------- Mitarbeiter (nur Inhaber) ---------- */
 function setMe(v){if(v&&typeof v==='object'){ME={user:v.user||'',admin:!!v.admin,owner:v.owner===undefined?!!v.admin:!!v.owner,perms:Array.isArray(v.perms)?v.perms:null};LS.set('me',ME);applyRole();
   if(ME.user){const w=$('who');if(w){w.value=ME.user;LS.set('who',ME.user)}}
-  const u=$('me-badge');if(u){u.textContent=ME.user?'👤 '+ME.user:'';u.hidden=!ME.user}const sec=$('users-sec');if(sec)sec.hidden=!ME.owner;const ps=$('setpin-sec');if(ps)ps.hidden=!ME.owner}}
+  const u=$('me-badge');if(u){u.textContent=ME.user?'👤 '+dispN(ME.user):'';u.hidden=!ME.user}const sec=$('users-sec');if(sec)sec.hidden=!ME.owner;const ps=$('setpin-sec');if(ps)ps.hidden=!ME.owner}}
 async function usersOpen(){
   openSheet('👥 الموظفون والصلاحيات · Mitarbeiter & Rechte',async b=>{
     b.append(el('p','hint','أنشئ حساباً لكل موظف: كلمة سر خاصة (حروف وأرقام، 6 على الأقل) وحدّد بالضبط ما يستطيع فعله. كل عمل يُسجَّل باسمه.'),el('p','hint de','Jeder Mitarbeiter: eigenes Passwort (Buchstaben + Ziffern, mind. 6) und genau festgelegte Rechte. Jede Aktion wird mit seinem Namen gespeichert.'));
