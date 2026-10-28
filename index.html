@@ -323,6 +323,9 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
 .htoday button{background:none;border:0;font:inherit;color:inherit;text-align:center;cursor:pointer;padding:0 2px}
 .htoday b{display:block;font-size:17px;color:#c9a24a;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .htoday span{font-size:10.5px;color:#cfc6b4}
+.htoday.ops,.htoday.fin{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:10px}.htoday.fin{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px}
+.ops-h{grid-column:1/-1;font-size:11.5px;font-weight:700;color:#8f8676;padding:0 8px;letter-spacing:.02em;border-top:1px solid #2b2620;padding-top:8px}.ops-h:first-child{border-top:0;padding-top:0}
+.htoday button.ok b{color:#7fd19b}.htoday button.att b{color:#f0c060}.htoday button.warn b{color:#ff8a7a}.htoday button.warn span{color:#ffb4a8}
 .hsec{font-weight:700;font-size:15px;margin:4px 2px 0}
 .home{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
 .home .tile{flex-direction:row;align-items:center;gap:10px;min-height:0;padding:12px;border-radius:16px}
@@ -650,6 +653,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <button class="btn" id="menu" aria-controls="drawer" aria-expanded="false">☰ الطلبات <span class="badge" id="open-count" hidden>0</span></button>
  <span id="me-badge" hidden style="font-size:12px;color:var(--muted);align-self:center;white-space:nowrap"></span>
       <span id="syncdot" title="المزامنة" style="font-size:12px;color:var(--muted);align-self:center;white-space:nowrap"></span>
+      <button class="btn small" id="fin-btn" hidden aria-label="الأرقام المالية" title="الأرقام المالية">📊</button>
       <button class="btn small" id="chat-btn" aria-label="دردشة الفريق" title="دردشة الفريق">💬<b id="chat-n" hidden></b></button>
       <button class="btn small" id="tab-set" aria-label="الإعدادات" title="الإعدادات">⚙️</button>
     </div>
@@ -1277,7 +1281,7 @@ function openDebtSheet(d,presetName){
 }
 $('cu-new').onclick=$('acc-new').onclick=()=>openCustSheet(null);
 $('cu-debt').onclick=$('acc-debt').onclick=()=>openDebtSheet(null);
-$('h-shop').onclick=()=>{drawer(false);shopOpen()};$('h-ship').onclick=()=>{drawer(false);vzOpen()};$('h-dhl').onclick=()=>{drawer(false);vzPaket()};$('chat-btn').onclick=()=>{chCss();chOpen()};$('nv-shop').onclick=()=>$('h-shop').click();
+$('fin-btn').onclick=()=>finOpen();$('h-shop').onclick=()=>{drawer(false);shopOpen()};$('h-ship').onclick=()=>{drawer(false);vzOpen()};$('h-dhl').onclick=()=>{drawer(false);vzPaket()};$('chat-btn').onclick=()=>{chCss();chOpen()};$('nv-shop').onclick=()=>$('h-shop').click();
 $('cu-prof').onclick=()=>plSheet('stop');
 function renderCust(){
   const q=nz($('cu-q').value),box=$('cu-list');box.textContent='';
@@ -1493,16 +1497,39 @@ function homeTop(openL){
   const sod=new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime(),todayL=lists.filter(l=>(l.at||0)>=sod);
   const sales=todayL.reduce((s,l)=>{try{return s+(totals(l).net||0)}catch(e){return s}},0);
   const eur=n=>Math.round(n).toLocaleString('de-DE')+' €';
-  const box=$('h-today');box.textContent='';
-  const rdyN=openL.filter(isReady).length,due=lists.concat(debtLists()).reduce((s,l)=>s+payOf(l).open,0);
-  const tiles=[[todayL.length,'طلبات اليوم',()=>$('h-wh').click()]];
-  if(isAdmin())tiles.push([eur(sales),'مبيعات اليوم',null]);
-  tiles.push([openL.length-rdyN,'قيد التحضير',()=>$('h-wh').click()],[rdyN,'جاهزة للتسليم',()=>$('h-wh').click()],[cash.length?eur(cashSums().box):'–','في الصندوق',()=>$('h-cash').click()]);
-  if(isAdmin())tiles.push([due>0.004?eur(due):'0 €','ديون مفتوحة',()=>$('h-acc').click()]);
-  if(isAdmin()){const n=plStopCount();if(n!=null)tiles.push([n,'عملاء متوقفون',()=>plSheet('stop')])}
-  box.style.gridTemplateColumns='repeat('+(tiles.length>4?(innerWidth>=700?tiles.length:3):tiles.length)+',minmax(0,1fr))';box.style.rowGap='12px';
-  tiles.forEach(([v,t,f])=>{const b=el('button');b.append(el('b',null,String(v)),el('span',null,t));if(f)b.onclick=f;else b.style.cursor='default';box.append(b)});
+  const box=$('h-today');box.textContent='';box.classList.add('ops');
+  {const fb=$('fin-btn');if(fb)fb.hidden=!isAdmin()}
+  const rdyN=openL.filter(isReady).length,late=openL.filter(l=>!isReady(l)&&l.kind!=='debt'&&(l.at||0)<Date.now()-864e5).length;
+  let wait='–',shopN='–',lab=0;try{wait=vzOffen().length}catch(e){}try{shopN=(SO.orders||[]).filter(o=>soPaid(o)&&!soPrep(o).ready).length}catch(e){}try{lab=vzSendungen().filter(x=>(x.at||0)>=sod).reduce((a,x)=>a+(x.n||1),0)}catch(e){}
+  const T=(v,t,f,cls,id)=>{const b=el('button',cls||'');if(id)b.id=id;b.append(el('b',null,String(v)),el('span',null,t));if(f)b.onclick=f;else b.style.cursor='default';box.append(b)};
+  box.append(el('div','ops-h','🧾 الطلبات · Aufträge'));
+  T(todayL.length,'طلبات اليوم',()=>$('h-wh').click());
+  T(openL.length-rdyN,'قيد التحضير',()=>$('h-wh').click());
+  T(rdyN,'جاهزة للتسليم',()=>$('h-wh').click(),rdyN?'ok':'');
+  T(late,'متأخرة +24 س',()=>$('h-wh').click(),late?'warn':'');
+  box.append(el('div','ops-h','🚚 الشحن · Versand'));
+  T(wait,'بانتظار ملصق',()=>{if(can('shop'))vzOpen()},wait>0?'att':'');
+  T(shopN,'المتجر للتجهيز',()=>$('h-shop').click(),shopN>0?'att':'');
+  T(lab,'طرود اليوم',()=>{if(can('shop'))vzOpen()});
+  const c=shipCut();T(c.v,c.t,null,c.cls,'h-cut');
+  box.style.gridTemplateColumns='';box.style.rowGap='';
 }
+/* Versandschluss: bis 12:00 bestellt = Versand heute (Mo–Fr) */
+function shipCut(){const d=new Date(),wd=d.getDay(),m=d.getHours()*60+d.getMinutes(),cut=12*60;
+  if(wd>=1&&wd<=5&&m<cut){const r=cut-m;return {v:Math.floor(r/60)+':'+String(r%60).padStart(2,'0'),t:'باقي لشحن اليوم',cls:r<=60?'warn':'att'}}
+  const DN=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];let n=new Date(d);do{n.setDate(n.getDate()+1)}while(n.getDay()===0||n.getDay()===6);
+  return {v:n.getDay()===(wd+1)%7?'غداً':DN[n.getDay()],t:'الشحن القادم',cls:''}}
+setInterval(()=>{const e=$('h-cut');if(!e)return;const c=shipCut();e.className=c.cls;e.firstChild.textContent=c.v;e.lastChild.textContent=c.t},30000);
+/* 📊 Finanzen – nur Inhaber, nicht auf der Startseite */
+function finOpen(){if(!isAdmin())return;openSheet('📊 الأرقام المالية · Finanzen',b=>{
+  const d=new Date(),sod=new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime(),sow=sod-((d.getDay()+6)%7)*864e5,som=new Date(d.getFullYear(),d.getMonth(),1).getTime();
+  const sum=t0=>lists.filter(l=>l.kind!=='debt'&&(l.at||0)>=t0).reduce((s,l)=>{try{return s+(totals(l).net||0)}catch(e){return s}},0);
+  const eur=n=>Math.round(n).toLocaleString('de-DE')+' €',due=lists.concat(debtLists()).reduce((s,l)=>s+payOf(l).open,0);
+  const g=el('div','htoday fin');const T=(v,t,f)=>{const x=el('button');x.append(el('b',null,String(v)),el('span',null,t));if(f)x.onclick=f;else x.style.cursor='default';g.append(x)};
+  g.append(el('div','ops-h','💶 المبيعات · netto'));T(eur(sum(sod)),'اليوم');T(eur(sum(sow)),'هذا الأسبوع');T(eur(sum(som)),'هذا الشهر');
+  g.append(el('div','ops-h','🏦 المال'));T(cash.length?eur(cashSums().box):'–','في الصندوق',()=>$('h-cash').click());T(due>0.004?eur(due):'0 €','ديون مفتوحة',()=>$('h-acc').click());
+  {let n=null;try{n=plStopCount()}catch(e){}T(n==null?'–':n,'عملاء متوقفون',n==null?null:()=>plSheet('stop'))}
+  b.append(g,el('p','hint','هذه الصفحة تظهر لك فقط (Kamal) ولا تظهر على الشاشة الرئيسية. المبيعات بدون ضريبة، من طلبات الصالة المسجلة في التطبيق.'))})}
 async function renderHome(){
   const openL=lists.filter(l=>l.status!=='done');
   $('h-open').textContent=openL.length;$('h-done-n').textContent=lists.length-openL.length;$('h-cust-n').textContent=custAll().length;
