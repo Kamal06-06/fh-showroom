@@ -4733,9 +4733,9 @@ const soPrep=o=>{const st=o.stand||{},n=(o.items||[]).length,c=(st.prep||[]).fil
 /* 🧪 Probierset nach Wahl: gewählte Düfte stehen als Eigenschaften „Duft 1…n“ an der Position → je Duft eine 6-g-Premium-Probe */
 const psDuefte=it=>(it.props||[]).filter(p=>/^duft\s*\d+/i.test(String(p[0]||''))).map(p=>String(p[1]||'').trim()).filter(Boolean);
 function psFind(name){const f=fold(name).trim();let p=catalog.find(x=>x.oil&&x.kt===f)||catalog.find(x=>x.oil&&x.kt.startsWith(f))||catalog.find(x=>x.oil&&x.kt.includes(f));if(!p)return null;
-  const v=p.v.find(v=>/premium/i.test(String(v[0]||'').split(' / ').pop()))||p.v[0];return {t:p.t,code:v?stem(v[1]):''}}
+  const v=p.v.find(v=>/premium/i.test(String(v[0]||'').split(' / ').pop()))||p.v.find(v=>/exklusiv/i.test(String(v[0]||'').split(' / ').pop()))||p.v[0];return {t:p.t,code:v?stem(v[1]):'',tier:v?(String(v[0]||'').split(' / ').pop().trim()||'Premium'):'Premium'}}
 function psItems(o){const out=[];(o.items||[]).forEach(it=>{const d=psDuefte(it);if(!d.length)return;const n=Math.max(1,+it.rq||+it.q||1),z={};
-  d.forEach(nm=>{const h=psFind(nm),k=(h?h.code:'')+'|'+nm;if(z[k])z[k].q+=n;else out.push(z[k]={t:h?h.t:nm,oil:1,tier:'Premium',code:h?h.code:'',size:'6 g',probe:true,q:n,sku:'',ps:true})})});return out}
+  d.forEach(nm=>{const h=psFind(nm),k=(h?h.code:'')+'|'+nm;if(z[k])z[k].q+=n;else out.push(z[k]={t:h?h.t:nm,oil:1,tier:h?h.tier:'Premium',code:h?h.code:'',size:'6 g',probe:true,q:n,sku:'',ps:true})})});return out}
 const soAsList=o=>({id:'so'+o.id,customer:o.kunde,country:o.land,at:o.at,shopNr:o.nr,items:o.items.map(i=>Object.assign({},i)).concat(psItems(o)),lots:(o.stand||{}).lots||{}});
 function shopPwSheet(after,setMode){
   openSheet(setMode?'🔑 كلمة سر طلبات المتجر':'🔒 طلبات المتجر',b=>{
@@ -5252,7 +5252,7 @@ function soLsData(o){const R={oils:[],other:[],nPos:0,nOil:0,oilG:0,nStk:0};
       (it.props||[]).forEach(pr=>{if(pr[0]==='Sprühkopf')sprc=String(pr[1]||'')});
       if(!per)per=1;const total=per*qty;R.nStk+=total;
       let rows=[];if(isset)rows=[['Kappe',cap.includes('Ohne')?'OHNE KAPPE':cap],['Sprühkopf',spr.includes('Ohne')?'OHNE SPRÜHKOPF':sprc||'Farbe siehe Bestellung']];else if(rest)rows=[['-',rest]];
-      {const dd=psDuefte(it);if(dd.length){rows=dd.map((nm,k)=>{const h=psFind(nm);return ['Duft '+(k+1),nm+(h&&h.code?'  ·  '+h.code:'')+'  (Premium 6 g)']})}}
+      {const dd=psDuefte(it);if(dd.length){rows=dd.map((nm,k)=>{const h=psFind(nm);return ['Duft '+(k+1),nm+(h&&h.code?'  ·  '+h.code:'')+'  ('+(h?h.tier:'Premium')+' 6 g)']})}}
       R.other.push({name:String(it.t).replace(' - Set nach Wahl (Sprühkopf & Kappe)',' - Komplett-Set'),sku,menge,rows,total,per,qty,isset,spr,cap,img:it.img})}});
   return R}
 const soImgC={};
