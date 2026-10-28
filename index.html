@@ -4890,6 +4890,7 @@ function soCss(){if($('so-css'))return;const s=document.createElement('style');s
 .sx-note{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-inline-start:4px solid var(--gold);background:var(--surface);border-radius:12px;padding:10px 12px;margin:0 0 10px}
 .sx-note div{display:flex;flex-direction:column}.sx-note b{font-size:14px}.sx-note div span{font-size:12px;color:var(--muted)}
 .sx-note.paid{border-inline-start-color:#f59e0b;font-size:13px;font-weight:700}
+.sx-arch{display:flex;justify-content:space-between;align-items:center;width:100%;border:1px dashed var(--line);background:none;border-radius:10px;padding:8px 12px;margin:-4px 0 10px;font:inherit;font-size:13px;color:var(--muted);cursor:pointer}.sx-arch b{color:var(--ink)}.sx-arch.on{border-style:solid;background:var(--soft)}
 .sx-admin{display:flex;justify-content:center;gap:14px;margin-top:4px}
 
 `;document.head.append(s)}
@@ -4915,8 +4916,10 @@ const soShipped=o=>o.ful==='FULFILLED'||(!soAbh(o)&&!soNoLbl(o));
 const soLate=o=>!soShipped(o)&&!soPrep(o).ready&&soAge(soT(o))>=2;
 const soShipAt=o=>{const st=o.stand||{};return (st.dhl&&st.dhl.at)||(st.dhlx&&st.dhlx.at)||o.fulAt||st.readyAt||o.at||0};
 const soToday0=()=>{const d=new Date();d.setHours(0,0,0,0);return d.getTime()};
-/* Abschluss zeigt nur, was HEUTE versendet wurde – ältere Sendungen verschwinden aus dem Arbeitsbereich (nur über Suche / „الكل") */
-const soFilt={open:o=>!soShipped(o)&&!soPrep(o).ready,late:soLate,ready:o=>!soShipped(o)&&soPrep(o).ready,lbl:o=>soShipped(o)&&soShipAt(o)>=soToday0(),all:()=>true};
+/* „Versendet" zeigt die heutigen Sendungen bis 20:00 – danach wandern sie ins Archiv, die Spalte bleibt bis zum nächsten Tag leer */
+const SO_ARCH_H=20;
+const soInDone=o=>soShipped(o)&&new Date().getHours()<SO_ARCH_H&&soShipAt(o)>=soToday0();
+const soFilt={open:o=>!soShipped(o)&&!soPrep(o).ready,late:soLate,ready:o=>!soShipped(o)&&soPrep(o).ready,lbl:soInDone,arch:o=>soShipped(o)&&!soInDone(o),all:()=>true};
 const soDayLbl=t=>{const d=new Date(t),n=new Date();d.setHours(0,0,0,0);n.setHours(0,0,0,0);const df=Math.round((n-d)/864e5);
   if(df===0)return 'اليوم';if(df===1)return 'أمس';return d.toLocaleDateString('ar',{weekday:'long'})+' · '+d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})};
 function soListView(b){b.textContent='';soCss();sheetBack=null;if(!soFilt[soTab])soTab='open';soView();
@@ -4933,12 +4936,14 @@ function soListView(b){b.textContent='';soCss();sheetBack=null;if(!soFilt[soTab]
   const lateN=reg.filter(soLate).length;
   if(lateN){const a=el('button','sx-late'+(soTab==='late'?' on':''));a.type='button';a.append(el('b',null,'⏰ '+lateN+' طلب متأخر'),el('span',null,soTab==='late'?'عرض كل الطلبات ‹':'ابدأ بها أولاً · عرض ‹'));a.onclick=()=>{soTab=soTab==='late'?'open':'late';soView();soListView(b)};b.append(a)}
   const fw=el('div','sx-flow');
-  const ST3=soReg==='abh'?[['ready','2','جاهزة للاستلام','Abholbereit'],['lbl','✓','استُلمت اليوم','Heute abgeholt']]:[['ready','2','التغليف والملصق','Verpackung · Etikett'],['lbl','✓',soReg==='de'?'شُحنت اليوم · داخلي':'شُحنت اليوم · خارجي',soReg==='de'?'Heute versendet · Inland':'Heute versendet · Ausland']];
+  const ST3=soReg==='abh'?[['ready','2','جاهزة للاستلام','Abholbereit'],['lbl','✓','تم الاستلام','Abgeholt']]:[['ready','2','التغليف والملصق','Verpackung · Etikett'],['lbl','✓',soReg==='de'?'تم الشحن · داخلي':'تم الشحن · خارجي',soReg==='de'?'Versendet · Inland':'Versendet · Ausland']];
   [['open','1','التحضير','Kommissionierung']].concat(ST3).forEach(([k,nr,t,de2],i)=>{
     const n=reg.filter(soFilt[k]).length,x=el('button','sx-st'+(k==='lbl'?' done':'')+(soTab===k?' on':'')+(n?'':' z'));x.type='button';
     x.append(el('span','nr',nr),el('b',null,String(n)),el('span','t',t),el('small',null,de2));x.onclick=()=>{soTab=k;soView();soListView(b)};fw.append(x);
     if(i<2)fw.append(el('span','ar','‹'))});
   b.append(fw);
+  {const an=reg.filter(soFilt.arch).length;if(an||soTab==='arch'){const a=el('button','sx-arch'+(soTab==='arch'?' on':''));a.type='button';a.append(el('span',null,'🗄️ أرشيف الشحنات · Versandarchiv'),el('b',null,soTab==='arch'?'‹ رجوع للعمل':an+' طلب ‹'));a.onclick=()=>{soTab=soTab==='arch'?'open':'arch';soView();soListView(b)};b.append(a)}}
+  if(soTab==='lbl'&&new Date().getHours()>=SO_ARCH_H)b.append(el('p','hint','بعد الساعة 20:00 تنتقل شحنات اليوم إلى الأرشيف، وتبقى هذه الخانة فارغة حتى صباح الغد.'));
   /* 3 · Suche + Werkzeuge */
   const tb=el('div','so-tool');const q=el('input');q.type='search';q.placeholder='🔍 رقم الطلب، العميل أو المدينة';q.value=soQ;q.autocomplete='off';
   const ib=(t,ti,f)=>{const x=el('button','so-ib',t);x.title=ti;x.setAttribute('aria-label',ti);x.onclick=f;return x};
@@ -4959,7 +4964,7 @@ function soListView(b){b.textContent='';soCss();sheetBack=null;if(!soFilt[soTab]
     let L=reg.filter(soFilt[soTab]);
     if(s)L=reg.filter(o=>[soNr(o),o.kunde,o.name,o.firma,soOrt(o)].join(' ').toLowerCase().includes(s));
     const smart=!s&&(soTab==='open'||soTab==='late');L.sort(smart||(!s&&soTab==='ready')?soOrder:(a,c)=>soT(c)-soT(a));let qn=0;
-    const nm={open:'① التحضير · Kommissionierung',late:'⏰ المتأخرة · Verspätet',ready:soReg==='abh'?'② جاهزة للاستلام · Abholbereit':'② التغليف والملصق · Verpackung',lbl:soReg==='abh'?'✓ استُلمت اليوم · Heute abgeholt':soReg==='de'?'✓ شُحنت اليوم داخلي · Heute versendet Inland':'✓ شُحنت اليوم خارجي · Heute versendet Ausland',all:'كل الطلبات · Alle'};
+    const nm={open:'① التحضير · Kommissionierung',late:'⏰ المتأخرة · Verspätet',ready:soReg==='abh'?'② جاهزة للاستلام · Abholbereit':'② التغليف والملصق · Verpackung',lbl:soReg==='abh'?'✓ تم الاستلام · Abgeholt':soReg==='de'?'✓ تم الشحن داخلي · Versendet Inland':'✓ تم الشحن خارجي · Versendet Ausland',arch:'🗄️ أرشيف الشحنات · Versandarchiv',all:'كل الطلبات · Alle'};
     fl.append(el('span',null,s?'نتائج البحث · '+L.length:nm[soTab]+' · '+L.length+' طلب'));
     if(!s&&soTab!=='all'){const a=el('button','so-lnk','عرض الكل ('+reg.length+')');a.onclick=()=>{soTab='all';soView();soListView(b)};fl.append(a)}
     if(!L.length){box.append(el('div','so-empty',s?'لا توجد نتائج':soTab==='open'?'✅ لا توجد طلبات للتحضير':soTab==='ready'?'✅ كل الطلبات الجاهزة لها ملصق':'لا توجد طلبات'));}
