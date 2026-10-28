@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="162">
+<meta name="fh-build" content="163">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -5844,6 +5844,9 @@ function vzSendungen(){const out=[];
   try{(SO.orders||[]).forEach(o=>{const st=o.stand||{},nm='#'+String(o.nr||'').replace(/^\D+/,'')+' · '+(o.kunde||o.name||'');
     const plz=(o.liefer&&o.liefer.plz)||'';if(st.dhl&&st.dhl.nr)out.push({src:'shop',o,id:o.id,nr:st.dhl.nr,n:dhlPak(st.dhl).length||1,at:st.dhl.at||o.at,name:nm,plz});
     if(st.dhlx&&st.dhlx.nr)out.push({src:'shopx',o,id:o.id,nr:st.dhlx.nr,n:+st.dhlx.n||1,at:st.dhlx.at||o.at,name:nm})})}catch(e){}
+  /* alle versendeten Shop-Bestellungen der letzten 21 Tage direkt aus Shopify (auch nach dem Versand und auch ohne App-Etikett) */
+  try{const have=new Set(out.map(x=>String(x.nr||'').replace(/\s/g,'')));(SO.sent||[]).forEach(s=>{const tn=String(s.tn||'').replace(/\s/g,'');if(!tn||have.has(tn))return;have.add(tn);
+    out.push({src:/express/i.test(s.co||'')||/^\d{10}$/.test(tn)?'shopx':'shop',o:null,id:s.id,nr:tn,n:1,at:s.at,name:'#'+String(s.nr||'').replace(/^\D+/,'')+' · '+(s.kunde||''),plz:s.plz||''})})}catch(e){}
   return out.sort((a,b)=>(b.at||0)-(a.at||0))}
 /* Versand komplett = für alle Pakete des Auftrags ein Etikett erstellt */
 function apShipDone(l){return !!(l&&l.dhl&&l.dhl.nr)&&(+l.dhl.n||1)>=(+l.pakete||1)}
