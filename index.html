@@ -5760,22 +5760,28 @@ function vzArchFill(b,k){soCss();vzCss();const A=VZ_ARCH[k];if(!vzView||vzView.k
       if(t&&t.d){const de=el('div','t va-desc');de.append(el('bdi',null,t.d+(t.ort?' · '+t.ort:'')+(t.t?' · '+new Date(t.t).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'')));de.dir='ltr';i.append(de)}
       const rk=TRK_REK[trkNr(x)];if(rk)i.append(el('div','t va-rek','🛟 Reklamation eröffnet · فُتح طلب تحقيق '+new Date(rk).toLocaleDateString('de-DE')));
       const bt=el('div','va-bt');const tr=el('a','btn small vz-trk','📍 تتبّع · Verfolgen');tr.href=vzTrackUrl(x);tr.target='_blank';tr.rel='noopener';bt.append(tr);
-      if(tk==='failure'||rk){const rb=el('button','btn small va-rekb','🛟 Reklamation');rb.onclick=()=>vzRek(x);bt.append(rb)}
+      if(tk==='failure'||rk){const rb=el('button','btn small va-rekb',rk?'🛟 Reklamation ✓':'🛟 Reklamation');rb.onclick=()=>rk?vzRek(x):vzRekGo(x);bt.append(rb)}
       r.append(i,bt);box.append(r)})}
   q.oninput=draw;draw()}
 /* 🛟 Reklamation / Nachforschungsauftrag – DHL bietet dafür keine offene Schnittstelle: fertiger Text + direkter Weg zum Portal */
+const VZ_REK_URL={nf:'https://www.dhl.de/nachforschungsauftrag',gkp:'https://geschaeftskunden.dhl.de',schaden:'https://www.dhl.de/dam/jcr:582dc504-3ad1-43b3-b722-4060607cfc12/dhl-schadensanzeige.pdf',express:'https://mydhl.express.dhl/de/de/forms/csm/claim.html'};
+function vzRekText(x){const ex=x.src==='shopx',t=trkOf(x)||{},d=new Date(x.at||0).toLocaleDateString('de-DE');
+  return 'Sehr geehrte Damen und Herren,\n\nfür die folgende Sendung beantragen wir hiermit einen Nachforschungsauftrag / eine Reklamation:\n\nSendungsnummer: '+x.nr+'\nVersanddatum: '+d+'\nProdukt: '+(ex?'DHL Express':'DHL Paket')+'\nAnzahl Packstücke: '+(x.n||1)+'\nEmpfänger: '+String(x.name).replace(/^#\d+\s·\s/,'')+(x.plz?' ('+x.plz+')':'')+'\nAktueller Status laut Sendungsverfolgung: '+(t.d||'—')+'\nInhalt: Duftöle / Parfümzubehör\n\nAbsender:\nFragrance Hub Germany\nAm Alten Kirchplatz 10\n45665 Recklinghausen\nTelefon: +49 2361 4878835\nE-Mail: info@fragranceshub.de\n\nBitte informieren Sie uns zeitnah über das Ergebnis der Nachforschung.\n\nMit freundlichen Grüßen\nFragrance Hub Germany'}
+async function vzCopy(t){try{await navigator.clipboard.writeText(t);return true}catch(e){try{const ta=document.createElement('textarea');ta.value=t;document.body.append(ta);ta.select();document.execCommand('copy');ta.remove();return true}catch(e2){return false}}}
+/* Ein Tipp: das passende DHL-Formular öffnet sich sofort, der Text liegt schon in der Zwischenablage */
+function vzRekGo(x){const u=x.src==='shopx'?VZ_REK_URL.express:VZ_REK_URL.nf;window.open(u,'_blank','noopener');vzCopy(vzRekText(x)).then(ok=>toast(ok?'📋 نُسخ نص الشكوى – ألصقه في نموذج DHL الذي فُتح':'افتح نموذج DHL وانسخ النص من صفحة الشكوى'));vzRek(x)}
 function vzRek(x){const ex=x.src==='shopx',t=trkOf(x)||{};openSheet('🛟 Reklamation · طلب تحقيق',b=>{vzCss();
-  const d=new Date(x.at||0).toLocaleDateString('de-DE');
-  const txt='Sehr geehrte Damen und Herren,\n\nfür die folgende Sendung beantragen wir hiermit einen Nachforschungsauftrag / eine Reklamation:\n\nSendungsnummer: '+x.nr+'\nVersanddatum: '+d+'\nProdukt: '+(ex?'DHL Express':'DHL Paket')+'\nAnzahl Packstücke: '+(x.n||1)+'\nEmpfänger: '+String(x.name).replace(/^#\d+\s·\s/,'')+(x.plz?' ('+x.plz+')':'')+'\nAktueller Status laut Sendungsverfolgung: '+(t.d||'—')+'\nInhalt: Duftöle / Parfümzubehör\n\nAbsender:\nFragrance Hub Germany\nAm Alten Kirchplatz 10\n45665 Recklinghausen\nTelefon: +49 2361 4878835\nE-Mail: info@fragranceshub.de\n\nBitte informieren Sie uns zeitnah über das Ergebnis der Nachforschung.\n\nMit freundlichen Grüßen\nFragrance Hub Germany';
-  b.append(el('div','va-head'));b.lastChild.append(el('b',null,x.name),el('span',null,x.nr+' · '+(t.d||'')));
-  b.append(el('p','hint','DHL لا توفّر ربطاً آلياً لفتح طلبات التحقيق. جهّزنا لك النص بالألمانية: انسخه ثم افتح بوابة DHL وألصقه في نموذج «Nachforschungsauftrag». بعدها اضغط «تم فتح الطلب» ليُسجَّل في الأرشيف.'));
-  const ta=el('textarea','va-ta');ta.value=txt;ta.rows=16;b.append(ta);
+  const hd=el('div','va-head'),hl=el('div');hl.append(el('b',null,x.name),el('span',null,x.nr+' · '+(t.d||'')));hd.append(hl);b.append(hd);
+  b.append(el('p','hint',ex?'نموذج الشكوى لدى DHL Express يُفتح مباشرة. النص الألماني جاهز ومنسوخ: ألصقه في خانة «Details»، ثم اضغط «تم فتح الطلب».':'نموذج «Nachforschungsauftrag» لدى DHL يُفتح مباشرة (يمكن طلبه بعد 6 أيام عمل بلا تحديث في الحالة). أدخل رقم الشحنة والرمز البريدي، والنص الألماني منسوخ وجاهز للصق. ثم اضغط «تم فتح الطلب».'));
+  const ta=el('textarea','va-ta');ta.value=vzRekText(x);ta.rows=14;b.append(ta);
   const row=el('div','va-rek-bt');
-  const cp=el('button','btn primary','📋 نسخ النص · Kopieren');cp.onclick=async()=>{try{await navigator.clipboard.writeText(ta.value);toast('✓ نُسخ النص')}catch(e){ta.select();document.execCommand('copy');toast('✓ نُسخ النص')}};
-  const po=el('a','btn',ex?'🌐 MyDHL+ · Express':'🌐 DHL Geschäftskundenportal');po.href=ex?'https://mydhl.express.dhl/de/de/home.html':'https://geschaeftskunden.dhl.de';po.target='_blank';po.rel='noopener';
-  const ml=el('a','btn','✉️ E-Mail');ml.href='mailto:?subject='+encodeURIComponent('Nachforschungsauftrag Sendung '+x.nr)+'&body='+encodeURIComponent(ta.value);
+  const L=(cls,txt,u)=>{const a=el('a','btn'+(cls?' '+cls:''),txt);a.href=u;a.target='_blank';a.rel='noopener';return a};
+  const cp=el('button','btn','📋 نسخ النص · Kopieren');cp.onclick=async()=>toast(await vzCopy(ta.value)?'✓ نُسخ النص':'⚠️ لم يُنسخ');
+  if(ex)row.append(L('primary','✈️ نموذج الشكوى · DHL Express Claim',VZ_REK_URL.express),cp);
+  else row.append(L('primary','🔎 Nachforschungsauftrag · نموذج DHL',VZ_REK_URL.nf),cp,L('','🏢 Geschäftskundenportal',VZ_REK_URL.gkp),L('','📄 Schadensanzeige (ضرر)',VZ_REK_URL.schaden));
+  const ml=el('a','btn','✉️ E-Mail');ml.href='mailto:?subject='+encodeURIComponent('Nachforschungsauftrag Sendung '+x.nr)+'&body='+encodeURIComponent(ta.value);row.append(ml);
   const ok=el('button','btn','✓ تم فتح الطلب · Reklamation eröffnet');ok.onclick=async()=>{ok.disabled=true;try{const r=await soCall('dhl_track',{items:[],rek:{nr:trkNr(x),at:Date.now()}});if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}toast('✓ سُجّل في الأرشيف')}catch(e){TRK_REK[trkNr(x)]=Date.now();LS.set('trkRek',TRK_REK);toast('✓ سُجّل على هذا الجهاز')}ok.disabled=false};
-  row.append(cp,po,ml,ok);b.append(row)})}
+  row.append(ok);b.append(row)})}
 /* Versandobjekt für ein Etikett ohne Auftrag – nutzt dieselbe DHL-Anbindung wie die Showroom-Aufträge (ID „AP-L…“) */
 function vzObj(c,adr,s){const id=(s&&s.id)||('AP-L'+vzRand()),ref=(s&&s.ref)||('FH-'+stamp({at:Date.now()}));
   const o={ap:true,frei:true,id,nr:ref,adr,kg:(s&&s.kg)||1,stand:{},l:{dhl:s&&s.nr?{nr:s.nr}:null},
