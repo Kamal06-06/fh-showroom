@@ -4604,7 +4604,7 @@ function radioCss(){if($('radio-css'))return;const s=document.createElement('sty
 #rd-chip{position:fixed;top:calc(8px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:34;display:flex;align-items:center;gap:8px;background:#141210;color:#c9a24a;border-radius:999px;padding:6px 8px 6px 14px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:80vw}
 #rd-chip[hidden]{display:none}#rd-chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 #rd-chip button{width:32px;height:32px;border-radius:50%;border:0;background:#c9a24a;color:#141210;cursor:pointer;flex:none;font-size:14px}#rd-chip button.x{background:#3a342c;color:#cfc6b4;width:26px;height:26px;font-size:12px}
-.rd-ctl{display:flex;gap:8px;align-items:center}.rd-ctl button{width:40px;height:40px;border-radius:50%;border:0;background:#141210;color:#c9a24a;font-size:16px;cursor:pointer}.hq-rd b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.rd-ctl{display:flex;gap:8px;align-items:center}.rd-ctl button{width:46px;height:46px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;border-radius:50%;border:0;background:#141210;color:#c9a24a;font-size:16px;cursor:pointer}.hq-rd b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 `;document.head.append(s)}
 async function radioLoad(){if(radioList)return radioList;
   const hosts=['de1.api.radio-browser.info','de2.api.radio-browser.info','fi1.api.radio-browser.info'];let j=null;
@@ -4619,20 +4619,20 @@ const RD_NEWS=/syria tv|تلفزيون سوريا|damascus|دمشق|sham ?fm|tay
 const RD_NEWS_EXTRA=[{n:'مونت كارلو الدولية · أخبار',u:'https://montecarlodoualiya128k.ice.infomaniak.ch/mc-doualiya.mp3',f:'',tags:'أخبار عربية'},{n:'BBC عربي · أخبار',u:'https://stream.live.vc.bbcmedia.co.uk/bbc_arabic_radio',f:'',tags:'أخبار عربية'}];
 function radioTabList(){if(!radioList)return null;if(LS.get('radioTab','all')!=='news')return radioList;
   const sy=[],seen=new Set();radioList.forEach(x=>{if(RD_NEWS.test(x.n)){const k=x.n.replace(/[^a-z]/gi,'').toLowerCase().slice(0,8);if(!seen.has(k)){seen.add(k);sy.push({...x,tags:'أخبار سورية'})}}});return sy.concat(RD_NEWS_EXTRA)}
-function radioNext(){const go=()=>{const L=radioTabList();if(!L||!L.length)return;let i=radioCur?L.findIndex(x=>x.u===radioCur.u):-1;const nx=L[(i+1)%L.length];radioPlay(nx);toast('🎧 '+rdName(nx.n))};
+function radioNext(d){d=d===-1?-1:1;const go=()=>{const L=radioTabList();if(!L||!L.length)return;let i=radioCur?L.findIndex(x=>x.u===radioCur.u):-1;if(i<0&&d<0)i=0;const nx=L[(i+d+L.length)%L.length];radioPlay(nx);toast('🎧 '+rdName(nx.n))};
   if(radioList)go();else radioLoad().then(go).catch(e=>toast('⚠️ '+e.message))}
 function radioStop(){if(radioAu){radioAu.pause();radioAu.removeAttribute('src');radioAu.load()}radioShown=false;radioChip()}
 function radioChip(){radioCss();let c=$('rd-chip');const mk=(t,f,lab)=>{const b=el('button',null,t);b.type='button';b.setAttribute('aria-label',lab);b.onclick=e=>{e.stopPropagation();f()};return b};
   if(!c){c=el('div');c.id='rd-chip';c.setAttribute('dir','rtl');const t=el('span');t.onclick=()=>radioOpen();c.append(t,mk('','',''),mk('⏭',radioNext,'المحطة التالية'),mk('✕',radioStop,'إيقاف وإخفاء'));c.children[1].onclick=e=>{e.stopPropagation();radioToggle()};c.children[1].setAttribute('aria-label','تشغيل / إيقاف');c.lastChild.className='x';document.body.append(c)}
   const on=!!(radioAu&&!radioAu.paused);if(on)radioShown=true;c.hidden=true;c.firstChild.textContent='🎧 '+(radioCur?radioCur.n:'');c.children[1].textContent=on?'⏸':'▶';
-  const h=$('hq-rd-ctl');if(h){h.textContent='';if(radioCur){h.append(mk(on?'⏸':'▶',radioToggle,'تشغيل / إيقاف'),mk('⏭',radioNext,'المحطة التالية'))}else h.append(el('span',null,'Radio Syrien'))}
+  const h=$('hq-rd-ctl');if(h){if(!h._b){h.textContent='';const pp=mk('',radioToggle,'تشغيل / إيقاف'),nx=mk('⏭',radioNext,'المحطة التالية'),ph=el('span',null,'Radio Syrien');h.append(ph,pp,nx);h._b=[ph,pp,nx]}const[ph,pp,nx]=h._b;ph.hidden=!!radioCur;pp.hidden=nx.hidden=!radioCur;pp.textContent=on?'⏸':'▶'}
   const hb=$('hq-rd')&&$('hq-rd').querySelector('b');if(hb)hb.textContent=radioCur?'🎧 '+rdName(radioCur.n):'🎧 راديو سوريا'}
 function rdName(n){n=String(n||'');const m=n.match(/[\u0600-\u06FF][\u0600-\u06FF\s]*/);return m&&!/·/.test(n)?m[0].trim():n.trim()}
 function radioPlay(st){radioCur=st;LS.set('radioCur',st);if(!radioAu){radioAu=new Audio();radioAu.preload='none';radioAu.onplaying=()=>{radioChip();radioRedraw()};radioAu.onpause=()=>{radioChip();radioRedraw()};
     radioAu.onerror=()=>{toast('⚠️ المحطة لا تبث الآن – جرّب محطة أخرى');radioChip();radioRedraw()}}
   radioAu.src=st.u;radioAu.volume=LS.get('radioVol',0.8);radioAu.play().catch(e=>{if(e&&e.name!=='NotAllowedError'&&e.name!=='AbortError')toast('⚠️ المحطة لا تبث الآن – جرّب محطة أخرى')});
   try{if('mediaSession' in navigator){navigator.mediaSession.metadata=new MediaMetadata({title:st.n,artist:'راديو سوريا · Fragrance Hub',artwork:st.f?[{src:st.f,sizes:'96x96'}]:[{src:'icon-192.png',sizes:'192x192'}]});
-    navigator.mediaSession.setActionHandler('play',()=>radioAu.play());navigator.mediaSession.setActionHandler('pause',()=>radioAu.pause())}}catch(e){}
+    navigator.mediaSession.setActionHandler('play',()=>radioAu.play());navigator.mediaSession.setActionHandler('pause',()=>radioAu.pause());navigator.mediaSession.setActionHandler('nexttrack',()=>radioNext());navigator.mediaSession.setActionHandler('previoustrack',()=>radioNext(-1))}}catch(e){}
   radioRedraw()}
 function radioToggle(){if(!radioAu||!radioAu.src){if(radioCur)radioPlay(radioCur);else radioOpen();return}if(radioAu.paused){radioAu.src=radioCur.u;radioAu.play().catch(()=>{})}else{radioAu.pause();radioAu.removeAttribute('src');radioAu.load()}}
 function radioRedraw(){if(!/^🎧/.test($('sheet-t').textContent)||$('sheet').hidden)return;const b=$('sheet-b');radioDraw(b)}
