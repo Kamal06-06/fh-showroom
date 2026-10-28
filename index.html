@@ -4777,8 +4777,8 @@ const soDate=t=>new Date(t).toLocaleString('de-DE',{day:'2-digit',month:'2-digit
 /* 📦 Versand-Reihenfolge wie in europäischen Versandlagern: Cut-off 12:00, Versand nur Mo–Fr.
    Bestellung (bzw. Zahlung) bis 12:00 an einem Werktag → Versand am selben Tag, sonst am nächsten Werktag.
    Sortierung: 1) verspätet  2) nach Versandtag  3) innerhalb des Tages streng nach Eingang (First In – First Out). */
-const SO_CUT=12;
-const soShipDay=o=>{const d=new Date(soT(o));const late=d.getHours()>=SO_CUT;d.setHours(0,0,0,0);const wd=d.getDay();if(late||!wd||wd===6)do{d.setDate(d.getDate()+1)}while(!d.getDay()||d.getDay()===6);return d.getTime()};
+const SO_CUT=14.5;   /* Versandschluss der App: 14:30 */
+const soShipDay=o=>{const d=new Date(soT(o));const late=d.getHours()+d.getMinutes()/60>=SO_CUT;d.setHours(0,0,0,0);const wd=d.getDay();if(late||!wd||wd===6)do{d.setDate(d.getDate()+1)}while(!d.getDay()||d.getDay()===6);return d.getTime()};
 const soPrio=o=>soLate(o)?0:1;
 const soOrder=(a,c)=>soPrio(a)-soPrio(c)||soShipDay(a)-soShipDay(c)||soT(a)-soT(c)||String(soNr(a)).localeCompare(String(soNr(c)),'de',{numeric:true});
 const soShipLbl=o=>{if(soLate(o))return ['late','⏰ متأخرة – ابدأ بها أولاً'];const d=soShipDay(o),n=new Date();n.setHours(0,0,0,0);const df=Math.round((d-n)/864e5),dt=new Date(d),
@@ -4871,6 +4871,27 @@ function soCss(){if($('so-css'))return;const s=document.createElement('style');s
 .so-bar{position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom));z-index:2;background:var(--surface);border-top:1px solid var(--line);margin:12px -16px 0;padding:10px 16px calc(12px + env(safe-area-inset-bottom))}
 .so-foot{font-size:12px;margin-top:10px;text-align:center}
 @media (max-width:360px){.so-k span{font-size:11px}}
+.sx-head{display:flex;flex-direction:column;gap:8px;margin:0 0 10px}
+.sx-reg{display:flex;gap:6px;background:var(--soft);padding:4px;border-radius:14px}
+.sx-reg button{position:relative;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px;border:0;background:none;border-radius:10px;padding:8px 4px 7px;font:inherit;color:var(--muted);cursor:pointer;text-align:center}
+.sx-reg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 5px #0002}
+.sx-reg .f{font-size:18px;line-height:1.1}.sx-reg .t{font-weight:800;font-size:13.5px;white-space:nowrap}.sx-reg small{font-size:10.5px;direction:ltr;white-space:nowrap}
+.sx-reg em{position:absolute;top:5px;inset-inline-end:6px;font-style:normal;font-weight:900;font-size:12px;min-width:22px;height:22px;padding:0 5px;border-radius:999px;display:grid;place-items:center;background:var(--ink);color:#fff;font-variant-numeric:tabular-nums}.sx-reg em.z{background:var(--line);color:var(--muted)}
+.sx-cut{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:7px 12px;border-radius:10px;background:var(--soft);color:var(--muted)}.sx-cut b{color:var(--ink);font-variant-numeric:tabular-nums}
+.sx-cut.warn{background:color-mix(in srgb,var(--danger) 12%,transparent)}.sx-cut.warn b{color:var(--danger)}
+.sx-late{display:flex;justify-content:space-between;align-items:center;width:100%;border:1.5px solid var(--danger);background:color-mix(in srgb,var(--danger) 9%,transparent);color:var(--danger);border-radius:12px;padding:10px 12px;margin:0 0 10px;font:inherit;cursor:pointer}
+.sx-late span{font-size:13px;font-weight:600}.sx-late.on{background:var(--danger);color:#fff}
+.sx-flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;gap:4px;margin:0 0 12px}
+.sx-flow .ar{align-self:center;color:var(--muted);font-size:20px;font-weight:300}
+.sx-st{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:10px 4px 8px;font:inherit;color:var(--ink);cursor:pointer;text-align:center}
+.sx-st .nr{position:absolute;top:6px;inset-inline-start:8px;font-size:11px;font-weight:800;color:var(--muted)}
+.sx-st b{font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}.sx-st .t{font-size:12.5px;font-weight:700}.sx-st small{font-size:10.5px;color:var(--muted);direction:ltr}
+.sx-st.z b{color:var(--muted)}.sx-st.on{background:var(--ink);border-color:var(--ink);color:#fff}.sx-st.on .nr,.sx-st.on small{color:#cfc6b4}.sx-st.on b{color:#c9a24a}
+.sx-note{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-inline-start:4px solid var(--gold);background:var(--surface);border-radius:12px;padding:10px 12px;margin:0 0 10px}
+.sx-note div{display:flex;flex-direction:column}.sx-note b{font-size:14px}.sx-note div span{font-size:12px;color:var(--muted)}
+.sx-note.paid{border-inline-start-color:#f59e0b;font-size:13px;font-weight:700}
+.sx-admin{display:flex;justify-content:center;gap:14px;margin-top:4px}
+
 `;document.head.append(s)}
 /* Ansicht merken: nach einem Neuladen bleibt man auf derselben Seite */
 function soView(){try{sessionStorage.setItem('fhSo',JSON.stringify({sel:soSel,reg:soReg,tab:soTab}))}catch(e){}}
@@ -4896,40 +4917,48 @@ const soDayLbl=t=>{const d=new Date(t),n=new Date();d.setHours(0,0,0,0);n.setHou
 function soListView(b){b.textContent='';soCss();sheetBack=null;if(!soFilt[soTab])soTab='open';soView();
   const all=soAll(),de=all.filter(o=>!soAbh(o)&&soIsDE(o)),ab=all.filter(o=>!soAbh(o)&&!soIsDE(o)),ah=all.filter(soAbh);if(soReg==='abh'&&!ah.length)soReg='de';const reg=soReg==='de'?de:soReg==='abh'?ah:ab;
   const open=L=>L.filter(o=>!soPrep(o).ready).length;
-  /* 1 · Region */
-  const seg=el('div','so-seg');[['de','🇩🇪 داخل ألمانيا',de],['ab','🌍 خارج ألمانيا',ab]].concat(ah.length?[['abh','🏬 استلام',ah]]:[]).forEach(([k,t,L])=>{const x=el('button',soReg===k?'on':'');x.append(t,el('small',null,open(L)+' للتحضير · '+L.length+' طلب'));x.onclick=()=>{soReg=k;soView();soListView(b)};seg.append(x)});b.append(seg);
-  /* 2 · Kennzahlen = Filter */
-  const kp=el('div','so-kpi');
-  [['open','📋 للتحضير',''],['late','⏰ متأخرة','bad'],['ready','✅ جاهزة · بلا ملصق','warn'],['lbl','🏷️ تم الملصق','ok']].forEach(([k,t,c])=>{
-    const n=reg.filter(soFilt[k]).length,x=el('button','so-k '+c+(soTab===k?' on':''));x.append(el('b',null,String(n)),el('span',null,t));
-    x.onclick=()=>{soTab=soTab===k&&k!=='open'?'open':k;soView();soListView(b)};kp.append(x)});
-  b.append(kp);
+  /* 1 · Kopf: Bereich + Versandschluss */
+  const hd=el('div','sx-head');
+  const seg=el('div','sx-reg');[['de','🇩🇪','داخل ألمانيا','DHL Paket',de],['ab','🌍','خارج ألمانيا','DHL Express',ab]].concat(ah.length?[['abh','🏬','استلام','Abholung',ah]]:[]).forEach(([k,f,t,sub,L])=>{
+    const x=el('button',soReg===k?'on':'');x.type='button';const o=open(L);x.append(el('span','f',f),el('span','t',t),el('small',null,sub),el('em',o?'':'z',String(o)));x.title=o+' للتحضير · '+L.length+' طلب';
+    x.onclick=()=>{soReg=k;soView();soListView(b)};seg.append(x)});hd.append(seg);
+  {const c=shipCut(),cl=el('div','sx-cut '+(c.cls||''));cl.append(el('span',null,c.t==='الشحن القادم'?'🚚 الشحن القادم':'⏱️ موعد الشحن اليوم 14:30'),el('b',null,c.t==='الشحن القادم'?c.v:'باقي '+c.v));hd.append(cl)}
+  b.append(hd);
+  /* 2 · Ablauf wie im europäischen Versandlager: Kommissionieren → Verpacken/Etikett → Versandbereit */
+  const lateN=reg.filter(soLate).length;
+  if(lateN){const a=el('button','sx-late'+(soTab==='late'?' on':''));a.type='button';a.append(el('b',null,'⏰ '+lateN+' طلب متأخر'),el('span',null,soTab==='late'?'عرض كل الطلبات ‹':'ابدأ بها أولاً · عرض ‹'));a.onclick=()=>{soTab=soTab==='late'?'open':'late';soView();soListView(b)};b.append(a)}
+  const fw=el('div','sx-flow');
+  [['open','1','التحضير','Kommissionierung'],['ready','2','التغليف والملصق','Verpackung · Etikett'],['lbl','3','جاهزة لـ DHL','Versandbereit']].forEach(([k,nr,t,de2],i)=>{
+    const n=reg.filter(soFilt[k]).length,x=el('button','sx-st'+(soTab===k?' on':'')+(n?'':' z'));x.type='button';
+    x.append(el('span','nr',nr),el('b',null,String(n)),el('span','t',t),el('small',null,de2));x.onclick=()=>{soTab=k;soView();soListView(b)};fw.append(x);
+    if(i<2)fw.append(el('span','ar','‹'))});
+  b.append(fw);
   /* 3 · Suche + Werkzeuge */
   const tb=el('div','so-tool');const q=el('input');q.type='search';q.placeholder='🔍 رقم الطلب، العميل أو المدينة';q.value=soQ;q.autocomplete='off';
   const ib=(t,ti,f)=>{const x=el('button','so-ib',t);x.title=ti;x.setAttribute('aria-label',ti);x.onclick=f;return x};
   const rf=ib('🔄','تحديث',async()=>{rf.disabled=true;rf.classList.add('spin');try{await soLoad(true)}catch(e){toast('⚠️ '+e.message)}soListView(b)});
   tb.append(q,rf,ib('➕','طلب يدوي',()=>soNeuSheet()));
-  if(isAdmin()&&soReg!=='abh'){tb.append(ib('⚙️',soReg==='de'?'إعدادات DHL':'إعدادات DHL Express',()=>soReg==='de'?dhlSetup():dhlxSetup()),ib('🔑','تغيير كلمة السر',()=>shopPwSheet(null,true)))}
   b.append(tb);
   {const nw=reg.filter(soNeedsPrint).sort(soOrder),lp=nw.filter(soLatePaid);
-    if(lp.length){const a=el('div','so-alert paid');a.append(el('span',null,'🔔 '+lp.length+' طلب قديم دُفع الآن ولم يُطبع: #'+lp.map(soNr).join(', #')));b.append(a)}
-    if(nw.length){const a=el('div','so-alert'),x=el('button','btn primary small','🖨️ اطبع الجديد فقط · '+nw.length);x.onclick=()=>soBulkLs(nw);a.append(el('span',null,'🆕 '+nw.length+' طلب لم تُطبع قائمته بعد'),x);b.append(a)}}
+    if(lp.length){const a=el('div','sx-note paid');a.append(el('span',null,'🔔 '+lp.length+' طلب قديم دُفع الآن ولم يُطبع: #'+lp.map(soNr).join(', #')));b.append(a)}
+    if(nw.length){const a=el('div','sx-note'),x=el('button','btn primary small','🖨️ طباعة '+nw.length);x.onclick=()=>soBulkLs(nw);const t=el('div');t.append(el('b',null,'🆕 '+nw.length+' طلب جديد'),el('span',null,'قوائم التحضير لم تُطبع بعد'));a.append(t,x);b.append(a)}}
   const fl=el('div','so-fl');b.append(fl);
   if(soP)b.append(el('p','hint so-upd','⏳ جاري التحديث من Shopify…'));
   const box=el('div');b.append(box);
   const bar=el('div','so-bar');b.append(bar);
   b.append(el('p','hint so-foot','تظهر طلبات Shopify المدفوعة وغير المشحونة (آخر 21 يوماً). هذا القسم لا يغيّر المخزون ولا الجرد ولا حسابات العملاء.'));
+  if(isAdmin()&&soReg!=='abh'){const ad=el('div','sx-admin');const L=(t,f)=>{const x=el('button','so-lnk',t);x.onclick=f;ad.append(x)};L(soReg==='de'?'⚙️ إعدادات DHL':'⚙️ إعدادات DHL Express',()=>soReg==='de'?dhlSetup():dhlxSetup());L('🔑 كلمة سر المتجر',()=>shopPwSheet(null,true));b.append(ad)}
   const draw=()=>{box.textContent='';fl.textContent='';bar.textContent='';
     const s=soQ.trim().toLowerCase().replace(/^#/,'');
     let L=reg.filter(soFilt[soTab]);
     if(s)L=reg.filter(o=>[soNr(o),o.kunde,o.name,o.firma,soOrt(o)].join(' ').toLowerCase().includes(s));
     const smart=!s&&(soTab==='open'||soTab==='late');L.sort(smart||(!s&&soTab==='ready')?soOrder:(a,c)=>soT(c)-soT(a));let qn=0;
-    const nm={open:'للتحضير',late:'متأخرة',ready:'جاهزة – تحتاج ملصق',lbl:'تم الملصق – بانتظار DHL',all:'الكل'};
+    const nm={open:'① التحضير',late:'⏰ المتأخرة',ready:'② التغليف والملصق',lbl:'③ جاهزة لـ DHL',all:'كل الطلبات'};
     fl.append(el('span',null,s?'نتائج البحث · '+L.length:nm[soTab]+' · '+L.length+' طلب'));
     if(!s&&soTab!=='all'){const a=el('button','so-lnk','عرض الكل ('+reg.length+')');a.onclick=()=>{soTab='all';soView();soListView(b)};fl.append(a)}
     if(!L.length){box.append(el('div','so-empty',s?'لا توجد نتائج':soTab==='open'?'✅ لا توجد طلبات للتحضير':soTab==='ready'?'✅ كل الطلبات الجاهزة لها ملصق':'لا توجد طلبات'));}
     let day='';const tbl=el('div','so-tbl');box.append(tbl);
-    if(smart&&L.length){const h=el('p','hint','الترتيب تلقائي حسب موعد الشحن (قبل 12:00 = نفس اليوم) ثم الأقدم أولاً. حضّر بالرقم: 1 ثم 2 ثم 3…');h.style.margin='4px 2px 8px';box.append(h)}
+    if(smart&&L.length){const h=el('p','hint','الترتيب تلقائي حسب موعد الشحن (قبل 14:30 = نفس اليوم) ثم الأقدم أولاً. حضّر بالرقم: 1 ثم 2 ثم 3…');h.style.margin='4px 2px 8px';box.append(h)}
     const gk=o=>smart?soShipLbl(o):['',soDayLbl(soT(o))];
     L.forEach(o=>{const [gc,dl]=gk(o);if(dl!==day){day=dl;const n=L.filter(x=>gk(x)[1]===dl).length;{const h=el('div','so-day'+(gc?' '+gc:''));h.append(el('span',null,dl),el('span',null,n+' طلب'));tbl.append(h)}}
       const pr=soPrep(o),st=o.stand||{},late=soLate(o);
