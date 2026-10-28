@@ -5781,7 +5781,7 @@ function vzArchFill(b,k){soCss();vzCss();const A=VZ_ARCH[k];if(!vzView||vzView.k
       r.append(i,bt);box.append(r)})}
   q.oninput=draw;draw()}
 /* 🛟 Reklamation / Nachforschungsauftrag – DHL bietet dafür keine offene Schnittstelle: fertiger Text + direkter Weg zum Portal */
-const VZ_REK_URL={nf:'https://geschaeftskunden.dhl.de/content/inquiryrequest/submitInquiryRequest',anl:'https://geschaeftskunden.dhl.de/content/inquiryrequest/inquiryList',gkp:'https://geschaeftskunden.dhl.de/content/content/contactForm',schaden:'https://www.dhl.de/dam/jcr:582dc504-3ad1-43b3-b722-4060607cfc12/dhl-schadensanzeige.pdf',express:'https://mydhl.express.dhl/de/de/forms/csm/claim.html'};
+const VZ_REK_URL={nf:'https://geschaeftskunden.dhl.de/content/inquiryrequest/submitInquiryRequest',anl:'https://geschaeftskunden.dhl.de/content/inquiryrequest/inquiryList',gkp:'https://geschaeftskunden.dhl.de/content/content/contactForm',schaden:'https://www.dhl.de/dam/jcr:582dc504-3ad1-43b3-b722-4060607cfc12/dhl-schadensanzeige.pdf',express:'https://mydhl.express.dhl/de/de/forms/csm/claim.html',exTrk:'https://mydhl.express.dhl/de/de/forms/csm/shipment-tracking.html'};
 let DHL_MAILS=LS.get('dhlMails',{paket:'',express:''});
 const DHL_MAIL_DEF={paket:'gkspaket@deutschepost.de'};   /* Kundenservice Geschäftskunden laut GKP › Kontakt */
 /* 📞 Offizielle Rufnummern (dhl.de · Kontakt Express / GKP-Infoblatt) – Paket und Express strikt getrennt */
@@ -5835,10 +5835,10 @@ function vzKontaktFall(x,f){const ex=x.src==='shopx',F=VZ_FALL[f],an=ex?DHL_MAIL
         toast('✅ أُرسلت الشكوى إلى DHL ('+an+') ونسخة إلى info@');scrBack();setTimeout(()=>{try{scrBack()}catch(e){}},50)}
       catch(e){go.disabled=false;go.textContent='📨 إرسال إلى DHL الآن';alert(/DHL_MAIL_FEHLT/.test(e.message)?'لم يُضبط عنوان DHL للتواصل بعد.':'تعذّر الإرسال: '+e.message)}};
     row.append(go);b.append(el('p','hint','تُرسل الرسالة من info@fragranceshub.de إلى '+an+' وتصلك نسخة. الرد يصل إلى بريد الشركة.'))}
-  else{const u=ex?VZ_REK_URL.express:(f==='schaden'?VZ_REK_URL.schaden:(f==='verlust'||f==='verz')?VZ_REK_URL.nf:VZ_REK_URL.gkp);const go=el('button','btn primary big',ex?'✈️ نموذج الشكوى لدى DHL Express · Claim':f==='schaden'?'📄 نموذج الضرر DHL Paket · Schadensanzeige':(f==='verlust'||f==='verz')?'🔎 «Nachforschung beauftragen» في بوابة الأعمال':'📝 نموذج التواصل في بوابة الأعمال');
+  else{const u=ex?((f==='verlust'||f==='schaden')?VZ_REK_URL.express:VZ_REK_URL.exTrk):(f==='schaden'?VZ_REK_URL.schaden:(f==='verlust'||f==='verz')?VZ_REK_URL.nf:VZ_REK_URL.gkp);const go=el('button','btn primary big',ex?((f==='verlust'||f==='schaden')?'✈️ نموذج المطالبة لدى DHL Express · Forderung':'✈️ نموذج الاستفسار لدى DHL Express · Sendungsverfolgung'):f==='schaden'?'📄 نموذج الضرر DHL Paket · Schadensanzeige':(f==='verlust'||f==='verz')?'🔎 «Nachforschung beauftragen» في بوابة الأعمال':'📝 نموذج التواصل في بوابة الأعمال');
     go.onclick=()=>{window.open(u,'_blank','noopener');vzCopy(ta.value).then(ok=>toast(ok?'📋 نُسخ النص – ألصقه في نموذج DHL':'انسخ النص من المعاينة'))};row.append(go);
     {const cw=el('div','va-copy');const C=(lab,v)=>{if(!v)return;const c=el('button','btn small',lab+': '+v+' 📋');c.onclick=()=>vzCopy(v).then(()=>toast('✓ نُسخ: '+v));cw.append(c)};C('Sendungsnummer',x.nr);C('PLZ',x.plz);b.append(el('p','hint','نموذج DHL يطلب أولاً رقم الشحنة والرمز البريدي – انسخهما من هنا:'),cw)}
-    b.append(el('p','hint',ex?'DHL Express: الشكوى عبر نموذج «Forderung» الرسمي لـ DHL Express ألمانيا. النص الألماني منسوخ – ألصقه في خانة التفاصيل.':'DHL Paket للأعمال: تُفتح الصفحة الصحيحة في بوابة الأعمال مباشرة (يجب أن تكون مسجّلاً فيها). النص الألماني منسوخ للصق.'))}
+    b.append(el('p','hint',ex?'DHL Express لا توفّر بريداً للشكاوى، والتواصل يكون عبر نماذجها الرسمية: يُفتح النموذج الصحيح لهذه الحالة مباشرة، والنص الألماني منسوخ – ألصقه في خانة التفاصيل. أو اتصل بالرقم أدناه.':'DHL Paket للأعمال: تُفتح الصفحة الصحيحة في بوابة الأعمال مباشرة (يجب أن تكون مسجّلاً فيها). النص الألماني منسوخ للصق.'))}
   const ok=el('button','btn','✓ تم التواصل · erledigt');ok.onclick=async()=>{ok.disabled=true;try{const r=await soCall('dhl_track',{items:[],rek:{nr:trkNr(x),at:Date.now()}});if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}}catch(e){TRK_REK[trkNr(x)]={at:Date.now(),fall:f};LS.set('trkRek',TRK_REK)}toast('✓ سُجّل في الأرشيف');ok.disabled=false};
   if(!an)row.append(ok);
   b.append(row);
@@ -5847,7 +5847,7 @@ function vzKontaktFall(x,f){const ex=x.src==='shopx',F=VZ_FALL[f],an=ex?DHL_MAIL
 /* ⚙️ Kontaktadressen DHL (nur Inhaber) */
 function vzMailSetup(box){if(!isAdmin())return;const d=el('details','va-set'),sm=el('summary',null,'⚙️ عناوين التواصل مع DHL · Kontakt-E-Mails');d.append(sm);
   const mk=(lab,v)=>{const w=el('label','va-in'),i=el('input');i.type='email';i.value=v||'';i.placeholder='name@dhl.com';w.append(el('span',null,lab),i);d.append(w);return i};
-  const ip=mk('📦 DHL Paket · Geschäftskunden (بريد مسؤول حسابك لدى DHL Paket)',DHL_MAILS.paket),ie=mk('✈️ DHL Express (بريد مسؤول حسابك لدى DHL Express – جهة مختلفة)',DHL_MAILS.express);
+  const ip=mk('📦 DHL Paket · Kundenservice Geschäftskunden (من بوابة الأعمال: gkspaket@deutschepost.de)',DHL_MAILS.paket||DHL_MAIL_DEF.paket),ie=mk('✈️ DHL Express (اختياري – DHL Express تعمل بالنماذج لا بالبريد)',DHL_MAILS.express);
   const sv=el('button','btn small primary','💾 حفظ');sv.onclick=async()=>{sv.disabled=true;try{const r=await soCall('dhl_track',{items:[],cfg:{paket:ip.value.trim(),express:ie.value.trim()}});DHL_MAILS=(r&&r.mails)||{paket:ip.value.trim(),express:ie.value.trim()};LS.set('dhlMails',DHL_MAILS);toast('✓ حُفظت العناوين')}catch(e){alert(e.message)}sv.disabled=false};
   d.append(sv,el('p','hint','عند ضبط العنوان تُرسل الشكاوى بضغطة واحدة من info@fragranceshub.de. بدونه يُفتح نموذج DHL الرسمي والنص منسوخ.'));box.append(d)}
 /* Versandobjekt für ein Etikett ohne Auftrag – nutzt dieselbe DHL-Anbindung wie die Showroom-Aufträge (ID „AP-L…“) */
