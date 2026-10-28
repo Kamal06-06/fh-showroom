@@ -3,6 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
+<meta name="fh-build" content="162">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -4946,7 +4947,15 @@ async function appRefresh(){
   if(!$('view-inv').hidden||!$('view-new').hidden)t.push(ivLoad(true,true).catch(()=>{}));
   try{if(navigator.serviceWorker)navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})}catch(e){}
   await Promise.race([Promise.all(t),new Promise(r=>setTimeout(r,15000))]);
+  if(await appVerCheck(true))return;
   appRedraw();toast('✅ تم التحديث')}
+/* App-Version: neue Version erkennen (sw.js) – beim Ziehen automatisch laden, sonst Hinweis zum Antippen */
+let appUpd=0;
+async function appVerCheck(auto){try{if(IN_GAS)return false;const r=await fetch('sw.js?t='+Date.now(),{cache:'no-store'});const m=/fh-shell-v(\d+)/.exec(await r.text());const me=document.querySelector('meta[name=fh-build]');const cur=me?+me.content:0;
+  if(!m||!cur||+m[1]<=cur)return false;
+  if(auto&&!appTyped(document.body)){toast('🆕 جاري تحميل النسخة الجديدة…');setTimeout(()=>location.reload(),600);return true}
+  if(Date.now()-appUpd>600000){appUpd=Date.now();toast('🆕 نسخة جديدة من التطبيق جاهزة – اضغط هنا للتحديث',()=>location.reload())}return true}catch(e){return false}}
+if(!IN_GAS){setTimeout(()=>appVerCheck(false),60000);setInterval(()=>{if(!document.hidden)appVerCheck(false)},900000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)appVerCheck(false)})}
 /* nach dem Aktualisieren die aktuelle Seite neu zeichnen – aber nie, wenn dort gerade etwas eingetippt wurde */
 function appTyped(root){return !!root&&[...root.querySelectorAll('input,textarea')].some(i=>i.type!=='checkbox'&&i.type!=='radio'&&i.type!=='file'&&i.value!==i.defaultValue)}
 function appRedraw(){

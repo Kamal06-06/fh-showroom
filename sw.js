@@ -1,7 +1,7 @@
 /* Fragrance Hub Showroom – offline shell. App page: network first (updates arrive at once), cache as fallback
    (after 4 s on a weak Wi-Fi the saved copy opens, the fresh one is stored for next time).
    Libraries/fonts/icons: cache first. Server calls (script.google.com) are never cached. */
-const C='fh-shell-v161';
+const C='fh-shell-v162';
 const APP=new URL('./',self.registration.scope).pathname;
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(['./','index.html','manifest.json','icon-192.png','icon-512.png']).catch(()=>{})))});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
@@ -18,7 +18,7 @@ self.addEventListener('fetch',e=>{
       return Promise.race([net.catch(()=>hit),slow]);
     }));return}
   if(r.mode==='navigate')return;
-  if(/cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net|fonts\.(googleapis|gstatic)\.com/.test(u.hostname)||u.hostname==='www.gstatic.com'&&u.pathname.startsWith('/firebasejs/')||u.origin===location.origin&&/\.(png|ttf|json|js)$/.test(u.pathname)&&!u.pathname.includes('/konfig/')){
+  if(/cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net|fonts\.(googleapis|gstatic)\.com/.test(u.hostname)||u.hostname==='www.gstatic.com'&&u.pathname.startsWith('/firebasejs/')||u.origin===location.origin&&/\.(png|ttf|json|js)$/.test(u.pathname)&&!u.pathname.includes('/konfig/')&&!u.pathname.endsWith('/sw.js')){
     e.respondWith(caches.match(r).then(hit=>hit||fetch(r).then(res=>{if(res.ok){const cp=res.clone();caches.open(C).then(c=>c.put(r,cp))}return res})))}
 });
 /* 🔔 Push (Firebase Cloud Messaging): neue Aufträge, fertige Aufträge, neue Shop-Bestellungen – auch bei geschlossener App.
