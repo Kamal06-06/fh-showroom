@@ -5582,8 +5582,8 @@ async function driveImg(id){let v=await IDB.get('img-'+id);if(!v){const r=await 
 async function driveUp(name,dataUrl){const m=/^data:([^;]+);base64,(.*)$/.exec(dataUrl);const url=await srv('upload2',name,m[2],m[1]);const id=driveIdOf(url);if(id)IDB.set('img-'+id,dataUrl);return id}
 const pakFotoIds=x=>((x.l&&x.l.pakFoto)||(x.o&&x.o.stand&&x.o.stand.pakFoto)||(x.stand&&x.stand.pakFoto)||[]).slice();
 async function pakFotoSave(o,ids){if(o.ap&&o.l){o.l.pakFoto=ids;await db.doc('lists/'+o.l.id).update({pakFoto:ids})}else{o.stand=await soCall('so_set',{id:o.id,nr:o.nr,patch:{pakFoto:ids}})}}
-function pakFotoBox(b,o){const w=el('div','card');w.style.cssText='padding:10px 12px;margin:8px 0;border:2px solid #c9a24a';let ids=pakFotoIds(o),skip=false,busy=false;
-  const t=el('b',null,'📸 صورة محتوى الطرد قبل الإغلاق (إلزامية)'),h=el('p','hint','صوّر الطرد مفتوحاً وفيه كل المنتجات – تُحفظ مع الشحنة وتُرفق تلقائياً في شكوى DHL عند الضرر أو النقص. · Foto vom Paketinhalt vor dem Verschließen.');
+function pakFotoBox(b,o,nach){const w=el('div','card');w.style.cssText='padding:10px 12px;margin:8px 0;border:2px solid #c9a24a';let ids=pakFotoIds(o),skip=false,busy=false;
+  const t=el('b',null,nach?'📸 صور محتوى الطرد':'📸 صورة محتوى الطرد قبل الإغلاق (إلزامية)'),h=el('p','hint','صوّر الطرد مفتوحاً وفيه كل المنتجات – تُحفظ مع الشحنة وتُرفق تلقائياً في شكوى DHL عند الضرر أو النقص. · Foto vom Paketinhalt vor dem Verschließen.');
   const fl=el('div','va-foto'),fi=el('input');fi.type='file';fi.accept='image/*';fi.setAttribute('capture','environment');fi.hidden=true;
   const add=el('button','btn primary','📷 التقط صورة');add.onclick=()=>fi.click();const st=el('span','time');
   const draw=()=>{fl.textContent='';ids.forEach((id,i)=>{const x=el('span');x.style.cssText='position:relative;display:inline-block';const im=el('img');driveImg(id).then(u=>{if(u)im.src=u}).catch(()=>{});
@@ -5593,7 +5593,7 @@ function pakFotoBox(b,o){const w=el('div','card');w.style.cssText='padding:10px 
     try{for(const f of fs){const u=await imgKlein(f,1100,'image/jpeg');const id=await driveUp('Paketfoto-'+String(o.nr||o.id).replace(/[^\w-]/g,'')+'-'+Date.now()+'.jpg',u);if(id)ids.push(id)}
       await pakFotoSave(o,ids.slice());st.textContent='✅ محفوظة'}catch(e){st.textContent='⚠️ لم تُحفظ: '+(e.message||e)}busy=false;draw()};
   w.append(t,h,fl);const r=el('div','row');r.style.cssText='gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px';r.append(add,st,fi);w.append(r);
-  if(isAdmin()){const l=el('label','clprow'),c=el('input');c.type='checkbox';c.onchange=()=>{skip=c.checked;draw()};l.append(c,' تخطي هذه المرة (للمدير فقط)');w.append(l)}
+  if(isAdmin()&&!nach){const l=el('label','clprow'),c=el('input');c.type='checkbox';c.onchange=()=>{skip=c.checked;draw()};l.append(c,' تخطي هذه المرة (للمدير فقط)');w.append(l)}
   b.append(w);draw();if(ids.length)st.textContent='✅ محفوظة';
   return {ok:()=>skip||ids.length>0}}
 function dhlSheet(o,after){openSheet('📦 DHL Paket · '+o.nr,async b=>{soCss();sheetBack=after||null;
@@ -5626,7 +5626,7 @@ function dhlSheet(o,after){openSheet('📦 DHL Paket · '+o.nr,async b=>{soCss()
     const ad=el('button','btn','➕ إضافة طرد');ad.onclick=()=>addForm();
     const sa=el('button','btn','❌ إلغاء كل الطرود');sa.onclick=async()=>{if(!confirm('إلغاء كل ملصقات DHL لهذا الطلب ('+pk.length+')؟\n\n• تُلغى عند DHL تلقائياً ولا تُحسب عليك (إن لم تُسلَّم بعد).\n• ويرجع الطلب في Shopify إلى «غير مشحون».\n• إيميل الشحن الذي وصل للعميل لا يمكن سحبه.'))return;
       sa.disabled=true;try{const r2=await soCall('dhl_storno',{id:o.id,nr:o.nr});setStand(r2.dhl||null);if(!r2.dhl)o.ful='UNFULFILLED';say('✅ أُلغي: '+r2.nr+(r2.fehler&&r2.fehler.length?'\n⚠️ لم يُلغَ: '+r2.fehler.join(' | '):'')+(r2.hinweis?'\n'+r2.hinweis:''),!!(r2.fehler&&r2.fehler.length));row.remove()}catch(x){say('⚠️ '+dhlErr(x),1);sa.disabled=false}};
-    row.append(pa,pf,ad,sa);b.append(row,m);
+    row.append(pa,pf,ad,sa);b.append(row,m);pakFotoBox(b,o,true);
     const addForm=()=>{row.remove();const f=el('div','card');f.style.cssText='padding:10px 12px;margin:10px 0';f.append(el('b',null,'➕ طرد إضافي لنفس الطلب'),adrTxt());b.append(f);
       const kb=dhlKgBox(f,v.kg);const dr=cbx('🖨️ اطبع مباشرة على Zebra في المستودع',true);
       const go=el('button','btn primary big','✅ إنشاء الطرد الإضافي (مدفوع)');b.append(go,m);
@@ -6167,7 +6167,7 @@ function dhlxSheet(o,after){openSheet('✈️ DHL Express · '+o.nr,async b=>{so
     const tr=el('a','btn','🔗 تتبع');tr.href=dhlxTrack(d.nr);tr.target='_blank';tr.rel='noopener';row.append(tr);
     const sx=el('button','btn wide','❌ إلغاء الشحنة');sx.onclick=async()=>{if(!confirm('إلغاء شحنة DHL Express '+d.nr+'؟\n\n• لا تسلّم الطرد لـ DHL – الشحنة غير المسلَّمة لا تُحسب.\n• ويرجع الطلب في Shopify إلى «غير مشحون».'))return;
       sx.disabled=true;try{const r=await dhlxCall('storno',{id:o.id,nr:o.nr});o.stand=o.stand||{};o.stand.dhlx=null;o.ful='UNFULFILLED';toast('✅ أُلغيت الشحنة '+r.nr);if(r.hinweis)alert(r.hinweis);reopen()}catch(x){say('⚠️ '+dhlxErr(x),1);sx.disabled=false}};row.append(sx);
-    b.append(row,m);return}
+    b.append(row,m);pakFotoBox(b,o,true);return}
   /* neue Sendung */
   const e=v.empf,c=el('div','card');c.style.cssText='padding:10px 12px;margin:8px 0';const pa=e.postalAddress,ci=e.contactInformation;
   const ad=el('div','note');ad.dir='ltr';ad.style.whiteSpace='pre-line';ad.textContent=[ci.companyName!==ci.fullName?ci.companyName:'',ci.fullName,pa.addressLine1,pa.addressLine2,(pa.postalCode||'')+' '+pa.cityName,(pa.provinceCode?pa.provinceCode+' · ':'')+pa.countryCode,'☎ '+ci.phone,ci.email?'✉ '+ci.email:''].filter(x=>String(x||'').trim()).join('\n');
