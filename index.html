@@ -1524,8 +1524,8 @@ function homeTop(openL){
   box.style.gridTemplateColumns='';box.style.rowGap='';
 }
 function opsH(k,t,sub){const h=el('div','ops-h '+k);h.append(el('i',null,t),el('small',null,sub));return h}
-/* Versandschluss: bis 12:00 bestellt = Versand heute (Mo–Fr) */
-function shipCut(){const d=new Date(),wd=d.getDay(),m=d.getHours()*60+d.getMinutes(),cut=12*60;
+/* Versandschluss in der App: 14:30 (Mo–Fr) */
+function shipCut(){const d=new Date(),wd=d.getDay(),m=d.getHours()*60+d.getMinutes(),cut=14*60+30;
   if(wd>=1&&wd<=5&&m<cut){const r=cut-m;return {v:Math.floor(r/60)+':'+String(r%60).padStart(2,'0'),t:'باقي لشحن اليوم',cls:r<=60?'warn':'att'}}
   const DN=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];let n=new Date(d);do{n.setDate(n.getDate()+1)}while(n.getDay()===0||n.getDay()===6);
   return {v:n.getDay()===(wd+1)%7?'غداً':DN[n.getDay()],t:'الشحن القادم',cls:''}}
