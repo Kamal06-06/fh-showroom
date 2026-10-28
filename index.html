@@ -5668,6 +5668,10 @@ function vzCss(){if($('vz-css'))return;const s=document.createElement('style');s
 .va-case.rec{border:2px solid var(--gold);background:var(--gold-soft,#fbf3df)}.va-case em{font-style:normal;font-size:11px;font-weight:800;background:var(--gold);color:#141210;border-radius:999px;padding:2px 9px;flex:none}
 .va-in{display:flex;flex-direction:column;gap:4px;margin:8px 0;font-size:13px;font-weight:700}.va-in input{padding:10px 12px;font:inherit;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
 .va-pv{margin:10px 0;border:1px solid var(--line);border-radius:12px;padding:8px 12px}.va-pv summary{cursor:pointer;font-weight:700;font-size:13px}.va-sub{font-size:12px;color:var(--muted);direction:ltr;text-align:left;margin:0 2px 8px}
+.va-tel{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:10px 0;background:var(--surface)}.va-tel>b{display:block;margin-bottom:6px}
+.va-tel-paket{border-inline-start:5px solid #d4a017}.va-tel-express{border-inline-start:5px solid #c8102e}
+.va-tl{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);text-decoration:none;color:var(--ink)}.va-tl:first-of-type{border-top:0}
+.va-tl div{display:flex;flex-direction:column}.va-tl span{font-weight:700;font-size:14px}.va-tl small{font-size:11.5px;color:var(--muted)}.va-tl em{font-style:normal;font-weight:800;direction:ltr;white-space:nowrap;color:var(--ok)}
 .va-copy{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px;direction:ltr}
 .va-rek-bt.one{grid-template-columns:1fr}.va-more{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:10px}
 .va-set{margin:6px 0 10px;border:1px dashed var(--line);border-radius:12px;padding:8px 12px}.va-set summary{cursor:pointer;font-weight:700;font-size:13px}
@@ -5745,6 +5749,7 @@ function vzMainFill(b){soCss();vzCss();vzView={k:null};
     const st=el('div','va-st');st.append(el('span',null,'✅ '+c('delivered')+' تم التسليم'),el('span',null,'🚚 '+(c('transit')+c('pre-transit'))+' في الطريق'));if(bad)st.append(el('span','va-bad','⚠️ '+bad+' مشكلة'));
     x.append(top,el('div','va-t',A.t),el('div','va-de',A.de),st,el('div','va-go','فتح الأرشيف · Archiv öffnen ‹'));x.onclick=()=>vzArch(k);g.append(x)});
   b.append(g);
+  {const d=el('details','va-set'),sm=el('summary',null,'📞 أرقام التواصل مع DHL · Telefon');d.append(sm);vzTel(d,'paket');vzTel(d,'express');b.append(d)}
   vzMailSetup(b);
   b.append(el('p','hint','تنتقل الشحنة إلى الأرشيف بعد ساعتين من إنشاء ملصقها. حالة التسليم تُحدَّث من DHL تلقائياً كل ساعة (7:00–21:00)، وعند وجود مشكلة يصل تنبيه برنّة ورسالة Telegram.\nZustellstatus wird stündlich bei DHL abgefragt.'))}
 function vzArch(k,f){vzView={k,f:f||'all'};const A=VZ_ARCH[k];openSheet(A.ic+' '+A.t,b=>vzArchFill(b,k))}
@@ -5777,6 +5782,12 @@ function vzArchFill(b,k){soCss();vzCss();const A=VZ_ARCH[k];if(!vzView||vzView.k
 /* 🛟 Reklamation / Nachforschungsauftrag – DHL bietet dafür keine offene Schnittstelle: fertiger Text + direkter Weg zum Portal */
 const VZ_REK_URL={nf:'https://www.dhl.de/nachforschungsauftrag',gkp:'https://geschaeftskunden.dhl.de',schaden:'https://www.dhl.de/dam/jcr:582dc504-3ad1-43b3-b722-4060607cfc12/dhl-schadensanzeige.pdf',express:'https://mydhl.express.dhl/de/de/forms/csm/claim.html'};
 let DHL_MAILS=LS.get('dhlMails',{paket:'',express:''});
+/* 📞 Offizielle Rufnummern (dhl.de · Kontakt Express / GKP-Infoblatt) – Paket und Express strikt getrennt */
+const VZ_TEL={
+  paket:{t:'📦 DHL Paket · للأعمال',l:[['خدمة عملاء DHL Paket','Kundenservice Paket','+492284333112','الإثنين–الجمعة 8–20'],['دعم بوابة الأعمال','Geschäftskundenportal Support','+4922876367679','الإثنين–الجمعة 8–18']]},
+  express:{t:'✈️ DHL Express · ألمانيا',l:[['شحنات Express خارج ألمانيا','Internationaler Express','+4922890243513','الإثنين–الجمعة 7–19'],['شحنات Express داخل ألمانيا','Nationaler Express','+4922890243511','الإثنين–الجمعة 7–19'],['شحنة فائتة / تغيير التسليم','ODD Support','+4922890243514','الإثنين–الجمعة 7–19'],['الجمارك','Zoll-Support','+4934186963999','الإثنين–الجمعة 8–18'],['الدعم التقني (MyDHL)','Technischer Support','+4922890243517','الإثنين–الجمعة 8:30–16:30']]}};
+const telFmt=n=>n.replace(/^\+49(228|341)(\d+)/,(m,a,b)=>'+49 '+a+' '+b);
+function vzTel(box,k){const T=VZ_TEL[k],w=el('div','va-tel va-tel-'+k);w.append(el('b',null,'📞 '+T.t));T.l.forEach(([ar,de,n,h])=>{const a=el('a','va-tl');a.href='tel:'+n;const tx=el('div');tx.append(el('span',null,ar),el('small',null,de+' · '+h));a.append(tx,el('em',null,telFmt(n)));w.append(a)});box.append(w)}
 const rekAt=r=>r==null?0:typeof r==='object'?(r.at||0):+r||0;
 /* 📨 Kontakt mit DHL: fertige Vorlagen je Fall (Arabisch für den Mitarbeiter, Deutsch für DHL) */
 const VZ_FALL={
@@ -5803,6 +5814,7 @@ function vzKontakt(x){const ex=x.src==='shopx',vs=vzFallVorschlag(x);openSheet('
   const hd=el('div','va-head'),hl=el('div');hl.append(el('b',null,x.name),el('span',null,x.nr+' · '+(ex?'DHL Express':'DHL Paket')));hd.append(hl);b.append(hd);b.append(trkBadge(x));
   const t=trkOf(x);if(t&&t.d){const de=el('p','hint',t.d);de.dir='ltr';b.append(de)}
   const r=TRK_REK[trkNr(x)];if(r){const ff=typeof r==='object'&&r.fall&&VZ_FALL[r.fall];b.append(el('div','va-sent','📨 أُرسلت شكوى سابقاً'+(ff?' («'+ff.t+'»)':'')+' بتاريخ '+new Date(rekAt(r)).toLocaleDateString('de-DE')+(typeof r==='object'&&r.an?' إلى '+r.an:'')))}
+  vzTel(b,ex?'express':'paket');
   b.append(el('p','va-lead','اختر الحالة · Fall wählen'));
   Object.keys(VZ_FALL).forEach(k=>{const F=VZ_FALL[k],c=el('button','va-case'+(k===vs?' rec':''));c.type='button';const tt=el('div');tt.append(el('b',null,F.ic+' '+F.t),el('small',null,F.de),el('span',null,F.h));c.append(tt);if(k===vs)c.append(el('em',null,'مقترح'));c.onclick=()=>vzKontaktFall(x,k);b.append(c)})})}
 /* Seite 2: Vorschau + Senden */
@@ -5828,6 +5840,7 @@ function vzKontaktFall(x,f){const ex=x.src==='shopx',F=VZ_FALL[f],an=ex?DHL_MAIL
   const ok=el('button','btn','✓ تم التواصل · erledigt');ok.onclick=async()=>{ok.disabled=true;try{const r=await soCall('dhl_track',{items:[],rek:{nr:trkNr(x),at:Date.now()}});if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}}catch(e){TRK_REK[trkNr(x)]={at:Date.now(),fall:f};LS.set('trkRek',TRK_REK)}toast('✓ سُجّل في الأرشيف');ok.disabled=false};
   if(!an)row.append(ok);
   b.append(row);
+  vzTel(b,ex?'express':'paket');
   if(!ex){const more=el('div','va-more');const L=(t,u)=>{const a=el('a','so-lnk',t);a.href=u;a.target='_blank';a.rel='noopener';more.append(a)};L('🏢 Geschäftskundenportal',VZ_REK_URL.gkp);L('📄 Schadensanzeige',VZ_REK_URL.schaden);b.append(more)}})}
 /* ⚙️ Kontaktadressen DHL (nur Inhaber) */
 function vzMailSetup(box){if(!isAdmin())return;const d=el('details','va-set'),sm=el('summary',null,'⚙️ عناوين التواصل مع DHL · Kontakt-E-Mails');d.append(sm);
