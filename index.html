@@ -5927,7 +5927,7 @@ async function schadenPdf(x,d){const L=await pdfLibLaden(),doc=await L.PDFDocume
 let SCH_FORM=null;
 async function schFormular(){if(SCH_FORM)return SCH_FORM;const r=await soCall('dhl_track',{items:[],formular:1});if(!r||!r.mails||!r.mails.formular)throw new Error('تعذّر تحميل نموذج DHL الرسمي');SCH_FORM=r.mails.formular;return SCH_FORM}
 function schAdr(x){if(x.src==='ap'&&x.l){const a=apAdr(x.l);return {name:[a.name,a.firma].filter(Boolean).join(' · '),str:a.a1||'',ort:[a.plz,a.ort].filter(Boolean).join(' '),land:a.land==='DE'?'Deutschland':(a.land||'')}}
-  if(x.o){const o=x.o,l=o.liefer||{},adr=o.adr||[];return {name:l.name||l.firma||o.kunde||String(x.name).replace(/^#\d+\s·\s/,''),str:l.a||adr[1]||'',ort:(l.plz?l.plz+' '+(l.ort||''):(adr.slice(-1)[0]||'')).trim(),land:o.landName||(String(o.land||'DE')==='DE'?'Deutschland':o.land)}}
+  if(x.o){const o=x.o,l=o.liefer||{},adr=o.adr||[];return {name:[l.name||o.kunde||String(x.name).replace(/^#\d+\s·\s/,''),l.firma].filter(Boolean).join(' · '),str:[l.a1||l.a||adr[0]||'',l.a2].filter(Boolean).join(', '),ort:(l.plz?l.plz+' '+(l.ort||''):(adr.slice(-1)[0]||'')).trim(),land:(String(o.land||'DE').toUpperCase()==='DE'||/^germany$/i.test(l.land||''))?'Deutschland':(o.landName||l.land||o.land)}}
   if(x.src==='frei'&&x.s&&x.s.adr){const a=x.s.adr;return {name:a.name||'',str:a.a1||a.str||'',ort:[a.plz,a.ort].filter(Boolean).join(' '),land:'Deutschland'}}
   return {name:String(x.name).replace(/^#\d+\s·\s/,''),str:'',ort:x.plz||'',land:'Deutschland'}}
 function schPos(x){const it=x.l?(x.l.items||[]):x.o?(x.o.items||[]):[];return it.map(i=>[i.t||i.name||i.title||'',i.size||i.variant||i.v||''].filter(Boolean).join(' – ')+((+i.q||+i.qty||1)>1?' ×'+(+i.q||+i.qty):'')).filter(Boolean)}
