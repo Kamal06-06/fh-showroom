@@ -1503,7 +1503,7 @@ function homeTop(openL){
   const box=$('h-today');box.textContent='';box.classList.add('ops');
   {const fb=$('fin-btn');if(fb)fb.hidden=!isAdmin()}
   const rdyN=openL.filter(isReady).length,late=openL.filter(l=>!isReady(l)&&l.kind!=='debt'&&(l.at||0)<Date.now()-864e5).length;
-  let wait='–',shopN='–',lab=0;try{wait=vzOffen().length}catch(e){}try{shopN=(SO.orders||[]).filter(o=>soPaid(o)&&!soPrep(o).ready).length}catch(e){}try{lab=vzSendungen().filter(x=>(x.at||0)>=sod).reduce((a,x)=>a+(x.n||1),0)}catch(e){}
+  let wait=0,shopN='–',lab=0;wait=lists.filter(l=>l.kind!=='debt'&&l.status!=='done'&&(l.lief==='de'||l.lief==='ab')&&(l.items||[]).length&&!(l.dhl&&l.dhl.nr)).length;try{shopN=(SO.orders||[]).filter(o=>soPaid(o)&&!soPrep(o).ready).length}catch(e){}try{lab=vzSendungen().filter(x=>(x.at||0)>=sod).reduce((a,x)=>a+(x.n||1),0)}catch(e){}
   const T=(v,t,f,cls,id)=>{const b=el('button',cls||'');if(id)b.id=id;b.append(el('b',null,String(v)),el('span',null,t));if(f)b.onclick=f;else b.style.cursor='default';box.append(b)};
   const SOo=(()=>{try{return (SO.orders||[]).filter(o=>!o.cancel&&!o.cancelled)}catch(e){return []}})(),soOpen=SOo.filter(o=>soPaid(o)&&o.ful!=='FULFILLED');
   const soToday=SOo.filter(o=>(o.at||0)>=sod).length,soTodo=soOpen.filter(o=>!soPrep(o).ready).length,soRdy=soOpen.filter(o=>soPrep(o).ready).length,soLate=soOpen.filter(o=>(o.at||0)<Date.now()-864e5).length,SH=()=>$('h-shop').click(),WH=()=>$('h-wh').click();
@@ -1516,7 +1516,7 @@ function homeTop(openL){
   T(soTodo,'بانتظار التجهيز',SH,soTodo?'att w3':'w3');
   T(soRdy,'جاهزة للشحن',SH,soRdy?'ok w3':'w3');
   box.append(opsH('vs','🚚 الشحن اليوم','Versand · DHL'));
-  T(wait,'صالة بانتظار ملصق',()=>{if(can('shop'))vzOpen()},wait>0?'att w3':'w3');
+  T(wait,'طلبات صالة بانتظار ملصق الشحن',()=>{if(can('shop'))vzOpen()},wait>0?'att w3':'w3');
   T(lab,'طرود أُنشئت اليوم',()=>{if(can('shop'))vzOpen()},'w3');
   const c=shipCut();T(c.v,c.t,null,(c.cls+' w3').trim(),'h-cut');
   box.style.gridTemplateColumns='';box.style.rowGap='';
