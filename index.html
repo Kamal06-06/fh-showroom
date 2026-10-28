@@ -5661,6 +5661,15 @@ function vzCss(){if($('vz-css'))return;const s=document.createElement('style');s
 .va-row.va-s-bad{border-color:var(--danger);border-inline-start-width:4px}.va-row.va-s-ok{border-inline-start:4px solid var(--ok)}
 .va-desc{font-size:11.5px!important;margin-top:4px;text-align:start}.va-rek{color:#b45309;font-weight:700}
 .va-bt{display:flex;flex-direction:column;gap:6px;flex:none}.va-rekb{border-color:var(--danger)!important;color:var(--danger)!important}
+.va-sent{background:color-mix(in srgb,var(--ok) 12%,transparent);color:var(--ok);font-weight:700;font-size:13px;border-radius:10px;padding:8px 12px;margin:8px 0}
+.va-lead{font-weight:800;margin:14px 2px 6px}
+.va-case{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:start;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:12px 14px;margin-bottom:8px;font:inherit;cursor:pointer}
+.va-case div{display:flex;flex-direction:column;gap:1px}.va-case b{font-size:15px}.va-case small{font-size:11.5px;color:var(--muted);direction:ltr;text-align:start}.va-case span{font-size:12.5px;color:var(--muted)}
+.va-case.rec{border:2px solid var(--gold);background:var(--gold-soft,#fbf3df)}.va-case em{font-style:normal;font-size:11px;font-weight:800;background:var(--gold);color:#141210;border-radius:999px;padding:2px 9px;flex:none}
+.va-in{display:flex;flex-direction:column;gap:4px;margin:8px 0;font-size:13px;font-weight:700}.va-in input{padding:10px 12px;font:inherit;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+.va-pv{margin:10px 0;border:1px solid var(--line);border-radius:12px;padding:8px 12px}.va-pv summary{cursor:pointer;font-weight:700;font-size:13px}.va-sub{font-size:12px;color:var(--muted);direction:ltr;text-align:left;margin:0 2px 8px}
+.va-rek-bt.one{grid-template-columns:1fr}.va-more{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:10px}
+.va-set{margin:6px 0 10px;border:1px dashed var(--line);border-radius:12px;padding:8px 12px}.va-set summary{cursor:pointer;font-weight:700;font-size:13px}
 .va-ta{width:100%;box-sizing:border-box;font:13px/1.45 ui-monospace,monospace;direction:ltr;text-align:left;border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--surface);color:var(--ink);margin:8px 0}
 .va-rek-bt{display:grid;grid-template-columns:1fr 1fr;gap:8px}.va-rek-bt a{text-align:center;text-decoration:none}
 .trk-cnt{background:var(--danger)!important;color:#fff!important}
@@ -5712,7 +5721,7 @@ async function trkRefresh(force){if(trkBusy||!soPw()||!can('shop'))return false;
   if(!due.length)return false;trkBusy=true;let neuProb=[],changed=false;
   try{for(let i=0;i<due.length;i+=25){const part=due.slice(i,i+25);
       const r=await soCall('dhl_track',{items:part.map(x=>({nr:trkNr(x),x:x.src==='shopx',plz:x.plz||'',name:x.name})),neu:!!force});
-      trkErr=r&&r.err||'';if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}
+      trkErr=r&&r.err||'';if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}if(r&&r.mails){DHL_MAILS=r.mails;LS.set('dhlMails',DHL_MAILS)}
       Object.entries((r&&r.st)||{}).forEach(([nr,v])=>{const old=TRK[nr];if(v.s==='failure'&&(!old||old.s!=='failure')){const x=part.find(y=>trkNr(y)===nr);neuProb.push(x?x.name:nr)}if(!old||old.s!==v.s||old.d!==v.d)changed=true;TRK[nr]=Object.assign({},v,{ts:now})});
       if(trkErr==='TRACK_KEIN_ZUGRIFF'||trkErr==='TRACK_LIMIT')break}
     LS.set('trk',TRK);
@@ -5735,6 +5744,7 @@ function vzMainFill(b){soCss();vzCss();vzView={k:null};
     const st=el('div','va-st');st.append(el('span',null,'✅ '+c('delivered')+' تم التسليم'),el('span',null,'🚚 '+(c('transit')+c('pre-transit'))+' في الطريق'));if(bad)st.append(el('span','va-bad','⚠️ '+bad+' مشكلة'));
     x.append(top,el('div','va-t',A.t),el('div','va-de',A.de),st,el('div','va-go','فتح الأرشيف · Archiv öffnen ‹'));x.onclick=()=>vzArch(k);g.append(x)});
   b.append(g);
+  vzMailSetup(b);
   b.append(el('p','hint','تنتقل الشحنة إلى الأرشيف بعد ساعتين من إنشاء ملصقها. حالة التسليم تُحدَّث من DHL تلقائياً كل ساعة (7:00–21:00)، وعند وجود مشكلة يصل تنبيه برنّة ورسالة Telegram.\nZustellstatus wird stündlich bei DHL abgefragt.'))}
 function vzArch(k,f){vzView={k,f:f||'all'};const A=VZ_ARCH[k];openSheet(A.ic+' '+A.t,b=>vzArchFill(b,k))}
 function vzArchFill(b,k){soCss();vzCss();const A=VZ_ARCH[k];if(!vzView||vzView.k!==k)vzView={k,f:'all'};
@@ -5758,30 +5768,71 @@ function vzArchFill(b,k){soCss();vzCss();const A=VZ_ARCH[k];if(!vzView||vzView.k
       const nr=el('div','t');nr.append(el('bdi','va-nr',x.nr),' · '+x.n+' طرد'+(x.kg?' · '+String(x.kg).replace('.',',')+' kg':'')+' · '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}));
       i.append(nm,nr,trkBadge(x));
       if(t&&t.d){const de=el('div','t va-desc');de.append(el('bdi',null,t.d+(t.ort?' · '+t.ort:'')+(t.t?' · '+new Date(t.t).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'')));de.dir='ltr';i.append(de)}
-      const rk=TRK_REK[trkNr(x)];if(rk)i.append(el('div','t va-rek','🛟 Reklamation eröffnet · فُتح طلب تحقيق '+new Date(rk).toLocaleDateString('de-DE')));
+      const rk=TRK_REK[trkNr(x)];if(rk){const ff=typeof rk==='object'&&rk.fall&&VZ_FALL[rk.fall];i.append(el('div','t va-rek','📨 '+(ff?ff.t+' · '+ff.de:'تم التواصل مع DHL')+' · '+new Date(rekAt(rk)).toLocaleDateString('de-DE')))}
       const bt=el('div','va-bt');const tr=el('a','btn small vz-trk','📍 تتبّع · Verfolgen');tr.href=vzTrackUrl(x);tr.target='_blank';tr.rel='noopener';bt.append(tr);
-      if(tk==='failure'||rk){const rb=el('button','btn small va-rekb',rk?'🛟 Reklamation ✓':'🛟 Reklamation');rb.onclick=()=>rk?vzRek(x):vzRekGo(x);bt.append(rb)}
+      {const rb=el('button','btn small'+(tk==='failure'?' va-rekb':''),rk?'📨 DHL ✓':'📨 DHL');rb.title='التواصل مع DHL · Kontakt';rb.onclick=()=>vzKontakt(x);bt.append(rb)}
       r.append(i,bt);box.append(r)})}
   q.oninput=draw;draw()}
 /* 🛟 Reklamation / Nachforschungsauftrag – DHL bietet dafür keine offene Schnittstelle: fertiger Text + direkter Weg zum Portal */
 const VZ_REK_URL={nf:'https://www.dhl.de/nachforschungsauftrag',gkp:'https://geschaeftskunden.dhl.de',schaden:'https://www.dhl.de/dam/jcr:582dc504-3ad1-43b3-b722-4060607cfc12/dhl-schadensanzeige.pdf',express:'https://mydhl.express.dhl/de/de/forms/csm/claim.html'};
-function vzRekText(x){const ex=x.src==='shopx',t=trkOf(x)||{},d=new Date(x.at||0).toLocaleDateString('de-DE');
-  return 'Sehr geehrte Damen und Herren,\n\nfür die folgende Sendung beantragen wir hiermit einen Nachforschungsauftrag / eine Reklamation:\n\nSendungsnummer: '+x.nr+'\nVersanddatum: '+d+'\nProdukt: '+(ex?'DHL Express':'DHL Paket')+'\nAnzahl Packstücke: '+(x.n||1)+'\nEmpfänger: '+String(x.name).replace(/^#\d+\s·\s/,'')+(x.plz?' ('+x.plz+')':'')+'\nAktueller Status laut Sendungsverfolgung: '+(t.d||'—')+'\nInhalt: Duftöle / Parfümzubehör\n\nAbsender:\nFragrance Hub Germany\nAm Alten Kirchplatz 10\n45665 Recklinghausen\nTelefon: +49 2361 4878835\nE-Mail: info@fragranceshub.de\n\nBitte informieren Sie uns zeitnah über das Ergebnis der Nachforschung.\n\nMit freundlichen Grüßen\nFragrance Hub Germany'}
+let DHL_MAILS=LS.get('dhlMails',{paket:'',express:''});
+const rekAt=r=>r==null?0:typeof r==='object'?(r.at||0):+r||0;
+/* 📨 Kontakt mit DHL: fertige Vorlagen je Fall (Arabisch für den Mitarbeiter, Deutsch für DHL) */
+const VZ_FALL={
+  anfrage:{ic:'❓',t:'استفسار عن الشحنة',de:'Sendungsanfrage',h:'سؤال عام عن مكان الشحنة وموعد التسليم.'},
+  verz:{ic:'⏳',t:'شحنة متأخرة',de:'Laufzeitüberschreitung',h:'الشحنة لم تصل في الموعد ولا تتحرك في التتبّع.'},
+  verlust:{ic:'🔍',t:'شحنة مفقودة',de:'Verlust · Nachforschung',h:'الشحنة ضاعت أو لا يوجد أي تحديث منذ أيام طويلة.'},
+  schaden:{ic:'💥',t:'شحنة تالفة',de:'Beschädigung',h:'العميل استلم الطرد مكسوراً أو ناقصاً.'},
+  zust:{ic:'🏠',t:'مشكلة في التسليم أو العنوان',de:'Zustellproblem · Adresse',h:'لم يُعثر على المستلم، العنوان ناقص، أو أُعيدت الشحنة.'}};
+function vzFallVorschlag(x){const k=trkKey(x),t=trkOf(x)||{},alt=Math.floor((Date.now()-(Date.parse(t.t)||x.at||Date.now()))/864e5);
+  if(k==='failure')return 'zust';if(k==='delivered')return 'schaden';if(alt>=7)return 'verlust';if(alt>=3)return 'verz';return 'anfrage'}
+function vzFallText(x,f,ex){const t=trkOf(x)||{},d=new Date(x.at||0).toLocaleDateString('de-DE'),P=x.src==='shopx'?'DHL Express':'DHL Paket',emp=String(x.name).replace(/^#\d+\s·\s/,'');
+  const tage=Math.max(0,Math.floor((Date.now()-(Date.parse(t.t)||x.at||Date.now()))/864e5));
+  const kopf='Sendungsnummer: '+x.nr+'\nVersanddatum: '+d+'\nProdukt: '+P+'\nAnzahl Packstücke: '+(x.n||1)+'\nEmpfänger: '+emp+(x.plz?' ('+x.plz+')':'')+'\nStatus laut Sendungsverfolgung: '+(t.d||'—')+'\nInhalt: Duftöle / Parfümzubehör';
+  const B={
+    anfrage:['Sendungsanfrage – '+x.nr,'wir bitten um Auskunft zum aktuellen Stand der folgenden Sendung und um Mitteilung des voraussichtlichen Zustelltermins.'],
+    verz:['Laufzeitüberschreitung – Sendung '+x.nr,'die folgende Sendung wurde am '+d+' eingeliefert und ist bis heute nicht zugestellt. Die Sendungsverfolgung zeigt seit '+tage+' Tagen keine Bewegung. Wir bitten um umgehende Prüfung und Zustellung bzw. um Einleitung einer Nachforschung.'],
+    verlust:['Nachforschungsauftrag / Verlustmeldung – Sendung '+x.nr,'für die folgende Sendung beantragen wir hiermit einen Nachforschungsauftrag, da sie nach unserer Kenntnis verloren gegangen ist. Sollte die Sendung nicht auffindbar sein, bitten wir um Erstattung des Warenwerts gemäß Ihren Beförderungsbedingungen.'+(ex.wert?'\nWarenwert: '+ex.wert+' € (Rechnung liegt vor)':'')],
+    schaden:['Schadensmeldung – Sendung '+x.nr,'der Empfänger hat uns mitgeteilt, dass die folgende Sendung beschädigt bzw. unvollständig zugestellt wurde. Fotos der Verpackung und des Inhalts stellen wir gerne zur Verfügung. Wir bitten um Aufnahme des Schadens und Mitteilung des weiteren Vorgehens.'+(ex.wert?'\nWarenwert: '+ex.wert+' €':'')],
+    zust:['Zustellproblem – Sendung '+x.nr,'laut Sendungsverfolgung konnte die folgende Sendung nicht zugestellt werden. Wir bitten um erneute Zustellung bzw. um Mitteilung, welche Angaben fehlen.'+(ex.adr?'\nKorrekte Empfängeranschrift: '+ex.adr:'')]}[f];
+  return {betreff:B[0]+' · Fragrance Hub Germany',text:'Sehr geehrte Damen und Herren,\n\n'+B[1]+'\n\n'+kopf+'\n\nAbsender / Kunde:\nFragrance Hub Germany\nAm Alten Kirchplatz 10\n45665 Recklinghausen\nTelefon: +49 2361 4878835\nE-Mail: info@fragranceshub.de\n\nBitte bestätigen Sie den Eingang dieser Nachricht und informieren Sie uns über das Ergebnis.\n\nMit freundlichen Grüßen\nFragrance Hub Germany'}}
 async function vzCopy(t){try{await navigator.clipboard.writeText(t);return true}catch(e){try{const ta=document.createElement('textarea');ta.value=t;document.body.append(ta);ta.select();document.execCommand('copy');ta.remove();return true}catch(e2){return false}}}
-/* Ein Tipp: das passende DHL-Formular öffnet sich sofort, der Text liegt schon in der Zwischenablage */
-function vzRekGo(x){const u=x.src==='shopx'?VZ_REK_URL.express:VZ_REK_URL.nf;window.open(u,'_blank','noopener');vzCopy(vzRekText(x)).then(ok=>toast(ok?'📋 نُسخ نص الشكوى – ألصقه في نموذج DHL الذي فُتح':'افتح نموذج DHL وانسخ النص من صفحة الشكوى'));vzRek(x)}
-function vzRek(x){const ex=x.src==='shopx',t=trkOf(x)||{};openSheet('🛟 Reklamation · طلب تحقيق',b=>{vzCss();
-  const hd=el('div','va-head'),hl=el('div');hl.append(el('b',null,x.name),el('span',null,x.nr+' · '+(t.d||'')));hd.append(hl);b.append(hd);
-  b.append(el('p','hint',ex?'نموذج الشكوى لدى DHL Express يُفتح مباشرة. النص الألماني جاهز ومنسوخ: ألصقه في خانة «Details»، ثم اضغط «تم فتح الطلب».':'نموذج «Nachforschungsauftrag» لدى DHL يُفتح مباشرة (يمكن طلبه بعد 6 أيام عمل بلا تحديث في الحالة). أدخل رقم الشحنة والرمز البريدي، والنص الألماني منسوخ وجاهز للصق. ثم اضغط «تم فتح الطلب».'));
-  const ta=el('textarea','va-ta');ta.value=vzRekText(x);ta.rows=14;b.append(ta);
-  const row=el('div','va-rek-bt');
-  const L=(cls,txt,u)=>{const a=el('a','btn'+(cls?' '+cls:''),txt);a.href=u;a.target='_blank';a.rel='noopener';return a};
-  const cp=el('button','btn','📋 نسخ النص · Kopieren');cp.onclick=async()=>toast(await vzCopy(ta.value)?'✓ نُسخ النص':'⚠️ لم يُنسخ');
-  if(ex)row.append(L('primary','✈️ نموذج الشكوى · DHL Express Claim',VZ_REK_URL.express),cp);
-  else row.append(L('primary','🔎 Nachforschungsauftrag · نموذج DHL',VZ_REK_URL.nf),cp,L('','🏢 Geschäftskundenportal',VZ_REK_URL.gkp),L('','📄 Schadensanzeige (ضرر)',VZ_REK_URL.schaden));
-  const ml=el('a','btn','✉️ E-Mail');ml.href='mailto:?subject='+encodeURIComponent('Nachforschungsauftrag Sendung '+x.nr)+'&body='+encodeURIComponent(ta.value);row.append(ml);
-  const ok=el('button','btn','✓ تم فتح الطلب · Reklamation eröffnet');ok.onclick=async()=>{ok.disabled=true;try{const r=await soCall('dhl_track',{items:[],rek:{nr:trkNr(x),at:Date.now()}});if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}toast('✓ سُجّل في الأرشيف')}catch(e){TRK_REK[trkNr(x)]=Date.now();LS.set('trkRek',TRK_REK);toast('✓ سُجّل على هذا الجهاز')}ok.disabled=false};
-  row.append(ok);b.append(row)})}
+/* Seite 1: Fall wählen */
+function vzKontakt(x){const ex=x.src==='shopx',vs=vzFallVorschlag(x);openSheet('📨 التواصل مع DHL · Kontakt',b=>{vzCss();
+  const hd=el('div','va-head'),hl=el('div');hl.append(el('b',null,x.name),el('span',null,x.nr+' · '+(ex?'DHL Express':'DHL Paket')));hd.append(hl);b.append(hd);b.append(trkBadge(x));
+  const t=trkOf(x);if(t&&t.d){const de=el('p','hint',t.d);de.dir='ltr';b.append(de)}
+  const r=TRK_REK[trkNr(x)];if(r){const ff=typeof r==='object'&&r.fall&&VZ_FALL[r.fall];b.append(el('div','va-sent','📨 أُرسلت شكوى سابقاً'+(ff?' («'+ff.t+'»)':'')+' بتاريخ '+new Date(rekAt(r)).toLocaleDateString('de-DE')+(typeof r==='object'&&r.an?' إلى '+r.an:'')))}
+  b.append(el('p','va-lead','اختر الحالة · Fall wählen'));
+  Object.keys(VZ_FALL).forEach(k=>{const F=VZ_FALL[k],c=el('button','va-case'+(k===vs?' rec':''));c.type='button';const tt=el('div');tt.append(el('b',null,F.ic+' '+F.t),el('small',null,F.de),el('span',null,F.h));c.append(tt);if(k===vs)c.append(el('em',null,'مقترح'));c.onclick=()=>vzKontaktFall(x,k);b.append(c)})})}
+/* Seite 2: Vorschau + Senden */
+function vzKontaktFall(x,f){const ex=x.src==='shopx',F=VZ_FALL[f],an=ex?DHL_MAILS.express:DHL_MAILS.paket;openSheet(F.ic+' '+F.t+' · '+F.de,b=>{vzCss();
+  const hd=el('div','va-head'),hl=el('div');hl.append(el('b',null,x.name),el('span',null,x.nr));hd.append(hl);b.append(hd);
+  const opt={};let inW=null,inA=null;
+  if(f==='verlust'||f==='schaden'){const w=el('label','va-in');inW=el('input');inW.type='number';inW.min='0';inW.step='0.01';inW.placeholder='مثال 120';w.append(el('span',null,'قيمة البضاعة € (اختياري) · Warenwert'),inW);b.append(w)}
+  if(f==='zust'){const w=el('label','va-in');inA=el('input');inA.placeholder='Straße Nr., PLZ Ort';w.append(el('span',null,'العنوان الصحيح (اختياري) · Korrekte Anschrift'),inA);b.append(w)}
+  const pv=el('details','va-pv'),sm=el('summary',null,'👁️ نص الرسالة بالألمانية · Vorschau'),ta=el('textarea','va-ta');ta.rows=14;pv.append(sm,ta);b.append(pv);
+  const sub=el('div','va-sub');b.append(sub);
+  const upd=()=>{opt.wert=inW&&inW.value?String(inW.value).replace('.',','):'';opt.adr=inA?inA.value.trim():'';const m=vzFallText(x,f,opt);ta.value=m.text;sub.textContent='الموضوع: '+m.betreff};
+  [inW,inA].forEach(i=>i&&(i.oninput=upd));upd();
+  const row=el('div','va-rek-bt one');
+  if(an){const go=el('button','btn primary big','📨 إرسال إلى DHL الآن');go.onclick=async()=>{go.disabled=true;go.textContent='⏳ جاري الإرسال…';
+      try{const m=vzFallText(x,f,opt);const r=await soCall('dhl_track',{items:[],mail:{x:ex,nr:trkNr(x),fall:f,name:x.name,betreff:m.betreff,text:ta.value}});if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}if(r&&r.mails){DHL_MAILS=r.mails;LS.set('dhlMails',DHL_MAILS)}
+        toast('✅ أُرسلت الشكوى إلى DHL ('+an+') ونسخة إلى info@');scrBack();setTimeout(()=>{try{scrBack()}catch(e){}},50)}
+      catch(e){go.disabled=false;go.textContent='📨 إرسال إلى DHL الآن';alert(/DHL_MAIL_FEHLT/.test(e.message)?'لم يُضبط عنوان DHL للتواصل بعد.':'تعذّر الإرسال: '+e.message)}};
+    row.append(go);b.append(el('p','hint','تُرسل الرسالة من info@fragranceshub.de إلى '+an+' وتصلك نسخة. الرد يصل إلى بريد الشركة.'))}
+  else{const u=ex?VZ_REK_URL.express:(f==='schaden'?VZ_REK_URL.schaden:VZ_REK_URL.nf);const go=el('button','btn primary big',ex?'✈️ فتح نموذج DHL Express ونسخ النص':f==='schaden'?'📄 فتح نموذج الضرر ونسخ النص':'🔎 فتح نموذج DHL ونسخ النص');
+    go.onclick=()=>{window.open(u,'_blank','noopener');vzCopy(ta.value).then(ok=>toast(ok?'📋 نُسخ النص – ألصقه في نموذج DHL':'انسخ النص من المعاينة'))};row.append(go);
+    b.append(el('p','hint',isAdmin()?'للإرسال بضغطة واحدة: أضف عنوان بريد DHL للتواصل في «أرشيف الشحنات» ← ⚙️ أسفل الصفحة.':'يُفتح نموذج DHL الرسمي والنص منسوخ وجاهز للصق.'))}
+  const ok=el('button','btn','✓ تم التواصل · erledigt');ok.onclick=async()=>{ok.disabled=true;try{const r=await soCall('dhl_track',{items:[],rek:{nr:trkNr(x),at:Date.now()}});if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}}catch(e){TRK_REK[trkNr(x)]={at:Date.now(),fall:f};LS.set('trkRek',TRK_REK)}toast('✓ سُجّل في الأرشيف');ok.disabled=false};
+  if(!an)row.append(ok);
+  b.append(row);
+  if(!ex){const more=el('div','va-more');const L=(t,u)=>{const a=el('a','so-lnk',t);a.href=u;a.target='_blank';a.rel='noopener';more.append(a)};L('🏢 Geschäftskundenportal',VZ_REK_URL.gkp);L('🔎 Nachforschungsauftrag',VZ_REK_URL.nf);L('📄 Schadensanzeige',VZ_REK_URL.schaden);b.append(more)}})}
+/* ⚙️ Kontaktadressen DHL (nur Inhaber) */
+function vzMailSetup(box){if(!isAdmin())return;const d=el('details','va-set'),sm=el('summary',null,'⚙️ عناوين التواصل مع DHL · Kontakt-E-Mails');d.append(sm);
+  const mk=(lab,v)=>{const w=el('label','va-in'),i=el('input');i.type='email';i.value=v||'';i.placeholder='name@dhl.com';w.append(el('span',null,lab),i);d.append(w);return i};
+  const ip=mk('📦 DHL Paket (مسؤول حسابك أو خدمة العملاء التجارية)',DHL_MAILS.paket),ie=mk('✈️ DHL Express (مسؤول حسابك أو خدمة العملاء)',DHL_MAILS.express);
+  const sv=el('button','btn small primary','💾 حفظ');sv.onclick=async()=>{sv.disabled=true;try{const r=await soCall('dhl_track',{items:[],cfg:{paket:ip.value.trim(),express:ie.value.trim()}});DHL_MAILS=(r&&r.mails)||{paket:ip.value.trim(),express:ie.value.trim()};LS.set('dhlMails',DHL_MAILS);toast('✓ حُفظت العناوين')}catch(e){alert(e.message)}sv.disabled=false};
+  d.append(sv,el('p','hint','عند ضبط العنوان تُرسل الشكاوى بضغطة واحدة من info@fragranceshub.de. بدونه يُفتح نموذج DHL الرسمي والنص منسوخ.'));box.append(d)}
 /* Versandobjekt für ein Etikett ohne Auftrag – nutzt dieselbe DHL-Anbindung wie die Showroom-Aufträge (ID „AP-L…“) */
 function vzObj(c,adr,s){const id=(s&&s.id)||('AP-L'+vzRand()),ref=(s&&s.ref)||('FH-'+stamp({at:Date.now()}));
   const o={ap:true,frei:true,id,nr:ref,adr,kg:(s&&s.kg)||1,stand:{},l:{dhl:s&&s.nr?{nr:s.nr}:null},
