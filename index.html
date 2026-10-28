@@ -5931,7 +5931,9 @@ function schAdr(x){if(x.src==='ap'&&x.l){const a=apAdr(x.l);return {name:[a.name
   if(x.src==='frei'&&x.s&&x.s.adr){const a=x.s.adr;return {name:a.name||'',str:a.a1||a.str||'',ort:[a.plz,a.ort].filter(Boolean).join(' '),land:'Deutschland'}}
   return {name:String(x.name).replace(/^#\d+\s·\s/,''),str:'',ort:x.plz||'',land:'Deutschland'}}
 function schPos(x){const it=x.l?(x.l.items||[]):x.o?(x.o.items||[]):[];return it.map(i=>[i.t||i.name||i.title||'',i.size||i.variant||i.v||''].filter(Boolean).join(' – ')+((+i.q||+i.qty||1)>1?' ×'+(+i.q||+i.qty):'')).filter(Boolean)}
-async function schadenOffiziell(x,d){const L=await pdfLibLaden(),b64=await schFormular(),doc=await L.PDFDocument.load(Uint8Array.from(atob(b64),c=>c.charCodeAt(0))),pg=doc.getPage(0),F=await doc.embedFont(L.StandardFonts.Helvetica),FB=await doc.embedFont(L.StandardFonts.HelveticaBold),ink=L.rgb(.05,.12,.42);
+async function schadenOffiziell(x,d){const L=await pdfLibLaden(),b64=await schFormular(),doc=await L.PDFDocument.load(Uint8Array.from(atob(b64),c=>c.charCodeAt(0))),F=await doc.embedFont(L.StandardFonts.Helvetica),FB=await doc.embedFont(L.StandardFonts.HelveticaBold),ink=L.rgb(.05,.12,.42);
+  const SIG=d.sig?await doc.embedPng(d.sig):null,STP=d.stp?await doc.embedPng(d.stp):null;
+  const draw=pg=>{
   const K=1.2717,X=px=>(px-80)/K,Y=py=>878.74-(py-83)/K;
   const T=(t,px,py,s,f)=>{t=pdfTxt(t);if(!t)return;pg.drawText(t,{x:X(px),y:Y(py),size:s||8,font:f||F,color:ink})};
   const fit=(t,max,s)=>{t=pdfTxt(t);while(t&&F.widthOfTextAtSize(t,s)>max)t=t.slice(0,-1);return t};
@@ -5944,8 +5946,10 @@ async function schadenOffiziell(x,d){const L=await pdfLibLaden(),b64=await schFo
   zeilen(d.ok.join(', '),[524,543,561,579,597]);zeilen([d.kaputt.join(', '),d.txt].filter(Boolean).join(' – '),[639,658,676,694,712]);zeilen(d.fehlt.join(', '),[755,773,791,809,827]);
   if(d.nach==='zurueck')KX(177,876);if(d.nach==='erneut')KX(473,876);if(d.nach==='vernichten')KX(177,894);
   T('Recklinghausen, '+new Date().toLocaleDateString('de-DE'),549,950,7);
-  if(d.sig){const im=await doc.embedPng(d.sig),s=Math.min(58/im.width,26/im.height);pg.drawImage(im,{x:X(670),y:Y(953),width:im.width*s,height:im.height*s})}
-  if(d.stp){const im=await doc.embedPng(d.stp),s=Math.min(170/im.width,62/im.height);pg.drawImage(im,{x:X(512),y:Y(1090),width:im.width*s,height:im.height*s})}
+  if(SIG){const im=SIG,s=Math.min(58/im.width,26/im.height);pg.drawImage(im,{x:X(670),y:Y(953),width:im.width*s,height:im.height*s})}
+  if(STP){const im=STP,s=Math.min(170/im.width,62/im.height);pg.drawImage(im,{x:X(512),y:Y(1090),width:im.width*s,height:im.height*s})}
+  };
+  draw(doc.getPage(0));if(doc.getPageCount()>=3)draw(doc.getPage(2));   /* Blatt 1 (DHL) + Blatt 2 (Kunde) – gleiches Layout */
   for(const f of d.fotos){const p=doc.addPage([595.28,841.89]);const im=await doc.embedJpg(f),s=Math.min(515/im.width,740/im.height);p.drawText(pdfTxt('Foto zur Schadensanzeige – Sendung '+x.nr),{x:40,y:805,size:10,font:FB});p.drawImage(im,{x:40,y:790-im.height*s,width:im.width*s,height:im.height*s})}
   return await doc.saveAsBase64()}
 function vzSchadenForm(x){openSheet('📝 نموذج الضرر الرسمي · Schadensanzeige',b=>{vzCss();sigLaden();schFormular().catch(()=>{});
@@ -5956,7 +5960,7 @@ function vzSchadenForm(x){openSheet('📝 نموذج الضرر الرسمي · 
   b.append(el('p','va-lead','🧾 حالة كل صنف · Zustand je Artikel'));
   if(!POS.length)b.append(el('p','hint','لا توجد أصناف مسجّلة لهذا الطلب – اختر الوصف أدناه.'));
   POS.forEach(p=>{const r=el('div','va-pos');r.append(el('span',null,p));const g=el('div','va-pos3');[['ok','✓ سليم'],['kaputt','💥 تالف'],['fehlt','❌ ناقص']].forEach(([k,t])=>{const btn=el('button',zust[p]===k?'on '+k:k,t);btn.type='button';btn.onclick=()=>{zust[p]=k;[...g.children].forEach(c=>c.className=c===btn?'on '+k:c.dataset.k);};btn.dataset.k=k;g.append(btn)});r.append(g);b.append(r)});
-  {const w=el('label','va-in'),s=el('select');SCH_TXT.forEach(([k,ar,de])=>{const o=el('option',null,ar);o.value=de;s.append(o)});s.onchange=()=>d.txt=s.value;w.append(el('span',null,'وصف الضرر · Beschreibung'),s);b.append(w)}
+  b.append(el('p','va-lead','وصف الضرر (اختر كل ما ينطبق) · Beschreibung'));const TX=new Set();SCH_TXT.filter(t=>t[0]).forEach(([k,ar,de])=>{const l=el('label','va-chk'),c=el('input');c.type='checkbox';c.onchange=()=>{c.checked?TX.add(de):TX.delete(de);d.txt=SCH_TXT.filter(t=>TX.has(t[2])).map(t=>t[2]).join(' ')};l.append(c,el('span',null,ar),el('small',null,de));b.append(l)});
   {const w=el('label','va-in'),s=el('select');[['zurueck','إعادة الشحنة إلى المرسل (نحن)'],['erneut','إعادة تسليمها للعميل'],['vernichten','إتلافها']].forEach(([k,t])=>{const o=el('option',null,t);o.value=k;s.append(o)});s.onchange=()=>d.nach=s.value;w.append(el('span',null,'بعد فحص الضرر · Nach der Begutachtung'),s);b.append(w)}
   {const w=el('label','va-in'),i=el('input');i.type='number';i.placeholder='مثال 120';i.oninput=()=>d.wert=i.value;w.append(el('span',null,'قيمة البضاعة € (للرسالة) · Warenwert'),i);b.append(w)}
   const fw=el('div','va-in');fw.append(el('span',null,'📷 صور الضرر (حتى 4) · Fotos'));const fi=el('input');fi.type='file';fi.accept='image/*';fi.multiple=true;const fl=el('div','va-foto');fi.onchange=async()=>{for(const f of [...fi.files].slice(0,4-d.fotos.length)){d.fotos.push(await imgKlein(f,1400,'image/jpeg'))}fl.textContent='';d.fotos.forEach(u=>{const im=el('img');im.src=u;fl.append(im)})};fw.append(fi,fl);b.append(fw);
