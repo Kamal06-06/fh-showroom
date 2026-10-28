@@ -1542,7 +1542,7 @@ async function renderHome(){
   const openL=lists.filter(l=>l.status!=='done');
   $('h-open').textContent=openL.length;$('h-done-n').textContent=lists.length-openL.length;$('h-cust-n').textContent=custAll().length;
   const due=lists.concat(debtLists()).reduce((s,l)=>s+payOf(l).open,0),eurS=n=>Math.round(n).toLocaleString('de-DE')+' €';$('h-due').textContent=due>0.004?eurS(due):'';$('h-cash-n').textContent=cash.length?eurS(cashSums().box):'';
-  homeTop(openL);$('h-off-n').textContent=offers.length;try{hubGroups()}catch(e){}{const n=$('h-ship-n');if(n)try{n.textContent=vzOffen().length||''}catch(e){}}
+  homeTop(openL);$('h-off-n').textContent=offers.length;try{hubGroups()}catch(e){}try{trkHome()}catch(e){}
   const last=$('h-last');last.textContent='';
   if(!openL.length)last.append(el('p','hint',lists.length?'لا توجد طلبات للتحضير ✓':'لا توجد طلبات بعد.'));
   openL.slice().sort((a,b)=>(isReady(b)-isReady(a))||(a.at||0)-(b.at||0)).slice(0,6).forEach(l=>{
@@ -5651,6 +5651,19 @@ function vzCss(){if($('vz-css'))return;const s=document.createElement('style');s
 .va-day{font-size:12px;font-weight:800;color:var(--muted);background:var(--soft);padding:6px 12px;border-radius:8px;margin:10px 0 6px}
 .va-row{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;margin-bottom:6px}
 .va-i{min-width:0}.va-i b{display:block;font-size:14.5px}.va-i .t{font-size:12.5px;color:var(--muted)}.va-nr{font-family:ui-monospace,monospace;color:var(--ink)}
+.va-alert{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;border:1.5px solid var(--danger);background:color-mix(in srgb,var(--danger) 10%,transparent);color:var(--danger);border-radius:14px;padding:12px 14px;margin:0 0 12px;font:inherit;cursor:pointer;text-align:start}.va-alert span{font-size:12.5px;font-weight:600}
+.va-bad{color:var(--danger);font-weight:800}
+.va-head{flex-direction:row!important;justify-content:space-between;align-items:center;gap:10px}.va-head>div{display:flex;flex-direction:column}
+.va-fs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}.va-f{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}.va-f em{font-style:normal;font-size:12px;background:var(--soft);border-radius:999px;padding:0 7px}.va-f.on{background:var(--ink);color:#fff;border-color:var(--ink)}.va-f.on em{background:#ffffff26}.va-f.bad{border-color:var(--danger);color:var(--danger)}.va-f.bad.on{background:var(--danger);color:#fff}
+.trk{display:inline-block;margin-top:5px;font-size:12px;font-weight:800;padding:3px 10px;border-radius:999px;background:var(--soft);color:var(--muted)}
+.trk-ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}.trk-tr{background:#e3eefb;color:#1d5fa8}.trk-pre{background:#f1ede4;color:#7a6a45}.trk-bad{background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .trk-tr{background:#1d2a3a;color:#9cc4f0}:root:not([data-theme="light"]) .trk-pre{background:#2e2a20;color:#d9c48f}}
+.va-row.va-s-bad{border-color:var(--danger);border-inline-start-width:4px}.va-row.va-s-ok{border-inline-start:4px solid var(--ok)}
+.va-desc{font-size:11.5px!important;margin-top:4px;text-align:start}.va-rek{color:#b45309;font-weight:700}
+.va-bt{display:flex;flex-direction:column;gap:6px;flex:none}.va-rekb{border-color:var(--danger)!important;color:var(--danger)!important}
+.va-ta{width:100%;box-sizing:border-box;font:13px/1.45 ui-monospace,monospace;direction:ltr;text-align:left;border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--surface);color:var(--ink);margin:8px 0}
+.va-rek-bt{display:grid;grid-template-columns:1fr 1fr;gap:8px}.va-rek-bt a{text-align:center;text-decoration:none}
+.trk-cnt{background:var(--danger)!important;color:#fff!important}
 .vz-trk{white-space:nowrap;text-decoration:none}
 .vz-fresh{border-inline-start:4px solid var(--ok)}.vz-mv{color:var(--ok);font-weight:600}
 .vz-price{font-size:13px;margin:6px 0 2px;padding:8px 10px;border-radius:10px;background:var(--soft)}
@@ -5661,10 +5674,10 @@ const vzWhen=t=>new Date(t||Date.now()).toLocaleString('de-DE',{day:'2-digit',mo
 const vzRand=()=>{const a=new Uint8Array(6);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('')};
 /* Sendungen aller Quellen: Aufträge der App (lists.dhl) + Etiketten ohne Auftrag (customers.ship) */
 function vzSendungen(){const out=[];
-  lists.forEach(l=>{if(l.kind!=='debt'&&l.dhl&&l.dhl.nr)out.push({src:'ap',l,id:'AP-'+l.id,nr:l.dhl.nr,n:l.dhl.n||1,at:l.dhl.at||l.at,name:custLabel(l)})});
+  lists.forEach(l=>{if(l.kind!=='debt'&&l.dhl&&l.dhl.nr){let plz='';try{plz=apAdr(l).plz||''}catch(e){}out.push({src:'ap',l,id:'AP-'+l.id,nr:l.dhl.nr,n:l.dhl.n||1,at:l.dhl.at||l.at,name:custLabel(l),plz})}});
   customers.forEach(c=>(c.ship||[]).forEach(s=>{if(s&&s.nr)out.push({src:'frei',c,s,id:s.id,nr:s.nr,n:s.n||1,kg:s.kg,at:s.at,name:c.name+(c.no?' ('+c.no+')':''),ref:s.ref})}));
   try{(SO.orders||[]).forEach(o=>{const st=o.stand||{},nm='#'+String(o.nr||'').replace(/^\D+/,'')+' · '+(o.kunde||o.name||'');
-    if(st.dhl&&st.dhl.nr)out.push({src:'shop',id:o.id,nr:st.dhl.nr,n:dhlPak(st.dhl).length||1,at:st.dhl.at||o.at,name:nm});
+    const plz=(o.liefer&&o.liefer.plz)||'';if(st.dhl&&st.dhl.nr)out.push({src:'shop',id:o.id,nr:st.dhl.nr,n:dhlPak(st.dhl).length||1,at:st.dhl.at||o.at,name:nm,plz});
     if(st.dhlx&&st.dhlx.nr)out.push({src:'shopx',id:o.id,nr:st.dhlx.nr,n:+st.dhlx.n||1,at:st.dhlx.at||o.at,name:nm})})}catch(e){}
   return out.sort((a,b)=>(b.at||0)-(a.at||0))}
 /* Versand komplett = für alle Pakete des Auftrags ein Etikett erstellt */
@@ -5686,34 +5699,83 @@ const VZ_ARCH={
   shopx:{ic:'✈️',t:'أرشيف شحنات المتجر · DHL Express',de:'Shop · DHL Express Ausland',src:['shopx']}};
 function vzArchData(k){const cut=Date.now()-VZ_LOG_MS,S=VZ_ARCH[k].src;return vzSendungen().filter(x=>S.includes(x.src)&&(x.src!=='ap'||apShipDone(x.l))&&(x.at||0)<=cut)}
 const vzTrackUrl=x=>x.src==='shopx'?'https://www.dhl.com/de-de/home/tracking/tracking-express.html?submit=1&tracking-id='+encodeURIComponent(x.nr):dhlTrack(x.nr);
-function vzOpen(){openSheet('🗄️ أرشيف الشحنات · Versandarchiv',b=>{soCss();vzCss();
+/* ================= 📍 حالة الشحنات · Sendungsstatus (DHL Tracking, über den Server) ================= */
+let TRK=LS.get('trk',{}),TRK_REK=LS.get('trkRek',{}),trkBusy=false,trkErr='',vzView=null;
+const TRK_S={delivered:['✅','تم التسليم','Zugestellt','ok'],transit:['🚚','في الطريق','Unterwegs','tr'],'pre-transit':['📦','بانتظار استلام DHL','Angekündigt','pre'],failure:['⚠️','مشكلة في التسليم','Zustellproblem','bad'],unknown:['❔','لا توجد بيانات بعد','Noch keine Daten','unk']};
+const trkNr=x=>String(x.nr||'').replace(/\s/g,'');
+const trkOf=x=>TRK[trkNr(x)]||null;
+const trkKey=x=>{const t=trkOf(x);return t&&TRK_S[t.s]?t.s:'unknown'};
+function trkBadge(x){const S=TRK_S[trkKey(x)];return el('span','trk trk-'+S[3],S[0]+' '+S[1]+' · '+S[2])}
+const TRK_ERR={TRACK_KEIN_ZUGRIFF:'مفتاح DHL لا يملك صلاحية التتبّع بعد: في DHL Developer Portal أضف «Shipment Tracking – Unified» إلى تطبيق Fragrance Hub App.',TRACK_LIMIT:'تم بلوغ الحد اليومي لطلبات التتبّع (250). يُستأنف تلقائياً لاحقاً.',TRACK_KEIN_SCHLUESSEL:'لم يُضبط مفتاح DHL بعد.'};
+async function trkRefresh(force){if(trkBusy||!soPw()||!can('shop'))return false;const now=Date.now(),lim=now-21*864e5;
+  const due=vzSendungen().filter(x=>(x.at||0)>lim&&(x.at||0)<now-30*60e3&&(x.src!=='ap'||apShipDone(x.l))).filter(x=>{const t=trkOf(x);if(!t)return true;if(t.s==='delivered')return false;return force||now-(t.ts||0)>2*3600e3});
+  if(!due.length)return false;trkBusy=true;let neuProb=[],changed=false;
+  try{for(let i=0;i<due.length;i+=25){const part=due.slice(i,i+25);
+      const r=await soCall('dhl_track',{items:part.map(x=>({nr:trkNr(x),x:x.src==='shopx',plz:x.plz||'',name:x.name})),neu:!!force});
+      trkErr=r&&r.err||'';if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}
+      Object.entries((r&&r.st)||{}).forEach(([nr,v])=>{const old=TRK[nr];if(v.s==='failure'&&(!old||old.s!=='failure')){const x=part.find(y=>trkNr(y)===nr);neuProb.push(x?x.name:nr)}if(!old||old.s!==v.s||old.d!==v.d)changed=true;TRK[nr]=Object.assign({},v,{ts:now})});
+      if(trkErr==='TRACK_KEIN_ZUGRIFF'||trkErr==='TRACK_LIMIT')break}
+    LS.set('trk',TRK);
+    if(neuProb.length){try{beep()}catch(e){}try{navigator.vibrate&&navigator.vibrate([300,120,300,120,300])}catch(e){}toast('⚠️ مشكلة في تسليم شحنة: '+neuProb.join('، '),()=>{vzOpen();setTimeout(()=>vzArch(vzProbKind()||'ap','failure'),200)})}
+  }catch(e){trkErr=String(e.message||e)}trkBusy=false;trkHome();return changed}
+const vzProbs=()=>{const cut=Date.now()-21*864e5;return vzSendungen().filter(x=>(x.at||0)>cut&&trkKey(x)==='failure')};
+const vzProbKind=()=>{const p=vzProbs()[0];return p?(p.src==='shopx'?'shopx':p.src==='shop'?'shop':'ap'):null};
+function trkHome(){const n=$('h-ship-n');if(!n)return;const k=vzProbs().length;n.textContent=k?'⚠️ '+k:'';n.classList.toggle('trk-cnt',!!k)}
+function vzRedraw(){if($('sheet').hidden||!vzView)return;const t=$('sheet-t').textContent;const b=$('sheet-b');if(vzView.k&&t.includes(VZ_ARCH[vzView.k].t)){b.textContent='';vzArchFill(b,vzView.k)}else if(!vzView.k&&/Versandarchiv/.test(t)){b.textContent='';vzMainFill(b)}}
+setInterval(()=>{const h=new Date().getHours();if(h>=7&&h<21)trkRefresh().then(c=>{if(c)vzRedraw()})},60*60e3);setTimeout(()=>trkRefresh().then(c=>{trkHome();if(c)vzRedraw()}),30e3);
+function vzOpen(){vzView={k:null};openSheet('🗄️ أرشيف الشحنات · Versandarchiv',b=>{vzMainFill(b);trkRefresh().then(c=>{if(c)vzRedraw()})})}
+function vzMainFill(b){soCss();vzCss();vzView={k:null};
   const t0=(()=>{const d=new Date();d.setHours(0,0,0,0);return d.getTime()})(),w0=Date.now()-7*864e5;
+  const pr=vzProbs();if(pr.length){const a=el('button','va-alert');a.type='button';a.append(el('b',null,'⚠️ '+pr.length+' شحنة بها مشكلة في التسليم'),el('span',null,'Zustellproblem · اضغط للعرض ‹'));a.onclick=()=>vzArch(vzProbKind(),'failure');b.append(a)}
+  if(trkErr&&TRK_ERR[trkErr])b.append(el('p','status err',TRK_ERR[trkErr]));
   const g=el('div','va-grid');
   Object.keys(VZ_ARCH).forEach(k=>{const A=VZ_ARCH[k],L=vzArchData(k),x=el('button','va-tile va-'+k);x.type='button';
     const top=el('div','va-top');top.append(el('span','va-ic',A.ic),el('b',null,String(L.length)));
-    const st=el('div','va-st');st.append(el('span',null,'اليوم · Heute: '+L.filter(y=>(y.at||0)>=t0).length),el('span',null,'7 أيام · 7 Tage: '+L.filter(y=>(y.at||0)>=w0).length));
+    const c=s=>L.filter(y=>trkKey(y)===s).length,bad=c('failure');
+    const st=el('div','va-st');st.append(el('span',null,'✅ '+c('delivered')+' تم التسليم'),el('span',null,'🚚 '+(c('transit')+c('pre-transit'))+' في الطريق'));if(bad)st.append(el('span','va-bad','⚠️ '+bad+' مشكلة'));
     x.append(top,el('div','va-t',A.t),el('div','va-de',A.de),st,el('div','va-go','فتح الأرشيف · Archiv öffnen ‹'));x.onclick=()=>vzArch(k);g.append(x)});
   b.append(g);
-  b.append(el('p','hint','تنتقل الشحنة إلى الأرشيف بعد ساعتين من إنشاء ملصقها. من كل أرشيف يمكن تتبّع الشحنة مباشرة على موقع DHL.\nEine Sendung erscheint 2 Stunden nach Erstellung des Etiketts im Archiv.'))})}
-function vzArch(k){const A=VZ_ARCH[k];openSheet(A.ic+' '+A.t,b=>{soCss();vzCss();
+  b.append(el('p','hint','تنتقل الشحنة إلى الأرشيف بعد ساعتين من إنشاء ملصقها. حالة التسليم تُحدَّث من DHL تلقائياً كل ساعة (7:00–21:00)، وعند وجود مشكلة يصل تنبيه برنّة ورسالة Telegram.\nZustellstatus wird stündlich bei DHL abgefragt.'))}
+function vzArch(k,f){vzView={k,f:f||'all'};const A=VZ_ARCH[k];openSheet(A.ic+' '+A.t,b=>vzArchFill(b,k))}
+function vzArchFill(b,k){soCss();vzCss();const A=VZ_ARCH[k];if(!vzView||vzView.k!==k)vzView={k,f:'all'};
   const ALL=vzArchData(k);
-  const hd=el('div','va-head');hd.append(el('b',null,A.t),el('span',null,A.de+' · '+ALL.length+' شحنة'));b.append(hd);
+  const hd=el('div','va-head'),hl=el('div');hl.append(el('b',null,A.t),el('span',null,A.de+' · '+ALL.length+' شحنة'));
+  const rf=el('button','btn small','🔄 تحديث الحالة');rf.onclick=async()=>{rf.disabled=true;rf.textContent='⏳ جاري السؤال من DHL…';await trkRefresh(true);b.textContent='';vzArchFill(b,k)};hd.append(hl,rf);b.append(hd);
+  if(trkErr&&TRK_ERR[trkErr])b.append(el('p','status err',TRK_ERR[trkErr]));
+  const fs=el('div','va-fs'),cnt=s=>s==='all'?ALL.length:s==='transit'?ALL.filter(x=>/transit/.test(trkKey(x))).length:ALL.filter(x=>trkKey(x)===s).length;
+  [['all','الكل · Alle'],['failure','⚠️ مشكلة · Problem'],['transit','🚚 في الطريق · Unterwegs'],['delivered','✅ تم التسليم · Zugestellt']].forEach(([s,t])=>{const n=cnt(s);if(s!=='all'&&!n&&vzView.f!==s)return;const x=el('button','va-f'+(vzView.f===s?' on':'')+(s==='failure'?' bad':''));x.append(t,el('em',null,String(n)));x.onclick=()=>{vzView.f=s;b.textContent='';vzArchFill(b,k)};fs.append(x)});b.append(fs);
   const q=el('input');q.type='search';q.placeholder='🔎 الاسم أو رقم الطلب أو الشحنة';q.className='va-q';b.append(q);
-  const chips=el('div','so-chips');chips.style.margin='8px 0 10px';let per='7';
+  const chips=el('div','so-chips');chips.style.margin='8px 0 10px';let per=vzView.f==='all'?'7':'all';
   [['1','اليوم · Heute'],['7','7 أيام · 7 Tage'],['30','30 يوماً · 30 Tage'],['all','الكل · Alle']].forEach(([kk,t])=>{const c=el('button','so-chip'+(kk===per?' on':''),t);c.onclick=()=>{per=kk;[...chips.children].forEach(x=>x.classList.toggle('on',x===c));draw()};chips.append(c)});b.append(chips);
   const box=el('div','va-list');b.append(box);
-  function draw(){box.textContent='';const s=q.value.trim().toLowerCase().replace(/^#/,''),lim=per==='all'?0:per==='1'?(()=>{const d=new Date();d.setHours(0,0,0,0);return d.getTime()})():Date.now()-(+per)*864e5;
-    const L=ALL.filter(x=>(s?true:(x.at||0)>=lim)&&(!s||(x.name+' '+x.nr+' '+(x.ref||'')).toLowerCase().replace(/#/g,'').includes(s)));
-    if(!L.length){box.append(el('div','vz-empty',ALL.length?'لا توجد شحنات في هذه الفترة · Keine Sendungen im Zeitraum':'الأرشيف فارغ · Archiv leer'));return}
+  function draw(){box.textContent='';const s=q.value.trim().toLowerCase().replace(/^#/,''),lim=per==='all'?0:per==='1'?(()=>{const d=new Date();d.setHours(0,0,0,0);return d.getTime()})():Date.now()-(+per)*864e5,F=vzView.f;
+    const L=ALL.filter(x=>(s?true:(x.at||0)>=lim)&&(F==='all'||(F==='transit'?/transit/.test(trkKey(x)):trkKey(x)===F))&&(!s||(x.name+' '+x.nr+' '+(x.ref||'')).toLowerCase().replace(/#/g,'').includes(s)));
+    if(!L.length){box.append(el('div','vz-empty',ALL.length?'لا توجد شحنات هنا · Keine Sendungen':'الأرشيف فارغ · Archiv leer'));return}
     let day='';L.slice(0,150).forEach(x=>{const d=new Date(x.at||0),dl=d.toLocaleDateString('ar',{weekday:'long'})+' · '+d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
       if(dl!==day){day=dl;box.append(el('div','va-day',dl))}
-      const r=el('div','va-row'),i=el('div','va-i');
+      const tk=trkKey(x),t=trkOf(x),r=el('div','va-row va-s-'+TRK_S[tk][3]),i=el('div','va-i');
       const nm=el('b',null,x.name);if(x.src==='frei')nm.append(el('span','vz-tag','ملصق بدون طلب'));
       const nr=el('div','t');nr.append(el('bdi','va-nr',x.nr),' · '+x.n+' طرد'+(x.kg?' · '+String(x.kg).replace('.',',')+' kg':'')+' · '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}));
-      i.append(nm,nr);if(x.ref)i.append(el('div','t','المرجع · Referenz: '+x.ref));
-      const tr=el('a','btn small vz-trk','📍 تتبّع · Verfolgen');tr.href=vzTrackUrl(x);tr.target='_blank';tr.rel='noopener';
-      r.append(i,tr);box.append(r)})}
-  q.oninput=draw;draw()})}
+      i.append(nm,nr,trkBadge(x));
+      if(t&&t.d){const de=el('div','t va-desc');de.append(el('bdi',null,t.d+(t.ort?' · '+t.ort:'')+(t.t?' · '+new Date(t.t).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'')));de.dir='ltr';i.append(de)}
+      const rk=TRK_REK[trkNr(x)];if(rk)i.append(el('div','t va-rek','🛟 Reklamation eröffnet · فُتح طلب تحقيق '+new Date(rk).toLocaleDateString('de-DE')));
+      const bt=el('div','va-bt');const tr=el('a','btn small vz-trk','📍 تتبّع · Verfolgen');tr.href=vzTrackUrl(x);tr.target='_blank';tr.rel='noopener';bt.append(tr);
+      if(tk==='failure'||rk){const rb=el('button','btn small va-rekb','🛟 Reklamation');rb.onclick=()=>vzRek(x);bt.append(rb)}
+      r.append(i,bt);box.append(r)})}
+  q.oninput=draw;draw()}
+/* 🛟 Reklamation / Nachforschungsauftrag – DHL bietet dafür keine offene Schnittstelle: fertiger Text + direkter Weg zum Portal */
+function vzRek(x){const ex=x.src==='shopx',t=trkOf(x)||{};openSheet('🛟 Reklamation · طلب تحقيق',b=>{vzCss();
+  const d=new Date(x.at||0).toLocaleDateString('de-DE');
+  const txt='Sehr geehrte Damen und Herren,\n\nfür die folgende Sendung beantragen wir hiermit einen Nachforschungsauftrag / eine Reklamation:\n\nSendungsnummer: '+x.nr+'\nVersanddatum: '+d+'\nProdukt: '+(ex?'DHL Express':'DHL Paket')+'\nAnzahl Packstücke: '+(x.n||1)+'\nEmpfänger: '+String(x.name).replace(/^#\d+\s·\s/,'')+(x.plz?' ('+x.plz+')':'')+'\nAktueller Status laut Sendungsverfolgung: '+(t.d||'—')+'\nInhalt: Duftöle / Parfümzubehör\n\nAbsender:\nFragrance Hub Germany\nAm Alten Kirchplatz 10\n45665 Recklinghausen\nTelefon: +49 2361 4878835\nE-Mail: info@fragranceshub.de\n\nBitte informieren Sie uns zeitnah über das Ergebnis der Nachforschung.\n\nMit freundlichen Grüßen\nFragrance Hub Germany';
+  b.append(el('div','va-head'));b.lastChild.append(el('b',null,x.name),el('span',null,x.nr+' · '+(t.d||'')));
+  b.append(el('p','hint','DHL لا توفّر ربطاً آلياً لفتح طلبات التحقيق. جهّزنا لك النص بالألمانية: انسخه ثم افتح بوابة DHL وألصقه في نموذج «Nachforschungsauftrag». بعدها اضغط «تم فتح الطلب» ليُسجَّل في الأرشيف.'));
+  const ta=el('textarea','va-ta');ta.value=txt;ta.rows=16;b.append(ta);
+  const row=el('div','va-rek-bt');
+  const cp=el('button','btn primary','📋 نسخ النص · Kopieren');cp.onclick=async()=>{try{await navigator.clipboard.writeText(ta.value);toast('✓ نُسخ النص')}catch(e){ta.select();document.execCommand('copy');toast('✓ نُسخ النص')}};
+  const po=el('a','btn',ex?'🌐 MyDHL+ · Express':'🌐 DHL Geschäftskundenportal');po.href=ex?'https://mydhl.express.dhl/de/de/home.html':'https://geschaeftskunden.dhl.de';po.target='_blank';po.rel='noopener';
+  const ml=el('a','btn','✉️ E-Mail');ml.href='mailto:?subject='+encodeURIComponent('Nachforschungsauftrag Sendung '+x.nr)+'&body='+encodeURIComponent(ta.value);
+  const ok=el('button','btn','✓ تم فتح الطلب · Reklamation eröffnet');ok.onclick=async()=>{ok.disabled=true;try{const r=await soCall('dhl_track',{items:[],rek:{nr:trkNr(x),at:Date.now()}});if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}toast('✓ سُجّل في الأرشيف')}catch(e){TRK_REK[trkNr(x)]=Date.now();LS.set('trkRek',TRK_REK);toast('✓ سُجّل على هذا الجهاز')}ok.disabled=false};
+  row.append(cp,po,ml,ok);b.append(row)})}
 /* Versandobjekt für ein Etikett ohne Auftrag – nutzt dieselbe DHL-Anbindung wie die Showroom-Aufträge (ID „AP-L…“) */
 function vzObj(c,adr,s){const id=(s&&s.id)||('AP-L'+vzRand()),ref=(s&&s.ref)||('FH-'+stamp({at:Date.now()}));
   const o={ap:true,frei:true,id,nr:ref,adr,kg:(s&&s.kg)||1,stand:{},l:{dhl:s&&s.nr?{nr:s.nr}:null},
