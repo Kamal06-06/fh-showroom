@@ -5821,18 +5821,18 @@ function vzKontaktFall(x,f){const ex=x.src==='shopx',F=VZ_FALL[f],an=ex?DHL_MAIL
         toast('✅ أُرسلت الشكوى إلى DHL ('+an+') ونسخة إلى info@');scrBack();setTimeout(()=>{try{scrBack()}catch(e){}},50)}
       catch(e){go.disabled=false;go.textContent='📨 إرسال إلى DHL الآن';alert(/DHL_MAIL_FEHLT/.test(e.message)?'لم يُضبط عنوان DHL للتواصل بعد.':'تعذّر الإرسال: '+e.message)}};
     row.append(go);b.append(el('p','hint','تُرسل الرسالة من info@fragranceshub.de إلى '+an+' وتصلك نسخة. الرد يصل إلى بريد الشركة.'))}
-  else{const u=ex?VZ_REK_URL.express:(f==='schaden'?VZ_REK_URL.schaden:VZ_REK_URL.nf);const go=el('button','btn primary big',ex?'✈️ فتح نموذج DHL Express ونسخ النص':f==='schaden'?'📄 فتح نموذج الضرر ونسخ النص':'🔎 فتح نموذج DHL ونسخ النص');
+  else{const u=ex?VZ_REK_URL.express:(f==='schaden'?VZ_REK_URL.schaden:VZ_REK_URL.gkp);const go=el('button','btn primary big',ex?'✈️ نموذج الشكوى لدى DHL Express · Claim':f==='schaden'?'📄 نموذج الضرر DHL Paket · Schadensanzeige':'🏢 بوابة DHL للأعمال · Paket › Nachforschung');
     go.onclick=()=>{window.open(u,'_blank','noopener');vzCopy(ta.value).then(ok=>toast(ok?'📋 نُسخ النص – ألصقه في نموذج DHL':'انسخ النص من المعاينة'))};row.append(go);
     {const cw=el('div','va-copy');const C=(lab,v)=>{if(!v)return;const c=el('button','btn small',lab+': '+v+' 📋');c.onclick=()=>vzCopy(v).then(()=>toast('✓ نُسخ: '+v));cw.append(c)};C('Sendungsnummer',x.nr);C('PLZ',x.plz);b.append(el('p','hint','نموذج DHL يطلب أولاً رقم الشحنة والرمز البريدي – انسخهما من هنا:'),cw)}
-    b.append(el('p','hint',isAdmin()?'للإرسال بضغطة واحدة: أضف عنوان بريد DHL للتواصل في «أرشيف الشحنات» ← ⚙️ أسفل الصفحة.':'يُفتح نموذج DHL الرسمي والنص منسوخ وجاهز للصق.'))}
+    b.append(el('p','hint',ex?'DHL Express: الشكوى عبر نموذج «Forderung» الرسمي لـ DHL Express ألمانيا. النص الألماني منسوخ – ألصقه في خانة التفاصيل.':'DHL Paket للأعمال: سجّل الدخول في بوابة الأعمال ثم «Paket» ← «Nachforschung» وأدخل رقم الشحنة. النص الألماني منسوخ للصق. دعم البوابة: 0228 76367679 (الإثنين–الجمعة 8–18).'))}
   const ok=el('button','btn','✓ تم التواصل · erledigt');ok.onclick=async()=>{ok.disabled=true;try{const r=await soCall('dhl_track',{items:[],rek:{nr:trkNr(x),at:Date.now()}});if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}}catch(e){TRK_REK[trkNr(x)]={at:Date.now(),fall:f};LS.set('trkRek',TRK_REK)}toast('✓ سُجّل في الأرشيف');ok.disabled=false};
   if(!an)row.append(ok);
   b.append(row);
-  if(!ex){const more=el('div','va-more');const L=(t,u)=>{const a=el('a','so-lnk',t);a.href=u;a.target='_blank';a.rel='noopener';more.append(a)};L('🏢 Geschäftskundenportal',VZ_REK_URL.gkp);L('🔎 Nachforschungsauftrag',VZ_REK_URL.nf);L('📄 Schadensanzeige',VZ_REK_URL.schaden);b.append(more)}})}
+  if(!ex){const more=el('div','va-more');const L=(t,u)=>{const a=el('a','so-lnk',t);a.href=u;a.target='_blank';a.rel='noopener';more.append(a)};L('🏢 Geschäftskundenportal',VZ_REK_URL.gkp);L('📄 Schadensanzeige',VZ_REK_URL.schaden);b.append(more)}})}
 /* ⚙️ Kontaktadressen DHL (nur Inhaber) */
 function vzMailSetup(box){if(!isAdmin())return;const d=el('details','va-set'),sm=el('summary',null,'⚙️ عناوين التواصل مع DHL · Kontakt-E-Mails');d.append(sm);
   const mk=(lab,v)=>{const w=el('label','va-in'),i=el('input');i.type='email';i.value=v||'';i.placeholder='name@dhl.com';w.append(el('span',null,lab),i);d.append(w);return i};
-  const ip=mk('📦 DHL Paket (مسؤول حسابك أو خدمة العملاء التجارية)',DHL_MAILS.paket),ie=mk('✈️ DHL Express (مسؤول حسابك أو خدمة العملاء)',DHL_MAILS.express);
+  const ip=mk('📦 DHL Paket · Geschäftskunden (بريد مسؤول حسابك لدى DHL Paket)',DHL_MAILS.paket),ie=mk('✈️ DHL Express (بريد مسؤول حسابك لدى DHL Express – جهة مختلفة)',DHL_MAILS.express);
   const sv=el('button','btn small primary','💾 حفظ');sv.onclick=async()=>{sv.disabled=true;try{const r=await soCall('dhl_track',{items:[],cfg:{paket:ip.value.trim(),express:ie.value.trim()}});DHL_MAILS=(r&&r.mails)||{paket:ip.value.trim(),express:ie.value.trim()};LS.set('dhlMails',DHL_MAILS);toast('✓ حُفظت العناوين')}catch(e){alert(e.message)}sv.disabled=false};
   d.append(sv,el('p','hint','عند ضبط العنوان تُرسل الشكاوى بضغطة واحدة من info@fragranceshub.de. بدونه يُفتح نموذج DHL الرسمي والنص منسوخ.'));box.append(d)}
 /* Versandobjekt für ein Etikett ohne Auftrag – nutzt dieselbe DHL-Anbindung wie die Showroom-Aufträge (ID „AP-L…“) */
