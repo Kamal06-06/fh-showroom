@@ -5024,7 +5024,7 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
   const sec=t=>b.append(el('div','so-sec',t));
   const row=(it,ix)=>{const r=el('label','ivrow');r.style.gridTemplateColumns='auto 1fr';const cb=document.createElement('input');cb.type='checkbox';cb.checked=!!chk[ix];
     cb.onchange=()=>{chk[ix]=cb.checked;save({prep:chk});pc.textContent=chk.filter(Boolean).length+' / '+o.items.length};
-    const inf=el('div','ivinfo');inf.append(el('div','ivname',it.q+' × '+it.t+(it.oil?' · '+it.tier:'')));{const nn=((o.stand||{}).namen||{})[it.lid];if(nn)inf.append(el('div','ivtn','✏️ على الأوراق والجمارك: '+nn))}
+    const inf=el('div','ivinfo');inf.append(el('div','ivname',it.q+' × '+it.t+(it.oil?' · '+it.tier:'')));{const nn=((o.stand||{}).namen||{})[it.lid],dd=((o.stand||{}).doku||{})[it.lid]||{},t=[nn,dd.code,dd.hs?'HS '+dd.hs:'',dd.ur?'Ursprung '+dd.ur:''].filter(Boolean).join(' · ');if(t)inf.append(el('div','ivtn','✏️ على الأوراق والجمارك: '+t))}
     inf.append(el('div','ivtn',(it.oil?it.code+' · '+it.size:(it.size||''))+(it.sku&&!it.oil?' · '+it.sku:'')));
     if(it.oil){const lo=lotNow(it);if(lo)inf.append(el('div','ivtn','الدفعة · Charge: '+lo.b))}
     else{try{const a=arDesc(it.t,it.vt);if(a)inf.append(el('div','ivtn',a))}catch(e){}}
@@ -5098,15 +5098,19 @@ function soEditSheet(o){const back=soBackTo(o.id);
   openSheet('➕➖ تعديل منتجات الطلب · '+o.nr,b=>{soCss();sheetBack=back;
     const bk=el('button','btn small','← رجوع للطلب');bk.onclick=back;b.append(bk);
     if(o.items.some(it=>!it.lid)){b.append(el('p','status err','حدّث قائمة الطلبات أولاً (🔄) ثم افتح التعديل.'));return}
-    b.append(el('p','hint','غيّر الكمية أو احذف منتجاً، أو أضف منتجاً جديداً، أو اكتب اسماً آخر للمنتج يظهر على الأوراق والفاتورة الجمركية، ثم اضغط «حفظ». الحفظ لا يطبع أي ملصق. المنتجات المشحونة لا يمكن تعديلها.'));
-    const neu=[],q={};o.items.forEach(it=>q[it.lid]=it.rq);const nm0=Object.assign({},(o.stand||{}).namen||{}),nm=Object.assign({},nm0);
+    b.append(el('p','hint','غيّر الكمية أو احذف منتجاً، أو أضف منتجاً جديداً، أو عدّل الاسم والكود وHS والمنشأ للأوراق والفاتورة الجمركية، ثم اضغط «حفظ». الحفظ لا يطبع أي ملصق. المنتجات المشحونة لا يمكن تعديلها.'));
+    const neu=[],q={};o.items.forEach(it=>q[it.lid]=it.rq);const nm0=Object.assign({},(o.stand||{}).namen||{}),nm=Object.assign({},nm0);const dk0=JSON.parse(JSON.stringify((o.stand||{}).doku||{})),dk=JSON.parse(JSON.stringify(dk0));
     b.append(el('div','so-sec','المنتجات الحالية'));
     o.items.forEach(it=>{const r=el('div','so-er'),l=el('div');l.append(el('div','so-ern',it.t),el('div','so-ers',[it.vt,it.sku].filter(Boolean).join(' · ')));
       const rt=el('div','so-qty');const qq=soQty(it.rq,0,x=>{q[it.lid]=x;r.classList.toggle('del',!x)});const del=el('button',null,'🗑');del.title='حذف';
       del.onclick=()=>{q[it.lid]=0;qq.querySelector('input').value=0;r.classList.add('del')};rt.append(qq,del);r.append(l,rt);b.append(r);
-      const ed=el('button','so-lnk',nm0[it.lid]?'✏️ '+nm0[it.lid]:'✏️ تعديل الاسم');ed.type='button';ed.style.cssText='font-size:13px;margin-top:4px;text-align:start';l.append(ed);
-      const ni=el('input');ni.dir='ltr';ni.value=nm0[it.lid]||it.t;ni.hidden=true;ni.style.cssText='grid-column:1/-1;width:100%;box-sizing:border-box;margin-top:6px;padding:8px;font:inherit;font-size:14px;border:1px solid #c9a24a;border-radius:8px;background:var(--surface);color:var(--ink)';
-      ed.onclick=()=>{ed.hidden=true;ni.hidden=false;ni.focus();ni.select()};ni.oninput=()=>{const v=ni.value.trim();nm[it.lid]=v&&v!==it.t?v:''};r.append(ni)});
+      const d0=dk0[it.lid]||{},hat=nm0[it.lid]||d0.code||d0.hs||d0.ur;
+      const ed=el('button','so-lnk',hat?'✏️ '+[nm0[it.lid],d0.code,d0.hs?'HS '+d0.hs:'',d0.ur].filter(Boolean).join(' · '):'✏️ تعديل الاسم والكود وHS والمنشأ');ed.type='button';ed.style.cssText='font-size:13px;margin-top:4px;text-align:start';l.append(ed);
+      const fb=el('div');fb.hidden=true;fb.style.cssText='grid-column:1/-1;display:grid;grid-template-columns:1.7fr 1fr .5fr;gap:6px;margin-top:6px;direction:ltr';
+      const fi=(val,ph,lab,span)=>{const w=el('label');w.style.cssText='display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--muted)'+(span?';grid-column:1/-1':'');const x=el('input');x.dir='ltr';x.value=val||'';x.placeholder=ph;x.style.cssText='width:100%;box-sizing:border-box;padding:8px;font:inherit;font-size:14px;border:1px solid #c9a24a;border-radius:8px;background:var(--surface);color:var(--ink)';w.append(lab,x);fb.append(w);return x};
+      const iN=fi(nm0[it.lid]||it.t,it.t,'الاسم · Bezeichnung',true),iC=fi(d0.code||it.sku||'',it.sku||'Code','الكود · Code'),iH=fi(d0.hs||'','z.B. 33029090','HS'),iU=fi(d0.ur||'','BG','المنشأ');iH.inputMode='numeric';iU.maxLength=2;iU.style.textTransform='uppercase';
+      const upd=()=>{const n=iN.value.trim();nm[it.lid]=n&&n!==it.t?n:'';const c=iC.value.trim(),d={};if(c&&c!==it.sku)d.code=c;if(iH.value.trim())d.hs=iH.value.trim();if(iU.value.trim())d.ur=iU.value.trim().toUpperCase();dk[it.lid]=d};
+      [iN,iC,iH,iU].forEach(x=>x.oninput=upd);ed.onclick=()=>{ed.hidden=true;fb.hidden=false;iN.focus()};r.append(fb)});
     b.append(el('div','so-sec','➕ إضافة منتج'));const nb=el('div');
     const drawNeu=()=>{nb.textContent='';neu.forEach((v,k)=>{const r=el('div','so-er'),l=el('div');l.append(el('div','so-ern','🆕 '+v.t),el('div','so-ers',[v.vt,v.sku,soEur(v.preis)].filter(Boolean).join(' · ')));
       const rt=el('div','so-qty');const del=el('button',null,'✕');del.onclick=()=>{neu.splice(k,1);drawNeu()};rt.append(soQty(v.q,1,x=>v.q=x),del);r.append(l,rt);nb.append(r)})};
@@ -5114,14 +5118,14 @@ function soEditSheet(o){const back=soBackTo(o.id);
     const mail=el('label','so-opt'),mc=el('input');mc.type='checkbox';mail.append(mc,el('span',null,'إرسال إيميل للعميل بالطلب المعدَّل (إن زاد المبلغ يصله رابط لدفع الفرق)'));b.append(mail);
     const m=el('div','status');m.hidden=true;const sv=el('button','btn primary big','💾 حفظ فقط (بدون ملصق)');b.append(sv,m);
     sv.onclick=async()=>{const menge=o.items.filter(it=>q[it.lid]!==it.rq).map(it=>({lid:it.lid,q:q[it.lid]}));
-      const namen={};Object.keys(nm).forEach(k=>{if(nm[k])namen[k]=nm[k]});const nmCh=JSON.stringify(namen)!==JSON.stringify(nm0);
+      const namen={},doku={};Object.keys(nm).forEach(k=>{if(nm[k])namen[k]=nm[k]});Object.keys(dk).forEach(k=>{if(Object.keys(dk[k]||{}).length)doku[k]=dk[k]});const nmCh=JSON.stringify(namen)!==JSON.stringify(nm0)||JSON.stringify(doku)!==JSON.stringify(dk0);
       if(!menge.length&&!neu.length&&!nmCh){m.hidden=false;m.classList.add('err');m.textContent='لا يوجد تغيير';return}
       if(!menge.length&&!neu.length){sv.disabled=true;m.hidden=false;m.classList.remove('err');m.textContent='جاري الحفظ…';
-        try{o.stand=await soCall('so_set',{id:o.id,nr:o.nr,patch:{namen}});toast('✅ حُفظ الاسم – بدون طباعة ملصق');back()}catch(e){sv.disabled=false;m.classList.add('err');m.textContent='⚠️ '+e.message}return}
+        try{o.stand=await soCall('so_set',{id:o.id,nr:o.nr,patch:{namen,doku}});toast('✅ حُفظ – بدون طباعة ملصق');back()}catch(e){sv.disabled=false;m.classList.add('err');m.textContent='⚠️ '+e.message}return}
       if(o.items.every(it=>!q[it.lid])&&!neu.length){m.hidden=false;m.classList.add('err');m.textContent='لا يمكن حذف كل المنتجات – استخدم «Stornieren» لإلغاء الطلب';return}
       if(soHasDhl(o)&&!confirm('لهذا الطلب ملصق DHL. بعد التعديل قد تحتاج إلى ملصق جديد (وزن مختلف). متابعة؟'))return;
       sv.disabled=true;m.hidden=false;m.classList.remove('err');m.textContent='جاري الحفظ في Shopify…';
-      try{const r=await soCall('so_edit',{id:o.id,nr:o.nr,menge,neu:neu.map(v=>({vid:v.vid,q:v.q})),mail:mc.checked});if(nmCh)try{o.stand=await soCall('so_set',{id:o.id,nr:o.nr,patch:{namen}})}catch(e){}
+      try{const r=await soCall('so_edit',{id:o.id,nr:o.nr,menge,neu:neu.map(v=>({vid:v.vid,q:v.q})),mail:mc.checked});if(nmCh)try{o.stand=await soCall('so_set',{id:o.id,nr:o.nr,patch:{namen,doku}})}catch(e){}
         await soLoad(true).catch(()=>{});toast('✅ حُفظ تعديل الطلب');
         if(r.offen>0.005)alert('المبلغ المستحق على العميل الآن: '+soEur(r.offen)+(mc.checked?'\nوصله إيميل برابط الدفع.':''));
         else if(r.offen<-0.005)alert('المبلغ المدفوع أكثر من قيمة الطلب بـ '+soEur(-r.offen)+'.\nالاسترداد للعميل يتم من Shopify (Erstattung).');
@@ -5228,7 +5232,7 @@ function soAdrSheet(o){const back=()=>openSheet('🛒 طلبات المتجر',b
 const SO_QW=/standard|premium|exklusiv/;
 const SO_HEX={gold:'#c9a24a','weiß':'#ffffff',weiss:'#ffffff',schwarz:'#111111',silber:'#bfc3c7',natur:'#d2b48a',dunkelbraun:'#5a3a22',braun:'#5a3a22',rosegold:'#c7877a','roségold':'#c7877a',kupfer:'#b87333',bronze:'#8c6a3c',grau:'#8a8a8a',rot:'#b3261e',blau:'#1f4e9c','grün':'#2e7d32',gruen:'#2e7d32',transparent:'klar',klar:'klar'};
 function soLsData(o){const R={oils:[],other:[],nPos:0,nOil:0,oilG:0,nStk:0};
-  const NN=(o.stand||{}).namen||{};(o.items||[]).forEach(it=>{R.nPos++;if(NN[it.lid])it=Object.assign({},it,{t:NN[it.lid]});const vt=String(it.vt||''),vtd=(vt||String(it.t||'')).toLowerCase(),sku=String(it.sku||''),qty=Number(it.rq||it.q||1);
+  const NN=(o.stand||{}).namen||{};(o.items||[]).forEach(it=>{R.nPos++;{const DK=((o.stand||{}).doku||{})[it.lid]||{};if(NN[it.lid]||DK.code)it=Object.assign({},it,NN[it.lid]?{t:NN[it.lid]}:{},DK.code?{sku:DK.code}:{})}const vt=String(it.vt||''),vtd=(vt||String(it.t||'')).toLowerCase(),sku=String(it.sku||''),qty=Number(it.rq||it.q||1);
     if(sku.includes('-SH-')||SO_QW.test(vtd)){
       let size='',qual='';vt.split(' / ').forEach(p=>{const pd=p.toLowerCase();if(SO_QW.test(pd))qual=p;else if(pd.includes(' g')||pd.includes('kg'))size=p});
       const qd=qual.toLowerCase(),qcls=qd.includes('exklusiv')?'exklusiv':qd.includes('premium')?'premium':'standard';
@@ -6184,7 +6188,7 @@ function dhlxSheet(o,after){openSheet('✈️ DHL Express · '+o.nr,async b=>{so
   const posIn=[];
   if((v.pos||[]).length){zk.append(el('div','time',v.zoll?'القيمة: '+v.wert+' '+v.waehrung+' · الفاتورة التجارية تُطبع تلقائياً (نسختان A4) · يمكنك تعديل كل سطر':'📋 الأصناف · يمكنك تعديل الاسم والكود ورمز HS والمنشأ'));
     const inp=(val,ph,w,t)=>{const x=el('input');x.dir='ltr';x.value=val==null?'':val;x.placeholder=ph;x.title=ph;x.style.cssText='width:'+w+';padding:6px 8px;font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);box-sizing:border-box';if(t)x.type=t;return x};
-    {const st0=o.stand||{},xp=st0.xPos||{},nn=st0.namen||{};v.pos.forEach(p=>{const it=(o.items||[]).find(i=>i.sku&&i.sku===p.code);const sv=xp[p.code];if(sv)Object.assign(p,sv);else if(it&&nn[it.lid])p.desc=nn[it.lid]})}
+    {const st0=o.stand||{},xp=st0.xPos||{},nn=st0.namen||{};v.pos.forEach(p=>{const it=(o.items||[]).find(i=>i.sku&&i.sku===p.code);const sv=xp[p.code];const dd=it&&(st0.doku||{})[it.lid];if(sv)Object.assign(p,sv);else{if(it&&nn[it.lid])p.desc=nn[it.lid];if(dd){if(dd.hs)p.hs=dd.hs;if(dd.ur)p.ur=dd.ur;if(dd.code)p.code=dd.code}}})}
     v.pos.forEach((p,i)=>{const box=el('div');box.style.cssText='border-top:1px solid var(--line);padding-top:8px;margin-top:8px';
       box.append(el('div','ad',(i+1)+'. الكمية: '+p.q+' قطعة'));
       const d=el('textarea');d.dir='ltr';d.value=p.desc;d.rows=2;d.style.cssText='width:100%;padding:6px 8px;font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);box-sizing:border-box;margin:4px 0';d.title='الوصف بالإنجليزية للجمارك';
