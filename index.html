@@ -5680,6 +5680,7 @@ function vzCss(){if($('vz-css'))return;const s=document.createElement('style');s
 .va-pad{width:100%;height:auto;aspect-ratio:3/1;border:2px dashed var(--line);border-radius:14px;background:#fff;touch-action:none;display:block;margin:6px 0}
 .va-sigimg{display:block;max-width:260px;max-height:90px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px;margin:6px 0}.va-stpimg{display:block;max-width:320px;width:100%;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px;margin:6px 0}
 .va-chk{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:6px;background:var(--surface)}.va-chk input{width:22px;height:22px}.va-chk span{font-weight:700;flex:1}.va-chk small{color:var(--muted);direction:ltr;font-size:11.5px}
+.va-pos{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:6px;background:var(--surface)}.va-pos>span{display:block;font-size:13.5px;font-weight:700;margin-bottom:6px;direction:ltr;text-align:start}.va-pos3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.va-pos3 button{border:1px solid var(--line);background:var(--soft);border-radius:10px;padding:7px 4px;font:inherit;font-size:13px;cursor:pointer;color:var(--ink)}.va-pos3 .on.ok{background:var(--ok);color:#fff;border-color:var(--ok)}.va-pos3 .on.kaputt{background:#d97706;color:#fff;border-color:#d97706}.va-pos3 .on.fehlt{background:var(--danger);color:#fff;border-color:var(--danger)}
 .va-in select{padding:10px 12px;font:inherit;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
 .va-foto{display:flex;gap:6px;flex-wrap:wrap}.va-foto img{width:72px;height:72px;object-fit:cover;border-radius:8px}
 .va-copy{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px;direction:ltr}
@@ -5701,8 +5702,8 @@ function vzSendungen(){const out=[];
   lists.forEach(l=>{if(l.kind!=='debt'&&l.dhl&&l.dhl.nr){let plz='';try{plz=apAdr(l).plz||''}catch(e){}out.push({src:'ap',l,id:'AP-'+l.id,nr:l.dhl.nr,n:l.dhl.n||1,at:l.dhl.at||l.at,name:custLabel(l),plz})}});
   customers.forEach(c=>(c.ship||[]).forEach(s=>{if(s&&s.nr)out.push({src:'frei',c,s,id:s.id,nr:s.nr,n:s.n||1,kg:s.kg,at:s.at,name:c.name+(c.no?' ('+c.no+')':''),ref:s.ref})}));
   try{(SO.orders||[]).forEach(o=>{const st=o.stand||{},nm='#'+String(o.nr||'').replace(/^\D+/,'')+' · '+(o.kunde||o.name||'');
-    const plz=(o.liefer&&o.liefer.plz)||'';if(st.dhl&&st.dhl.nr)out.push({src:'shop',id:o.id,nr:st.dhl.nr,n:dhlPak(st.dhl).length||1,at:st.dhl.at||o.at,name:nm,plz});
-    if(st.dhlx&&st.dhlx.nr)out.push({src:'shopx',id:o.id,nr:st.dhlx.nr,n:+st.dhlx.n||1,at:st.dhlx.at||o.at,name:nm})})}catch(e){}
+    const plz=(o.liefer&&o.liefer.plz)||'';if(st.dhl&&st.dhl.nr)out.push({src:'shop',o,id:o.id,nr:st.dhl.nr,n:dhlPak(st.dhl).length||1,at:st.dhl.at||o.at,name:nm,plz});
+    if(st.dhlx&&st.dhlx.nr)out.push({src:'shopx',o,id:o.id,nr:st.dhlx.nr,n:+st.dhlx.n||1,at:st.dhlx.at||o.at,name:nm})})}catch(e){}
   return out.sort((a,b)=>(b.at||0)-(a.at||0))}
 /* Versand komplett = für alle Pakete des Auftrags ein Etikett erstellt */
 function apShipDone(l){return !!(l&&l.dhl&&l.dhl.nr)&&(+l.dhl.n||1)>=(+l.pakete||1)}
@@ -5846,7 +5847,7 @@ function vzKontaktFall(x,f){const ex=x.src==='shopx',F=VZ_FALL[f],an=ex?DHL_MAIL
   const opt={};let inW=null,inA=null;
   if(f==='verlust'||f==='schaden'){const w=el('label','va-in');inW=el('input');inW.type='number';inW.min='0';inW.step='0.01';inW.placeholder='مثال 120';w.append(el('span',null,'قيمة البضاعة € (اختياري) · Warenwert'),inW);b.append(w)}
   if(f==='zust'){const w=el('label','va-in');inA=el('input');inA.placeholder='Straße Nr., PLZ Ort';w.append(el('span',null,'العنوان الصحيح (اختياري) · Korrekte Anschrift'),inA);b.append(w)}
-  if(f==='schaden'&&!ex){const sf=el('button','btn primary big','📝 تعبئة نموذج الضرر إلكترونياً · مع التوقيع والختم');sf.onclick=()=>vzSchadenForm(x);b.append(sf,el('p','hint','أو أرسل رسالة الضرر النصية فقط:'))}
+  if(f==='schaden'&&!ex){const sf=el('button','btn primary big','📝 تعبئة نموذج DHL الرسمي إلكترونياً · مع التوقيع والختم');sf.onclick=()=>vzSchadenForm(x);b.append(sf,el('p','hint','أو أرسل رسالة الضرر النصية فقط:'))}
   const pv=el('details','va-pv'),sm=el('summary',null,'👁️ نص الرسالة بالألمانية · Vorschau'),ta=el('textarea','va-ta');ta.rows=14;pv.append(sm,ta);b.append(pv);
   const sub=el('div','va-sub');b.append(sub);
   const upd=()=>{opt.wert=inW&&inW.value?String(inW.value).replace('.',','):'';opt.adr=inA?inA.value.trim():'';const m=vzFallText(x,f,opt);ta.value=m.text;sub.textContent='الموضوع: '+m.betreff};
@@ -5922,26 +5923,56 @@ async function schadenPdf(x,d){const L=await pdfLibLaden(),doc=await L.PDFDocume
   T('Erstellt mit dem Versandsystem von Fragrance Hub Germany',40,30,7.5,F,mut);
   for(const f of d.fotos){const p=doc.addPage([595.28,841.89]);const im=await doc.embedJpg(f),s=Math.min(515/im.width,740/im.height);p.drawText(pdfTxt('Foto – Sendung '+x.nr),{x:40,y:805,size:10,font:FB});p.drawImage(im,{x:40,y:790-im.height*s,width:im.width*s,height:im.height*s})}
   return await doc.saveAsBase64()}
-function vzSchadenForm(x){openSheet('📝 نموذج الضرر · Schadensanzeige',b=>{vzCss();sigLaden();
-  const d={art:[],fotos:[],zust:'',wert:'',rech:'',txt:''};
+/* 📝 Offizielle DHL-Schadensanzeige (Formular 911-605-008) elektronisch ausfüllen – Koordinaten auf Blatt 1 (600 × 878,74 pt) */
+let SCH_FORM=null;
+async function schFormular(){if(SCH_FORM)return SCH_FORM;const r=await soCall('dhl_track',{items:[],formular:1});if(!r||!r.mails||!r.mails.formular)throw new Error('تعذّر تحميل نموذج DHL الرسمي');SCH_FORM=r.mails.formular;return SCH_FORM}
+function schAdr(x){if(x.src==='ap'&&x.l){const a=apAdr(x.l);return {name:[a.name,a.firma].filter(Boolean).join(' · '),str:a.a1||'',ort:[a.plz,a.ort].filter(Boolean).join(' '),land:a.land==='DE'?'Deutschland':(a.land||'')}}
+  if(x.o){const o=x.o,l=o.liefer||{},adr=o.adr||[];return {name:l.name||l.firma||o.kunde||String(x.name).replace(/^#\d+\s·\s/,''),str:l.a||adr[1]||'',ort:(l.plz?l.plz+' '+(l.ort||''):(adr.slice(-1)[0]||'')).trim(),land:o.landName||(String(o.land||'DE')==='DE'?'Deutschland':o.land)}}
+  if(x.src==='frei'&&x.s&&x.s.adr){const a=x.s.adr;return {name:a.name||'',str:a.a1||a.str||'',ort:[a.plz,a.ort].filter(Boolean).join(' '),land:'Deutschland'}}
+  return {name:String(x.name).replace(/^#\d+\s·\s/,''),str:'',ort:x.plz||'',land:'Deutschland'}}
+function schPos(x){const it=x.l?(x.l.items||[]):x.o?(x.o.items||[]):[];return it.map(i=>[i.t||i.name||i.title||'',i.size||i.variant||i.v||''].filter(Boolean).join(' – ')+((+i.q||+i.qty||1)>1?' ×'+(+i.q||+i.qty):'')).filter(Boolean)}
+async function schadenOffiziell(x,d){const L=await pdfLibLaden(),b64=await schFormular(),doc=await L.PDFDocument.load(Uint8Array.from(atob(b64),c=>c.charCodeAt(0))),pg=doc.getPage(0),F=await doc.embedFont(L.StandardFonts.Helvetica),FB=await doc.embedFont(L.StandardFonts.HelveticaBold),ink=L.rgb(.05,.12,.42);
+  const K=1.2717,X=px=>(px-80)/K,Y=py=>878.74-(py-83)/K;
+  const T=(t,px,py,s,f)=>{t=pdfTxt(t);if(!t)return;pg.drawText(t,{x:X(px),y:Y(py),size:s||8,font:f||F,color:ink})};
+  const fit=(t,max,s)=>{t=pdfTxt(t);while(t&&F.widthOfTextAtSize(t,s)>max)t=t.slice(0,-1);return t};
+  const KX=(px,py)=>T('X',px-3.6,py+4.2,9,FB);
+  if(d.grund.includes('schaden'))KX(177,245);if(d.grund.includes('fehlt'))KX(484,245);
+  String(x.nr).replace(/\D/g,'').split('').slice(0,26).forEach((z,i)=>T(z,170+i*22.2+7,312,10,FB));
+  const BW=(440-176)/K-4;[['Fragrance Hub Germany · Inh. Mohammad Kamal Al Masri',372],['Am Alten Kirchplatz 10',402],['45665 Recklinghausen',432],['Deutschland',462]].forEach(([t,py])=>T(fit(t,BW,8),176,py,8));
+  const E=d.emp;[[E.name,372],[E.str,402],[E.ort,432],[E.land,462]].forEach(([t,py])=>T(fit(t,BW,8),483,py,8));
+  const zeilen=(txt,ys)=>{const max=(747-170)/K-2;let line='',i=0;pdfTxt(txt).split(' ').forEach(w=>{const t=line?line+' '+w:w;if(F.widthOfTextAtSize(t,8.5)>max){if(i<ys.length)T(line,171,ys[i++],8.5);line=w}else line=t});if(line&&i<ys.length)T(line,171,ys[i],8.5)};
+  zeilen(d.ok.join(', '),[524,543,561,579,597]);zeilen([d.kaputt.join(', '),d.txt].filter(Boolean).join(' – '),[639,658,676,694,712]);zeilen(d.fehlt.join(', '),[755,773,791,809,827]);
+  if(d.nach==='zurueck')KX(177,876);if(d.nach==='erneut')KX(473,876);if(d.nach==='vernichten')KX(177,894);
+  T('Recklinghausen, '+new Date().toLocaleDateString('de-DE'),549,950,7.5);
+  if(d.sig){const im=await doc.embedPng(d.sig),s=Math.min(70/im.width,26/im.height);pg.drawImage(im,{x:X(660),y:Y(953),width:im.width*s,height:im.height*s})}
+  if(d.stp){const im=await doc.embedPng(d.stp),s=Math.min(170/im.width,62/im.height);pg.drawImage(im,{x:X(512),y:Y(1090),width:im.width*s,height:im.height*s})}
+  for(const f of d.fotos){const p=doc.addPage([595.28,841.89]);const im=await doc.embedJpg(f),s=Math.min(515/im.width,740/im.height);p.drawText(pdfTxt('Foto zur Schadensanzeige – Sendung '+x.nr),{x:40,y:805,size:10,font:FB});p.drawImage(im,{x:40,y:790-im.height*s,width:im.width*s,height:im.height*s})}
+  return await doc.saveAsBase64()}
+function vzSchadenForm(x){openSheet('📝 نموذج الضرر الرسمي · Schadensanzeige',b=>{vzCss();sigLaden();schFormular().catch(()=>{});
+  const d={fotos:[],wert:'',txt:'',nach:'zurueck',emp:schAdr(x)},POS=schPos(x),zust={};POS.forEach(p=>zust[p]='ok');
   const hd=el('div','va-head'),hl=el('div');hl.append(el('b',null,x.name),el('span',null,x.nr+' · DHL Paket'));hd.append(hl);b.append(hd);
-  b.append(el('p','hint','املأ الخانات بالضغط فقط – التطبيق يكتب النموذج بالألمانية ويضيف التوقيع والختم ثم يرسله إلى خدمة عملاء DHL Paket للأعمال مع الصور.'));
-  const inp=(lab,ty,k,ph)=>{const w=el('label','va-in'),i=el('input');i.type=ty;if(ph)i.placeholder=ph;i.oninput=()=>d[k]=i.value;w.append(el('span',null,lab),i);b.append(w);return i};
-  inp('تاريخ التسليم للعميل · Zustelldatum','date','zust');
-  b.append(el('p','va-lead','نوع الضرر · Art des Schadens'));SCH_ART.forEach(([k,ar,de])=>{const l=el('label','va-chk'),c=el('input');c.type='checkbox';c.onchange=()=>{d.art=c.checked?[...d.art,k]:d.art.filter(z=>z!==k)};l.append(c,el('span',null,ar),el('small',null,de));b.append(l)});
-  {const w=el('label','va-in'),s=el('select');SCH_TXT.forEach(([k,ar,de])=>{const o=el('option',null,ar);o.value=de;s.append(o)});s.onchange=()=>d.txt=s.value;w.append(el('span',null,'وصف · Beschreibung'),s);b.append(w)}
-  inp('قيمة البضاعة € (صافي) · Warenwert','number','wert','مثال 120');inp('رقم الفاتورة (اختياري) · Rechnungsnummer','text','rech','');
+  b.append(el('p','hint','هذا هو نموذج DHL الرسمي «Schadensanzeige» نفسه: التطبيق يكتب البيانات في خاناته بالألمانية ويضع توقيعك وختم الشركة، ثم يرسله أو يطبعه.'));
+  b.append(el('p','va-lead','📦 المستلم · Empfänger'));[['name','الاسم / الشركة'],['str','الشارع ورقم البيت'],['ort','الرمز البريدي والمدينة'],['land','الدولة']].forEach(([k,lab])=>{const w=el('label','va-in'),i=el('input');i.value=d.emp[k]||'';i.oninput=()=>d.emp[k]=i.value;w.append(el('span',null,lab),i);b.append(w)});
+  b.append(el('p','va-lead','🧾 حالة كل صنف · Zustand je Artikel'));
+  if(!POS.length)b.append(el('p','hint','لا توجد أصناف مسجّلة لهذا الطلب – اختر الوصف أدناه.'));
+  POS.forEach(p=>{const r=el('div','va-pos');r.append(el('span',null,p));const g=el('div','va-pos3');[['ok','✓ سليم'],['kaputt','💥 تالف'],['fehlt','❌ ناقص']].forEach(([k,t])=>{const btn=el('button',zust[p]===k?'on '+k:k,t);btn.type='button';btn.onclick=()=>{zust[p]=k;[...g.children].forEach(c=>c.className=c===btn?'on '+k:c.dataset.k);};btn.dataset.k=k;g.append(btn)});r.append(g);b.append(r)});
+  {const w=el('label','va-in'),s=el('select');SCH_TXT.forEach(([k,ar,de])=>{const o=el('option',null,ar);o.value=de;s.append(o)});s.onchange=()=>d.txt=s.value;w.append(el('span',null,'وصف الضرر · Beschreibung'),s);b.append(w)}
+  {const w=el('label','va-in'),s=el('select');[['zurueck','إعادة الشحنة إلى المرسل (نحن)'],['erneut','إعادة تسليمها للعميل'],['vernichten','إتلافها']].forEach(([k,t])=>{const o=el('option',null,t);o.value=k;s.append(o)});s.onchange=()=>d.nach=s.value;w.append(el('span',null,'بعد فحص الضرر · Nach der Begutachtung'),s);b.append(w)}
+  {const w=el('label','va-in'),i=el('input');i.type='number';i.placeholder='مثال 120';i.oninput=()=>d.wert=i.value;w.append(el('span',null,'قيمة البضاعة € (للرسالة) · Warenwert'),i);b.append(w)}
   const fw=el('div','va-in');fw.append(el('span',null,'📷 صور الضرر (حتى 4) · Fotos'));const fi=el('input');fi.type='file';fi.accept='image/*';fi.multiple=true;const fl=el('div','va-foto');fi.onchange=async()=>{for(const f of [...fi.files].slice(0,4-d.fotos.length)){d.fotos.push(await imgKlein(f,1400,'image/jpeg'))}fl.textContent='';d.fotos.forEach(u=>{const im=el('img');im.src=u;fl.append(im)})};fw.append(fi,fl);b.append(fw);
   b.append(el('p','va-lead','✍️ التوقيع · Unterschrift'));const sw=el('div');b.append(sw);let pad=null;
-  const zeigSig=()=>{sw.textContent='';if(DHL_SIG){const im=el('img','va-sigimg');im.src=DHL_SIG;const nb=el('button','so-lnk','✍️ توقيع جديد');nb.onclick=()=>{DHL_SIG='';zeigSig()};sw.append(im,nb)}else{pad=sigPad(sw,260);const c=el('button','so-lnk','🧽 مسح');c.onclick=()=>pad.clear();sw.append(c)}};zeigSig();setTimeout(zeigSig,1500);
+  const zeigSig=()=>{sw.textContent='';if(DHL_SIG){const im=el('img','va-sigimg');im.src=DHL_SIG;const nb=el('button','so-lnk','✍️ توقيع جديد');nb.onclick=()=>{DHL_SIG='';zeigSig()};sw.append(im,nb)}else{pad=sigPad(sw,260);const c=el('button','so-lnk','🧽 مسح');c.onclick=()=>pad.clear();sw.append(c)}};zeigSig();setTimeout(()=>{if(DHL_SIG&&!sw.querySelector('img'))zeigSig()},1800);
   const st=el('p','hint');const row=el('div','va-rek-bt');
-  const bau=async()=>{const sig=DHL_SIG||(pad&&pad.png());if(!sig)throw new Error('وقّع أولاً');if(!d.art.length)throw new Error('اختر نوع الضرر');if(!DHL_SIG&&sig){DHL_SIG=sig;LS.set('dhlSig',sig);soCall('dhl_track',{items:[],cfg:{sig}}).catch(()=>{})}
-    return schadenPdf(x,Object.assign({},d,{sig,stp:DHL_STP||stempelBild(),fotos:d.fotos.map(u=>u)}))};
-  const vw=el('button','btn','👁️ معاينة PDF');vw.onclick=async()=>{vw.disabled=true;try{const b64=await bau();const bl=new Blob([Uint8Array.from(atob(b64),c=>c.charCodeAt(0))],{type:'application/pdf'});window.open(URL.createObjectURL(bl),'_blank')}catch(e){alert(e.message)}vw.disabled=false};
-  const go=el('button','btn primary','📨 إرسال إلى DHL Paket');go.onclick=async()=>{if(!DHL_MAILS.paket)return alert('لم يُضبط بريد DHL Paket بعد.');go.disabled=true;st.textContent='⏳ جاري إنشاء النموذج والإرسال…';
-    try{const b64=await bau();const m=vzFallText(x,'schaden',{wert:d.wert});const r=await soCall('dhl_track',{items:[],mail:{x:false,nr:trkNr(x),fall:'schaden',name:x.name,betreff:m.betreff,text:m.text,anh:[{name:'Schadensanzeige_'+x.nr+'.pdf',typ:'application/pdf',b64}]}});
-      if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}st.textContent='';toast('✅ أُرسل نموذج الضرر إلى DHL ('+DHL_MAILS.paket+')');scrBack()}catch(e){st.textContent='⚠️ '+e.message}go.disabled=false};
-  row.append(vw,go);b.append(row,st)})}
+  const daten=()=>{const sig=DHL_SIG||(pad&&pad.png());if(!sig)throw new Error('وقّع أولاً');if(!DHL_SIG){DHL_SIG=sig;LS.set('dhlSig',sig);soCall('dhl_track',{items:[],cfg:{sig}}).catch(()=>{})}
+    const ok=POS.filter(p=>zust[p]==='ok'),kaputt=POS.filter(p=>zust[p]==='kaputt'),fehlt=POS.filter(p=>zust[p]==='fehlt');if(!kaputt.length&&!fehlt.length&&!d.txt)throw new Error('حدّد الأصناف التالفة أو الناقصة أو اختر وصفاً');
+    return Object.assign({},d,{ok,kaputt,fehlt,grund:[kaputt.length||d.txt?'schaden':'',fehlt.length?'fehlt':''].filter(Boolean),sig,stp:DHL_STP||stempelBild()})};
+  const bau=async()=>{st.textContent='⏳ جاري تعبئة نموذج DHL…';try{return await schadenOffiziell(x,daten())}finally{st.textContent=''}};
+  const blob=b64=>new Blob([Uint8Array.from(atob(b64),c=>c.charCodeAt(0))],{type:'application/pdf'});
+  const vw=el('button','btn','👁️ معاينة / طباعة');vw.onclick=async()=>{vw.disabled=true;try{window.open(URL.createObjectURL(blob(await bau())),'_blank')}catch(e){alert(e.message)}vw.disabled=false};
+  const go=el('button','btn primary','📨 إرسال إلى DHL Paket');go.onclick=async()=>{if(!DHL_MAILS.paket)return alert('لم يُضبط بريد DHL Paket بعد.');go.disabled=true;
+    try{const b64=await bau();st.textContent='⏳ جاري الإرسال…';const m=vzFallText(x,'schaden',{wert:d.wert});const r=await soCall('dhl_track',{items:[],mail:{x:false,nr:trkNr(x),fall:'schaden',name:x.name,betreff:m.betreff,text:m.text,anh:[{name:'Schadensanzeige_'+x.nr+'.pdf',typ:'application/pdf',b64}]}});
+      if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}st.textContent='';toast('✅ أُرسل نموذج DHL الرسمي إلى '+DHL_MAILS.paket);scrBack()}catch(e){st.textContent='⚠️ '+e.message}go.disabled=false};
+  row.append(vw,go);b.append(row,st,el('p','hint','ملاحظة: حسب DHL يُسلَّم الطرد التالف مع النموذج للفحص (استلام مجاني عبر 0228 4333112 أو في الفرع). يمكنك طباعة النموذج المعبّأ من «معاينة / طباعة».'))})}
 /* ⚙️ Kontaktadressen DHL (nur Inhaber) */
 function vzMailSetup(box){if(!isAdmin())return;const d=el('details','va-set'),sm=el('summary',null,'⚙️ عناوين التواصل مع DHL · Kontakt-E-Mails');d.append(sm);
   const mk=(lab,v)=>{const w=el('label','va-in'),i=el('input');i.type='email';i.value=v||'';i.placeholder='name@dhl.com';w.append(el('span',null,lab),i);d.append(w);return i};
