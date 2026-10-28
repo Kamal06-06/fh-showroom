@@ -3422,8 +3422,8 @@ function buildCard(l,full){
     });
     upd();odb.append(prog);od.append(odb);c.append(od);
     const tog=el('button','btn big tog'+(done?'':' primary')+(isReady(l)?' pulse':''),done?'↩︎ إعادة فتح الطلب':isReady(l)?'✓ تم التسليم · إغلاق الطلب':'✓ تم التحضير');
-    tog.onclick=async()=>{tog.disabled=true;try{await db.doc('lists/'+l.id).update({status:done?'new':'done',doneAt:Date.now()})}catch(e){tog.disabled=false}};
-    c.append(tog);
+    tog.onclick=async()=>{if(!done&&l.lief==='pickup'){apAbhClose(l,tog);return}tog.disabled=true;try{await db.doc('lists/'+l.id).update({status:done?'new':'done',doneAt:Date.now()})}catch(e){tog.disabled=false}};
+    c.append(tog);apAbhExtra(l,done,c);
     if(l.lief&&LIEF[l.lief]){const lp=el('div','status',LIEF[l.lief]+(l.lief!=='pickup'&&l.street?' · '+[l.street,l.city].filter(Boolean).join(', '):''));lp.style.marginTop='8px';c.append(lp)}
     if(apIsDE(l)&&l.lief!=='pickup'){const dn=l.dhl&&l.dhl.nr,db2=el('button','btn'+(dn?'':' primary'),dn?(apLand(l)==='DE'?'📦 DHL شحن داخلي ✅ ':'✈️ DHL شحن خارجي ✅ ')+(l.dhl.n>1?l.dhl.n+' طرود':dn):(apLand(l)==='DE'?'📦 ملصق DHL شحن داخلي':'✈️ ملصق DHL شحن خارجي'));db2.style.cssText='width:100%;margin-top:8px';db2.onclick=()=>apDhl(l);c.append(db2);if(!dn){const a=apAdr(l);if(a.a1&&a.plz)dhlVorGet({id:'AP-'+l.id,adr:a,kg:apKg(l)})}}
     {const nb=el('button','btn','💬 ملاحظة للفريق عن هذا الطلب');nb.style.cssText='width:100%;margin-top:8px';nb.onclick=()=>{chCss();chOpen(null,{id:l.id,name:custLabel(l)})};c.append(nb)}
@@ -3620,7 +3620,7 @@ function buildCardV2(l){omCss();
         r.append(left,mid,sz,pr);odb.append(r)})});
     upd();odb.append(prog);p.append(odb);
     const tog=el('button','btn big tog om-wide'+(done?'':' primary')+(rdy?' pulse':''),done?'↩︎ إعادة فتح الطلب':rdy?'✓ تم التسليم · إغلاق الطلب':'✓ تم التحضير');
-    tog.onclick=async()=>{tog.disabled=true;try{await db.doc('lists/'+l.id).update({status:done?'new':'done',doneAt:Date.now()})}catch(e){tog.disabled=false}};p.append(tog);
+    tog.onclick=async()=>{if(!done&&l.lief==='pickup'){apAbhClose(l,tog);return}tog.disabled=true;try{await db.doc('lists/'+l.id).update({status:done?'new':'done',doneAt:Date.now()})}catch(e){tog.disabled=false}};p.append(tog);apAbhExtra(l,done,p);
     const nb=el('button','btn om-wide','💬 ملاحظة للفريق عن هذا الطلب');nb.onclick=()=>{chCss();chOpen(null,{id:l.id,name:custLabel(l)})};p.append(nb);
     pane.append(p)}
   /* ---------- 🖨️ الطباعة ---------- */
@@ -5051,8 +5051,12 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
     const rb=el('button','btn'+(st.abBereitAt?'':' primary'),st.abBereitAt?'✅ جاهز للاستلام · '+soDate(st.abBereitAt):'📦 جاهز للاستلام');rb.disabled=!!st.abBereitAt;
     rb.onclick=()=>go('bereit',rb,'هل الطلب محضّر بالكامل؟\nسيصل للعميل إيميل من Shopify أن طلبه جاهز للاستلام.');
     const gb=el('button','btn'+(st.abBereitAt&&!st.abgeholtAt?' primary':''),st.abgeholtAt?'🤝 استُلم · '+soDate(st.abgeholtAt):'🤝 تم الاستلام');gb.disabled=!!st.abgeholtAt||o.ful==='FULFILLED';
-    gb.onclick=()=>go('abgeholt',gb,'هل استلم العميل الطلب؟\nسيُغلق الطلب في Shopify كـ «مُستلم».');
+    gb.onclick=()=>abhSig(o.nr+' · '+(o.kunde||o.name||''),o.name,async sg=>{gb.disabled=true;
+      if(sg){LS.set('abhSig-'+o.id,sg);try{await db.doc('quittung/SO-'+o.id).set(Object.assign({nr:o.nr},sg))}catch(e){}}
+      try{o.stand=await soCall('so_set',{id:o.id,nr:o.nr,patch:{abhol:'abgeholt'}});o.ful='FULFILLED';toast('✅ أُغلق الطلب في Shopify'+(sg?' · حُفظ توقيع العميل':''));soDetail(b,o.id)}catch(e){gb.disabled=false;alert('⚠️ '+e.message)}});
     ap.append(rb,gb);b.append(ap);
+    if(st.abBereitAt&&!st.abgeholtAt&&o.tel){const k='abhInfo-'+o.id;b.append(abhWaBtn(o.tel,o.name,o.nr,()=>LS.set(k,Date.now()),LS.get(k,0)))}
+    if(st.abgeholtAt){const lsg=LS.get('abhSig-'+o.id,null),bx=el('div');b.append(bx);if(lsg)bx.append(abhSigView(lsg));else db.doc('quittung/SO-'+o.id).get().then(d=>{if(d.exists)bx.append(abhSigView(d.data()))}).catch(()=>{})}
     if(st.abBereitAt)b.append(el('p','time','📦 جاهز للاستلام '+new Date(st.abBereitAt).toLocaleString('de-DE')+(st.abBereitBy?' · '+st.abBereitBy:'')));
     if(st.abgeholtAt)b.append(el('p','time','🤝 استُلم '+new Date(st.abgeholtAt).toLocaleString('de-DE')+(st.abgeholtBy?' · '+st.abgeholtBy:'')))}
   if(!soAbh(o))sec('🚚 الشحن');const a3=el('div','so-act');if(soAbh(o))a3.hidden=true;
@@ -5443,7 +5447,19 @@ function apIsDE(l){return AP_EU.includes(apLand(l))}   /* DE → DHL Paket, übr
 function apAdr(l){const c=findCust(l.customer)||{},st=l.street||c.street||'',ci=String(l.city||c.city||'').trim(),m=/^(\d{4}\s?[A-Za-z]{2}|\d{2,5}(?:-\d{3,4})?)\s+(.+)$/.exec(ci);
   const pt=String(l.customer||'').split(/[()]/).map(x=>x.trim()).filter(Boolean);   /* „Name (Firma)“ → Name + Firma */
   return Object.assign({name:pt.length===2?pt[0]:(l.customer||''),firma:pt.length===2?pt[1]:'',a1:st,a2:'',plz:m?m[1]:'',ort:m?m[2]:ci,land:apLand(l),tel:l.phone||c.phone||'',email:l.email||c.email||''},l.dhlAdr||{})}
-function apKg(l){let g=0;(l.items||[]).forEach(it=>{if(isOil(it))g+=(it.unit==='kg'?1000:sizeG(it.size))*(+it.q||1)});return g?Math.max(0.5,Math.ceil((g/1000*1.15+0.3)*10)/10):0}
+/* ⚖️ Paketgewicht automatisch: Öle (g/kg) · Alkohol (L × 0,8 + Kanister) · Flakons (Glas ≈ 25 g + 1,5 g/ml) · Zubehör · + Karton/Polster */
+function apKgInfo(l){let oil=0,alk=0,pcs=0,glas=0,n=0;(l.items||[]).forEach(it=>{const q=+it.q||1,s=String(it.size||'')+' '+String(it.t||''),sl=s.toLowerCase().replace(',','.');
+    if(isOil(it)){oil+=(it.unit==='kg'?1000:sizeG(it.size))*q;return}
+    if(isAlk(it.t)){const L=stkQty(it);alk+=L*800+(L>=1?L*60:40);return}
+    const st=stkQty(it),g=sizeG(it.size);n+=st;if(g&&!/ml\b/.test(sl)){pcs+=g*q;return}
+    const ml=/(\d+(?:\.\d+)?)\s*ml\b/.exec(sl);
+    if(ml&&!/spr(ü|u)hkopf|zerst(ä|a)uber|pumpe|kappe|deckel|cap\b/i.test(sl)){glas+=st*(25+1.5*parseFloat(ml[1]));return}
+    pcs+=st*(/spr(ü|u)hkopf|pumpe|kappe|deckel|cap\b/i.test(sl)?6:/box|karton|schachtel|t(ü|u)te|bag/i.test(sl)?40:20)});
+  const inh=oil+alk+pcs+glas;if(!inh)return {kg:0,oil,alk,pcs,glas,n};
+  const kg=Math.max(0.5,Math.ceil(((inh+(oil+alk)*0.12+(glas+pcs)*0.2)/1000+0.35)*10)/10);return {kg,oil,alk,pcs,glas,n}}
+function apKg(l){return apKgInfo(l).kg}
+function kgHint(i){if(!i||!i.kg)return '';const f=g=>(g/1000).toLocaleString('de-DE',{maximumFractionDigits:2})+' kg';
+  return '⚖️ الوزن محسوب تلقائياً من المنتجات: '+[i.oil?'زيوت '+f(i.oil):'',i.alk?'كحول '+f(i.alk):'',i.glas?'زجاج '+f(i.glas):'',i.pcs?'إكسسوارات '+f(i.pcs):''].filter(Boolean).join(' · ')+' + كرتون وتغليف ≈ '+i.kg.toLocaleString('de-DE')+' kg. عدّله إذا وزنته على الميزان.'}
 function apBulkDhl(){const lim=Date.now()-45*864e5;
   const cand=lists.filter(l=>l.kind!=='debt'&&(l.items||[]).length&&(l.lief==='de'||l.lief==='ab')&&apIsDE(l)&&!(l.dhl&&l.dhl.nr)&&(l.at||0)>lim).sort((a,b)=>(b.at||0)-(a.at||0));
   if(!cand.length)return alert('لا توجد طلبات شحن بدون ملصق.\n\nيظهر الطلب هنا عندما تختار له «شحن» في الخطوة 4 من الطلب الجديد، أو في تبويب «الشحن» داخل الطلب.');
@@ -5600,7 +5616,7 @@ function dhlSheet(o,after){openSheet('📦 DHL Paket · '+o.nr,async b=>{soCss()
   /* neues Etikett */
   const c=el('div','card');c.style.cssText='padding:10px 12px;margin:8px 0';
   c.append(el('b',null,'المستلم كما سيظهر على الملصق · '+v.typ),adrTxt());(v.warn||[]).forEach(w=>c.append(el('div','status err','⚠️ '+w)));b.append(c);
-  const kb=dhlKgBox(b,v.kg,o.pak);
+  const kb=dhlKgBox(b,v.kg||(o.ap&&o.kg)||0,o.pak);if(o.ap&&o.l){const h=kgHint(apKgInfo(o.l));if(h)b.append(el('p','hint',h))}
   const pd={value:v.prod||'V01PAK'};   /* DE: DHL Paket · EU: DHL Europaket (Kleinpaket auf Wunsch entfernt) */
   if(pd.value==='V54EPAK')c.append(el('div','status','✈️ DHL Europaket · '+SO_FLAG(v.land)+' '+v.land+' – شحن خارجي داخل الاتحاد الأوروبي (حتى 31.5 kg)'));
   const dr=cbx('🖨️ اطبع مباشرة في المستودع ('+(v.fmt==='A4'?'Brother A4':'Zebra')+') – عبر جهاز الطباعة Mini PC',false),sp=cbx('📧 علِّم الطلب «مشحون» في Shopify وأرسل رقم التتبع للعميل',true);
@@ -5883,6 +5899,30 @@ vzAntwListe.fill=b=>{const box=el('div');b.append(box);if(!DHL_ANTW.length){box.
 /* ✍️ Unterschrift & Stempel */
 let DHL_SIG=LS.get('dhlSig',''),DHL_STP=LS.get('dhlStp','');
 async function sigLaden(){if(DHL_SIG&&DHL_STP)return;try{const r=await soCall('dhl_track',{items:[],sigGet:1});if(r&&r.mails){if(r.mails.sig){DHL_SIG=r.mails.sig;LS.set('dhlSig',DHL_SIG)}if(r.mails.stempel){DHL_STP=r.mails.stempel;LS.set('dhlStp',DHL_STP)}}}catch(e){}}
+/* 🤝 Abholung: Kunde benachrichtigen (WhatsApp 1 Tipp) + Unterschrift bei Übergabe als Nachweis */
+function abhMsg(name,nr){const n=String(name||'').split(/[,(]/)[0].trim();return 'Hallo'+(n?' '+n:'')+',\nIhre Bestellung'+(nr?' '+nr:'')+' bei Fragrance Hub ist fertig und kann im Lager abgeholt werden.\nViele Grüße\nFragrance Hub\n\nمرحباً'+(n?' '+n:'')+'،\nطلبك'+(nr?' '+nr:'')+' جاهز للاستلام من المستودع.\nمع التحية – Fragrance Hub'}
+function abhWaBtn(ph,name,nr,onSent,sentAt){const a=el('a','btn'+(sentAt?'':' primary'),sentAt?'✅ أُبلغ العميل · '+new Date(sentAt).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' · إعادة':'📲 أبلغ العميل: «طلبك جاهز» عبر واتساب');
+  a.href=custWa(ph,abhMsg(name,nr));a.target='_blank';a.rel='noopener';a.style.cssText='display:block;text-align:center;width:100%;margin-top:8px;box-sizing:border-box';a.onclick=()=>{try{onSent&&onSent()}catch(e){}};return a}
+function abhSig(titel,name,ok){let ov=$('abh-ov');if(ov)ov.remove();ov=el('div');ov.id='abh-ov';ov.setAttribute('dir','rtl');
+  ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:16px';
+  const c=el('div');c.style.cssText='background:var(--surface,#fff);color:var(--ink,#111);border-radius:18px;padding:16px;width:min(560px,100%);max-height:92vh;overflow:auto';
+  c.append(el('b',null,'✍️ توقيع العميل عند الاستلام'),el('p','hint',titel+' · Unterschrift bei Abholung – يوقّع العميل بإصبعه، ويُحفظ التوقيع مع الطلب كإثبات تسليم.'));
+  const nm=el('input');nm.value=name||'';nm.placeholder='اسم المستلم';nm.style.cssText='width:100%;margin:6px 0;box-sizing:border-box';c.append(nm);
+  const box=el('div');box.style.cssText='border:2px dashed #c9a24a;border-radius:12px;background:#fff;touch-action:none';c.append(box);const pad=sigPad(box,320);
+  const r=el('div','row');r.style.cssText='gap:8px;margin-top:10px;flex-wrap:wrap';
+  const cl=el('button','btn','↺ مسح'),sk=el('button','btn','تخطي بدون توقيع'),x=el('button','btn','إلغاء'),go=el('button','btn primary','✓ تأكيد التسليم');
+  cl.onclick=()=>pad.clear();x.onclick=()=>ov.remove();
+  sk.onclick=()=>{ov.remove();ok(null)};go.onclick=()=>{if(pad.leer()){toast('✍️ اطلب من العميل التوقيع أولاً، أو اضغط «تخطي»');return}ov.remove();ok({png:pad.png(),name:nm.value.trim(),at:Date.now(),by:WHO()})};
+  r.append(go,cl,sk,x);c.append(r);ov.append(c);document.body.append(ov)}
+function abhSigView(sg){const d=el('div','note');d.style.cssText='margin-top:8px;text-align:center';d.append(el('div',null,'✍️ استلمه: '+(sg.name||'—')+' · '+new Date(sg.at).toLocaleString('de-DE')+(sg.by?' · سلّمه '+sg.by:'')));
+  if(sg.png){const im=el('img');im.src=sg.png;im.alt='Unterschrift';im.style.cssText='max-width:260px;width:100%;background:#fff;border-radius:8px;margin-top:4px';d.append(im)}return d}
+function apAbhClose(l,tog){const fin=sg=>db.doc('lists/'+l.id).update(Object.assign({status:'done',doneAt:Date.now()},sg?{abhSig:sg}:{})).catch(e=>{tog.disabled=false;toast('⚠️ '+(e.message||e))});
+  abhSig(custLabel(l),l.customer,sg=>{tog.disabled=true;fin(sg)})}
+function apAbhExtra(l,done,box){if(l.lief!=='pickup')return;
+  if(!done&&isReady(l)){const cr=findCust(l.customer)||{},ph=l.phone||cr.phone||'';
+    if(ph)box.append(abhWaBtn(ph,l.customer,'',()=>db.doc('lists/'+l.id).update({abhInfoAt:Date.now(),abhInfoBy:WHO()}).catch(()=>{}),l.abhInfoAt));
+    else box.append(el('p','hint','📲 لا يوجد رقم هاتف للعميل لإبلاغه أن الطلب جاهز – أضفه في بطاقة العميل.'))}
+  if(l.abhSig)box.append(abhSigView(l.abhSig))}
 function sigPad(box,h){const cv=document.createElement('canvas');cv.className='va-pad';cv.width=900;cv.height=h||300;const g=cv.getContext('2d');g.lineWidth=5;g.lineCap='round';g.lineJoin='round';g.strokeStyle='#0b2a6b';let on=false,last=null,leer=true;
   const pt=e=>{const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]};
   cv.onpointerdown=e=>{on=true;last=pt(e);cv.setPointerCapture(e.pointerId);e.preventDefault()};cv.onpointermove=e=>{if(!on)return;const p=pt(e);g.beginPath();g.moveTo(last[0],last[1]);g.lineTo(p[0],p[1]);g.stroke();last=p;leer=false;e.preventDefault()};cv.onpointerup=cv.onpointercancel=()=>{on=false};
