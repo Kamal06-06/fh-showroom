@@ -5639,6 +5639,7 @@ function vzCss(){if($('vz-css'))return;const s=document.createElement('style');s
 .vz-row .bt{display:flex;gap:6px;flex-wrap:nowrap}
 .vz-tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--soft);color:var(--muted);margin-inline-start:6px}
 .vz-empty{color:var(--muted);font-size:13.5px;padding:8px 2px}
+.vz-trk{white-space:nowrap;text-decoration:none}
 .vz-fresh{border-inline-start:4px solid var(--ok)}.vz-mv{color:var(--ok);font-weight:600}
 .vz-price{font-size:13px;margin:6px 0 2px;padding:8px 10px;border-radius:10px;background:var(--soft)}
 .vz-price.stale{background:#fff4d6;color:#7a5a00}
@@ -5650,6 +5651,9 @@ const vzRand=()=>{const a=new Uint8Array(6);crypto.getRandomValues(a);return Arr
 function vzSendungen(){const out=[];
   lists.forEach(l=>{if(l.kind!=='debt'&&l.dhl&&l.dhl.nr)out.push({src:'ap',l,id:'AP-'+l.id,nr:l.dhl.nr,n:l.dhl.n||1,at:l.dhl.at||l.at,name:custLabel(l)})});
   customers.forEach(c=>(c.ship||[]).forEach(s=>{if(s&&s.nr)out.push({src:'frei',c,s,id:s.id,nr:s.nr,n:s.n||1,kg:s.kg,at:s.at,name:c.name+(c.no?' ('+c.no+')':''),ref:s.ref})}));
+  try{(SO.orders||[]).forEach(o=>{const st=o.stand||{},nm='#'+String(o.nr||'').replace(/^\D+/,'')+' · '+(o.kunde||o.name||'');
+    if(st.dhl&&st.dhl.nr)out.push({src:'shop',id:o.id,nr:st.dhl.nr,n:dhlPak(st.dhl).length||1,at:st.dhl.at||o.at,name:nm});
+    if(st.dhlx&&st.dhlx.nr)out.push({src:'shopx',id:o.id,nr:st.dhlx.nr,n:+st.dhlx.n||1,at:st.dhlx.at||o.at,name:nm})})}catch(e){}
   return out.sort((a,b)=>(b.at||0)-(a.at||0))}
 /* Versand komplett = für alle Pakete des Auftrags ein Etikett erstellt */
 function apShipDone(l){return !!(l&&l.dhl&&l.dhl.nr)&&(+l.dhl.n||1)>=(+l.pakete||1)}
@@ -5680,13 +5684,15 @@ function vzOpen(){openSheet('🚚 مركز الشحن · Versandzentrale',b=>{so
   const fresh=ALL.filter(x=>(x.at||0)>cut),all=ALL.filter(x=>(x.at||0)<=cut);
   const m=el('div','status');m.hidden=true;m.style.whiteSpace='pre-line';const say=(t,err)=>{m.hidden=false;m.classList.toggle('err',!!err);m.textContent=t};
   const row=(x,box,soon)=>{const r=el('div','vz-row'+(soon?' vz-fresh':'')),i=el('div');
-      const nm=el('b',null,x.name);nm.append(el('span','vz-tag',x.src==='ap'?'طلب صالة':'ملصق مستقل'));
+      const nm=el('b',null,x.name);nm.append(el('span','vz-tag',{ap:'طلب صالة',frei:'ملصق مستقل',shop:'متجر · DHL',shopx:'متجر · Express ✈️'}[x.src]||''));
       const nr=el('div','t');nr.append(el('bdi',null,x.nr),' · '+x.n+' طرد'+(x.kg?' · '+String(x.kg).replace('.',',')+' kg':'')+' · '+vzWhen(x.at));
       i.append(nm,nr);if(x.ref)i.append(el('div','t','المرجع: '+x.ref));
       if(soon){const mn=Math.max(1,Math.ceil(((x.at||0)+VZ_LOG_MS-Date.now())/60000));i.append(el('div','t vz-mv','⏳ ينتقل إلى السجل بعد '+(mn>=60?Math.floor(mn/60)+':'+String(mn%60).padStart(2,'0')+' س':mn+' د')))}
       const bt=el('div','bt');
+      const trU=x.src==='shopx'?'https://www.dhl.com/de-de/home/tracking/tracking-express.html?submit=1&tracking-id='+encodeURIComponent(x.nr):dhlTrack(x.nr);
+      if(!soon||x.src==='shop'||x.src==='shopx'){const tr=el('a','btn small vz-trk','📍 تتبّع · Verfolgen');tr.href=trU;tr.target='_blank';tr.rel='noopener';bt.append(tr);r.append(i,bt);box.append(r);return}
       const pr=el('button','btn small','🖨️');pr.title='إعادة الطباعة على Zebra · Nachdruck';pr.onclick=async()=>{pr.disabled=true;try{await soCall('dhl_druck',{id:x.id,druck:true});say('✓ أُرسل الملصق '+x.nr+' إلى Zebra (بدون تكلفة)')}catch(e){say('⚠️ '+dhlErr(e),1)}pr.disabled=false};
-      const tr=el('a','btn small','🔗');tr.title='تتبّع الشحنة · Verfolgen';tr.href=dhlTrack(x.nr);tr.target='_blank';tr.rel='noopener';
+      const tr=el('a','btn small','📍');tr.title='تتبّع الشحنة · Verfolgen';tr.href=trU;tr.target='_blank';tr.rel='noopener';
       const op=el('button','btn small','⋯');op.title='التفاصيل · إلغاء · طرد إضافي';op.onclick=()=>x.src==='ap'?dhlSheet(apObj(x.l),vzOpen):dhlSheet(vzObj(x.c,x.s.adr,x.s),vzOpen);
       bt.append(pr,tr,op);r.append(i,bt);box.append(r)};
   {const h=el('div','vz-h');h.append(el('b',null,'🚚 شُحنت الآن'),el('small',null,'Gerade versendet · '+fresh.length));b.append(h);
