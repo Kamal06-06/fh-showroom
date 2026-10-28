@@ -5668,6 +5668,7 @@ function vzCss(){if($('vz-css'))return;const s=document.createElement('style');s
 .va-case.rec{border:2px solid var(--gold);background:var(--gold-soft,#fbf3df)}.va-case em{font-style:normal;font-size:11px;font-weight:800;background:var(--gold);color:#141210;border-radius:999px;padding:2px 9px;flex:none}
 .va-in{display:flex;flex-direction:column;gap:4px;margin:8px 0;font-size:13px;font-weight:700}.va-in input{padding:10px 12px;font:inherit;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
 .va-pv{margin:10px 0;border:1px solid var(--line);border-radius:12px;padding:8px 12px}.va-pv summary{cursor:pointer;font-weight:700;font-size:13px}.va-sub{font-size:12px;color:var(--muted);direction:ltr;text-align:left;margin:0 2px 8px}
+.va-copy{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px;direction:ltr}
 .va-rek-bt.one{grid-template-columns:1fr}.va-more{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:10px}
 .va-set{margin:6px 0 10px;border:1px dashed var(--line);border-radius:12px;padding:8px 12px}.va-set summary{cursor:pointer;font-weight:700;font-size:13px}
 .va-ta{width:100%;box-sizing:border-box;font:13px/1.45 ui-monospace,monospace;direction:ltr;text-align:left;border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--surface);color:var(--ink);margin:8px 0}
@@ -5822,6 +5823,7 @@ function vzKontaktFall(x,f){const ex=x.src==='shopx',F=VZ_FALL[f],an=ex?DHL_MAIL
     row.append(go);b.append(el('p','hint','تُرسل الرسالة من info@fragranceshub.de إلى '+an+' وتصلك نسخة. الرد يصل إلى بريد الشركة.'))}
   else{const u=ex?VZ_REK_URL.express:(f==='schaden'?VZ_REK_URL.schaden:VZ_REK_URL.nf);const go=el('button','btn primary big',ex?'✈️ فتح نموذج DHL Express ونسخ النص':f==='schaden'?'📄 فتح نموذج الضرر ونسخ النص':'🔎 فتح نموذج DHL ونسخ النص');
     go.onclick=()=>{window.open(u,'_blank','noopener');vzCopy(ta.value).then(ok=>toast(ok?'📋 نُسخ النص – ألصقه في نموذج DHL':'انسخ النص من المعاينة'))};row.append(go);
+    {const cw=el('div','va-copy');const C=(lab,v)=>{if(!v)return;const c=el('button','btn small',lab+': '+v+' 📋');c.onclick=()=>vzCopy(v).then(()=>toast('✓ نُسخ: '+v));cw.append(c)};C('Sendungsnummer',x.nr);C('PLZ',x.plz);b.append(el('p','hint','نموذج DHL يطلب أولاً رقم الشحنة والرمز البريدي – انسخهما من هنا:'),cw)}
     b.append(el('p','hint',isAdmin()?'للإرسال بضغطة واحدة: أضف عنوان بريد DHL للتواصل في «أرشيف الشحنات» ← ⚙️ أسفل الصفحة.':'يُفتح نموذج DHL الرسمي والنص منسوخ وجاهز للصق.'))}
   const ok=el('button','btn','✓ تم التواصل · erledigt');ok.onclick=async()=>{ok.disabled=true;try{const r=await soCall('dhl_track',{items:[],rek:{nr:trkNr(x),at:Date.now()}});if(r&&r.rek){TRK_REK=r.rek;LS.set('trkRek',TRK_REK)}}catch(e){TRK_REK[trkNr(x)]={at:Date.now(),fall:f};LS.set('trkRek',TRK_REK)}toast('✓ سُجّل في الأرشيف');ok.disabled=false};
   if(!an)row.append(ok);
