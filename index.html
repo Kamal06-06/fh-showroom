@@ -663,7 +663,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <button class="hq p-off" id="hq-off"><b>📄 عروض الأسعار</b><span>Angebote</span></button>
       <button class="hq p-shop" id="hq-dhl"><b>📦 ملصق DHL</b><span>DHL Paket</span></button>
       <button class="hq p-lg" id="hq-lg"><b>🔎 بحث في المخزون</b><span>Bestand</span></button>
-      <button class="hq hq-rd" id="hq-rd"><b>🎧 راديو سوريا</b><span>Radio Syrien</span></button>
+      <div class="hq hq-rd" id="hq-rd" role="button" tabindex="0"><b>🎧 راديو سوريا</b><span class="rd-ctl" id="hq-rd-ctl"><span>Radio Syrien</span></span></div>
     </div>
     <button class="tile primary p-new" id="h-new"><span class="ic">＋</span><b>طلب جديد</b><span>تسجيل أصناف عميل في الصالة</span></button>
     <div class="hgrp" data-hub="sales"><button class="hsech hgh" data-hub="sales"><span class="hsec">🧾 المبيعات <small>· Verkauf</small></span><span class="hlink">فتح القسم ‹</span></button>
@@ -1472,7 +1472,7 @@ function renderHub(k){const H=HUBS[k];if(!H)return;$('hub-t').textContent=H.t;$(
 function hubGroups(){document.querySelectorAll('#view-home .hgrp').forEach(g=>{g.hidden=![...g.querySelectorAll('.tile')].some(tileVis)})}
 $('nv-s-sales').onclick=()=>hubGo('sales');$('nv-s-ship').onclick=()=>hubGo('ship');$('nv-s-cust').onclick=()=>hubGo('cust');$('nv-s-stock').onclick=()=>hubGo('stock');
 document.querySelectorAll('.hgh').forEach(x=>x.onclick=()=>hubGo(x.dataset.hub));
-$('hq-new').onclick=()=>$('h-new').click();$('hq-off').onclick=()=>$('h-off').click();$('hq-dhl').onclick=()=>{if(can('shop'))vzPaket()};$('hq-lg').onclick=()=>$('h-lg').click();$('hq-rd').onclick=()=>radioOpen();
+$('hq-new').onclick=()=>$('h-new').click();$('hq-off').onclick=()=>$('h-off').click();$('hq-dhl').onclick=()=>{if(can('shop'))vzPaket()};$('hq-lg').onclick=()=>$('h-lg').click();$('hq-rd').onclick=e=>{if(!e.target.closest('.rd-ctl button'))radioOpen()};setTimeout(radioChip,0);
 $('nv-home').onclick=goHome;$('nv-wh').onclick=()=>$('h-wh').click();$('nv-new').onclick=()=>$('h-new').click();
 $('nv-lg').onclick=()=>{drawer(false);$('h-lg').click()};$('nv-cash').onclick=()=>$('h-cash').click();$('nv-cust').onclick=()=>$('h-cust').click();
 $('nv-acc').onclick=()=>$('h-acc').click();$('nv-done').onclick=()=>$('h-done').click();$('h-last-all').onclick=()=>$('h-wh').click();
@@ -4601,7 +4601,8 @@ function radioCss(){if($('radio-css'))return;const s=document.createElement('sty
 .rd-st b{font-size:14.5px}.rd-st small{display:block;font-size:11.5px;color:var(--muted)}
 #rd-chip{position:fixed;top:calc(8px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:34;display:flex;align-items:center;gap:8px;background:#141210;color:#c9a24a;border-radius:999px;padding:6px 8px 6px 14px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:80vw}
 #rd-chip[hidden]{display:none}#rd-chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
-#rd-chip button{width:30px;height:30px;border-radius:50%;border:0;background:#c9a24a;color:#141210;cursor:pointer;flex:none}
+#rd-chip button{width:32px;height:32px;border-radius:50%;border:0;background:#c9a24a;color:#141210;cursor:pointer;flex:none;font-size:14px}#rd-chip button.x{background:#3a342c;color:#cfc6b4;width:26px;height:26px;font-size:12px}
+.rd-ctl{display:flex;gap:8px;align-items:center}.rd-ctl button{width:40px;height:40px;border-radius:50%;border:0;background:#141210;color:#c9a24a;font-size:16px;cursor:pointer}.hq-rd b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 `;document.head.append(s)}
 async function radioLoad(){if(radioList)return radioList;
   const hosts=['de1.api.radio-browser.info','de2.api.radio-browser.info','fi1.api.radio-browser.info'];let j=null;
@@ -4611,8 +4612,15 @@ async function radioLoad(){if(radioList)return radioList;
     if(/meat\s*loaf/i.test(x.name))return false;const k=String(x.name).toLowerCase().replace(/[^a-z؀-ۿ]/g,'').slice(0,12)+'|'+u.replace(/stream-\d+\./,'stream.');if(seen.has(k))return false;seen.add(k);return true})
     .map(x=>({n:String(x.name).trim(),u:x.url_resolved||x.url,f:x.favicon||'',tags:x.tags||'',id:x.stationuuid}));
   return radioList}
-function radioChip(){radioCss();let c=$('rd-chip');if(!c){c=el('div');c.id='rd-chip';c.setAttribute('dir','rtl');const t=el('span');t.onclick=()=>radioOpen();const b=el('button');b.onclick=()=>radioToggle();c.append(t,b);document.body.append(c)}
-  const on=radioAu&&!radioAu.paused;c.hidden=!on;if(on){c.firstChild.textContent='🎧 '+(radioCur?radioCur.n:'');c.lastChild.textContent='⏸'}}
+let radioShown=false;
+function radioNext(){const go=()=>{if(!radioList||!radioList.length)return;let i=radioCur?radioList.findIndex(x=>x.u===radioCur.u):-1;radioPlay(radioList[(i+1)%radioList.length]);toast('🎧 '+radioList[(i+1)%radioList.length].n)};
+  if(radioList)go();else radioLoad().then(go).catch(e=>toast('⚠️ '+e.message))}
+function radioStop(){if(radioAu){radioAu.pause();radioAu.removeAttribute('src');radioAu.load()}radioShown=false;radioChip()}
+function radioChip(){radioCss();let c=$('rd-chip');const mk=(t,f,lab)=>{const b=el('button',null,t);b.type='button';b.setAttribute('aria-label',lab);b.onclick=e=>{e.stopPropagation();f()};return b};
+  if(!c){c=el('div');c.id='rd-chip';c.setAttribute('dir','rtl');const t=el('span');t.onclick=()=>radioOpen();c.append(t,mk('','',''),mk('⏭',radioNext,'المحطة التالية'),mk('✕',radioStop,'إيقاف وإخفاء'));c.children[1].onclick=e=>{e.stopPropagation();radioToggle()};c.children[1].setAttribute('aria-label','تشغيل / إيقاف');c.lastChild.className='x';document.body.append(c)}
+  const on=!!(radioAu&&!radioAu.paused);if(on)radioShown=true;c.hidden=!radioShown;c.firstChild.textContent='🎧 '+(radioCur?radioCur.n:'');c.children[1].textContent=on?'⏸':'▶';
+  const h=$('hq-rd-ctl');if(h){h.textContent='';if(radioCur){h.append(mk(on?'⏸':'▶',radioToggle,'تشغيل / إيقاف'),mk('⏭',radioNext,'المحطة التالية'))}else h.append(el('span',null,'Radio Syrien'))}
+  const hb=$('hq-rd')&&$('hq-rd').querySelector('b');if(hb)hb.textContent=on&&radioCur?'🎧 '+radioCur.n:'🎧 راديو سوريا'}
 function radioPlay(st){radioCur=st;LS.set('radioCur',st);if(!radioAu){radioAu=new Audio();radioAu.preload='none';radioAu.onplaying=()=>{radioChip();radioRedraw()};radioAu.onpause=()=>{radioChip();radioRedraw()};
     radioAu.onerror=()=>{toast('⚠️ المحطة لا تبث الآن – جرّب محطة أخرى');radioChip();radioRedraw()}}
   radioAu.src=st.u;radioAu.volume=LS.get('radioVol',0.8);radioAu.play().catch(e=>{if(e&&e.name!=='NotAllowedError'&&e.name!=='AbortError')toast('⚠️ المحطة لا تبث الآن – جرّب محطة أخرى')});
