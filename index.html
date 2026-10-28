@@ -5671,7 +5671,7 @@ function vzCss(){if($('vz-css'))return;const s=document.createElement('style');s
 .va-tel{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:10px 0;background:var(--surface)}.va-tel>b{display:block;margin-bottom:6px}
 .va-tel-paket{border-inline-start:5px solid #d4a017}.va-tel-express{border-inline-start:5px solid #c8102e}
 .va-tl{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);text-decoration:none;color:var(--ink)}.va-tl:first-of-type{border-top:0}
-.va-tl div{display:flex;flex-direction:column}.va-tl span{font-weight:700;font-size:14px}.va-tl small{font-size:11.5px;color:var(--muted)}.va-tl em{font-style:normal;font-weight:800;direction:ltr;white-space:nowrap;color:var(--ok)}
+.va-tl div{display:flex;flex-direction:column}.va-tl span{font-weight:700;font-size:14px}.va-tl small{font-size:11.5px;color:var(--muted)}.va-tlb{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}.va-tlb a{font-weight:800;direction:ltr;white-space:nowrap;color:var(--ok);text-decoration:none;font-size:13.5px}
 .va-copy{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px;direction:ltr}
 .va-rek-bt.one{grid-template-columns:1fr}.va-more{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:10px}
 .va-set{margin:6px 0 10px;border:1px dashed var(--line);border-radius:12px;padding:8px 12px}.va-set summary{cursor:pointer;font-weight:700;font-size:13px}
@@ -5739,6 +5739,7 @@ function vzRedraw(){if($('sheet').hidden||!vzView)return;const t=$('sheet-t').te
 setInterval(()=>{const h=new Date().getHours();if(h>=7&&h<21)trkRefresh().then(c=>{if(c)vzRedraw()})},60*60e3);setTimeout(()=>trkRefresh().then(c=>{trkHome();if(c)vzRedraw()}),30e3);
 function vzOpen(){vzView={k:null};openSheet('🗄️ أرشيف الشحنات · Versandarchiv',b=>{vzMainFill(b);trkRefresh().then(c=>{if(c)vzRedraw()})})}
 function vzMainFill(b){soCss();vzCss();vzView={k:null};
+  if(!DHL_MAILS.kontakte&&soPw()&&!vzMainFill._k){vzMainFill._k=1;soCall('dhl_track',{items:[]}).then(r=>{if(r&&r.mails){DHL_MAILS=r.mails;LS.set('dhlMails',DHL_MAILS);vzRedraw()}}).catch(()=>{vzMainFill._k=0})}
   if(isAdmin()&&!DHL_MAILS.paket&&!LS.get('dhlMailDefSet',false)&&soPw()){LS.set('dhlMailDefSet',true);soCall('dhl_track',{items:[],cfg:{paket:DHL_MAIL_DEF.paket}}).then(r=>{if(r&&r.mails){DHL_MAILS=r.mails;LS.set('dhlMails',DHL_MAILS)}}).catch(()=>LS.set('dhlMailDefSet',false))}
   const t0=(()=>{const d=new Date();d.setHours(0,0,0,0);return d.getTime()})(),w0=Date.now()-7*864e5;
   const pr=vzProbs();if(pr.length){const a=el('button','va-alert');a.type='button';a.append(el('b',null,'⚠️ '+pr.length+' شحنة بها مشكلة في التسليم'),el('span',null,'Zustellproblem · اضغط للعرض ‹'));a.onclick=()=>vzArch(vzProbKind(),'failure');b.append(a)}
@@ -5785,11 +5786,14 @@ const VZ_REK_URL={nf:'https://geschaeftskunden.dhl.de/content/inquiryrequest/sub
 let DHL_MAILS=LS.get('dhlMails',{paket:'',express:''});
 const DHL_MAIL_DEF={paket:'gkspaket@deutschepost.de'};   /* Kundenservice Geschäftskunden laut GKP › Kontakt */
 /* 📞 Offizielle Rufnummern (dhl.de · Kontakt Express / GKP-Infoblatt) – Paket und Express strikt getrennt */
+/* Allgemeine Rufnummern (öffentlich, dhl.de). Persönliche Ansprechpartner kommen privat vom Server (Script-Properties), nie aus diesem öffentlichen Code. */
 const VZ_TEL={
-  paket:{t:'📦 DHL Paket · للأعمال',l:[['خدمة عملاء الأعمال (شكاوى وتحقيق)','Kundenservice Geschäftskunden','+4922828609800','الإثنين–الجمعة 8–19'],['دعم بوابة الأعمال (تقني)','Geschäftskundenportal Support','+4922876367679','الإثنين–الجمعة 8–18']]},
-  express:{t:'✈️ DHL Express · ألمانيا',l:[['شحنات Express خارج ألمانيا','Internationaler Express','+4922890243513','الإثنين–الجمعة 7–19'],['شحنات Express داخل ألمانيا','Nationaler Express','+4922890243511','الإثنين–الجمعة 7–19'],['شحنة فائتة / تغيير التسليم','ODD Support','+4922890243514','الإثنين–الجمعة 7–19'],['الجمارك','Zoll-Support','+4934186963999','الإثنين–الجمعة 8–18'],['الدعم التقني (MyDHL)','Technischer Support','+4922890243517','الإثنين–الجمعة 8:30–16:30']]}};
-const telFmt=n=>n.replace(/^\+49(228|341|175)(\d+)/,(m,a,b)=>'+49 '+a+' '+b);
-function vzTel(box,k){const T=VZ_TEL[k],w=el('div','va-tel va-tel-'+k);w.append(el('b',null,'📞 '+T.t));T.l.forEach(([ar,de,n,h])=>{const a=el('a','va-tl');a.href='tel:'+n;const tx=el('div');tx.append(el('span',null,ar),el('small',null,de+' · '+h));if(!h)tx.lastChild.textContent=de;a.append(tx,el('em',null,telFmt(n)));w.append(a)});box.append(w)}
+  paket:{l:[['خدمة عملاء DHL Paket','Kundenservice Paket','+492284333112','الإثنين–الجمعة 8–20',''],['دعم بوابة الأعمال (تقني)','Geschäftskundenportal Support','+4922876367679','الإثنين–الجمعة 8–18','']]},
+  express:{l:[['شحنات Express خارج ألمانيا','Internationaler Express','+4922890243513','الإثنين–الجمعة 7–19',''],['شحنات Express داخل ألمانيا','Nationaler Express','+4922890243511','الإثنين–الجمعة 7–19',''],['شحنة فائتة / تغيير التسليم','ODD Support','+4922890243514','الإثنين–الجمعة 7–19',''],['الجمارك','Zoll-Support','+4934186963999','الإثنين–الجمعة 8–18','']]}};
+const telFmt=n=>n.replace(/^\+49(228|341|1\d\d)(\d+)/,(m,a,b)=>'+49 '+a+' '+b);
+function vzTel(box,k){const K=((DHL_MAILS&&DHL_MAILS.kontakte)||{})[k],own=!!(K&&K.length),L=own?K:VZ_TEL[k].l,w=el('div','va-tel va-tel-'+k);
+  w.append(el('b',null,'📞 '+(k==='paket'?'📦 DHL Paket':'✈️ DHL Express')+(own?' · المسؤولون عن حسابك':' · الخط العام')));
+  L.forEach(([ar,de,n,h,m])=>{const r=el('div','va-tl'),tx=el('div');tx.append(el('span',null,ar),el('small',null,h?de+' · '+h:de));const bt=el('div','va-tlb');if(n){const a=el('a',null,'📞 '+telFmt(n));a.href='tel:'+n;bt.append(a)}if(m){const a=el('a',null,'✉️ '+m);a.href='mailto:'+m;bt.append(a)}r.append(tx,bt);w.append(r)});box.append(w)}
 const rekAt=r=>r==null?0:typeof r==='object'?(r.at||0):+r||0;
 /* 📨 Kontakt mit DHL: fertige Vorlagen je Fall (Arabisch für den Mitarbeiter, Deutsch für DHL) */
 const VZ_FALL={
