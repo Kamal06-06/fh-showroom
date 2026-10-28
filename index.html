@@ -4936,18 +4936,43 @@ function soCss(){if($('so-css'))return;const s=document.createElement('style');s
 /* Ansicht merken: nach einem Neuladen bleibt man auf derselben Seite */
 function soView(){try{sessionStorage.setItem('fhSo',JSON.stringify({sel:soSel,reg:soReg,tab:soTab}))}catch(e){}}
 async function appRefresh(){
-  const t=[];try{if(!FS_ON)t.push(Promise.resolve(db&&db.pull()))}catch(e){}   // live: Daten sind schon aktuell
-  if(SO_LIVE){try{soSetCount();if(soOpenNow()){const sb=$('sheet-b');soSel?soDetail(sb,soSel):soListView(sb)}}catch(e){}}
-  else if(soPw()&&(soOpenNow()||!$('view-home').hidden))t.push(soLoad(true).then(()=>{soSetCount();if(soOpenNow()){const sb=$('sheet-b');soSel?soDetail(sb,soSel):soListView(sb)}}));
-  await Promise.all(t);toast('✅ تم التحديث')}
-/* Ziehen zum Aktualisieren: lädt nur die Daten neu, die Seite bleibt offen */
-(function(){let y0=null,dy=0,tg=null,busy=false;const ind=document.createElement('div');ind.id='ptr';document.body.append(ind);
-  const sc=()=>!$('sheet').hidden?$('sheet').querySelector('.sh'):!$('omodal').hidden?null:document.scrollingElement;
-  addEventListener('touchstart',e=>{y0=null;if(busy||e.touches.length!==1||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))return;tg=sc();if(!tg||tg.scrollTop>0)return;y0=e.touches[0].clientY;dy=0},{passive:true});
-  addEventListener('touchmove',e=>{if(y0==null)return;if(tg.scrollTop>0){y0=null;ind.className='';return}dy=e.touches[0].clientY-y0;if(dy<=8){ind.className='';return}
-    ind.style.transform='translate(-50%,'+(Math.min(dy*.45,70)-46)+'px)';ind.className=dy>130?'on rdy':'on'},{passive:true});
-  addEventListener('touchend',async()=>{if(y0==null)return;y0=null;if(dy>130){busy=true;ind.className='on run';ind.style.transform='translate(-50%,22px)';
-      try{await appRefresh()}catch(e){toast('⚠️ '+e.message)}busy=false}ind.className='';ind.style.transform=''},{passive:true})})();
+  const t=[];try{t.push(Promise.resolve(db&&db.pull()))}catch(e){}
+  if(SO_LIVE){try{soSetCount()}catch(e){}}
+  else if(soPw()&&(soOpenNow()||!$('view-home').hidden))t.push(soLoad(true).then(()=>{try{soSetCount()}catch(e){}}).catch(()=>{}));
+  if(!$('view-inv').hidden||!$('view-new').hidden)t.push(ivLoad(true,true).catch(()=>{}));
+  try{if(navigator.serviceWorker)navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})}catch(e){}
+  await Promise.race([Promise.all(t),new Promise(r=>setTimeout(r,15000))]);
+  appRedraw();toast('✅ تم التحديث')}
+/* nach dem Aktualisieren die aktuelle Seite neu zeichnen – aber nie, wenn dort gerade etwas eingetippt wurde */
+function appTyped(root){return !!root&&[...root.querySelectorAll('input,textarea')].some(i=>i.type!=='checkbox'&&i.type!=='radio'&&i.type!=='file'&&i.value!==i.defaultValue)}
+function appRedraw(){
+  try{
+    if(!$('omodal').hidden&&omId){if(!appTyped($('omodal')))showOrder(omId);return}
+    if(!$('sheet').hidden){const top=scrTop();if(top&&top.k==='sheet'&&!appTyped($('sheet'))){const sh=$('sheet').querySelector('.sh'),y=sh?sh.scrollTop:0;navMode='restore';try{drawSheet(top.t,top.fill)}finally{navMode=''}if(sh)sh.scrollTop=y}return}
+    if(!$('view-home').hidden){renderHome();return}
+    if(!$('view-hub').hidden){try{renderHub(String(navCur&&navCur.which||'').slice(4))}catch(e){}return}
+    if(!$('view-cust').hidden){renderCust();return}
+    if(!$('view-acc').hidden){renderAcc();return}
+    if(!$('view-cash').hidden){renderCash();return}
+    if(!$('view-inv').hidden){ivRender();return}
+    if(!$('view-lg').hidden){if(lgSel&&!$('lg-box').hidden)lgRefresh();return}
+    if(!$('view-wh').hidden){renderLists();return}
+  }catch(e){console.warn('redraw',e)}
+}
+/* Ziehen zum Aktualisieren: funktioniert auf jeder Seite (auch in Fenstern und Aufträgen), lädt nur die Daten neu */
+(function(){let y0=null,x0=0,dy=0,busy=false,armed=false;const ind=document.createElement('div');ind.id='ptr';document.body.append(ind);
+  const scrolled=el=>{for(let n=el;n&&n!==document.documentElement;n=n.parentElement){if(n.scrollTop>0){const cs=getComputedStyle(n);if(/(auto|scroll)/.test(cs.overflowY))return true}}return (document.scrollingElement||document.documentElement).scrollTop>0};
+  const reset=()=>{y0=null;armed=false;ind.className='';ind.style.transform=''};
+  addEventListener('touchstart',e=>{reset();if(busy||e.touches.length!==1)return;const t=e.target;if(t&&t.closest&&t.closest('input,textarea,select,[contenteditable],canvas,.va-pad,#funk,.no-ptr'))return;if(scrolled(t))return;y0=e.touches[0].clientY;x0=e.touches[0].clientX;dy=0},{passive:true});
+  addEventListener('touchmove',e=>{if(y0==null)return;const tt=e.touches[0];dy=tt.clientY-y0;const dx=Math.abs(tt.clientX-x0);
+    if(dy<=10||dx>dy){if(dy<-5||dx>40)reset();else ind.className='';return}
+    if(scrolled(e.target)){reset();return}
+    ind.style.transform='translate(-50%,'+(Math.min(dy*.5,80)-46)+'px) rotate('+Math.min(dy*2,300)+'deg)';armed=dy>95;ind.className=armed?'on rdy':'on'},{passive:true});
+  const end=async()=>{if(y0==null)return;const go=armed;y0=null;armed=false;
+    if(go){busy=true;ind.className='on run';ind.style.transform='translate(-50%,22px)';try{if(navigator.vibrate)navigator.vibrate(15)}catch(e){}
+      try{await appRefresh()}catch(e){toast('⚠️ '+e.message)}busy=false}
+    ind.className='';ind.style.transform=''};
+  addEventListener('touchend',end,{passive:true});addEventListener('touchcancel',reset,{passive:true})})();
 let soQ='';
 const soNoLbl=o=>soIsDE(o)?!soHasDhl(o):!(o.stand&&o.stand.dhlx&&o.stand.dhlx.nr);
 /* Versendet = Versandetikett erstellt (Inland DHL / Ausland Express) oder in Shopify als versendet markiert */
