@@ -4595,6 +4595,7 @@ function radioCss(){if($('radio-css'))return;const s=document.createElement('sty
 .rd-now button{margin-inline-start:auto;width:52px;height:52px;border-radius:50%;border:0;background:#c9a24a;color:#141210;font-size:22px;cursor:pointer;flex:none}
 .rd-vol{display:flex;align-items:center;gap:10px;margin:0 0 12px}.rd-vol input{flex:1}
 .rd-list{display:flex;flex-direction:column;gap:8px}
+.rd-tabs{display:flex;gap:8px;margin:0 0 12px}.rd-tabs button{flex:1;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}.rd-tabs button.on{background:#141210;border-color:#141210;color:#c9a24a}
 .rd-st{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface);font:inherit;color:var(--ink);text-align:start;cursor:pointer;width:100%}
 .rd-st.on{border-color:#c9a24a;box-shadow:0 0 0 2px #c9a24a55}
 .rd-st img,.rd-st .ph{width:44px;height:44px;border-radius:10px;object-fit:cover;background:var(--soft);display:grid;place-items:center;font-size:20px}
@@ -4613,7 +4614,11 @@ async function radioLoad(){if(radioList)return radioList;
     .map(x=>({n:String(x.name).trim(),u:x.url_resolved||x.url,f:x.favicon||'',tags:x.tags||'',id:x.stationuuid}));
   return radioList}
 let radioShown=false;
-function radioNext(){const go=()=>{if(!radioList||!radioList.length)return;let i=radioCur?radioList.findIndex(x=>x.u===radioCur.u):-1;radioPlay(radioList[(i+1)%radioList.length]);toast('🎧 '+radioList[(i+1)%radioList.length].n)};
+const RD_NEWS=/syria tv|تلفزيون سوريا|damascus|دمشق|sham ?fm|tayf|طيف|althania/i;
+const RD_NEWS_EXTRA=[{n:'مونت كارلو الدولية · أخبار',u:'https://montecarlodoualiya128k.ice.infomaniak.ch/mc-doualiya.mp3',f:'',tags:'أخبار عربية'},{n:'BBC عربي · أخبار',u:'https://stream.live.vc.bbcmedia.co.uk/bbc_arabic_radio',f:'',tags:'أخبار عربية'}];
+function radioTabList(){if(!radioList)return null;if(LS.get('radioTab','all')!=='news')return radioList;
+  const sy=[],seen=new Set();radioList.forEach(x=>{if(RD_NEWS.test(x.n)){const k=x.n.replace(/[^a-z]/gi,'').toLowerCase().slice(0,8);if(!seen.has(k)){seen.add(k);sy.push({...x,tags:'أخبار سورية'})}}});return sy.concat(RD_NEWS_EXTRA)}
+function radioNext(){const go=()=>{const L=radioTabList();if(!L||!L.length)return;let i=radioCur?L.findIndex(x=>x.u===radioCur.u):-1;const nx=L[(i+1)%L.length];radioPlay(nx);toast('🎧 '+nx.n)};
   if(radioList)go();else radioLoad().then(go).catch(e=>toast('⚠️ '+e.message))}
 function radioStop(){if(radioAu){radioAu.pause();radioAu.removeAttribute('src');radioAu.load()}radioShown=false;radioChip()}
 function radioChip(){radioCss();let c=$('rd-chip');const mk=(t,f,lab)=>{const b=el('button',null,t);b.type='button';b.setAttribute('aria-label',lab);b.onclick=e=>{e.stopPropagation();f()};return b};
@@ -4633,9 +4638,10 @@ function radioOpen(){radioCss();openSheet('🎧 راديو سوريا',b=>radioD
 function radioDraw(b){b.textContent='';const on=radioAu&&!radioAu.paused;
   const now=el('div','rd-now'),ic=el('div','ic','📻'),t=el('div'),pb=el('button',null,on?'⏸':'▶');t.append(el('b',null,radioCur?radioCur.n:'اختر محطة'),el('span',null,on?'● يبث الآن':radioCur?'متوقف':'المحطات السورية الأكثر استماعاً'));pb.onclick=()=>radioToggle();now.append(ic,t,pb);b.append(now);
   const vw=el('div','rd-vol'),vi=el('input');vi.type='range';vi.min='0';vi.max='1';vi.step='0.05';vi.value=LS.get('radioVol',0.8);vi.oninput=()=>{LS.set('radioVol',+vi.value);if(radioAu)radioAu.volume=+vi.value};vw.append('🔈',vi,'🔊');b.append(vw);
+  const tb=el('div','rd-tabs'),tab=LS.get('radioTab','all');[['news','📰 الأخبار'],['all','🎵 كل المحطات']].forEach(([k,t])=>{const x=el('button',k===tab?'on':'',t);x.type='button';x.onclick=()=>{LS.set('radioTab',k);radioDraw(b)};tb.append(x)});b.append(tb);
   const L=el('div','rd-list');b.append(L);
   if(!radioList){L.append(el('p','hint','جاري تحميل المحطات…'));radioLoad().then(()=>radioRedraw()).catch(e=>{L.textContent='';L.append(el('p','status err','⚠️ '+e.message))});return}
-  radioList.forEach(st=>{const r=el('button','rd-st'+(radioCur&&radioCur.u===st.u&&on?' on':''));
+  radioTabList().forEach(st=>{const r=el('button','rd-st'+(radioCur&&radioCur.u===st.u&&on?' on':''));
     if(st.f){const im=el('img');im.src=st.f;im.alt='';im.loading='lazy';im.onerror=()=>im.replaceWith(el('span','ph','📻'));r.append(im)}else r.append(el('span','ph','📻'));
     const tx=el('div');tx.append(el('b',null,st.n),el('small',null,String(st.tags).split(',').slice(0,3).join(' · ')));r.append(tx,el('span',null,radioCur&&radioCur.u===st.u&&on?'🔊':'▶'));
     r.onclick=()=>{if(radioCur&&radioCur.u===st.u&&on)radioToggle();else radioPlay(st)};L.append(r)});
