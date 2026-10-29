@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="164">
+<meta name="fh-build" content="165">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -995,6 +995,7 @@ if(!IN_GAS){
   document.addEventListener('click',()=>{try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission().then(p=>{if(p==='granted')fsPushReg()})}catch(e){}},{once:true});
   /* ⚡ neue App-Version im Hintergrund geladen → beim nächsten Wechsel in den Hintergrund still übernehmen (Entwürfe bleiben gespeichert) */
   if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',e=>{if(!(e.data&&e.data.upd)||window._fhUpd)return;window._fhUpd=1;try{appUpd=Date.now()}catch(_){}
+    try{if(APP_RELOAD&&Date.now()-APP_T0<20000&&!appTyped(document.body)){location.reload();return}}catch(_){}
     try{toast('🔄 نسخة جديدة من التطبيق جاهزة – اضغط للتحديث',()=>location.reload())}catch(_){}
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')setTimeout(()=>{if(document.visibilityState==='hidden')location.reload()},1500)})});
   if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',e=>{const o=e.data&&e.data.open;if(!o)return;
@@ -1016,10 +1017,16 @@ const IDB=(()=>{let p=null;const open=()=>p||(p=new Promise((ok,no)=>{try{const 
 /* Passwort geändert / Mitarbeiter gesperrt: gespeicherte Anmeldung ist ungültig -> sofort abmelden */
 /* Sicherheitsnetz: unerwartete Fehler werden kurz angezeigt statt die App still hängen zu lassen */
 (function(){let last=0;const show=m=>{const now=Date.now();if(now-last<4000)return;last=now;try{toast('⚠️ حدث خطأ بسيط – أعد المحاولة · '+String(m||'').slice(0,80))}catch(e){}};
-  addEventListener('error',e=>{if(!e||!e.message)return;if(e.filename&&e.filename.indexOf(location.origin)!==0)return;if(/ResizeObserver|Script error/i.test(e.message))return;console.warn('app error',e.message,e.lineno);show(e.message)});
-  addEventListener('unhandledrejection',e=>{const m=e&&e.reason&&(e.reason.message||e.reason);if(!m||/AbortError|NotAllowedError|share|cancel/i.test(String(m)))return;console.warn('app rejection',m)})})();
+  addEventListener('error',e=>{if(!e||!e.message)return;if(e.filename&&e.filename.indexOf(location.origin)!==0)return;if(/ResizeObserver|Script error/i.test(e.message))return;console.warn('app error',e.message,e.lineno);show(e.message);errLog(e.message,'Z.'+(e.lineno||0)+':'+(e.colno||0))});
+  addEventListener('unhandledrejection',e=>{const m=e&&e.reason&&(e.reason.message||e.reason);if(!m||/AbortError|NotAllowedError|share|cancel/i.test(String(m)))return;console.warn('app rejection',m);if(!/لا يوجد اتصال|NET \d|Failed to fetch|network/i.test(String(m)))errLog(String(m),'promise')})})();
+/* 🩺 Fehlerprotokoll: jeder unerwartete Fehler wird (gedrosselt) an den Server gemeldet → Inhaber sieht ihn, tägliche Prüfung */
+function errLog(m,where){try{m=String(m||'').slice(0,400);if(!m||!PIN||IN_GAS)return;const k=m.slice(0,120),now=Date.now();errLog.seen=errLog.seen||{};if(now-(errLog.seen[k]||0)<600000)return;errLog.seen[k]=now;
+  const page=['home','new','wh','cust','acc','cash','inv','lg','hub'].find(v=>{const x=$('view-'+v);return x&&!x.hidden})||'',sh=$('sheet'),st=$('sheet-t');
+  const b=(document.querySelector('meta[name=fh-build]')||{}).content||'';
+  setTimeout(()=>{srv1('err_log',JSON.stringify({m,w:String(where||'').slice(0,120),p:page+(sh&&!sh.hidden&&st?' › '+st.textContent.slice(0,40):''),b})).catch(()=>{})},50)}catch(e){}}
 function forceLogout(){if(window._fhOut)return;window._fhOut=1;try{sessionStorage.clear()}catch(e){}LS.set('pin','');LS.set('me',{user:'',admin:false});location.reload()}
-async function srv(action,a,b,c,x){try{return await srv0(action,a,b,c,x)}catch(e){if(/^(PIN|GERAET_WARTET|GERAET_GESPERRT)$/.test(String(e&&e.message))&&PIN&&LS.get('pin','')===PIN)forceLogout();throw e}}
+async function srv(action,a,b,c,x){try{return await srv0(action,a,b,c,x)}catch(e){const m=String(e&&e.message||e);if(/^(PIN|GERAET_WARTET|GERAET_GESPERRT)$/.test(m)&&PIN&&LS.get('pin','')===PIN)forceLogout();
+  else if(!e.net&&!/^(PIN|GERAET_|NUR_INHABER|SO_PW|SO_KEIN)/.test(m)&&action!=='err_log')errLog('Server '+action+': '+m,'srv');throw e}}
 async function srv0(action,a,b,c,x){let last;for(let i=0;i<4;i++){try{return await srv1(action,a,b,c,x)}catch(e){last=e;if(!/lock|تأمين|sperr|time[d ]?out|zeitüber|exceeded|too many|Unexpected token|NET 5\d\d/i.test(String(e.message||e))||i===3)throw e;await new Promise(r=>setTimeout(r,2500*(i+1)))}}throw last}
 let db=null, mcp=null, dl=null, catalog=[], lists=[], lastSent=null, editing=null;
 let waNum=LS.get('wa','');
@@ -1173,6 +1180,7 @@ function openCustSheet(c,after){
     sv.onclick=async()=>{const name=nm.value.trim();msg.hidden=false;msg.classList.remove('err');
       if(!name){msg.textContent='اكتب اسم العميل.';msg.classList.add('err');nm.focus();return}
       const dup=findCust(name);if(dup&&(!c||dup.id!==c.id)){msg.textContent='يوجد عميل بهذا الاسم: '+dup.name+' ('+dup.no+')';msg.classList.add('err');return}
+      if(!c){const sim=custSimilar(name);if(sim&&!confirm('🧠 يوجد عميل باسم مشابه: «'+sim.name+'»'+(sim.no?' ('+sim.no+')':'')+'\n\nهل هو عميل جديد مختلف فعلاً؟'))return}
       const rec={name,phone:ph.value.trim(),email:em.value.trim(),street:st.value.trim(),city:joinCity(pz.value,ci.value),country:co.value,note:nt.value.trim(),kg:kg.checked};
       {const n=x=>{const v=parseDE(x.value);return v>=0?v:0};rec.sk={on:skc.checked,small:Math.min(100,n(skS)),kg:Math.min(100,n(skK)),manualFrom:n(skM)||5}}
       sv.disabled=true;msg.textContent='جاري الحفظ…';
@@ -3074,7 +3082,27 @@ function preCheck(){const w=[],its=draft.items;
   its.forEach(i=>{if(isOil(i)&&!i.unit&&(+i.q||1)>=20)w.push({t:'كمية كبيرة: '+i.t,d:(+i.q||1)+' × '+(i.size||'')+' — تأكد من العدد'})});
   its.forEach(i=>{if(!isOil(i)&&!i.unit&&!i.grp&&(+i.q||1)>=50&&/karton|\d{2,}\s*st/i.test(i.size||''))w.push({t:'كمية كبيرة: '+i.t,d:(+i.q||1)+' × '+(i.size||'')+' — العدد هنا عدد العبوات/الكراتين'})});
   {const need=stkNeed(draft.items);Object.keys(need).forEach(k=>{const it=draft.items.find(i=>stkKey(i)===k),i=it&&stkInfo(it);if(i&&!i.unk&&!i.ok)w.push({t:'⛔ المخزون غير كافٍ: '+it.t+(it.tier?' · '+it.tier:''),d:'الرصيد '+stkFmt(i.have,i.unit)+' · المطلوب '+stkFmt(i.need,i.unit)})})}
+  try{smartChecks(w)}catch(e){console.warn('smart',e)}
   return w}
+/* 🧠 Intelligente Prüfungen: Fehler erkennen, bevor sie passieren */
+const fuzzKey=n=>fold(n).replace(/\b(gmbh|ug|e\.?k\.?|ohg|kg|ltd|bv|sarl|srl|inh\.?)\b/g,'').replace(/[^a-z0-9\u0600-\u06ff]/g,'');
+function levDist(a,b){if(a===b)return 0;if(Math.abs(a.length-b.length)>2)return 9;const d=[];for(let i=0;i<=a.length;i++){d[i]=[i]}for(let j=0;j<=b.length;j++)d[0][j]=j;
+  for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]}
+function custSimilar(name,exceptId){const k=fuzzKey(name);if(k.length<3)return null;let best=null,bd=9;
+  customers.forEach(c=>{if(!c||!c.name||(exceptId&&c.id===exceptId))return;const ck=fuzzKey(c.name);if(!ck)return;
+    const d=ck===k?0:(k.length>=4&&ck.length>=4&&(ck.includes(k)||k.includes(ck)))?1:levDist(ck,k);if(d<bd&&d<=(k.length>6?2:1)){bd=d;best=c}});return best}
+function smartChecks(w){const cn=String(draft.cust||'').trim(),c=cn?findCust(cn):null;
+  if(cn&&!c){const sim=custSimilar(cn);if(sim)w.push({t:'🧠 هل تقصد العميل «'+sim.name+'»؟',d:'هذا الاسم غير محفوظ، لكنه يشبه عميلاً موجوداً'+(sim.no?' ('+sim.no+')':'')+' – تجنّب إنشاء عميل مكرّر.'})}
+  if(cn&&!editing){const op=lists.filter(l=>l.kind!=='debt'&&l.status!=='done'&&(l.items||[]).length&&custKey(l.customer)===custKey(cn));
+    if(op.length)w.push({t:'🧠 لهذا العميل طلب مفتوح في المستودع',d:op.slice(0,3).map(l=>'AP-'+stamp(l)+' · '+(l.items||[]).length+' صنف').join('، ')+' – يمكن إضافة الأصناف إليه بدل طلب جديد.'})}
+  if(cn&&(isAdmin()||can('acc'))){try{const g=custGroups().find(g=>custKey(g.name)===custKey(cn));if(g&&g.open>0.004)w.push({t:'🧠 على هذا العميل مبلغ غير مدفوع',d:'المفتوح: '+money(g.open)+' – راجع الدفع قبل التسليم.'})}catch(e){}}
+  const sum=draft.items.reduce((s,i)=>s+(+i.price||0)*(+i.q||1),0);
+  if(+draft.rabatt>=20)w.push({t:'🧠 خصم كبير: '+draft.rabatt+' %',d:'تأكد أن النسبة صحيحة وليست خطأ في الكتابة.'});
+  if(+draft.rabattFix>0&&sum>0&&+draft.rabattFix>=sum*0.2)w.push({t:'🧠 خصم ثابت كبير: '+money(+draft.rabattFix),d:'يساوي '+Math.round(draft.rabattFix/sum*100)+' % من المجموع.'});
+  draft.items.forEach(i=>{if(i.kg||i.skAuto||i.price==null||i.price==='')return;const p=catalog.find(p=>p.t===i.t),sk=i.sku||i.code,v=p&&sk?p.v.find(v=>v[1]===sk):null,lp=v?pnum(v[2]):null;
+    if(lp>0&&+i.price<lp*0.7)w.push({t:'🧠 سعر منخفض: '+i.t+(i.size?' · '+i.size:''),d:money(+i.price)+' بدل '+money(lp)+' في المتجر (−'+Math.round((1-i.price/lp)*100)+' %)'})});
+  if((draft.lief==='de'||draft.lief==='ab')&&String(draft.country||'DE')!=='DE'&&AP_EU.includes(String(draft.country||''))&&!(draft.dhlAdr&&draft.dhlAdr.firma)&&!(c&&/gmbh|ug\b|e\.?k\.?|ltd|bv|b\.v\.|sarl|srl|s\.l\.|ohg|kg\b|firma|shop|parf/i.test(c.name)))
+    w.push({t:'🧠 شحن داخل الاتحاد الأوروبي بدون اسم شركة',d:'DHL Europaket للشركات فقط – أضف اسم الشركة عند إنشاء الملصق، وإلا قد يُرفض.'})}
 function confirmChecks(w,label){return new Promise(ok=>{openSheet('⚠️ تحقق قبل '+label,b=>{b.append(el('p','hint','راجع هذه الملاحظات قبل '+label+':'));
   w.forEach(x=>{const r=el('div','pc-row');r.append(el('b',null,x.t));if(x.d)r.append(el('div','note',x.d));b.append(r)});
   const row=el('div','row grow');const back=el('button','btn big','↩︎ رجوع للتعديل');back.onclick=()=>{closeSheet();ok(false)};
@@ -3942,6 +3970,9 @@ async function tryPin(p,quiet){
 const pinNorm=s=>{const t=String(s||'').trim().replace(/[\u0660-\u0669]/g,c=>c.charCodeAt(0)-0x660).replace(/[\u06F0-\u06F9]/g,c=>c.charCodeAt(0)-0x6F0);return /^[\d\s]*$/.test(t)?t.replace(/\D/g,''):t};
 const pinDigits=s=>String(s||'').replace(/[\u0660-\u0669]/g,c=>c.charCodeAt(0)-0x660).replace(/[\u06F0-\u06F9]/g,c=>c.charCodeAt(0)-0x6F0).replace(/[^0-9]/g,'');
 $('gate-form').onsubmit=e=>{e.preventDefault();const p=pinNorm($('pin').value);if(p)tryPin(p,false);else{const m=$('pin-msg');m.hidden=false;m.classList.add('err');m.textContent='اكتب الرمز بالأرقام.'}};
+/* Neu laden (F5 / Aktualisieren im Browser): sofort aus dem Speicher öffnen, dann im Hintergrund wirklich aktualisieren */
+const APP_RELOAD=(()=>{try{return performance.getEntriesByType('navigation')[0].type==='reload'}catch(e){return false}})(),APP_T0=Date.now();
+if(PIN&&APP_RELOAD&&!IN_GAS)setTimeout(()=>{try{appRefresh()}catch(e){}},2500);
 if(PIN){start();srv('check').then(setMe).catch(e=>{if(e.message==='PIN'){LS.set('pin','');location.reload()}})}
 /* ---------- Lager / المخزون ---------- */
 let lgSel=null;
@@ -4968,15 +4999,18 @@ function soCss(){if($('so-css'))return;const s=document.createElement('style');s
 `;document.head.append(s)}
 /* Ansicht merken: nach einem Neuladen bleibt man auf derselben Seite */
 function soView(){try{sessionStorage.setItem('fhSo',JSON.stringify({sel:soSel,reg:soReg,tab:soTab}))}catch(e){}}
-async function appRefresh(){
-  const t=[];try{t.push(Promise.resolve(db&&db.pull()))}catch(e){}
-  if(SO_LIVE){try{soSetCount()}catch(e){}}
-  else if(soPw()&&(soOpenNow()||!$('view-home').hidden))t.push(soLoad(true).then(()=>{try{soSetCount()}catch(e){}}).catch(()=>{}));
-  if(!$('view-inv').hidden||!$('view-new').hidden)t.push(ivLoad(true,true).catch(()=>{}));
-  try{if(navigator.serviceWorker)navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})}catch(e){}
-  await Promise.race([Promise.all(t),new Promise(r=>setTimeout(r,15000))]);
-  if(await appVerCheck(true))return;
-  appRedraw();toast('✅ تم التحديث')}
+/* 🔄 Aktualisieren: lädt wirklich alles neu (Aufträge, Kunden, Shop-Bestellungen, Artikel, App-Version) –
+   im Hintergrund, die Seite bleibt bedienbar; am Ende wird die aktuelle Seite neu gezeichnet. */
+let appRefP=null;
+function appRefresh(){if(appRefP){toast('🔄 التحديث يعمل في الخلفية…');return Promise.resolve()}
+  const T0=Date.now(),t=[];toast('🔄 جاري التحديث في الخلفية…');
+  try{if(FS_ON)t.push(srv('fs_ping').then(r=>{try{onDevWait(r&&r.devWait)}catch(_){}}).catch(()=>{}));else t.push(Promise.resolve(db&&db.pull()))}catch(e){}
+  try{if(soPw()&&can('shop'))t.push(soLoad(true).then(()=>{try{soSetCount()}catch(e){}}).catch(()=>{}))}catch(e){}
+  try{if(!$('view-inv').hidden||!$('view-new').hidden||!$('view-lg').hidden)t.push(ivLoad(true,true).catch(()=>{}))}catch(e){}
+  try{if(navigator.serviceWorker)t.push(navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{}))}catch(e){}
+  appRefP=Promise.race([Promise.all(t),new Promise(r=>setTimeout(r,30000))]).then(async()=>{
+    if(await appVerCheck(true))return;appRedraw();toast('✅ تم التحديث · '+((Date.now()-T0)/1000).toFixed(1)+' ث')}).catch(e=>toast('⚠️ '+(e.message||e))).finally(()=>{appRefP=null});
+  return Promise.resolve()}
 /* App-Version: neue Version erkennen (sw.js) – beim Ziehen automatisch laden, sonst Hinweis zum Antippen */
 let appUpd=0;
 async function appVerCheck(auto){try{if(IN_GAS)return false;const r=await fetch('sw.js?t='+Date.now(),{cache:'no-store'});const m=/fh-shell-v(\d+)/.exec(await r.text());const me=document.querySelector('meta[name=fh-build]');const cur=me?+me.content:0;
@@ -6712,7 +6746,7 @@ function onDevWait(list){const box=$('h-devwait');if(!box)return;
     r.append(mm,ok,no);box.append(r)})}
 function devsOpen(){
   openSheet('📱 الأجهزة وسجل الدخول · Geräte & Protokoll',async b=>{
-    const tabs=el('div','row'),tD=el('button','btn small primary','📱 الأجهزة'),tL=el('button','btn small','📜 سجل الدخول');tabs.append(tD,tL);b.append(tabs);
+    const tabs=el('div','row'),tD=el('button','btn small primary','📱 الأجهزة'),tL=el('button','btn small','📜 سجل الدخول'),tE=el('button','btn small','🩺 الأخطاء');tabs.append(tD,tL,tE);b.append(tabs);
     const box=el('div');b.append(box);
     const stTxt={ok:['✅ معتمد','st-ok'],wait:['⏳ بانتظار الموافقة','st-wait'],block:['⛔ موقوف','st-block']};
     const showDevs=async()=>{tD.classList.add('primary');tL.classList.remove('primary');box.textContent='…';let l=[];try{l=await srv('dev_list')||[]}catch(e){box.textContent=e.message;return}
@@ -6728,7 +6762,11 @@ function devsOpen(){
     const showLog=async()=>{tL.classList.add('primary');tD.classList.remove('primary');box.textContent='…';let l=[];try{l=await srv('log_get')||[]}catch(e){box.textContent=e.message;return}
       box.textContent='';box.append(el('p','hint','آخر 300 عملية دخول ومحاولة. ظاهر لك فقط.'));if(!l.length){box.append(el('p','hint','السجل فارغ.'));return}
       l.forEach(x=>{const r=el('div','logrow'+(/خاطئة|موقوف|رفض/.test(x.e||'')?' bad':''));r.append(el('span',null,fmtT(x.t)),el('span',null,(x.e||'')+(x.u?' · 👤 '+x.u:'')+(x.d?' · '+x.d:'')));box.append(r)})};
-    tD.onclick=showDevs;tL.onclick=showLog;showDevs();
+    const showErr=async()=>{[tD,tL].forEach(x=>x.classList.remove('primary'));tE.classList.add('primary');box.textContent='…';let l=[];try{l=await srv('err_get')||[]}catch(e){box.textContent=/unbekannt|unknown|Aktion/i.test(e.message)?'سجل الأخطاء يعمل بعد نشر نسخة الخادم الجديدة.':e.message;return}
+      box.textContent='';box.append(el('p','hint','آخر الأخطاء التي حدثت في التطبيق على كل الأجهزة (الخطأ نفسه يُسجَّل مرة كل 10 دقائق). يُفحص يومياً ويُقترح الإصلاح.'));
+      if(!l.length){box.append(el('p','hint','✅ لا توجد أخطاء مسجلة.'));return}
+      l.forEach(x=>{const r=el('div','logrow bad');r.append(el('span',null,fmtT(x.at)),el('span',null,String(x.m||'')+(x.user?' · 👤 '+x.user:'')+(x.dev?' · '+x.dev:'')+(x.p?' · 📍 '+x.p:'')+(x.b?' · v'+x.b:'')));box.append(r)})};
+    tD.onclick=showDevs;tL.onclick=()=>{tE.classList.remove('primary');showLog()};tE.onclick=showErr;showDevs();
   });
 }
 function openFromUrl(){const c=window.SR_CODE;if(!c||!catalog.length)return;window.SR_CODE='';drawer(false);tab('lg');if(!lgHandleCode(c)){$('lg-q').value=c;lgSearch()}}
