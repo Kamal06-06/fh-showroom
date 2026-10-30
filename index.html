@@ -4732,9 +4732,14 @@ function radioCss(){if($('radio-css'))return;const s=document.createElement('sty
 .rd-ctl{display:flex;gap:22px;align-items:center;direction:ltr}.rd-ctl button.pp{background:#c9a24a;color:#141210}.rd-ctl button{width:46px;height:46px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;border-radius:50%;border:0;background:#141210;color:#c9a24a;font-size:19px;cursor:pointer}.hq-rd b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 `;document.head.append(s)}
 async function radioLoad(){if(radioList)return radioList;
-  const hosts=['de1.api.radio-browser.info','de2.api.radio-browser.info','fi1.api.radio-browser.info'];let j=null;
-  for(const h of hosts){try{const r=await fetch('https://'+h+'/json/stations/bycountrycodeexact/SY?hidebroken=true&order=clickcount&reverse=true&limit=80');if(r.ok){j=await r.json();break}}catch(e){}}
-  if(!j)throw new Error('تعذّر تحميل قائمة المحطات');
+  /* Radio-Browser-Server wechseln öfter → viele Server, je 6 s Zeitlimit; letzte gute Liste wird gespeichert und bei Ausfall benutzt */
+  const hosts=['all.api.radio-browser.info','de1.api.radio-browser.info','nl1.api.radio-browser.info','at1.api.radio-browser.info','de2.api.radio-browser.info','fi1.api.radio-browser.info'];let j=null;
+  const q='/json/stations/bycountrycodeexact/SY?hidebroken=true&order=clickcount&reverse=true&limit=80';
+  for(const h of hosts){const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),6000);
+    try{const r=await fetch('https://'+h+q,{signal:ac.signal});if(r.ok){const x=await r.json();if(Array.isArray(x)&&x.length){j=x;break}}}catch(e){}finally{clearTimeout(tm)}}
+  if(j){try{LS.set('radioCache',{t:Date.now(),j})}catch(e){}}
+  else{const c=LS.get('radioCache',null);if(c&&Array.isArray(c.j)&&c.j.length)j=c.j}
+  if(!j){radioList=RD_NEWS_EXTRA.slice();radioList._fb=1;return radioList}
   const seen=new Set();radioList=j.filter(x=>{const u=String(x.url_resolved||x.url||'');if(!/^https:/i.test(u)||/\.m3u8|\.pls|\?pl=m3u/i.test(u))return false;
     if(/meat\s*loaf/i.test(x.name))return false;const k=String(x.name).toLowerCase().replace(/[^a-z؀-ۿ]/g,'').slice(0,12)+'|'+u.replace(/stream-\d+\./,'stream.');if(seen.has(k))return false;seen.add(k);return true})
     .map(x=>({n:String(x.name).trim(),u:x.url_resolved||x.url,f:x.favicon||'',tags:x.tags||'',id:x.stationuuid}));
@@ -4770,13 +4775,14 @@ function radioToggle(){if(!radioAu||(!radioAu.src&&!radioHls)||radioAu.paused){i
 function radioRedraw(){if(!/^🎧/.test($('sheet-t').textContent)||$('sheet').hidden)return;const b=$('sheet-b');if(!b.querySelector('.rd-st'))return radioDraw(b);
   const on=!!(radioAu&&!radioAu.paused),nw=b.querySelector('.rd-now');if(nw){nw.querySelector('b').textContent=radioCur?radioCur.n:'اختر محطة';nw.querySelector('span').textContent=on?'● يبث الآن':radioCur?'متوقف':'';nw.querySelector('button').textContent=on?'⏸':'▶'}
   b.querySelectorAll('.rd-st').forEach(r=>{const me=on&&radioCur&&radioCur.u===r.dataset.u;r.classList.toggle('on',!!me);r.lastChild.textContent=me?'🔊':'▶'})}
-function radioOpen(){radioCss();openSheet('🎧 راديو سوريا',b=>radioDraw(b))}
+function radioOpen(){radioCss();if(radioList&&radioList._fb)radioList=null;openSheet('🎧 راديو سوريا',b=>radioDraw(b))}
 function radioDraw(b){b.textContent='';const on=radioAu&&!radioAu.paused;
   const now=el('div','rd-now'),ic=el('div','ic','📻'),t=el('div'),pb=el('button',null,on?'⏸':'▶');t.append(el('b',null,radioCur?radioCur.n:'اختر محطة'),el('span',null,on?'● يبث الآن':radioCur?'متوقف':'المحطات السورية الأكثر استماعاً'));pb.onclick=()=>radioToggle();now.append(ic,t,pb);b.append(now);
   const vw=el('div','rd-vol'),vi=el('input');vi.type='range';vi.min='0';vi.max='1';vi.step='0.05';vi.value=LS.get('radioVol',0.8);vi.oninput=()=>{LS.set('radioVol',+vi.value);if(radioAu)radioAu.volume=+vi.value};vw.append('🔈',vi,'🔊');b.append(vw);
   const tb=el('div','rd-tabs'),tab=LS.get('radioTab','all');[['news','📰 الأخبار'],['all','🎵 كل المحطات']].forEach(([k,t])=>{const x=el('button',k===tab?'on':'',t);x.type='button';x.onclick=()=>{LS.set('radioTab',k);radioDraw(b)};tb.append(x)});b.append(tb);
   const L=el('div','rd-list');b.append(L);
   if(!radioList){L.append(el('p','hint','جاري تحميل المحطات…'));radioLoad().then(()=>radioRedraw()).catch(e=>{L.textContent='';L.append(el('p','status err','⚠️ '+e.message))});return}
+  if(radioList._fb)L.append(el('p','hint','⚠️ دليل المحطات لا يستجيب الآن – تظهر محطات الأخبار فقط. افتح الراديو لاحقاً مرة أخرى.'));
   radioTabList().forEach(st=>{const r=el('button','rd-st'+(radioCur&&radioCur.u===st.u&&on?' on':''));r.dataset.u=st.u;
     if(st.f){const im=el('img');im.src=st.f;im.alt='';im.loading='lazy';im.onerror=()=>im.replaceWith(el('span','ph','📻'));r.append(im)}else r.append(el('span','ph','📻'));
     const tx=el('div');tx.append(el('b',null,st.n),el('small',null,String(st.tags).split(',').slice(0,3).join(' · ')));r.append(tx,el('span',null,radioCur&&radioCur.u===st.u&&on?'🔊':'▶'));

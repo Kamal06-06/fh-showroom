@@ -2,7 +2,7 @@
    the fresh copy is fetched in the background; if it changed, the open app is told («نسخة جديدة») and
    switches to it the next time it goes to the background – no waiting on a weak Wi-Fi.
    Libraries/fonts/icons: cache first. Server calls (script.google.com) are never cached. */
-const C='fh-shell-v165';
+const C='fh-shell-v166';
 const APP=new URL('./',self.registration.scope).pathname;
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(['./','index.html','manifest.json','icon-192.png','icon-512.png']).catch(()=>{})))});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
