@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="165">
+<meta name="fh-build" content="167">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -933,6 +933,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
+let ivByKey=new Map(); /* früh deklariert: wird schon beim Start gelesen */
 (function(){
 const $=id=>document.getElementById(id);
 /* PLZ und Ort getrennt eingeben, gespeichert wird weiter „PLZ Ort“ (für Angebote, Etiketten, DHL) */
@@ -4412,7 +4413,6 @@ $('lg-platz-btn').onclick=()=>{if(!lgSel)return;const key=lgSel.oil?String(lgSel
   ivPlatzEdit(x,p=>{$('lg-platz').textContent=p||'–';$('lg-platz').dataset.p=p||''})};
 IDB.get('invplan').then(c=>{if(c&&c.items&&!inv.loaded){inv=Object.assign(c,{loaded:true});ivIndex();ivHomeCount()}});
 /* ---------- Lagerplatz-Index (für Kommissionierliste) ---------- */
-let ivByKey=new Map();
 function ivIndex(){ivByKey=new Map();(inv.items||[]).forEach(x=>ivByKey.set(x.key,x))}
 function itKey(i){if(!isOil(i))return '';const c=stem(String(i.code||i.sku||'')).toUpperCase();return c?c+'|'+String(i.tier||'S').trim().charAt(0).toUpperCase():''}
 function itPlatz(i){const x=ivByKey.get(itKey(i));return x&&x.platz||''}
