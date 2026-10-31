@@ -2759,7 +2759,7 @@ async function clpLocal(l){
   const cust=eigen?eigen.split(/\s*[,;|\n]\s*/).filter(Boolean):null,logo=eigen&&l.clpLogo?await clpImg(l.clpLogo).catch(()=>null):null;
   const anz=it=>it.unit==='kg'?1:Math.max(1,Math.round(+it.q||1));
   const gross=[],proben=[],fehlend=[];
-  oils.forEach(it=>(it.probe||/^6\s*g$/i.test(String(it.size||'').trim())?proben:gross).push(it));
+  oils.forEach(it=>(it.probe||/^(probe\s*)?([6-9]|1[0-5])\s*g$/i.test(String(it.size||'').trim())?proben:gross).push(it));
   const files=[],tag=(l._part?'-Auswahl':'')+'-'+clpName_(l)+'.pdf';
   if(gross.length){
     const pikIds={};const jobs=[];
@@ -5285,7 +5285,7 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
   const lsA4=el('button','btn primary','🖨️ طباعة في المستودع (A4)');lsA4.onclick=()=>soLsPrint([o],lsA4,'a4');
   const lsP=el('button','btn','📄 PDF / طباعة هنا');lsP.onclick=()=>soLsPrint([o],lsP,'pdf');a1.append(lsA4,lsP);b.append(a1);
   if(l.items.some(i=>i.oil)){sec('🏷️ ملصقات الزيوت');const a2=el('div','so-act');
-    const isPr=it=>it.oil&&(it.probe||/^6\s*g$/i.test(String(it.size||'').trim())),sub=f=>Object.assign({},l,{items:l.items.map((it,i)=>Object.assign({},it,{_ix:i})).filter(f)});
+    const isPr=it=>it.oil&&(it.probe||/^(probe\s*)?([6-9]|1[0-5])\s*g$/i.test(String(it.size||'').trim())),sub=f=>Object.assign({},l,{items:l.items.map((it,i)=>Object.assign({},it,{_ix:i})).filter(f)});
     const nPr=l.items.filter(isPr).length,nGr=l.items.filter(it=>it.oil&&!isPr(it)).length;
     if(nPr){const pm=el('button','btn'+(nGr?'':' primary'),'🏷️ ملصقات العينات → Phomemo · '+nPr);pm.onclick=()=>epsonPrint(sub(isPr),pm);a2.append(pm)}
     const ep=el('button','btn','🖨️ ملصقات CLP → Epson'+(nPr?' · '+nGr:''));ep.onclick=()=>epsonPrint(sub(it=>it.oil&&!isPr(it)),ep);if(!nGr)ep.hidden=true;
@@ -5502,7 +5502,7 @@ function soLsData(o){const R={oils:[],other:[],nPos:0,nOil:0,oilG:0,nStk:0};
       let size='',qual='';vt.split(' / ').forEach(p=>{const pd=p.toLowerCase();if(SO_QW.test(pd))qual=p;else if(pd.includes(' g')||pd.includes('kg'))size=p});
       const qd=qual.toLowerCase(),qcls=qd.includes('exklusiv')?'exklusiv':qd.includes('premium')?'premium':'standard';
       const sd=size.toLowerCase().replace(/ /g,'');let g=sd.includes('kg')?parseFloat(sd.replace('kg','').replace(',','.'))*1000:parseFloat(sd.replace(/g/g,'').replace(',','.'));if(!isFinite(g))g=0;
-      let fl=qty;const probe=sku.slice(-3).toUpperCase()==='-1G';if(probe){g=qty;fl=1;size='Probe '+qty+' g'}
+      let fl=qty;const pg=sku.slice(-3).toUpperCase()==='-1G',pm=/probe\s*(\d+)\s*g/i.exec(vt)||/-(\d{1,2})G$/i.exec(sku),probe=pg||!!pm;if(pg){g=qty;fl=1;size='Probe '+qty+' g'}else if(pm){g=+pm[1];size='Probe '+g+' g'}/* seit 11/2026: Variante „Probe N g“, Menge = Fläschchen */
       R.oilG+=g*fl;R.nOil+=fl;R.oils.push({name:it.t,sku,size:size||(vt&&!SO_QW.test(vt.toLowerCase())?vt:''),qual,qcls,fl,probe,g,img:it.img})}
     else{const parts=vt?vt.split(' / '):[];let per=0,menge='',rest='',cap='',spr='',sprc='';const isset=String(it.t).includes('Set nach Wahl');
       parts.forEach((p,i)=>{const pd=p.toLowerCase();
