@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="167">
+<meta name="fh-build" content="168">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -698,6 +698,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
     <div class="home">
       <button class="tile p-lg" id="h-lg"><span class="ic">📦</span><b>المخزون</b><span>وارد · صادر · جرد · ملصقات QR</span></button>
       <button class="tile p-inv" id="h-inv"><span class="ic">📋</span><b>الجرد حسب الرفوف</b><span>Inventur nach Regal · مسح QR</span><span class="cnt" id="h-inv-n"></span></button>
+      <button class="tile p-lg" id="h-sup"><span class="ic">🧰</span><b>مستلزمات المستودع</b><span>كراتين · تغليف · احتياجات</span><span class="cnt" id="h-sup-n"></span></button>
     </div></div>
     <div class="hcols">
     <div class="hpanel"><div class="hsech"><span class="hsec">للتحضير الآن</span><button class="hlink" id="h-last-all">عرض الكل ‹</button></div><div class="hlist hcards" id="h-last"></div></div>
@@ -1125,7 +1126,7 @@ function tabRaw(which){
   $('tab-lg').hidden=lg||h||iv;
   $('tab-home').hidden=h;
   $('tab-homebtn').hidden=h;
-  if(h){renderHome();try{ivHomeCount()}catch(e){}}
+  if(h){renderHome();try{ivHomeCount()}catch(e){}try{supCount()}catch(e){}}
   window.scrollTo(0,0);
 }
 $('tab-lg').onclick=()=>{drawer(false);tab('lg');$('lg-q').focus()};
@@ -1485,7 +1486,7 @@ function kkLiefChips(){const box=$('lief-chips');if(!box)return;box.textContent=
 /* ---------- الأقسام · Bereiche: Start · Verkauf · Versand · Kunden & Finanzen · Lager ---------- */
 const HUBS={sales:{t:'🧾 المبيعات',de:'Verkauf · Aufträge · Angebote · Shop',tiles:['h-new','h-wh','h-off','h-done','h-shop']},
   cust:{t:'👥 العملاء والحسابات',de:'Kunden · Konten · Kasse',tiles:['h-cust','h-acc','h-cash']},
-  stock:{t:'🏭 المستودع',de:'Lager · Bestand · Inventur',tiles:['h-lg','h-inv']}};
+  stock:{t:'🏭 المستودع',de:'Lager · Bestand · Inventur · Bedarf',tiles:['h-lg','h-inv','h-sup']}};
 const tileVis=t=>t&&getComputedStyle(t).display!=='none';
 function hubGo(k){drawer(false);if(k==='ship'){if(can('shop'))vzOpen();return}tab('hub-'+k)}
 function renderHub(k){const H=HUBS[k];if(!H)return;$('hub-t').textContent=H.t;$('hub-de').textContent=H.de;const b=$('hub-b');b.textContent='';
@@ -1503,10 +1504,10 @@ $('hq-new').onclick=()=>$('h-new').click();$('hq-off').onclick=()=>$('h-off').cl
 $('nv-home').onclick=goHome;$('nv-wh').onclick=()=>$('h-wh').click();$('nv-new').onclick=()=>$('h-new').click();
 $('nv-lg').onclick=()=>{drawer(false);$('h-lg').click()};$('nv-cash').onclick=()=>$('h-cash').click();$('nv-cust').onclick=()=>$('h-cust').click();
 $('nv-acc').onclick=()=>$('h-acc').click();$('nv-done').onclick=()=>$('h-done').click();$('h-last-all').onclick=()=>$('h-wh').click();
-{const IC={'h-wh':'<path d="M3 7h6l2 2h10v10H3z"/>','h-done':'<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>','h-lg':'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>','h-cust':'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>','h-cash':'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/>','h-acc':'<path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/>','h-inv':'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM8.5 12l2 2 4-4M8.5 17h7"/>','h-off':'<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h5"/>','h-shop':'<path d="M3 4h2.5l2.2 11h10.6l2.2-8H6.6"/><circle cx="9.5" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>','h-ship':'<path d="M2 7h11v9H2zM13 10h4l3 3v3h-7"/><circle cx="6" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>','h-dhl':'<path d="M3 8l9-4 9 4v9l-9 4-9-4z"/><path d="M3 8l9 4 9-4M12 12v9M7.5 6l9 4"/>'};
+{const IC={'h-wh':'<path d="M3 7h6l2 2h10v10H3z"/>','h-done':'<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>','h-lg':'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>','h-cust':'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>','h-cash':'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/>','h-acc':'<path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/>','h-inv':'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM8.5 12l2 2 4-4M8.5 17h7"/>','h-off':'<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h5"/>','h-shop':'<path d="M3 4h2.5l2.2 11h10.6l2.2-8H6.6"/><circle cx="9.5" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>','h-ship':'<path d="M2 7h11v9H2zM13 10h4l3 3v3h-7"/><circle cx="6" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>','h-dhl':'<path d="M3 8l9-4 9 4v9l-9 4-9-4z"/><path d="M3 8l9 4 9-4M12 12v9M7.5 6l9 4"/>','h-sup':'<path d="M4 9h16v11H4z"/><path d="M9 9V6a3 3 0 016 0v3M4 13h16"/>'};
  Object.keys(IC).forEach(id=>{const t=$(id);if(!t)return;const ic=t.querySelector('.ic');if(ic)ic.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true">'+IC[id]+'</svg>';
   const b=t.querySelector('b'),s=t.querySelector('b+span');if(b){const w=el('span','tt');b.before(w);w.append(b);if(s&&!s.classList.contains('cnt'))w.append(s)}
-  const TT={'h-wh':['المفتوحة','قيد التحضير'],'h-done':['المكتملة','تم التسليم'],'h-lg':['المخزون','وارد · صادر · جرد'],'h-cust':['العملاء','كل عميل وطلباته'],'h-cash':['الصندوق','نقد · مصروفات'],'h-acc':['الحسابات','غير مدفوع · كشف'],'h-inv':['الجرد','حسب الرفوف · QR'],'h-off':['عروض الأسعار','بدون تجهيز'],'h-shop':['طلبات المتجر','Shopify · ملصقات'],'h-ship':['أرشيف الشحنات','Versandarchiv · تتبّع'],'h-dhl':['ملصق DHL','داخل ألمانيا']};
+  const TT={'h-wh':['المفتوحة','قيد التحضير'],'h-done':['المكتملة','تم التسليم'],'h-lg':['المخزون','وارد · صادر · جرد'],'h-cust':['العملاء','كل عميل وطلباته'],'h-cash':['الصندوق','نقد · مصروفات'],'h-acc':['الحسابات','غير مدفوع · كشف'],'h-inv':['الجرد','حسب الرفوف · QR'],'h-off':['عروض الأسعار','بدون تجهيز'],'h-shop':['طلبات المتجر','Shopify · ملصقات'],'h-ship':['أرشيف الشحنات','Versandarchiv · تتبّع'],'h-dhl':['ملصق DHL','داخل ألمانيا'],'h-sup':['المستلزمات','كراتين · احتياجات']};
   if(TT[id]&&b){b.textContent=TT[id][0];if(s&&!s.classList.contains('cnt'))s.textContent=TT[id][1]}
   const c=t.querySelector('.cnt');if(c){c.classList.add('cnt2');t.querySelector('.tt').append(c)}})}   /* Zahl unter den Text → Titel hat die volle Breite */
 
@@ -3933,7 +3934,7 @@ function start(){
   $('gate').hidden=true;
   db=makeDb();saveDraft();loadCatalog();db.fsStart();
   setTimeout(()=>{try{ivLoad(false).then(()=>{ivIndex();try{renderItems();if($('q').value.trim())search()}catch(e){}try{if(!$('omodal').hidden)renderOrderModal()}catch(e){}})}catch(e){}},2500);
-  db.collection('customers').onSnapshot(snap=>{const all=snap.docs.map(d=>Object.assign({id:d.id},d.data()));customers=all.filter(c=>c&&c.name&&!c.kind);debts=all.filter(c=>c&&c.kind==='debt');offers=all.filter(c=>c&&c.kind==='offer').sort((a,b)=>(b.at||0)-(a.at||0));showCust();if(!$('sheet').hidden&&sheetFor==='offers')renderOffers();
+  db.collection('customers').onSnapshot(snap=>{const all=snap.docs.map(d=>Object.assign({id:d.id},d.data()));customers=all.filter(c=>c&&c.name&&!c.kind);debts=all.filter(c=>c&&c.kind==='debt');offers=all.filter(c=>c&&c.kind==='offer').sort((a,b)=>(b.at||0)-(a.at||0));try{supSet(all)}catch(e){console.warn('sup',e)}showCust();if(!$('sheet').hidden&&sheetFor==='offers')renderOffers();
     if(!$('view-acc').hidden)renderAcc();if(!$('view-cust').hidden)renderCust();if(!$('view-wh').hidden&&focusCust)renderLists();if(!$('view-home').hidden)renderHome()});
   db.collection('lists').onSnapshot(snap=>{
     const next=snap.docs.map(d=>Object.assign({id:d.id},d.data())),sig=JSON.stringify(next);
@@ -3975,6 +3976,112 @@ $('gate-form').onsubmit=e=>{e.preventDefault();const p=pinNorm($('pin').value);i
 const APP_RELOAD=(()=>{try{return performance.getEntriesByType('navigation')[0].type==='reload'}catch(e){return false}})(),APP_T0=Date.now();
 if(PIN&&APP_RELOAD&&!IN_GAS)setTimeout(()=>{try{appRefresh()}catch(e){}},2500);
 if(PIN){start();srv('check').then(setMe).catch(e=>{if(e.message==='PIN'){LS.set('pin','');location.reload()}})}
+/* ================= 🧰 مستلزمات المستودع · Lagerbedarf (31.10.2026) =================
+   Verbrauchsmaterial (Kartons, Klebeband, Etiketten …) mit Bestand, Mindestmenge, Lieferant
+   + Bedarfsliste der Mitarbeiter. Gespeichert in «customers» als kind:'sup' (Artikel) und kind:'req' (Bedarf).
+   Verbrauch/Eingang wird von Hand gebucht. Unter Mindestmenge oder neuer Bedarf → Nachricht im Team-Chat an Kamal. */
+let sups=[],reqs=[];
+const SUP_CATS=['📦 كراتين الشحن','🧻 مواد التغليف','🏷️ ملصقات وطباعة','🧴 عبوات وأدوات','🧽 تنظيف','📎 أخرى'];
+const SUP_UNITS=['قطعة','لفة','علبة','رزمة','كرتونة','لتر','كغ'];
+const supNum=n=>(+n||0).toLocaleString('de-DE',{maximumFractionDigits:2});
+const supLow=s=>(+s.min||0)>0&&(+s.qty||0)<=(+s.min||0);
+const supOpenReqs=()=>reqs.filter(r=>r.st!=='done');
+function supCount(){const t=$('h-sup-n');if(!t)return;const n=sups.filter(supLow).length+supOpenReqs().length;t.textContent=n?String(n):''}
+function supSet(all){sups=all.filter(c=>c&&c.kind==='sup').sort((a,b)=>SUP_CATS.indexOf(a.cat)-SUP_CATS.indexOf(b.cat)||String(a.t).localeCompare(String(b.t),'ar'));
+  reqs=all.filter(c=>c&&c.kind==='req').sort((a,b)=>(a.st==='done')-(b.st==='done')||(b.at||0)-(a.at||0));supCount();
+  if(!$('sheet').hidden&&sheetFor==='sup'&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#sheet-b input,#sheet-b textarea,#sheet-b select')))supMain()}
+function supTell(text){if(isAdmin())return;try{srv('chat_send',JSON.stringify({an:'Inhaber',text})).catch(()=>{})}catch(e){}}
+const supWho=()=>WHO()||ME.user||'Kamal';
+function supLog(s,d,txt){const log=(Array.isArray(s.log)?s.log:[]).concat([{d,t:txt||'',by:supWho(),at:Date.now()}]);return log.slice(-30)}
+async function supMove(s,d){const q0=+s.qty||0,q=Math.max(0,Math.round((q0+d)*100)/100);
+  await db.doc('customers/'+s.id).update({qty:q,log:supLog(s,d,d<0?'استهلاك':'استلام'),u2:Date.now()});
+  toast((d<0?'➖ ':'➕ ')+supNum(Math.abs(d))+' '+(s.unit||'')+' · '+s.t+' → '+supNum(q));
+  if(d<0&&(+s.min||0)>0&&q<=+s.min&&q0>+s.min)supTell('⚠️ مستلزمات المستودع: «'+s.t+'» وصل إلى '+supNum(q)+' '+(s.unit||'')+' (الحد الأدنى '+supNum(s.min)+'). يرجى إعادة الطلب.')}
+const supInp=(type,val,ph)=>{const i=el('input');i.type=type;if(val!=null)i.value=val;if(ph)i.placeholder=ph;i.autocomplete='off';if(type==='number'){i.inputMode='decimal';i.min='0';i.step='any';i.dir='ltr'}return i};
+const supField=(lab,inp)=>{const d=el('div'),l=el('label',null,lab);d.append(l,inp);return d};
+const supSel=(opts,val)=>{const s=el('select');opts.forEach(o=>{const op=el('option',null,o);op.value=o;s.append(op)});if(val&&opts.includes(val))s.value=val;return s};
+
+/* ---- Hauptseite ---- */
+function supOpen(){drawer(false);sheetFor='sup';openSheet('🧰 مستلزمات المستودع',b=>{sheetFor='sup';supDraw(b)})}
+function supMain(){const b=$('sheet-b');if(b&&!$('sheet').hidden&&sheetFor==='sup')supDraw(b)}
+function supDraw(b){b.textContent='';
+  const low=sups.filter(supLow),op=supOpenReqs();
+  const k=el('div','htoday cskpi');[[sups.length,'صنف'],[low.length,'تحت الحد الأدنى'],[op.length,'احتياج مفتوح']].forEach(([n,t])=>{const d=el('div');d.append(el('b',null,String(n)),el('span',null,t));k.append(d)});b.append(k);
+  const q=el('div','csq');const bn=el('button','btn','📝 طلب احتياج');bn.onclick=()=>supReqForm();const bi=el('button','btn','＋ صنف جديد');bi.onclick=()=>supEdit(null);q.append(bn,bi);b.append(q);
+  /* Bedarfsliste */
+  const p1=el('div','panel'),t1=el('div','sec-title');t1.append(el('h2',null,'📝 الاحتياجات · Bedarf'));p1.append(t1);
+  const rl=reqs.filter(r=>r.st!=='done').concat(reqs.filter(r=>r.st==='done').slice(0,10));
+  if(!rl.length)p1.append(el('p','hint','لا توجد احتياجات. اضغط «📝 طلب احتياج» لكتابة ما ينقص المستودع.'));
+  const SL={open:'🟡 مطلوب',ordered:'🛒 تم الطلب',done:'✅ وصل'};
+  rl.forEach(r=>{const row=el('div','hrow');row.style.cursor='default';row.style.alignItems='flex-start';if(r.st==='done')row.style.opacity='.55';
+    const L=el('div');L.append(el('b',null,(r.qty?supNum(r.qty)+' '+(r.unit||'')+' · ':'')+r.t));
+    L.append(el('div','time',[SL[r.st||'open'],'👤 '+dispN(r.by||''),new Date(r.at||0).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'}),r.note||''].filter(Boolean).join(' · ')));
+    const R=el('div');R.style.cssText='display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end';
+    if(r.st!=='done'){if(isAdmin()&&r.st!=='ordered'){const o=el('button','btn small','🛒 تم الطلب');o.onclick=async()=>{o.disabled=true;await db.doc('customers/'+r.id).update({st:'ordered',ordAt:Date.now()})};R.append(o)}
+      const d=el('button','btn small','✅ وصل');d.onclick=async()=>{d.disabled=true;await db.doc('customers/'+r.id).update({st:'done',doneAt:Date.now(),doneBy:supWho()});
+        const s=r.supId&&sups.find(x=>x.id===r.supId);if(s&&+r.qty>0)await supMove(s,+r.qty)};R.append(d)}
+    if(isAdmin()||r.by===supWho()){const x=el('button','btn small','🗑');x.title='حذف';x.onclick=async()=>{if(!confirm('حذف هذا الاحتياج؟'))return;await db.doc('customers/'+r.id).delete()};R.append(x)}
+    row.append(L,R);p1.append(row)});
+  b.append(p1);
+  /* Artikel */
+  const p2=el('div','panel'),t2=el('div','sec-title');t2.append(el('h2',null,'📦 الأصناف والرصيد · Bestand'));p2.append(t2);
+  if(!sups.length){p2.append(el('p','hint','لا توجد أصناف بعد.'));
+    if(isAdmin()){const s=el('button','btn','📦 إضافة كراتين فاتورة Klingele (30.10.2026)');s.onclick=async()=>{s.disabled=true;await supSeed();s.remove()};p2.append(s)}}
+  let cat='';sups.forEach(s=>{if(s.cat!==cat){cat=s.cat;p2.append(el('div','hsec',cat||'📎 أخرى'))}
+    const row=el('div','hrow');row.style.cursor='default';row.style.flexWrap='wrap';const lw=supLow(s);
+    const L=el('button');L.style.cssText='background:none;border:0;padding:0;font:inherit;color:inherit;text-align:start;cursor:pointer;flex:1 1 200px';
+    L.append(el('b',null,(lw?'🔴 ':'')+s.t));L.append(el('div','time',['الرصيد: '+supNum(s.qty)+' '+(s.unit||''),(+s.min?'الحد الأدنى: '+supNum(s.min):''),s.art?'رقم: \u2066'+s.art+'\u2069':''].filter(Boolean).join(' · ')));L.onclick=()=>supEdit(s);
+    const R=el('div');R.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end';
+    const n=supInp('number','1');n.style.cssText='width:70px;text-align:center';n.setAttribute('aria-label','الكمية');
+    const amt=()=>{const v=+String(n.value).replace(',','.');return v>0?v:0};
+    const m=el('button','btn small','➖ استهلاك');m.onclick=async()=>{const v=amt();if(!v)return;if(v>(+s.qty||0)&&!confirm('الكمية أكبر من الرصيد ('+supNum(s.qty)+'). متابعة؟'))return;m.disabled=true;try{await supMove(s,-v);n.value='1'}finally{m.disabled=false}};
+    const p=el('button','btn small','➕ استلام');p.onclick=async()=>{const v=amt();if(!v)return;p.disabled=true;try{await supMove(s,v);n.value='1'}finally{p.disabled=false}};
+    R.append(n,m,p);if(s.url){const a=el('a','btn small','🛒');a.href=s.url;a.target='_blank';a.rel='noopener';a.title='إعادة الطلب من المورد';R.append(a)}
+    row.append(L,R);p2.append(row)});
+  b.append(p2);
+  b.append(el('p','hint','الاستهلاك والاستلام يُسجَّلان يدوياً. عند نزول صنف إلى الحد الأدنى أو عند طلب احتياج جديد يصل إشعار لكمال في دردشة الفريق.'));
+}
+
+/* ---- Bedarf melden (eigene Seite) ---- */
+function supReqForm(){openSheet('📝 طلب احتياج',b=>{sheetFor='supx';b.textContent='';const pn=el('div','panel');
+  const s=supSel(['— صنف آخر (اكتب الاسم) —'].concat(sups.map(x=>x.t)));
+  const t=supInp('text','','مثال: شريط لاصق شفاف، قفازات، أكياس…'),qty=supInp('number','','الكمية'),u=supSel(SUP_UNITS,'قطعة'),nt=supInp('text','','ملاحظة (اختياري)');
+  const tw=supField('ما الذي ينقص؟',t);s.onchange=()=>{const x=sups.find(z=>z.t===s.value);tw.hidden=!!x;if(x&&x.unit)u.value=SUP_UNITS.includes(x.unit)?x.unit:u.value};
+  const r1=el('div','row grow');r1.append(supField('الصنف',s));const r2=el('div','row grow');r2.append(tw);const r3=el('div','row grow');r3.append(supField('الكمية',qty),supField('الوحدة',u));const r4=el('div','row grow');r4.append(supField('ملاحظة',nt));
+  const msg=el('div','status');msg.hidden=true;const sv=el('button','btn primary','حفظ الاحتياج');sv.style.width='100%';
+  sv.onclick=async()=>{const x=sups.find(z=>z.t===s.value),name=x?x.t:t.value.trim();if(!name){msg.hidden=false;msg.className='status err';msg.textContent='اكتب ما الذي ينقص';return}
+    sv.disabled=true;const q=+String(qty.value).replace(',','.')||0;
+    await db.collection('customers').add({kind:'req',t:name,qty:q,unit:u.value,note:nt.value.trim(),supId:x?x.id:'',st:'open',by:supWho(),at:Date.now()});
+    supTell('📝 احتياج جديد للمستودع: '+(q?supNum(q)+' '+u.value+' · ':'')+name+(nt.value.trim()?' · '+nt.value.trim():'')+' — من '+supWho());
+    toast('✓ تم حفظ الاحتياج');scrBack()};
+  pn.append(r1,r2,r3,r4,sv,msg);b.append(pn)})}
+
+/* ---- Artikel anlegen / bearbeiten (eigene Seite) ---- */
+function supEdit(s){openSheet(s?'✎ '+s.t:'＋ صنف جديد',b=>{sheetFor='supx';b.textContent='';const pn=el('div','panel');
+  const t=supInp('text',s?s.t:'','مثال: كرتونة 250×150×150'),c=supSel(SUP_CATS,s?s.cat:SUP_CATS[0]),u=supSel(SUP_UNITS,s?s.unit:'قطعة');
+  const qty=supInp('number',s?s.qty:'','الرصيد الحالي'),mn=supInp('number',s?s.min:'','مثال: 50');
+  const sp=supInp('text',s?s.sup:'','مثال: Klingele (kartonplus.de)'),ar=supInp('text',s?s.art:'','رقم الصنف عند المورد'),ur=supInp('url',s?s.url:'','https://…');ar.dir='ltr';ur.dir='ltr';
+  const rows=[[supField('اسم الصنف',t)],[supField('الفئة',c),supField('الوحدة',u)],[supField('الرصيد الحالي (عدّ فعلي)',qty),supField('الحد الأدنى (للتنبيه)',mn)],[supField('المورد',sp),supField('رقم الصنف عند المورد',ar)],[supField('رابط إعادة الطلب (اختياري)',ur)]];
+  rows.forEach(rr=>{const r=el('div','row grow');rr.forEach(x=>r.append(x));pn.append(r)});
+  const msg=el('div','status');msg.hidden=true;const sv=el('button','btn primary','حفظ');sv.style.width='100%';
+  sv.onclick=async()=>{const name=t.value.trim();if(!name){msg.hidden=false;msg.className='status err';msg.textContent='اكتب اسم الصنف';return}
+    sv.disabled=true;const num=v=>Math.max(0,+String(v).replace(',','.')||0);
+    const rec={t:name,cat:c.value,unit:u.value,qty:num(qty.value),min:num(mn.value),sup:sp.value.trim(),art:ar.value.trim(),url:/^https?:\/\//i.test(ur.value.trim())?ur.value.trim():''};
+    if(s){if(rec.qty!==(+s.qty||0))rec.log=supLog(s,rec.qty-(+s.qty||0),'جرد / تصحيح');await db.doc('customers/'+s.id).update(rec)}
+    else{rec.kind='sup';rec.at=Date.now();rec.by=supWho();rec.log=rec.qty?[{d:rec.qty,t:'رصيد أول',by:supWho(),at:Date.now()}]:[];await db.collection('customers').add(rec)}
+    toast('✓ تم الحفظ');scrBack()};
+  pn.append(sv,msg);b.append(pn);
+  if(s){const lg=(s.log||[]).slice().reverse();if(lg.length){const p=el('div','panel'),h=el('div','sec-title');h.append(el('h2',null,'🕘 آخر الحركات'));p.append(h);
+      lg.forEach(x=>{const r=el('div','hrow');r.style.cursor='default';r.append(el('b',null,(x.d>0?'+':'−')+supNum(Math.abs(x.d))+' '+(s.unit||'')+' · '+(x.t||'')),el('span','time',dispN(x.by||'')+' · '+new Date(x.at||0).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})));p.append(r)});b.append(p)}
+    if(isAdmin()){const d=el('button','btn','🗑 حذف الصنف');d.style.marginTop='12px';d.onclick=async()=>{if(!confirm('حذف «'+s.t+'» نهائياً؟'))return;await db.doc('customers/'+s.id).delete();scrBack()};b.append(d)}}})}
+
+/* ---- Startbestand: Kartons aus der Klingele-Rechnung 504215 vom 30.10.2026 ---- */
+async function supSeed(){if(sups.length)return;const K='Klingele (kartonplus.de)',U='https://www.kartonplus.de',now=Date.now();
+  const L=[['كرتونة بريد A5 مسطحة 240×160×45 (Maxibrief)','MB-24-16-5-B',300,60],['كرتونة 250×150×150 · طبقة واحدة','WF1-25-15-15',300,60],['كرتونة 335×260×140 · طبقة واحدة','WF1-34-26-14',100,20],['كرتونة 304×217×150 · طبقتان','WF2-30-22-15',100,20],['كرتونة 350×300×200 · طبقتان','WF2-35-30-20',50,10]];
+  for(const [t,art,qty,min] of L)await db.collection('customers').add({kind:'sup',t,cat:SUP_CATS[0],unit:'قطعة',qty,min,sup:K,art,url:U,at:now,by:supWho(),log:[{d:qty,t:'فاتورة Klingele 504215',by:supWho(),at:now}]});
+  toast('✓ أُضيفت 5 أصناف كراتين')}
+$('h-sup').onclick=supOpen;
+
 /* ---------- Lager / المخزون ---------- */
 let lgSel=null;
 const lgUnit=o=>o.oil?'kg':(/alkohol|alcohol|ethanol/i.test(o.t||'')?'L':'قطعة');
