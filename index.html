@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="172">
+<meta name="fh-build" content="173">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -1995,7 +1995,7 @@ try{setEditOffer(editOffer)}catch(e){}
 function renderSizes(){
   const box=$('sizes');box.textContent='';
   const pick=s=>{size=s;LS.set('size2',s);renderSizes();search()},pr=isProbeG(size);
-  SIZES.forEach(s=>{const six=s==='6 g',b=el('button','sz',six?'عينة 6–15 g':s);b.setAttribute('aria-pressed',six?pr:s===size);b.onclick=()=>pick(s);box.append(b)});
+  SIZES.forEach(s=>{const six=s==='6 g',b=el('button','sz',six?'عينة \u20666–15 g\u2069':s);if(six)b.style.direction='rtl';b.setAttribute('aria-pressed',six?pr:s===size);b.onclick=()=>pick(s);box.append(b)});
   /* 🧪 Proben wie im Shop: 6–15 g, je Gramm eigene Variante und eigener Preis; Menge = Anzahl Fläschchen */
   if(pr){const g=el('div','sz-g');PROBE_G.forEach(n=>{const s=n+' g',b=el('button','sz',s);b.setAttribute('aria-pressed',s===size);b.onclick=()=>pick(s);g.append(b)});box.append(g)}
 }
