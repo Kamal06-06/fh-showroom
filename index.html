@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="173">
+<meta name="fh-build" content="174">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -1697,7 +1697,7 @@ function arCap(seg,title){const n=fold(seg).replace(/[^a-z0-9]+/g,'-');const sh=
   let rest=n;sh&&(rest=rest.replace(sh,''));const c=AR_COL.find(([k])=>new RegExp('(^|-)'+k+'(-|$)').test(rest));const cn=c?(sh==='holz'&&c[0]==='natur'?'فاتح':c[1]):'';return 'غطاء'+(sh?' '+AR_SHAPE[sh]:'')+(cn?' '+cn:'')}
 function arDesc(title,variant){const t=String(title||''),v=String(variant||''),ft=fold(t),segs=v.split(' / ').map(x=>x.trim());
   const sq=splitQ(v),qs=sq?sq.q:'';let pack='';
-  {const m=/^Karton\s*à\s*(\d+)/i.exec(qs),n=/^(\d[\d.]*)\s*St/i.exec(qs);if(/^muster/i.test(qs))pack='عينة: سِت واحد';else if(m)pack='كرتون = '+m[1]+(/set\s*nach\s*wahl/i.test(t)?' سِت':' قطعة');else if(n)pack='العبوة: '+n[1]+' قطعة'}
+  {const m=/^Karton\s*à\s*(\d+)/i.exec(qs),n=/^(\d[\d.]*)\s*St/i.exec(qs);if(/^muster/i.test(qs))pack='قطعة واحدة';else if(m)pack='كرتون = '+m[1]+(/set\s*nach\s*wahl/i.test(t)?' سِت':' قطعة');else if(n)pack='العبوة: '+n[1]+' قطعة'}
   let what='';
   if(/set\s*nach\s*wahl/i.test(t)){const cs=segs.find(x=>/kappe|kugel|polo|ribbed|holz|eckig|zylinder|^gold$|schwarz|weiss|weiß/i.test(x)&&!/spr(ü|u)hkopf/i.test(x)&&!(sq&&x===sq.q))||'';
     const noCap=/ohne\s*kappe/i.test(cs),spr=segs.some(x=>/^mit\s*spr/i.test(x));
@@ -2039,8 +2039,8 @@ function search(){
     const info=el('div','info');
     let opts=options(p);
     if(!p.oil){const seen=new Set();opts=opts.map((o,ix)=>{const g=grpOf(p,p.v[ix]);if(!g)return o;if(seen.has(g.gb))return null;seen.add(g.gb);
-      const ps=g.grp.map(x=>x.price).filter(x=>x!=null);const mu=g.grp.find(x=>/^muster/i.test(x.q)),rest=g.grp.filter(x=>x!==mu&&x.price!=null),rk=rest.length?packKey(rest[0].q).replace(/\s*à.*$/,''):'';
-      return Object.assign({},o,g,{label:g.gb,price:null,from:null,hint:[mu&&mu.price!=null?'Muster '+money(mu.price):'',rest.length?rk+' ab '+money(Math.min(...rest.map(x=>x.price))):''].filter(Boolean).join(' · ')})}).filter(Boolean)}
+      const ps=g.grp.map(x=>x.price).filter(x=>x!=null);const mu=g.grp.find(x=>/^(muster|1\s*st)/i.test(x.q)),rest=g.grp.filter(x=>x!==mu&&x.price!=null),rk=rest.length?packKey(rest[0].q).replace(/\s*à.*$/,''):'';
+      return Object.assign({},o,g,{label:g.gb,price:null,from:null,hint:[mu&&mu.price!=null?'1 Stück '+money(mu.price):'',rest.length?rk+' ab '+money(Math.min(...rest.map(x=>x.price))):''].filter(Boolean).join(' · ')})}).filter(Boolean)}
     info.append(el('div','name',p.t));if(p.a)info.append(el('div','alias',p.a));info.append(el('div','code',opts[0]?opts[0].code:''));
     const c=el('div','chips');
     opts.forEach(o=>{
