@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="168">
+<meta name="fh-build" content="169">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -3869,7 +3869,7 @@ function makeDb(){
   function fsShopData(tries){const F=FB.F;
     F.onSnapshot(F.doc(FB.fs,'shop','list'),s=>{if(!s.exists())return;let o;try{o=JSON.parse(s.data().j)}catch(e){return}
       if(!o||!Array.isArray(o.orders))return;SO_LIVE=true;if(SO.at&&o.at<SO.at&&(SO.orders||[]).length)return;
-      SO=o;soSetCount();IDB.set('so',o);
+      SO=soqApply(o);soSetCount();IDB.set('so',o);
       try{if(soOpenNow()&&soPw()){const sb=$('sheet-b');soSel?soDetail(sb,soSel):soListView(sb)}if(!$('view-home').hidden)renderHome()}catch(e){}},
       e=>{console.warn('shop list',e);if(e&&e.code==='permission-denied'&&tries<6)setTimeout(()=>{pingAt=0;fsPing().then(()=>fsShopData(tries+1))},3000*(tries+1))})}
   async function fsStart(){
@@ -4950,9 +4950,9 @@ function shopPwSheet(after,setMode){
 /* Laden: sofort aus dem Gerätespeicher anzeigen, im Hintergrund frisch von Shopify holen (stale-while-revalidate) */
 let soP=null;
 function soSetCount(){try{const n=(SO.orders||[]).filter(o=>soPaid(o)&&!soPrep(o).ready).length;const c=$('h-shop-n');if(c)c.textContent=n||'';if(!$('view-home').hidden)homeTop(lists.filter(l=>l.status!=='done'))}catch(e){}}
-async function soCache(){if((SO.orders||[]).length)return SO;try{const c=await IDB.get('so');if(c&&c.orders&&!(SO.orders||[]).length){SO=c;SO.at=0;soSetCount()}}catch(e){}return SO}
+async function soCache(){if((SO.orders||[]).length)return SO;try{const c=await IDB.get('so');if(c&&c.orders&&!(SO.orders||[]).length){SO=soqApply(c);SO.at=0;soSetCount()}}catch(e){}return SO}
 function soLoad(force){if(!force&&(SO_LIVE||SO.at&&Date.now()-SO.at<60e3))return Promise.resolve(SO);if(soP)return soP;
-  soP=soCall('so_list').then(r=>{SO=r;soSetCount();IDB.set('so',r);return SO}).finally(()=>{soP=null});return soP}
+  soP=soCall('so_list').then(r=>{SO=soqApply(r);soSetCount();IDB.set('so',r);return SO}).finally(()=>{soP=null});return soP}
 const soOpenNow=()=>!$('sheet').hidden&&$('sheet-t').textContent==='🛒 طلبات المتجر';
 async function shopOpen(){if(!can('shop'))return;
   if(!soPw())return shopPwSheet(shopOpen,false);   // Passwort-Fenster sofort, ohne vorher den Server zu fragen
@@ -5610,6 +5610,27 @@ function soLsPdf(orders){
       if(vorher){try{doc.saveGraphicsState();doc.setGState(new doc.GState({opacity:0.09}));doc.setFont('helvetica','bold');doc.setFontSize(80);doc.setTextColor(180,83,9);doc.text('NACHDRUCK',105,190,{angle:35,align:'center'});doc.restoreGraphicsState()}catch(_){}}doc.setDrawColor(200);doc.setLineWidth(M(1));doc.line(L,BOT+2,R,BOT+2);
       T('Bestellung '+o.nr+'  ·  '+kunde,L,BOT+6.5,{b:1,pt:P(11),mw:W*0.7});T('Seite '+(k-pg0+1)+' / '+n,R,BOT+6.5,{b:1,pt:P(12),al:'right',c:n>1?RED:NAVY})}doc.setPage(pg1)}});
   return doc}
+/*SOQ-START*/
+/* 📮 Druck-Vermerke («طُبعت») zuverlässig speichern: höchstens 3 Aufrufe gleichzeitig (viele parallele Aufrufe lehnt Apps Script ab),
+   jeder Vermerk bleibt im Gerät, bis der Server ihn bestätigt (auch nach Neustart / Netzausfall), und wird über jede frisch geladene Liste gelegt. */
+var SOQ=null,soqN=0,soqT=0,soqMsg=0;
+async function soqLoad(){if(!SOQ){const c=await IDB.get('soq');if(!SOQ){SOQ=Array.isArray(c)?c:[];SOQ.forEach(j=>{delete j.run});soqApply(SO);soSetCount()}}return SOQ}
+function soqApply(d){try{if(SOQ&&SOQ.length&&d&&d.orders)SOQ.forEach(j=>{const o=d.orders.find(x=>String(x.id)===String(j.id));if(!o)return;const st=o.stand=o.stand||{};if((+st.lsAt||0)>=j.patch.lsAt)return;
+    st.lsN=(+st.lsN||0)+1;Object.assign(st,j.patch);if(j.patch.ready&&!st.readyAt)st.readyAt=j.t})}catch(e){}return d}
+async function soqAdd(o,patch){await soqLoad();SOQ.push({id:o.id,nr:o.nr,patch,t:Date.now()});IDB.set('soq',SOQ);soqRun()}
+function soqRun(){if(!SOQ)return soqLoad().then(soqRun);const now=Date.now(),n0=SOQ.length;
+  /* bestätigte Vermerke 15 Min. weiter überlagern (die Serverliste kann kurz älter sein); nach 3 Tagen ohne Erfolg aufgeben */
+  SOQ=SOQ.filter(j=>j.run||(j.ok?now-j.ok<15*60e3:now-j.t<3*864e5));if(SOQ.length!==n0)IDB.set('soq',SOQ);
+  while(soqN<3){const busy=new Set(SOQ.filter(j=>j.run).map(j=>String(j.id))),j=SOQ.find(x=>!x.ok&&!x.run&&!busy.has(String(x.id))&&now>=(x.next||0));if(!j)break;soqN++;j.run=1;soqGo(j)}
+  const open=SOQ.filter(j=>!j.ok&&!j.run);
+  if(open.length&&!soqT)soqT=setTimeout(()=>{soqT=0;soqRun()},Math.max(1000,Math.min(...open.map(j=>(j.next||0)-now))));
+  const old=SOQ.filter(j=>!j.ok&&now-j.t>120e3).length;if(old&&now-soqMsg>5*60e3){soqMsg=now;try{toast(soPw()?'⚠️ لم يُحفظ بعد «طُبعت» لـ '+old+' طلب – تتم إعادة المحاولة تلقائياً':'⚠️ '+old+' طلب لم يُسجَّل «طُبعت» بعد – افتح طلبات المتجر وأدخل كلمة السر')}catch(e){}}}
+async function soqGo(j){try{if(!soPw())throw new Error('SO_PW_FEHLT');
+    const s=await soCall('so_set',{id:j.id,nr:j.nr,patch:j.patch});j.ok=Date.now();const o=(SO.orders||[]).find(x=>String(x.id)===String(j.id));if(o&&s){o.stand=s;soqApply({orders:[o]})}soSetCount()}
+  catch(e){j.n=(j.n||0)+1;j.next=Date.now()+Math.min(60e3,4e3*j.n);if(j.n===3)try{errLog('Druck-Vermerk '+j.nr+': '+(e.message||e),'soq')}catch(_){}}
+  finally{delete j.run;soqN--;IDB.set('soq',SOQ);soqRun()}}
+setTimeout(()=>{try{soqRun()}catch(e){}},5000);window.addEventListener('online',()=>{try{soqRun()}catch(e){}});
+/*SOQ-END*/
 /* Drucken: 'a4' → Druck-Warteschlange → Mini-PC → Brother A4 im Lager · 'pdf' → hier drucken/teilen */
 async function soLsPrint(orders,btn,mode){const ob=btn.innerHTML;btn.disabled=true;btn.textContent='جاري التجهيز…';const T0=Date.now();druckStatus();
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');
@@ -5624,7 +5645,7 @@ async function soLsPrint(orders,btn,mode){const ob=btn.innerHTML;btn.disabled=tr
     const now=Date.now();orders.forEach(o=>{o.stand=o.stand||{};o.stand.lsN=(+o.stand.lsN||0)+1;o.stand.lsAt=now;const patch={lsAt:now};
       if(!o.stand.readyAt&&!soAbh(o)){const lots={};(o.items||[]).forEach((it,ix)=>{if(it.oil){const lo=lotNow(it);if(lo)lots[ix]={b:lo.b,fc:lo.fc}}});
         Object.assign(patch,{ready:true,prep:(o.items||[]).map(()=>true),lots});o.stand.readyAt=now}
-      soCall('so_set',{id:o.id,nr:o.nr,patch}).then(s=>{if(s)o.stand=s;soSetCount()}).catch(()=>{})});soSetCount()
+      soqAdd(o,patch)});soSetCount()
     /* Abhol-Bestellungen werden beim Druck nicht automatisch fertig → Mitarbeiter erinnern */
     {const ab=orders.filter(o=>soAbh(o)&&!(o.stand&&o.stand.abBereitAt));if(ab.length)setTimeout(()=>toast('📌 '+ab.length+' طلب استلام: بعد التجهيز اضغط «📦 جاهز للاستلام» داخل الطلب'),2600)}}
   catch(e){alert('تعذّرت الطباعة: '+(e.message||e))}
