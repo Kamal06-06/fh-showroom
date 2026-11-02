@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="169">
+<meta name="fh-build" content="170">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -1595,14 +1595,14 @@ function itemRow(it,ix){
   {const src=imgOf(it);if(src)top.append(mkImg(src,'ir-img'))}
   const m=el('div','ir-main');m.append(el('div','ir-name',it.t));
   const sub=el('div','ir-sub');if(it.tier)sub.append(el('span','ir-tier',it.tier));{const cs=capOf(it);if(cs)sub.append(mkImg(cs,'capi'))}if(it.size)sub.append(el('span','ir-size',it.size));if(it.code)sub.append(el('span','ir-code',it.code));m.append(sub);{const ad=arOf(it);if(ad)m.append(arEl(ad))}{const se=stkEl(it);if(se)m.append(se)}
-  if(it.grp){const ks=packs(it);if(ks.length>1){const ps=el('select','ir-pack');ps.setAttribute('aria-label','العبوة');ks.forEach(k=>{const o=el('option',null,k);o.value=k;ps.append(o)});ps.value=it.gk;
-    ps.onchange=()=>{it.gk=ps.value;delete it.pm;grpApply(it);saveDraft();renderItems()};m.append(ps)}}
+  if(it.grp){const ks=packs(it).concat(PC_KEY);{const ps=el('select','ir-pack');ps.setAttribute('aria-label','العبوة');ks.forEach(k=>{const o=el('option',null,k);o.value=k;ps.append(o)});ps.value=it.pc?PC_KEY:it.gk;
+    ps.onchange=()=>{const pc=ps.value===PC_KEY;if(pc!==!!it.pc){it.q=1;irFocus=ix}if(pc)it.pc=1;else{delete it.pc;delete it.unit}it.gk=ps.value;delete it.pm;grpApply(it);saveDraft();renderItems()};m.append(ps)}}
   const hasP=it.price!=null&&it.price!=='';
   m.append(el('div','ir-pr',hasP?money(it.price)+(it.unit==='kg'?' / kg':'')+' × '+qtxt(it).replace('×','')+' = '+money(lineTot(it))+(itRab(it)?' · −'+String(itRab(it)).replace('.',',')+' %':'')+(it.kg?' · سعر الكيلو':''):'بدون سعر — اضغط ⋯'));
   if(it.note)m.append(el('div','ir-note','✎ '+it.note));
   if(draft.kg&&isOil(it)&&gramsOf(it.size)>=100&&!it.kg&&kgPrice(it)==null)m.append(el('div','ir-note','لا سعر 1 كغ لهذه الجودة → السعر العادي'));
   const q=el('div','ir-q'),minus=el('button',null,it.q>1?'−':'×'),plus=el('button',null,'+'),num=el('input');
-  const byKg=it.unit==='kg';num.type=byKg?'text':'number';num.inputMode=byKg?'decimal':'numeric';num.min=byKg?'0.001':'1';num.step=byKg?'0.001':'1';num.value=byKg?String(it.q).replace('.',','):it.q;num.setAttribute('aria-label',byKg?'الكمية بالكيلو':'الكمية');
+  const byKg=it.unit==='kg';num.type=byKg?'text':'number';num.inputMode=byKg?'decimal':'numeric';num.min=byKg?'0.001':'1';num.step=byKg?'0.001':'1';num.value=byKg?String(it.q).replace('.',','):it.q;num.setAttribute('aria-label',byKg?'الكمية بالكيلو':'الكمية');if(irFocus===ix){irFocus=null;setTimeout(()=>{num.focus();num.select()},60)}
   num.onfocus=()=>num.select();num.onkeydown=e=>{if(e.key==='Enter')num.blur()};
   num.onchange=()=>{const raw=+String(num.value).replace(',','.');if(byKg){if(raw>0)it.q=Math.min(Math.round(raw*1000)/1000,100000)}else{const v=Math.floor(raw);it.q=v>=1?Math.min(v,100000):1}saveDraft();renderItems()};
   minus.setAttribute('aria-label',it.q>1?'أقل':'حذف');plus.setAttribute('aria-label','أكثر');
@@ -1826,7 +1826,8 @@ function showCust(){
 const realLists=()=>lists.filter(l=>l.kind!=='debt'&&(l.items||[]).length);
 function custLists(name){const k=custKey(name);return k?realLists().filter(l=>custKey(l.customer)===k).sort((a,b)=>(b.at||0)-(a.at||0)):[]}
 function freshItem(i){const c=JSON.parse(JSON.stringify(i));['prep','skAuto','skHint','skMan','kg','listPrice','pm','note','rab'].forEach(k=>delete c[k]);
-  if(c.sku)for(const p of catalog){const v=p.v.find(v=>v[1]===c.sku);if(v){c.t=p.t;c.price=pnum(v[2]);if(!p.oil){const g=grpOf(p,v);if(g){Object.assign(c,g);c.gk=packKey(splitQ(v[0]).q)}else{delete c.grp;delete c.gb;delete c.gk}}break}}
+  if(c.sku)for(const p of catalog){const v=p.v.find(v=>v[1]===c.sku);if(v){c.t=p.t;c.price=pnum(v[2]);if(!p.oil){const g=grpOf(p,v);if(g){Object.assign(c,g);c.gk=packKey(splitQ(v[0]).q)}else if(!c.pc){delete c.grp;delete c.gb;delete c.gk}}break}}
+  if(c.pc&&c.grp)c.gk=PC_KEY;
   return c}
 function addCopies(items){let n=0;items.forEach(i=>{const c=freshItem(i);const hit=draft.items.find(x=>x.t===c.t&&(x.tier||'')===(c.tier||'')&&(x.size||'')===(c.size||'')&&(x.gb||'')===(c.gb||'')&&(x.gk||'')===(c.gk||'')&&(x.unit||'')===(c.unit||''));
   if(hit)hit.q=Math.round(((+hit.q||1)+(+c.q||1))*1000)/1000;else{if(draft.kg)applyKg([c],true);draft.items.push(c)}n++});saveDraft();renderItems();return n}
@@ -1925,7 +1926,19 @@ function grpOf(p,v){if(p.oil)return null;const me=splitQ(v[0]);if(!me)return nul
 const packKey=q=>{const m=/^(Karton\s*à\s*\d+\s*\S+)\s*·/i.exec(q);return m?m[1].trim():q};
 const tierMin=q=>{const t=String(q).split('·').pop();const m=/ab\s*(\d+)/i.exec(t)||/(\d+)/.exec(t);return m?+m[1]:1};
 function packs(it){const ks=[];(it.grp||[]).forEach(g=>{const k=packKey(g.q);if(!ks.includes(k))ks.push(k)});return ks}
-function grpApply(it){if(!it.grp||!it.grp.length)return false;const ks=packs(it);if(!ks.includes(it.gk))it.gk=ks[0];
+/* 🔢 Verkauf nach Stück (z. B. 20 oder 30) für alle Flakons, Sets und Zubehör: Menge = Stückzahl, Preis = Einzel-/Muster-Preis aus dem Shop,
+   sonst kleinste Packung ÷ Stückzahl (im ⋯ änderbar). Variante ohne Mengenangabe → das Lager bucht genau die Stückzahl (Sets über -M: Flakon + Sprühkopf + Kappe). */
+var PC_KEY='🔢 بالقطعة · Stück',irFocus=null;
+function pcPrep(it){if(it.grp||it.pc||isOil(it)||isAlk(it.t)||!it.sku)return;const s=splitQ(it.size);if(!s)return;const m=/^([\d.]+)\s*st/i.exec(s.q);if(!m||+m[1].replace(/\./g,'')<=1)return;
+  it.grp=[{q:s.q,sku:it.sku,price:it.price}];it.gb=s.base;it.gi=s.i;it.gk=s.q}
+function pcApply(it){const g=it.grp,one=g.find(x=>/^muster/i.test(x.q)||/^1\s*st/i.test(x.q));let sku,price;
+  if(one){sku=one.sku;price=one.price}
+  else{const nOf=x=>{const m=/à\s*([\d.]+)/i.exec(x.q)||/^([\d.]+)\s*st/i.exec(x.q);return m?+m[1].replace(/\./g,''):1};const b=g.reduce((a,x)=>nOf(x)<nOf(a)?x:a);
+    sku=String(b.sku||'').replace(/-K\d+$/i,'-M').replace(/-\d{4}$/,'-0001');price=b.price==null?null:Math.round(b.price/nOf(b)*100)/100}
+  const size=it.gb&&it.gb!=='·'?it.gb:'';it.gk=PC_KEY;it.unit='Stk';
+  if(it.size===size&&it.sku===sku&&(it.pm||it.price===price))return false;
+  it.size=size;it.sku=sku;it.code=sku;if(!it.pm)it.price=price;return true}
+function grpApply(it){if(!it.grp||!it.grp.length)return false;if(it.pc)return pcApply(it);const ks=packs(it);if(!ks.includes(it.gk))it.gk=ks[0];
   const c=it.grp.filter(g=>packKey(g.q)===it.gk);const n=Math.max(1,Math.floor(+it.q||1));
   const pick=c.length>1?c.reduce((b,g)=>tierMin(g.q)<=n&&tierMin(g.q)>=tierMin(b.q)?g:b,c.reduce((a,g)=>tierMin(g.q)<tierMin(a.q)?g:a)):c[0];
   const a=it.gb&&it.gb!=='·'?it.gb.split(' / '):[];a.splice(it.gi||0,0,pick.q);const size=a.join(' / ');
@@ -1939,7 +1952,7 @@ function addItem(o){
 }
 function renderItems(){
   try{const qb=$('cust-quick');if(qb&&qb.querySelector('.qrep')&&draft.items.length){qb.textContent='';qb.hidden=true}}catch(e){}
-  if(draft.items.reduce((ch,it)=>grpApply(it)||ch,false))saveDraft();
+  draft.items.forEach(pcPrep);if(draft.items.reduce((ch,it)=>grpApply(it)||ch,false))saveDraft();
   {const sk=skOf(draft.cust);if(sk||draft.items.some(i=>i.skAuto||i.skHint)){const b4=JSON.stringify(draft.items);applySK(draft.items,sk);if(JSON.stringify(draft.items)!==b4)saveDraft()}}
   const box=$('items');box.textContent='';
   draft.items.forEach((it,ix)=>box.append(labelTile(it,true,ix)));
