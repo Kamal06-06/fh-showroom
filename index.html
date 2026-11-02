@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="171">
+<meta name="fh-build" content="172">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -120,6 +120,7 @@ input[type=text],input[type=tel],input[type=email],input[type=search],input[type
 .status.err{color:var(--danger)}
 .status.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);font-weight:600}
 .sec-title{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.sz-g{display:flex;flex-wrap:wrap;gap:6px;width:100%;margin-top:2px;padding:8px;border-radius:12px;background:var(--gold-soft)}.sz-g .sz{min-width:58px}
 .chip-w{display:flex;flex-direction:column;gap:6px;width:100%}.chip-w .chip{width:100%}.chip-pc{background:var(--card,#fff)!important;font-weight:700;direction:rtl}
 /* labels: drawn like the printed sticker */
 .labels{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
@@ -958,7 +959,7 @@ const PERMS=[['new','طلب جديد','Neuer Auftrag','sales'],['off','عروض 
 function can(p){return isAdmin()||!Array.isArray(ME.perms)||ME.perms.includes(p)}
 function applyRole(){document.body.classList.toggle('adm-hide',!isAdmin());PERMS.forEach(([k])=>document.body.classList.toggle('np-'+k,!can(k)))}
 const stem=sku=>{if(!sku)return'';const m=/^(.*?-SH)(?:-|$)/.exec(sku);return m?m[1]:sku};
-const SIZES=['6 g','100 g','250 g','500 g','1 kg','5 kg'];
+const SIZES=['6 g','100 g','250 g','500 g','1 kg','5 kg'],PROBE_G=[6,7,8,9,10,11,12,13,14,15],isProbeG=s=>/^([6-9]|1[0-5])\s*g$/i.test(String(s||'').trim());
 const SHEET='1dlZxa6K2XASqn0oRWImRM2YgM1x7wMM4mzH8DmNiD5A';
 const base=c=>String(c||'').toUpperCase().replace(/-SH.*$/,'').replace(/-PQ/,'');
 const DRIVE_FOLDER='1Ye62ewrcDskLJncRHYsGHaa_5g27GkCA';
@@ -1598,6 +1599,9 @@ function itemRow(it,ix){
   const sub=el('div','ir-sub');if(it.tier)sub.append(el('span','ir-tier',it.tier));{const cs=capOf(it);if(cs)sub.append(mkImg(cs,'capi'))}if(it.size)sub.append(el('span','ir-size',it.size));if(it.code)sub.append(el('span','ir-code',it.code));m.append(sub);{const ad=arOf(it);if(ad)m.append(arEl(ad))}{const se=stkEl(it);if(se)m.append(se)}
   if(it.grp){const ks=packs(it).concat(PC_KEY);{const ps=el('select','ir-pack');ps.setAttribute('aria-label','العبوة');ks.forEach(k=>{const o=el('option',null,k);o.value=k;ps.append(o)});ps.value=it.pc?PC_KEY:it.gk;
     ps.onchange=()=>{const pc=ps.value===PC_KEY;if(pc!==!!it.pc){it.q=1;irFocus=ix}if(pc)it.pc=1;else{delete it.pc;delete it.unit}it.gk=ps.value;delete it.pm;grpApply(it);saveDraft();renderItems()};m.append(ps)}}
+  if(isOil(it)&&it.sku&&isProbeG(it.size)&&!it.unit){const ps=el('select','ir-pack');ps.setAttribute('aria-label','وزن العينة');PROBE_G.forEach(n=>{const o=el('option',null,'عينة '+n+' g');o.value=n;ps.append(o)});ps.value=parseInt(it.size,10);
+    ps.onchange=()=>{const sku=String(it.sku).replace(/-\d+G$/i,'-'+ps.value+'G');let v=null;for(const p of catalog){if(!p.oil)continue;v=p.v.find(x=>x[1]===sku);if(v)break}
+      if(!v){toast('⚠️ هذا الوزن غير موجود في المتجر لهذا الزيت');renderItems();return}it.size=ps.value+' g';it.sku=sku;it.price=pnum(v[2]);saveDraft();renderItems()};m.append(ps)}
   const hasP=it.price!=null&&it.price!=='';
   m.append(el('div','ir-pr',hasP?money(it.price)+(it.unit==='kg'?' / kg':'')+' × '+qtxt(it).replace('×','')+' = '+money(lineTot(it))+(itRab(it)?' · −'+String(itRab(it)).replace('.',',')+' %':'')+(it.kg?' · سعر الكيلو':''):'بدون سعر — اضغط ⋯'));
   if(it.note)m.append(el('div','ir-note','✎ '+it.note));
@@ -1990,7 +1994,10 @@ try{setEditOffer(editOffer)}catch(e){}
 {const ed=LS.get('edit3',null);if(ed&&ed.id&&draft.items.length){setEditing(ed);renderItems()}else if(ed)LS.set('edit3',null)}
 function renderSizes(){
   const box=$('sizes');box.textContent='';
-  SIZES.forEach(s=>{const b=el('button','sz',s);b.setAttribute('aria-pressed',s===size);b.onclick=()=>{size=s;LS.set('size2',s);renderSizes();search()};box.append(b)});
+  const pick=s=>{size=s;LS.set('size2',s);renderSizes();search()},pr=isProbeG(size);
+  SIZES.forEach(s=>{const six=s==='6 g',b=el('button','sz',six?'عينة 6–15 g':s);b.setAttribute('aria-pressed',six?pr:s===size);b.onclick=()=>pick(s);box.append(b)});
+  /* 🧪 Proben wie im Shop: 6–15 g, je Gramm eigene Variante und eigener Preis; Menge = Anzahl Fläschchen */
+  if(pr){const g=el('div','sz-g');PROBE_G.forEach(n=>{const s=n+' g',b=el('button','sz',s);b.setAttribute('aria-pressed',s===size);b.onclick=()=>pick(s);g.append(b)});box.append(g)}
 }
 
 /* ---------- search ---------- */
