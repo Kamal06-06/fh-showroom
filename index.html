@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="170">
+<meta name="fh-build" content="171">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -120,6 +120,7 @@ input[type=text],input[type=tel],input[type=email],input[type=search],input[type
 .status.err{color:var(--danger)}
 .status.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);font-weight:600}
 .sec-title{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.chip-w{display:flex;flex-direction:column;gap:6px;width:100%}.chip-w .chip{width:100%}.chip-pc{background:var(--card,#fff)!important;font-weight:700;direction:rtl}
 /* labels: drawn like the printed sticker */
 .labels{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .lab{position:relative;background:var(--label-bg);color:var(--label-ink);border:1px solid var(--line);border-radius:4px;display:flex;flex-direction:column;min-height:92px;overflow:hidden;direction:ltr;text-align:center}
@@ -1929,7 +1930,7 @@ function packs(it){const ks=[];(it.grp||[]).forEach(g=>{const k=packKey(g.q);if(
 /* 🔢 Verkauf nach Stück (z. B. 20 oder 30) für alle Flakons, Sets und Zubehör: Menge = Stückzahl, Preis = Einzel-/Muster-Preis aus dem Shop,
    sonst kleinste Packung ÷ Stückzahl (im ⋯ änderbar). Variante ohne Mengenangabe → das Lager bucht genau die Stückzahl (Sets über -M: Flakon + Sprühkopf + Kappe). */
 var PC_KEY='🔢 بالقطعة · Stück',irFocus=null;
-function pcPrep(it){if(it.grp||it.pc||isOil(it)||isAlk(it.t)||!it.sku)return;const s=splitQ(it.size);if(!s)return;const m=/^([\d.]+)\s*st/i.exec(s.q);if(!m||+m[1].replace(/\./g,'')<=1)return;
+function pcPrep(it){if(it.grp||it.pc||isOil(it)||isAlk(it.t)||!it.sku)return;if(/^PS-/i.test(it.sku))return;const s=splitQ(it.size);if(!s)return;
   it.grp=[{q:s.q,sku:it.sku,price:it.price}];it.gb=s.base;it.gi=s.i;it.gk=s.q}
 function pcApply(it){const g=it.grp,one=g.find(x=>/^muster/i.test(x.q)||/^1\s*st/i.test(x.q));let sku,price;
   if(one){sku=one.sku;price=one.price}
@@ -1938,6 +1939,9 @@ function pcApply(it){const g=it.grp,one=g.find(x=>/^muster/i.test(x.q)||/^1\s*st
   const size=it.gb&&it.gb!=='·'?it.gb:'';it.gk=PC_KEY;it.unit='Stk';
   if(it.size===size&&it.sku===sku&&(it.pm||it.price===price))return false;
   it.size=size;it.sku=sku;it.code=sku;if(!it.pm)it.price=price;return true}
+/* Artikel aus der Suche direkt „nach Stück“ – null, wenn nicht möglich (Öl, Alkohol, Probierset) */
+function pcItem(o){if(isOil(o)||isAlk(o.t)||!o.sku||/^PS-/i.test(o.sku))return null;const c=Object.assign({},o);pcPrep(c);if(c.grp){c.pc=1;pcApply(c)}else c.unit='Stk';return c}
+function pcAdd(c){addItem(c);irFocus=draft.items.findIndex(i=>i.t===c.t&&(i.gb||'')===(c.gb||'')&&(i.size||'')===(c.size||'')&&i.unit==='Stk');$('q').value='';search();renderItems()}
 function grpApply(it){if(!it.grp||!it.grp.length)return false;if(it.pc)return pcApply(it);const ks=packs(it);if(!ks.includes(it.gk))it.gk=ks[0];
   const c=it.grp.filter(g=>packKey(g.q)===it.gk);const n=Math.max(1,Math.floor(+it.q||1));
   const pick=c.length>1?c.reduce((b,g)=>tierMin(g.q)<=n&&tierMin(g.q)>=tierMin(b.q)?g:b,c.reduce((a,g)=>tierMin(g.q)<tierMin(a.q)?g:a)):c[0];
@@ -2038,7 +2042,9 @@ function search(){
         const ad=arDesc(p.t,o.grp?o.gb:(o.size||o.label));if(ad){if(!b.classList.contains('has-cap')){const sp=el('span',null,b.textContent);b.textContent='';b.classList.add('has-cap');b.append(sp)}b.querySelector('span').append(arEl(ad))}}
       if(o.off){b.disabled=true;b.textContent=o.label+' · لا يوجد '+size}
       if(p.oil&&!o.off){const x=ivByKey.get(stem(String(o.code||'')).toUpperCase()+'|'+(String(o.tier||'S').trim().charAt(0).toUpperCase()));if(x&&!stkUnk(x)){const v=+x.bestand||0;b.append(el('span','sdot',v<=0?'🔴 0':(v<20?'🟠 ':'🟢 ')+stkFmt(v,x.unit)))}}
-      b.onclick=()=>{addItem(Object.assign({t:p.t,a:p.a||'',oil:p.oil?1:0,tier:o.tier,code:o.code,size:o.size,sku:o.sku,price:o.price},o.src?{vk:o.vk,src:o.src}:{},o.grp?{gb:o.gb,gi:o.gi,grp:o.grp}:{}));$('q').value='';search();$('q').focus()};c.append(b)});
+      b.onclick=()=>{addItem(Object.assign({t:p.t,a:p.a||'',oil:p.oil?1:0,tier:o.tier,code:o.code,size:o.size,sku:o.sku,price:o.price},o.src?{vk:o.vk,src:o.src}:{},o.grp?{gb:o.gb,gi:o.gi,grp:o.grp}:{}));$('q').value='';search();$('q').focus()};
+      const pcI=!p.oil&&!o.off?pcItem({t:p.t,a:p.a||'',oil:0,tier:o.tier,code:o.code,size:o.size,sku:o.sku,price:o.price,gb:o.gb,gi:o.gi,grp:o.grp}):null;
+      if(pcI){const w=el('div','chip-w'),pb=el('button','chip chip-pc','🔢 بالقطعة'+(pcI.price!=null?' · '+money(pcI.price):''));pb.onclick=()=>pcAdd(pcI);w.append(b,pb);c.append(w)}else c.append(b)});
     r.append(info,c);box.append(r);
   });
   listOnlyBlock(box,extra,x=>{const pr=listVk(x,size);const b=el('button','chip','إضافة '+size+' · '+(x.tier||'Standard')+(pr!=null?' · '+money(pr):''));
