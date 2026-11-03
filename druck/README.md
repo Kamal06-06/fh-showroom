@@ -12,6 +12,8 @@ Einrichten: `FH-Druck-einrichten.cmd` ausführen (fragt einmal die PIN der Showr
 | `R-…` (Regal-Etiketten 102 × 30, je Etikett ein Auftrag) | Epson, Warteschlange „FH Regal 102x30“ | `fit,landscape` |
 | alles andere (CLP 102 × 51) | Epson ColorWorks CW-C6000Ae | `fit,landscape` |
 
+**Nichts Altes drucken:** Aufträge, die nach 5 Minuten nicht gedruckt sind, werden verworfen – in der App, auf dem Server und in den Windows-Warteschlangen (Brother, Epson, Phomemo; ein laufender Auftrag bekommt 15 Minuten; Regal-Warteschlange ausgenommen).
+
 Testordner: PDF in `%USERPROFILE%\FH-Druck\test` legen → wird sofort gedruckt (Name bestimmt den Drucker).
 
 ## Treibereinstellungen in Windows (nicht in Git – bei Neuinstallation wieder setzen)

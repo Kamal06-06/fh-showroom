@@ -247,6 +247,24 @@ if (-not $DRUCKERA4) { Write-Host 'WARNUNG: Kein A4-Drucker (Brother) gefunden.'
 else { Write-Host "A4-Drucker: $DRUCKERA4" -ForegroundColor Green }
 Write-Host 'Bereit. Etiketten und A4-Dokumente aus der App werden automatisch gedruckt. Dieses Fenster offen lassen.' -ForegroundColor Green
 
+# Nichts Altes drucken: Auftraege in den Windows-Warteschlangen, die nach 5 Minuten nicht gedruckt sind, werden geloescht
+# (laeuft ein Auftrag gerade, bekommt er 15 Minuten). Regal-Etiketten ausgenommen: dort ist jedes Etikett ein eigener Auftrag.
+function AlteAuftraegeLoeschen {
+  foreach ($q in @($DRUCKERA4, $DRUCKER, $DRUCKERP)) {
+    if (-not $q) { continue }
+    foreach ($job in @(Get-PrintJob -PrinterName $q -ErrorAction SilentlyContinue)) {
+      if (-not $job) { continue }
+      $min = ((Get-Date) - $job.SubmittedTime).TotalMinutes
+      if ($min -gt 15 -or ($min -gt 5 -and "$($job.JobStatus)" -notmatch 'Printing')) {
+        Remove-PrintJob -InputObject $job -ErrorAction SilentlyContinue
+        Write-Host "$(Get-Date -Format HH:mm:ss)  zu alt, nicht gedruckt: $(Split-Path $job.DocumentName -Leaf)" -ForegroundColor Yellow
+      }
+    }
+  }
+}
+if ($DRUCKERA4) { try { Set-Printer -Name $DRUCKERA4 -KeepPrintedJobs $false -ErrorAction Stop } catch {} }
+AlteAuftraegeLoeschen
+$script:AltZeit = Get-Date
 $n = 0
 while ($true) {
   # Testordner: PDF in FH-Druck\test legen -> wird wie ein App-Auftrag gedruckt (Name bestimmt den Drucker: A4-..., P-..., sonst Epson)
@@ -298,6 +316,7 @@ while ($true) {
       }
     }
   } catch { Write-Host "$(Get-Date -Format HH:mm:ss)  keine Verbindung ..." -ForegroundColor DarkGray; Start-Sleep -Seconds 3 }
+  if (((Get-Date) - $script:AltZeit).TotalSeconds -ge 30) { $script:AltZeit = Get-Date; AlteAuftraegeLoeschen }
   # alte Dateien (älter als 30 Tage) aufräumen
   if ($n % 1200 -eq 0) { Get-ChildItem $DONE -File | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } | Remove-Item -ErrorAction SilentlyContinue }
   # alle 3 Stunden nach einer neuen Version schauen
