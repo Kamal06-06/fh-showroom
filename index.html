@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="174">
+<meta name="fh-build" content="178">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2433,7 +2433,8 @@ const PLT={de:{t:'PACKLISTE',nr:'Nr. PL-',date:'Datum: ',cust:'Kunde',no:'Kunden
  pl:{t:'LISTA PAKOWANIA',nr:'Nr PL-',date:'Data: ',cust:'Klient',no:'Nr klienta ',note:'Uwaga: ',pos:'Poz.',art:'Artykul',q:'Jakosc',m:'Ilosc',n:'Szt.',code:'Kod',oils:'Olejki',other:'Flakony i akcesoria',foot:'Ta lista nie zawiera cen.',sig:'Skompletowal: ____________________     Data / godzina: ______________'}};
 /* Stückzahl je Packung aus der Variante ("100 Stück / Gold" → 100) */
 const packOf=it=>{if(isOil(it)||it.unit)return 1;const m=/(\d+)\s*(st(ü|u)ck|stk|pcs|pz|szt)/i.exec(String(it.size||''));return m?+m[1]:1};
-function prepListPdf(l,useOrig,neutral){
+function prepListPdf(l,useOrig,neutral,route){
+  /* route (Druck fürs Lager): Öle nach Laufweg sortiert, mit Lagerplatz (Fach). Beim Versand an den Kunden bleibt die Liste ohne Fach. */
   /* neutral (Dropshipping): ohne Preise, ohne unser Logo/Anschrift – Absender = Kunde, Empfänger = Kunde des Kunden */
   if(neutral){const D=l.dhlAdr||{};l=Object.assign({},l,{customer:D.firma||D.name||'',custNo:'',note:'',street:[D.firma?D.name:'',D.a1,D.a2].filter(Boolean).join(', '),city:((D.plz||'')+' '+(D.ort||'')).trim(),country:D.land||'DE',_abs:D.abs||''})}
   const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4',compress:true});const L=15,R=195,d=new Date(l.at||Date.now()),k0=PLT[LANG_OF(l.country)]||PLT.de,
@@ -2451,14 +2452,14 @@ function prepListPdf(l,useOrig,neutral){
   if(String(l.note||'').trim()){if(latin(l.note)===String(l.note))doc.text(k.note+latin(l.note),L,ya+0.5);else{doc.text(k.note,L,ya+0.5);putText(doc,l.note,L+doc.getTextWidth(k.note)+1,ya+0.5,9,150)}ya+=4.5}
   y=Math.max(y+20,ya+6);
   const head=()=>{doc.setFillColor(20,33,31);doc.rect(L,y-5,R-L,7.5,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
-    doc.text(k.pos,X.pos-1.5,y);doc.text(k.art,X.art,y);doc.text(k.q,X.q,y);doc.text(k.m,X.m,y);doc.text(k.n,X.n,y,{align:'right'});doc.setTextColor(0);y+=6.5};
+    doc.text(k.pos,X.pos-1.5,y);if(route)doc.text('Fach',X.img,y);doc.text(k.art,X.art,y);doc.text(k.q,X.q,y);doc.text(k.m,X.m,y);doc.text(k.n,X.n,y,{align:'right'});doc.setTextColor(0);y+=6.5};
   head();
-  const ORD={standard:1,premium:2,exklusiv:3},grp={};(l.items||[]).forEach(i=>{const g=isOil(i)?(String(i.tier||'').trim()||k.oils):k.other;(grp[g]=grp[g]||[]).push(i)});
+  const ORD={standard:1,premium:2,exklusiv:3},grp={};(l.items||[]).forEach(i=>{const g=isOil(i)?(route?k.oils:(String(i.tier||'').trim()||k.oils)):k.other;(grp[g]=grp[g]||[]).push(i)});
   let pos=0;
   Object.keys(grp).sort((a,b)=>(a===k.other)-(b===k.other)||(ORD[a.toLowerCase()]||8)-(ORD[b.toLowerCase()]||8)||a.localeCompare(b)).forEach(g=>{
     if(y>258){doc.addPage();y=20;head()}
     doc.setFillColor(246,243,236);doc.rect(L,y-1,R-L,6.4,'F');doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(60);doc.text(latin(g).toUpperCase(),X.art,y+3.4);doc.setTextColor(0);y+=6.4;
-    grp[g].slice().sort((a,b)=>String(a.t).localeCompare(String(b.t))).forEach(i=>{
+    grp[g].slice().sort((a,b)=>(route&&g===k.oils?ivSortKey(itPlatz(a)).localeCompare(ivSortKey(itPlatz(b))):0)||String(a.t).localeCompare(String(b.t))).forEach(i=>{
       const oil=isOil(i),im=imgs[i.t],name=useOrig&&oil?(origName(i)||i.t):i.t;
       doc.setFont('helvetica','bold');doc.setFontSize(9.5);
       const nl=String(name).replace(/[\u2013\u2014]/g,'-').replace(/[\u2018\u2019]/g,"'").replace(/[\u201c\u201d\u201e]/g,'"');
@@ -2472,8 +2473,10 @@ function prepListPdf(l,useOrig,neutral){
       /* Checkbox + Position, vertikal mittig */
       doc.setDrawColor(90);doc.setLineWidth(0.25);doc.rect(X.cb,mid-2.5,4.2,4.2);
       doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(90);doc.text(String(pos),X.pos,mid+1);doc.setTextColor(0);
+      /* Lagerplatz (nur Öle, nur Druck fürs Lager) */
+      if(route&&oil){const pl=itPlatz(i);if(pl){doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(pl,X.img,mid+1)}else{doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(150);doc.text('kein Fach',X.img,mid+1);doc.setTextColor(0)}}
       /* Produktbild mit feinem Rahmen */
-      if(im){const iy=top+(rowH-IMG)/2;try{doc.addImage(im,'JPEG',X.img,iy,IMG,IMG)}catch(_){}doc.setDrawColor(225);doc.setLineWidth(0.2);doc.roundedRect(X.img,iy,IMG,IMG,1,1,'S')}
+      else if(im){const iy=top+(rowH-IMG)/2;try{doc.addImage(im,'JPEG',X.img,iy,IMG,IMG)}catch(_){}doc.setDrawColor(225);doc.setLineWidth(0.2);doc.roundedRect(X.img,iy,IMG,IMG,1,1,'S')}
       /* Name, darunter Code */
       doc.setFont('helvetica','bold');doc.setFontSize(9.5);
       if(nm)nm.forEach((ln,j)=>doc.text(ln,X.art,ty+j*4.1));else putText(doc,name,X.art,ty,9.5,AW);
@@ -2482,7 +2485,7 @@ function prepListPdf(l,useOrig,neutral){
       if(note){yy+=4.2;doc.setTextColor(198,40,40);doc.setFont('helvetica','bold');doc.setFontSize(8.5);putText(doc,'> '+i.note,X.art,yy,8.5,AW);doc.setTextColor(0)}
       /* Qualität + Inhalt */
       doc.setFont('helvetica','normal');doc.setFontSize(9);
-      if(oil){doc.text(latin(i.tier)||'-',X.q,ty);doc.text(latin(i.size)||'-',X.m,ty)}
+      if(oil){if(route)doc.setFont('helvetica','bold');doc.text(latin(i.tier)||'-',X.q,ty);doc.setFont('helvetica','normal');doc.text(latin(i.size)||'-',X.m,ty)}
       else{doc.setTextColor(150);doc.text('-',X.q,ty);doc.setTextColor(0);if(sub.length)sub.forEach((ln,j)=>doc.text(ln,X.m,ty+j*4));else doc.text('-',X.m,ty)}
       /* Menge, fett und rechtsbündig; bei Packungen die Stückzahl darunter */
       const pk=packOf(i);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text(i.unit?qtxt(i):String(i.q||1)+(pk>1?' Pkg':''),X.n,ty,{align:'right'});
@@ -2553,7 +2556,7 @@ async function apTog(l,done,tog){
 async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phomemo':'A4';const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
     if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
-    if(['ls','lso','pl','plo','pln'].includes(kind))await prepImgs(lo);
+    if(kind==='pl'||kind==='plo')await ivPlaces();if(['ls','lso','pl','plo','pln'].includes(kind))await prepImgs(lo);
     const stP=druckStatus();
     const blob=KINDS[kind].make(lo).output('blob');
     if(pre==='P-')await pmQueue(blob,fname(kind,lo));else await druckQ(pre+fname(kind,lo),await blob64(blob));
@@ -2562,7 +2565,7 @@ async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phome
 async function directPrint(kind,l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري التجهيز…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
     if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
-    if(['ls','lso','pl','plo','pln'].includes(kind))await prepImgs(lo);
+    if(kind==='pl'||kind==='plo')await ivPlaces();if(['ls','lso','pl','plo','pln'].includes(kind))await prepImgs(lo);
     if(kind==='clp'){const r=await clpMake(lo);if(r.fehlend&&r.fehlend.length)alert('بدون ملصق CLP: '+r.fehlend.join('، '));
       if(!r.files.length)throw new Error('لا يوجد ملصق CLP لهذه الأصناف');btn.textContent='جاري فتح الطباعة…';for(const f of r.files)await printPdf(f.blob)}
     else{const blob=KINDS[kind].make(lo).output('blob');btn.textContent='جاري فتح الطباعة…';await printPdf(blob);plMark(kind,l)}}
@@ -2596,7 +2599,7 @@ function docsPanel(l){
   if(l.clpAddr)ex.push(el('p','note','عنوان العميل على ملصق CLP: '+l.clpAddr+(l.clpLogo?' · مع لوغو العميل':'')));box.extra=ex;
   return box;
 }
-const KINDS={pl:{name:'Packliste',make:l=>prepListPdf(l)},plo:{name:'Packliste-Original',make:l=>prepListPdf(l,true)},pln:{name:'Lieferschein-Neutral',make:l=>prepListPdf(l,false,true)},lab:{name:'Etiketten',make:labelsPdf},labo:{name:'Etiketten-Original',make:labelsPdfOrig},ls:{name:'Angebotspreis',make:lieferscheinPdf},lso:{name:'Angebotspreis-Original',make:l=>lieferscheinPdf(l,true)}};
+const KINDS={pl:{name:'Packliste',make:l=>prepListPdf(l,false,false,true)},plo:{name:'Packliste-Original',make:l=>prepListPdf(l,true,false,true)},pln:{name:'Lieferschein-Neutral',make:l=>prepListPdf(l,false,true)},lab:{name:'Etiketten',make:labelsPdf},labo:{name:'Etiketten-Original',make:labelsPdfOrig},ls:{name:'Angebotspreis',make:lieferscheinPdf},lso:{name:'Angebotspreis-Original',make:l=>lieferscheinPdf(l,true)}};
 const fname=(kind,l)=>KINDS[kind].name+(l._part?'-Auswahl':'')+'-'+custFile(l)+'-'+stamp(l)+'.pdf';
 async function prepImgs(l){
   for(const it of (l.items||[])){
@@ -4623,7 +4626,13 @@ IDB.get('invplan').then(c=>{if(c&&c.items&&!inv.loaded){inv=Object.assign(c,{loa
 function ivIndex(){ivByKey=new Map();(inv.items||[]).forEach(x=>ivByKey.set(x.key,x))}
 function itKey(i){if(!isOil(i))return '';const c=stem(String(i.code||i.sku||'')).toUpperCase();return c?c+'|'+String(i.tier||'S').trim().charAt(0).toUpperCase():''}
 function itPlatz(i){const x=ivByKey.get(itKey(i));return x&&x.platz||''}
-const ivSortKey=p=>{const m=/^([A-D])(\d{2})-(\d)-(\d)$/.exec(p||'');return m?m[1]+m[2]+m[3]+m[4]:'~'};
+/* Vor dem Druck: Lagerplätze bereitstellen. Frische Daten → sofort; älter als 10 Min. → höchstens 3 s warten; gar keine Daten → höchstens 8 s. Der Druck scheitert nie daran. */
+async function ivPlaces(){try{const has=inv.loaded&&inv.items&&inv.items.length,age=Date.now()-(inv.at||0),wait=!has?8000:age>600000?3000:0;
+    if(wait)await Promise.race([ivLoad(true,true),new Promise(r=>setTimeout(r,wait))]);ivIndex();
+    if(!ivByKey.size)toast('⚠️ تعذّر تحميل أماكن الزيوت – ستُطبع القائمة بدون أماكن')}catch(e){}}
+/* Lagerplatz eines Shopify-Öls aus SKU + Qualität */
+function soPlatz(sku,tier){const x=ivByKey.get(stem(String(sku||'')).toUpperCase()+'|'+String(tier||'S').trim().charAt(0).toUpperCase());return x&&x.platz||''}
+const ivSortKey=p=>{const m=/^([A-D])(\d{2})-(\d)-(\d)$/.exec(p||'');return m?m[1]+m[2]+m[3]+m[4]:'ZZZZ'};/* ohne Fach → ans Ende */
 
 /* ---------- Kommissionieren mit Scan (Prüfung der Qualität) ---------- */
 let pickId=null;
@@ -5603,7 +5612,7 @@ function soLsData(o){const R={oils:[],other:[],nPos:0,nOil:0,oilG:0,nStk:0};
       const qd=qual.toLowerCase(),qcls=qd.includes('exklusiv')?'exklusiv':qd.includes('premium')?'premium':'standard';
       const sd=size.toLowerCase().replace(/ /g,'');let g=sd.includes('kg')?parseFloat(sd.replace('kg','').replace(',','.'))*1000:parseFloat(sd.replace(/g/g,'').replace(',','.'));if(!isFinite(g))g=0;
       let fl=qty;const pg=sku.slice(-3).toUpperCase()==='-1G',pm=/probe\s*(\d+)\s*g/i.exec(vt)||/-(\d{1,2})G$/i.exec(sku),probe=pg||!!pm;if(pg){g=qty;fl=1;size='Probe '+qty+' g'}else if(pm){g=+pm[1];size='Probe '+g+' g'}/* seit 11/2026: Variante „Probe N g“, Menge = Fläschchen */
-      R.oilG+=g*fl;R.nOil+=fl;R.oils.push({name:it.t,sku,size:size||(vt&&!SO_QW.test(vt.toLowerCase())?vt:''),qual,qcls,fl,probe,g,img:it.img})}
+      R.oilG+=g*fl;R.nOil+=fl;R.oils.push({name:it.t,sku,size:size||(vt&&!SO_QW.test(vt.toLowerCase())?vt:''),qual,qcls,fl,probe,g,img:it.img,pl:soPlatz(sku,qual)})}
     else{const parts=vt?vt.split(' / '):[];let per=0,menge='',rest='',cap='',spr='',sprc='';const isset=String(it.t).includes('Set nach Wahl');
       parts.forEach((p,i)=>{const pd=p.toLowerCase();
         if(/karton|muster|stück|stk/.test(pd)){menge=p;if(pd.includes('muster'))per=1;else{for(const t of pd.replace(/\./g,'').replace(/-/g,' ').split(' ')){const m=/^\d+/.exec(t),tn=m?Number(m[0]):0;if(tn>0){per=tn;break}}}}
@@ -5611,8 +5620,9 @@ function soLsData(o){const R={oils:[],other:[],nPos:0,nOil:0,oilG:0,nStk:0};
       (it.props||[]).forEach(pr=>{if(pr[0]==='Sprühkopf')sprc=String(pr[1]||'')});
       if(!per)per=1;const total=per*qty;R.nStk+=total;
       let rows=[];if(isset)rows=[['Kappe',cap.includes('Ohne')?'OHNE KAPPE':cap],['Sprühkopf',spr.includes('Ohne')?'OHNE SPRÜHKOPF':sprc||'Farbe siehe Bestellung']];else if(rest)rows=[['-',rest]];
-      {const dd=psDuefte(it);if(dd.length){rows=dd.map((nm,k)=>{const h=psFind(nm);return ['Duft '+(k+1),nm+(h&&h.code?'  ·  '+h.code:'')+'  ('+(h?h.tier:'Premium')+' 6 g)']})}}
+      {const dd=psDuefte(it);if(dd.length){rows=dd.map((nm,k)=>{const h=psFind(nm);return ['Duft '+(k+1),nm+(h&&h.code?'  ·  '+h.code:'')+'  ('+(h?h.tier:'Premium')+' 6 g)',h&&h.code?soPlatz(h.code,h.tier):'']})}}
       R.other.push({name:String(it.t).replace(' - Set nach Wahl (Sprühkopf & Kappe)',' - Komplett-Set'),sku,menge,rows,total,per,qty,isset,spr,cap,img:it.img})}});
+  R.oils.sort((a,b)=>ivSortKey(a.pl).localeCompare(ivSortKey(b.pl)));/* Laufweg: Öle ohne Fach ans Ende */
   return R}
 const soImgC={};
 async function soImgLoad(url){if(!url)return null;if(url in soImgC)return soImgC[url];
@@ -5657,9 +5667,9 @@ function soLsPdf(orders){
     const chkBox=(x,yc)=>{doc.setDrawColor(...NAVY);doc.setLineWidth(M(2));doc.roundedRect(x,yc-M(11),M(22),M(22),M(3),M(3),'S')};
     const img=(u,x,yc,s)=>{doc.setDrawColor(238);doc.setLineWidth(M(1));const d=u&&soImgC[u];if(d){try{doc.addImage(d,'JPEG',x,yc-M(s)/2,M(s),M(s))}catch(e){}doc.rect(x,yc-M(s)/2,M(s),M(s),'S')}};
     /* Duftöle */
-    if(D.oils.length){sec('Duftöle');
+    if(D.oils.length){sec('Duftöle · nach Laufweg');
       D.oils.forEach(it=>{const h=M(20)+M(52);need(h);const yc=y+h/2;
-        chkBox(L+M(6),yc);let x=L+M(6)+M(22)+M(12);if(it.img){img(it.img,x,yc,52);x+=M(52)+M(12)}
+        chkBox(L+M(6),yc);let x=L+M(6)+M(22)+M(12);if(it.pl)T(it.pl,x,yc+M(6),{b:1,pt:P(18)});else T('kein Fach',x,yc+M(4),{pt:P(11),c:[150,150,150]});x+=M(88)+M(8);if(it.img){img(it.img,x,yc,52);x+=M(52)+M(12)}
         const qx=R-M(6)-M(74)/2,bx=qx-M(74)/2-M(12);
         /* Größe + Qualität (zentriert) */
         const sw=Math.max(tw(it.size,P(20),1),it.qual?tw(it.qual.toUpperCase(),P(12),1,M(1))+M(24):0),cx=bx-sw/2;
@@ -5679,8 +5689,8 @@ function soLsPdf(orders){
         chkBox(L+M(6),yc);let x=L+M(6)+M(22)+M(12);if(it.img){img(it.img,x,yc,72);x+=M(72)+M(12)}
         const bw=M(150),bxl=R-M(6)-bw,nmw=bxl-M(12)-x;let yy=yc-infoH/2+M(14);
         T(it.name,x,yy,{b:1,pt:P(14),mw:nmw});yy+=M(16);T(it.sku+(it.menge?' · '+it.menge:''),x,yy,{font:'courier',pt:P(11),c:[102,102,102]});yy+=M(8);
-        it.rows.forEach(([lab,val])=>{yy+=M(6);let xx=x;const rc=yy+M(13);
-          if(lab!=='-'){T(lab.toUpperCase(),xx,rc+M(4),{b:1,pt:P(11),c:GRAY,cs:M(1)});xx+=M(82)}
+        it.rows.forEach(([lab,val,fach])=>{yy+=M(6);let xx=x;const rc=yy+M(13);
+          if(lab!=='-'){T((fach||lab).toUpperCase(),xx,rc+M(4),{b:1,pt:P(11),c:GRAY,cs:M(1)});xx+=M(82)}
           const hx=/^Duft /.test(lab)?[]:String(val).toLowerCase().replace(/-/g,' ').split(' ').map(w=>SO_HEX[w]).filter(Boolean);
           if(hx.length){hx.forEach(c=>{if(c==='klar'){doc.setFillColor(255,255,255)}else{const n=parseInt(c.slice(1),16);doc.setFillColor(n>>16,(n>>8)&255,n&255)}doc.setDrawColor(...NAVY);doc.setLineWidth(M(1.5));doc.rect(xx,rc-M(10),M(20),M(20),'FD');
             if(c==='klar'){doc.setDrawColor(200);doc.setLineWidth(M(1));for(let k=-12;k<20;k+=6)doc.line(xx+Math.max(0,M(k)),rc-M(10)+Math.max(0,-M(k)),xx+Math.min(M(20),M(k+20)),rc-M(10)+Math.min(M(20),M(20-k)))}
@@ -5736,6 +5746,7 @@ async function soLsPrint(orders,btn,mode){const ob=btn.innerHTML;btn.disabled=tr
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');
     const urls=[...new Set(orders.flatMap(o=>(o.items||[]).map(i=>i.img).filter(Boolean)))];let k=0;
     await Promise.all(Array.from({length:6},async()=>{while(k<urls.length){const u=urls[k++];await soImgLoad(u)}}));
+    await ivPlaces();
     const blob=soLsPdf(orders).output('blob'),d=new Date(),nm='Lieferschein'+(orders.length>1?'e-'+orders.length+'x':'-'+soNr(orders[0]))+'-'+p2(d.getDate())+p2(d.getMonth()+1)+'-'+p2(d.getHours())+p2(d.getMinutes())+'.pdf';
     if(mode==='a4'){druckStatus();await druckQ('A4-'+nm,await blob64(blob));const st=druckSt.v;
       btn.textContent=st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';toast(st&&!st.online?'⚠️ جهاز الطباعة في المستودع غير متصل – ستُطبع فور تشغيله':'✓ أُرسلت إلى طابعة A4 في المستودع ('+orders.length+') · '+((Date.now()-T0)/1000).toFixed(1)+' ث')}
