@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="178">
+<meta name="fh-build" content="179">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -4629,7 +4629,7 @@ function itPlatz(i){const x=ivByKey.get(itKey(i));return x&&x.platz||''}
 /* Vor dem Druck: Lagerplätze bereitstellen. Frische Daten → sofort; älter als 10 Min. → höchstens 3 s warten; gar keine Daten → höchstens 8 s. Der Druck scheitert nie daran. */
 async function ivPlaces(){try{const has=inv.loaded&&inv.items&&inv.items.length,age=Date.now()-(inv.at||0),wait=!has?8000:age>600000?3000:0;
     if(wait)await Promise.race([ivLoad(true,true),new Promise(r=>setTimeout(r,wait))]);ivIndex();
-    if(!ivByKey.size)toast('⚠️ تعذّر تحميل أماكن الزيوت – ستُطبع القائمة بدون أماكن')}catch(e){}}
+    if(!ivByKey.size)toast('⚠️ تعذّر تحميل أماكن الزيوت – ستظهر بدون أماكن')}catch(e){}}
 /* Lagerplatz eines Shopify-Öls aus SKU + Qualität */
 function soPlatz(sku,tier){const x=ivByKey.get(stem(String(sku||'')).toUpperCase()+'|'+String(tier||'S').trim().charAt(0).toUpperCase());return x&&x.platz||''}
 const ivSortKey=p=>{const m=/^([A-D])(\d{2})-(\d)-(\d)$/.exec(p||'');return m?m[1]+m[2]+m[3]+m[4]:'ZZZZ'};/* ohne Fach → ans Ende */
@@ -5380,13 +5380,15 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
   const sec=t=>b.append(el('div','so-sec',t));
   const row=(it,ix)=>{const r=el('label','ivrow');r.style.gridTemplateColumns='auto 1fr';const cb=document.createElement('input');cb.type='checkbox';cb.checked=!!chk[ix];
     cb.onchange=()=>{chk[ix]=cb.checked;save({prep:chk});pc.textContent=chk.filter(Boolean).length+' / '+o.items.length};
-    const inf=el('div','ivinfo');inf.append(el('div','ivname',it.q+' × '+it.t+(it.oil?' · '+it.tier:'')));{const fid=((o.stand||{}).freiImg||{})[it.t];if(fid){const im=el('img');im.style.cssText='width:56px;height:56px;object-fit:cover;border-radius:8px;margin:4px 0';driveImg(fid).then(u=>{if(u)im.src=u}).catch(()=>{});inf.append(im)}}{const nn=((o.stand||{}).namen||{})[it.lid],dd=((o.stand||{}).doku||{})[it.lid]||{},t=[nn,dd.code,dd.hs?'HS '+dd.hs:'',dd.ur?'Ursprung '+dd.ur:''].filter(Boolean).join(' · ');if(t)inf.append(el('div','ivtn','✏️ على الأوراق والجمارك: '+t))}
+    const inf=el('div','ivinfo');if(it.oil){const pl=itPlatz(it),tl=String(it.tier||'').trim(),tg=el('div','ipl');tg.append(el('b',null,pl||'—'));if(tl)tg.append(el('span','ivq '+tl.charAt(0).toUpperCase(),tl));inf.append(tg)}inf.append(el('div','ivname',it.q+' × '+it.t));{const fid=((o.stand||{}).freiImg||{})[it.t];if(fid){const im=el('img');im.style.cssText='width:56px;height:56px;object-fit:cover;border-radius:8px;margin:4px 0';driveImg(fid).then(u=>{if(u)im.src=u}).catch(()=>{});inf.append(im)}}{const nn=((o.stand||{}).namen||{})[it.lid],dd=((o.stand||{}).doku||{})[it.lid]||{},t=[nn,dd.code,dd.hs?'HS '+dd.hs:'',dd.ur?'Ursprung '+dd.ur:''].filter(Boolean).join(' · ');if(t)inf.append(el('div','ivtn','✏️ على الأوراق والجمارك: '+t))}
     inf.append(el('div','ivtn',(it.oil?it.code+' · '+it.size:(it.size||''))+(it.sku&&!it.oil?' · '+it.sku:'')));
     if(it.oil){const lo=lotNow(it);if(lo)inf.append(el('div','ivtn','الدفعة · Charge: '+lo.b))}
     else{try{const a=arDesc(it.t,it.vt);if(a)inf.append(el('div','ivtn',a))}catch(e){}}
     r.append(cb,inf);b.append(r)};
   const io=o.items.map((it,ix)=>[it,ix]),oi=io.filter(x=>x[0].oil),ot=io.filter(x=>!x[0].oil);
-  if(oi.length){sec('🧪 الزيوت · '+oi.length);oi.forEach(x=>row(...x))}
+  if(oi.length){sec('🧭 الزيوت حسب مسار المستودع · Öle nach Laufweg · '+oi.length);oi.slice().sort((a,c)=>ivSortKey(itPlatz(a[0])).localeCompare(ivSortKey(itPlatz(c[0])))||String(a[0].t).localeCompare(String(c[0].t))).forEach(x=>row(...x))}
+  /* Lagerplätze noch nicht geladen (App gerade gestartet) → laden und einmal neu zeichnen */
+  if(oi.length&&!ivByKey.size)ivPlaces().then(()=>{if(ivByKey.size&&soSel===id&&b.isConnected)soDetail(b,id)});
   if(ot.length){sec('🍶 الزجاج والإكسسوارات · '+ot.length);ot.forEach(x=>row(...x))}
   pc.textContent=chk.filter(Boolean).length+' / '+o.items.length;const pp=el('p','note','تم تحضير ');pp.append(pc);b.append(pp);
   sec('📋 قائمة التحضير · Lieferschein');
