@@ -604,6 +604,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
 #om-b{flex:1 1 auto;min-height:0;overflow-y:auto!important;padding:14px 16px calc(60px + env(safe-area-inset-bottom))!important}
 #om-b>*{max-width:1000px;margin-inline:auto}
 .ls-top{display:flex;gap:8px;align-items:center;margin-bottom:8px}.ls-q{flex:1;min-width:0}.ls-sec{margin:16px 0}.ls-sec h3{margin:0 0 6px;font-size:17px}.ls-wrap{overflow-x:auto}.ls-t{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}.ls-t th{background:#1a2a4a;color:#fff;font-size:12px;padding:6px 8px;text-align:left;white-space:nowrap}.ls-t th.n,.ls-t td.n{text-align:right;white-space:nowrap}.ls-t td{padding:6px 8px;border-bottom:1px solid var(--line,#e4e6ea);vertical-align:middle}.ls-t td.n{font-weight:700}.ls-c{white-space:nowrap;font-size:13px}.ls-z{font-size:11px;color:var(--muted)}.ls-off{font-size:11px;color:#b45309}.ls-S{color:#6b7280;font-weight:700;font-size:13px}.ls-P{color:#8a6d1f;font-weight:700;font-size:13px}.ls-E{color:#9b1c1c;font-weight:700;font-size:13px}
+.rg-act{flex-wrap:wrap}.rg-n{margin-inline:auto 4px}.rg-box{margin-top:8px}.rg-row{display:grid;grid-template-columns:24px 1fr 150px 70px 72px;gap:8px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--line,#e4e6ea);cursor:pointer}.rg-row[hidden]{display:none}.rg-inf{min-width:0}.rg-pl{font-weight:700;text-align:right}@media(max-width:700px){.rg-row{grid-template-columns:24px 1fr 72px}.rg-row .ls-c{grid-column:2;font-size:12px}.rg-row .ls-S,.rg-row .ls-P,.rg-row .ls-E{grid-column:2}.rg-pl{grid-column:3;grid-row:1}}
 </style>
 </head>
 <body>
@@ -702,6 +703,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <button class="tile p-lg" id="h-lg"><span class="ic">📦</span><b>المخزون</b><span>وارد · صادر · جرد · ملصقات QR</span></button>
       <button class="tile p-inv" id="h-inv"><span class="ic">📋</span><b>الجرد حسب الرفوف</b><span>Inventur nach Regal · مسح QR</span><span class="cnt" id="h-inv-n"></span></button>
       <button class="tile p-lg" id="h-list"><span class="ic">📑</span><b>الليستا</b><span>Preisliste · بترتيب القائمة · PDF</span></button>
+      <button class="tile p-lg" id="h-reg"><span class="ic">🏷️</span><b>ملصقات الرفوف</b><span>Regal-Etiketten · اختيار · طباعة Epson</span></button>
       <button class="tile p-lg" id="h-sup"><span class="ic">🧰</span><b>مستلزمات المستودع</b><span>كراتين · تغليف · احتياجات</span><span class="cnt" id="h-sup-n"></span></button>
     </div></div>
     <div class="hcols">
@@ -1490,7 +1492,7 @@ function kkLiefChips(){const box=$('lief-chips');if(!box)return;box.textContent=
 /* ---------- الأقسام · Bereiche: Start · Verkauf · Versand · Kunden & Finanzen · Lager ---------- */
 const HUBS={sales:{t:'🧾 المبيعات',de:'Verkauf · Aufträge · Angebote · Shop',tiles:['h-new','h-wh','h-off','h-done','h-shop']},
   cust:{t:'👥 العملاء والحسابات',de:'Kunden · Konten · Kasse',tiles:['h-cust','h-acc','h-cash']},
-  stock:{t:'🏭 المستودع',de:'Lager · Bestand · Inventur · Bedarf',tiles:['h-lg','h-inv','h-list','h-sup']}};
+  stock:{t:'🏭 المستودع',de:'Lager · Bestand · Inventur · Bedarf',tiles:['h-lg','h-inv','h-list','h-reg','h-sup']}};
 const tileVis=t=>t&&getComputedStyle(t).display!=='none';
 function hubGo(k){drawer(false);if(k==='ship'){if(can('shop'))vzOpen();return}tab('hub-'+k)}
 function renderHub(k){const H=HUBS[k];if(!H)return;$('hub-t').textContent=H.t;$('hub-de').textContent=H.de;const b=$('hub-b');b.textContent='';
@@ -1508,10 +1510,10 @@ $('hq-new').onclick=()=>$('h-new').click();$('hq-off').onclick=()=>$('h-off').cl
 $('nv-home').onclick=goHome;$('nv-wh').onclick=()=>$('h-wh').click();$('nv-new').onclick=()=>$('h-new').click();
 $('nv-lg').onclick=()=>{drawer(false);$('h-lg').click()};$('nv-cash').onclick=()=>$('h-cash').click();$('nv-cust').onclick=()=>$('h-cust').click();
 $('nv-acc').onclick=()=>$('h-acc').click();$('nv-done').onclick=()=>$('h-done').click();$('h-last-all').onclick=()=>$('h-wh').click();
-{const IC={'h-wh':'<path d="M3 7h6l2 2h10v10H3z"/>','h-done':'<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>','h-lg':'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>','h-cust':'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>','h-cash':'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/>','h-acc':'<path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/>','h-inv':'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM8.5 12l2 2 4-4M8.5 17h7"/>','h-off':'<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h5"/>','h-shop':'<path d="M3 4h2.5l2.2 11h10.6l2.2-8H6.6"/><circle cx="9.5" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>','h-ship':'<path d="M2 7h11v9H2zM13 10h4l3 3v3h-7"/><circle cx="6" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>','h-dhl':'<path d="M3 8l9-4 9 4v9l-9 4-9-4z"/><path d="M3 8l9 4 9-4M12 12v9M7.5 6l9 4"/>','h-list':'<path d="M6 3h9l4 4v14H6z"/><path d="M9 10h7M9 14h7M9 18h4"/>','h-sup':'<path d="M4 9h16v11H4z"/><path d="M9 9V6a3 3 0 016 0v3M4 13h16"/>'};
+{const IC={'h-wh':'<path d="M3 7h6l2 2h10v10H3z"/>','h-done':'<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>','h-lg':'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>','h-cust':'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>','h-cash':'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/>','h-acc':'<path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/>','h-inv':'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM8.5 12l2 2 4-4M8.5 17h7"/>','h-off':'<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h5"/>','h-shop':'<path d="M3 4h2.5l2.2 11h10.6l2.2-8H6.6"/><circle cx="9.5" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>','h-ship':'<path d="M2 7h11v9H2zM13 10h4l3 3v3h-7"/><circle cx="6" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>','h-dhl':'<path d="M3 8l9-4 9 4v9l-9 4-9-4z"/><path d="M3 8l9 4 9-4M12 12v9M7.5 6l9 4"/>','h-reg':'<path d="M3 5h18v14H3z"/><path d="M7 9h4v4H7zM14 10h4M14 14h4"/>','h-list':'<path d="M6 3h9l4 4v14H6z"/><path d="M9 10h7M9 14h7M9 18h4"/>','h-sup':'<path d="M4 9h16v11H4z"/><path d="M9 9V6a3 3 0 016 0v3M4 13h16"/>'};
  Object.keys(IC).forEach(id=>{const t=$(id);if(!t)return;const ic=t.querySelector('.ic');if(ic)ic.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true">'+IC[id]+'</svg>';
   const b=t.querySelector('b'),s=t.querySelector('b+span');if(b){const w=el('span','tt');b.before(w);w.append(b);if(s&&!s.classList.contains('cnt'))w.append(s)}
-  const TT={'h-wh':['المفتوحة','قيد التحضير'],'h-done':['المكتملة','تم التسليم'],'h-lg':['المخزون','وارد · صادر · جرد'],'h-cust':['العملاء','كل عميل وطلباته'],'h-cash':['الصندوق','نقد · مصروفات'],'h-acc':['الحسابات','غير مدفوع · كشف'],'h-inv':['الجرد','حسب الرفوف · QR'],'h-off':['عروض الأسعار','بدون تجهيز'],'h-shop':['طلبات المتجر','Shopify · ملصقات'],'h-ship':['أرشيف الشحنات','Versandarchiv · تتبّع'],'h-dhl':['ملصق DHL','داخل ألمانيا'],'h-list':['الليستا','Preisliste · PDF'],'h-sup':['المستلزمات','كراتين · احتياجات']};
+  const TT={'h-wh':['المفتوحة','قيد التحضير'],'h-done':['المكتملة','تم التسليم'],'h-lg':['المخزون','وارد · صادر · جرد'],'h-cust':['العملاء','كل عميل وطلباته'],'h-cash':['الصندوق','نقد · مصروفات'],'h-acc':['الحسابات','غير مدفوع · كشف'],'h-inv':['الجرد','حسب الرفوف · QR'],'h-off':['عروض الأسعار','بدون تجهيز'],'h-shop':['طلبات المتجر','Shopify · ملصقات'],'h-ship':['أرشيف الشحنات','Versandarchiv · تتبّع'],'h-dhl':['ملصق DHL','داخل ألمانيا'],'h-list':['الليستا','Preisliste · PDF'],'h-reg':['ملصقات الرفوف','Regal-Etiketten'],'h-sup':['المستلزمات','كراتين · احتياجات']};
   if(TT[id]&&b){b.textContent=TT[id][0];if(s&&!s.classList.contains('cnt'))s.textContent=TT[id][1]}
   const c=t.querySelector('.cnt');if(c){c.classList.add('cnt2');t.querySelector('.tt').append(c)}})}   /* Zahl unter den Text → Titel hat die volle Breite */
 
@@ -4152,6 +4154,33 @@ function lsDraw(b,data){b.textContent='';const n=data.reduce((a,s)=>a+s.rows.len
 async function lsOpen(){drawer(false);sheetFor='ls';openSheet('📑 الليستا',b=>{sheetFor='ls';lsDraw(b,lsBuild())});
   try{await clpBasis()}catch(e){}try{await ivLoad(false,true)}catch(e){}const b=$('sheet-b');if(b&&!$('sheet').hidden&&sheetFor==='ls'&&!(b.querySelector('.ls-q')||{}).value)lsDraw(b,lsBuild())}
 $('h-list').onclick=lsOpen;
+/* ---------- Regal-Etiketten 102 × 30: Auswahl frei · Druck direkt auf Epson (Dateiname R-… → Druck-PC, Warteschlange «Regal») oder PDF ---------- */
+const RG_ST={S:{t:'STANDARD',bg:[31,95,191],fg:[255,255,255]},P:{t:'PREMIUM',bg:[184,137,43],fg:[255,255,255]},E:{t:'EXKLUSIV',bg:[0,0,0],fg:[232,198,106]}};
+function rgRows(){const iv=new Map();((typeof inv!=='undefined'&&inv.items)||[]).forEach(x=>{if(x.code)iv.set(String(x.code).toUpperCase()+'|'+String(x.tier||'S').charAt(0).toUpperCase(),x)});
+  const out=[];lsBuild().forEach(s=>s.rows.forEach(r=>{const x=iv.get(String(r.code).toUpperCase()+'|'+r.q)||{};out.push({code:r.code,q:r.q,title:r.t||x.title||r.name||r.code,orig:x.orig||(s.b+' '+(r.name||'')),platz:x.platz||'',b:s.b})}));return out}
+function rgDraw1(doc,r){const fitS=(t,font,st,s,w)=>{doc.setFont(font,st);for(;s>6;s-=.2){doc.setFontSize(s);if(doc.getTextWidth(t)<=w)break}return s};const X=30,St=RG_ST[r.q]||RG_ST.S,title=latin(r.title)||'-',orig=latin(r.orig),code=latin(r.code);
+  try{doc.addImage(qrPng(qrPayload(r.code+'#'+r.q)),'PNG',3,3,24,24)}catch(e){}
+  doc.setTextColor(0,0,0);fitS(title,'helvetica','bold',15,40);doc.text(title,X,10);fitS(orig,'helvetica','normal',8.2,69);doc.text(orig,X,16.8);fitS(code,'courier','bold',10.5,41);doc.text(code,X,22.5);
+  doc.setFillColor(...St.bg);doc.roundedRect(72,3,27,10.5,1.5,1.5,'F');doc.setTextColor(...St.fg);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text(St.t,85.5,9.7,{align:'center'});
+  if(r.platz){doc.setTextColor(0,0,0);doc.setFontSize(14);doc.text(latin(r.platz),85.5,22.5,{align:'center'})}}
+const rgDoc=()=>new window.jspdf.jsPDF({unit:'mm',format:[102,30],orientation:'landscape',compress:true});
+function rgPdf(rows){const doc=rgDoc();rows.forEach((r,i)=>{if(i)doc.addPage([102,30],'landscape');rgDraw1(doc,r)});return doc}
+async function rgPrint(btn,rows,done){const o=btn.textContent;btn.disabled=true;btn.textContent='جاري الإرسال…';try{const stP=druckStatus();for(let i=0;i<rows.length;i++){const doc=rgDoc();rgDraw1(doc,rows[i]);await druckQ('R-Regal-'+latin(rows[i].code).replace(/[^A-Za-z0-9-]/g,'')+'-'+rows[i].q+'.pdf',await blob64(doc.output('blob')));if(i%10===9)btn.textContent='جاري الإرسال… '+(i+1)+' / '+rows.length}
+    await stP;druckMeldung(btn,o,'✓ أُرسل '+rows.length+' ملصق إلى طابعة Epson',druckSt.v);if(done)done()}catch(e){druckMeldung(btn,o,'تعذّر الإرسال إلى الطابعة: '+(e.message||e),null,true)}}
+function rgDraw(b){b.textContent='';const rows=rgRows(),sel=new Set(),K=r=>r.code+'|'+r.q;
+  const top=el('div','ls-top'),q=document.createElement('input');q.type='search';q.className='ls-q';q.placeholder='بحث: كود، اسم، ماركة، مكان · Suche';
+  const reg=document.createElement('select');[['','كل الرفوف']].concat([...new Set(rows.map(r=>(r.platz||'').split('-')[0]).filter(Boolean))].sort().map(x=>[x,'الرف '+x])).forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;reg.append(o)});top.append(q,reg);
+  const acts=el('div','ls-top rg-act'),all=el('button','btn small','☑️ تحديد الظاهر'),none=el('button','btn small','✖️ إلغاء الكل'),cnt=el('b','rg-n','0 ملصق'),pr=el('button','btn primary','🖨️ طباعة على Epson'),pdf=el('button','btn','📄 PDF');acts.append(all,none,cnt,pr,pdf);
+  const note=el('div','hint','🧻 قبل الطباعة: تأكد أن رول 102 × 30 موجود في طابعة Epson، وليس رول CLP.');const box=el('div','rg-box');box.dir='ltr';b.append(top,acts,note,box);
+  const items=rows.map(r=>{const l=document.createElement('label');l.className='rg-row';const c=document.createElement('input');c.type='checkbox';c.onchange=()=>{if(c.checked)sel.add(K(r));else sel.delete(K(r));upd()};const inf=el('span','rg-inf');inf.append(el('b',null,r.title),el('span','ls-z',' · '+r.orig));const cd=el('span','ls-c',r.code),qt=el('span','ls-'+r.q,LS_Q[r.q]||r.q),pl=el('span','rg-pl',r.platz||'—');l.append(c,inf,cd,qt,pl);box.append(l);return {r,l,c,k:fold(r.code+' '+r.title+' '+r.orig+' '+r.b+' '+r.platz)}});
+  const chosen=()=>items.filter(i=>sel.has(K(i.r))).map(i=>i.r);
+  function upd(){const n=sel.size;cnt.textContent=n+' ملصق';pr.disabled=!n;pdf.disabled=!n}
+  function flt(){const w=fold(q.value).split(/\s+/).filter(Boolean),g=reg.value;items.forEach(i=>{i.l.hidden=!(w.every(x=>i.k.includes(x))&&(!g||(i.r.platz||'').split('-')[0]===g))})}
+  q.oninput=flt;reg.onchange=flt;all.onclick=()=>{items.forEach(i=>{if(!i.l.hidden){i.c.checked=true;sel.add(K(i.r))}});upd()};none.onclick=()=>{items.forEach(i=>{i.c.checked=false});sel.clear();upd()};
+  pr.onclick=()=>{const rs=chosen();if(rs.length)rgPrint(pr,rs)};pdf.onclick=async()=>{const rs=chosen();if(!rs.length)return;pdf.disabled=true;const o=pdf.textContent;pdf.textContent='جاري التجهيز…';await new Promise(s=>setTimeout(s,30));try{await qrOut(rgPdf(rs),'Regal-Etiketten-'+rs.length+'.pdf')}catch(e){alert('تعذّر إنشاء الملف: '+e.message)}pdf.textContent=o;pdf.disabled=false};upd()}
+async function rgOpen(){drawer(false);sheetFor='rg';openSheet('🏷️ ملصقات الرفوف',b=>{sheetFor='rg';rgDraw(b)});
+  try{await ivLoad(false,true)}catch(e){}const b=$('sheet-b');if(b&&!$('sheet').hidden&&sheetFor==='rg'&&!b.querySelector('input[type=checkbox]:checked')&&!(b.querySelector('.ls-q')||{}).value)rgDraw(b)}
+$('h-reg').onclick=rgOpen;
 
 /* ---------- Lager / المخزون ---------- */
 let lgSel=null;

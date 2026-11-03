@@ -9,6 +9,7 @@ Einrichten: `FH-Druck-einrichten.cmd` ausführen (fragt einmal die PIN der Showr
 | `A4-…` (Angebot, Packliste) | Brother MFC-J6957DW | `fit` |
 | `P-…` (Etiketten 40 × 30) | Phomemo M110S (USB) | `noscale,landscape` |
 | `Z-…` (DHL-Versandetikett 103 × 199) | Zebra GK420t (USB) | – (direkt per USB als ZPL, ohne Treiber) |
+| `R-…` (Regal-Etiketten 102 × 30, je Etikett ein Auftrag) | Epson, Warteschlange „FH Regal 102x30“ | `fit,landscape` |
 | alles andere (CLP 102 × 51) | Epson ColorWorks CW-C6000Ae | `fit,landscape` |
 
 Testordner: PDF in `%USERPROFILE%\FH-Druck\test` legen → wird sofort gedruckt (Name bestimmt den Drucker).
@@ -16,6 +17,8 @@ Testordner: PDF in `%USERPROFILE%\FH-Druck\test` legen → wird sofort gedruckt 
 ## Treibereinstellungen in Windows (nicht in Git – bei Neuinstallation wieder setzen)
 
 **Epson CW-C6000Ae** (Druckeinstellungen + Standardwerte): Media Definition „FH 102x51“ – Breite 102, Länge 51 mm, Gap 3 mm, Die-cut Label (Gap), Coating *Synthetic* (PP-Folie); Media Detection: Internal (Roll), Gap detection.
+
+**Epson Warteschlange „FH Regal 102x30“** (wird von `druck.ps1` angelegt): in deren Druckeinstellungen + Standardwerten die Media Definition „FH Regal 102x30 Endlos“ wählen, Schnitt nach jedem Etikett. Rolle 102 × 30 einlegen, bevor gedruckt wird.
 
 **Phomemo M110S** (Treiber „QY_Printer Driver“, Druckeinstellungen + Standardwerte → Seite einrichten): Papiergattung „50 x 70mm“ auf **Breite 40, Höhe 30 mm** geändert (nur diese Größe sieht Windows), Gattung *Etikett mit Lücken*, Drucken-Abweichung **Horizontal 8 mm**, Vertikal 0. Immer am selben USB-Anschluss lassen.
 
