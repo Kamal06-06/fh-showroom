@@ -726,6 +726,17 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
         <div><label for="cphone">💬 واتساب / هاتف · WhatsApp</label><input type="tel" id="cphone" dir="ltr" autocomplete="off" placeholder="+49 …"></div>
         <div><label for="cemail">✉️ الإيميل · E-Mail</label><input type="email" id="cemail" dir="ltr" autocomplete="off" placeholder="name@firma.de"></div>
       </div>
+      <div class="lbl" style="margin-top:10px">📍 عنوان العميل والدولة · Adresse & Land</div>
+      <div class="row grow" style="margin-top:4px">
+        <div style="flex:0 0 110px;min-width:100px"><label for="plz">الرمز البريدي · PLZ</label><input type="text" id="plz" autocomplete="off" inputmode="numeric" maxlength="8" dir="ltr" placeholder="44623"></div>
+        <div><label for="city">المدينة · Ort</label><input type="text" id="city" autocomplete="off" placeholder="Herne"></div>
+        <div><label for="street">الشارع ورقم المبنى · يظهر الاقتراح أثناء الكتابة</label><input type="text" id="street" autocomplete="off" placeholder="Bahnhofstraße 86"></div>
+        <div><label for="country">الدولة <span id="lang-note" class="code"></span></label><select id="country">
+          <option value="DE">Deutschland</option><option value="AT">Österreich</option><option value="CH">Schweiz</option>
+          <option value="NL">Niederlande</option><option value="BE">Belgien</option><option value="FR">Frankreich</option>
+          <option value="IT">Italien</option><option value="ES">Spanien</option><option value="PL">Polen</option>
+          <option value="GB">United Kingdom</option><option value="XX">أخرى (English)</option></select></div>
+      </div>
       <div class="row grow">
         <div><label for="note">ملاحظة (اختياري)</label><input type="text" id="note" autocomplete="off" placeholder="مثال: يستلم خلال ساعة"></div>
       </div>
@@ -773,16 +784,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <p class="hint" id="lief-hint">اختر طريقة التسليم ليعرف المستودع كيف يجهّز الطلب.</p>
       <div id="lief-box" hidden>
         <div class="lbl" id="lief-lbl">عنوان الشحن · Lieferadresse</div>
-      <div class="row grow" style="margin-top:8px">
-        <div style="flex:0 0 110px;min-width:100px"><label for="plz">الرمز البريدي · PLZ</label><input type="text" id="plz" autocomplete="off" inputmode="numeric" maxlength="8" dir="ltr" placeholder="44623"></div>
-        <div><label for="city">المدينة · Ort</label><input type="text" id="city" autocomplete="off" placeholder="Herne"></div>
-        <div><label for="street">الشارع ورقم المبنى · يظهر الاقتراح أثناء الكتابة</label><input type="text" id="street" autocomplete="off" placeholder="Bahnhofstraße 86"></div>
-        <div><label for="country">الدولة <span id="lang-note" class="code"></span></label><select id="country">
-          <option value="DE">Deutschland</option><option value="AT">Österreich</option><option value="CH">Schweiz</option>
-          <option value="NL">Niederlande</option><option value="BE">Belgien</option><option value="FR">Frankreich</option>
-          <option value="IT">Italien</option><option value="ES">Spanien</option><option value="PL">Polen</option>
-          <option value="GB">United Kingdom</option><option value="XX">أخرى (English)</option></select></div>
-      </div>
+        <p class="hint" style="margin:6px 0 0">📍 العنوان والدولة من الخطوة 1 · Adresse aus Schritt 1</p>
         <div class="row grow" id="lief-ship"><div style="flex:0 0 160px"><label for="pakete">📦 عدد الطرود</label><input type="number" id="pakete" min="1" max="20" step="1" value="1" inputmode="numeric"></div><div style="flex:0 0 200px"><label for="versand">أجور الشحن €</label><input type="number" id="versand" min="0" step="0.5" placeholder="0" inputmode="decimal"></div></div>
         <p class="hint" id="lief-shiphint">ملصق DHL يُنشأ بعد التجهيز من بطاقة الطلب أو من «طلبات الصالة للشحن». لإرسال الطرد إلى عميل عميلك (Dropshipping) أو إلى Packstation اختر ذلك عند إنشاء الملصق.</p>
       </div>
@@ -2830,7 +2832,10 @@ window.__clp={clpLocal:l=>clpLocal(l),blob64:b=>blob64(b)};
 /* Zwischenspeicher je Auftrag + Inhalt: Etiketten werden beim Öffnen des Auftrags im Hintergrund vorbereitet → Drucken/PDF sofort */
 const clpMemo={};
 const clpMemoKey=l=>orderKey(l)+'|'+clpSig(l)+'|'+((l.items||[]).map(i=>i._ix==null?'':i._ix).join(','));
+const clpNurProben=l=>{const o=(l.items||[]).filter(isOil);return o.length>0&&o.every(it=>it.probe||/^(probe\s*)?([6-9]|1[0-5])\s*g$/i.test(String(it.size||'').trim()))};
 function clpMake(l){const k=clpMemoKey(l);if(clpMemo[k])return clpMemo[k];
+  /* Proben 40 × 30 (Phomemo): bewährtes Format aus dem Gerät – sofort fertig, scharf */
+  if(clpNurProben(l)){const p=clpLocal(l).catch(e=>{delete clpMemo[k];return clpFetch(l)});clpMemo[k]=p;return p}
   const p=clpFetch(l).catch(async e=>{console.warn('CLP Server → lokal',e);delete clpMemo[k];try{toast('⚠️ الخادم لم يستجب – الملصقات صُنعت في الجهاز بدون النوتات')}catch(_){}return await clpLocal(l)});
   clpMemo[k]=p;return p}
 async function orderFiles(l,which){
@@ -2970,9 +2975,10 @@ async function pmRaw(blob){
   const lib=await loadPdfJs(),doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer())}).promise,pages=[];
   for(let i=1;i<=doc.numPages;i++){
     const pg=await doc.getPage(i),v1=pg.getViewport({scale:1});
-    let W=Math.min(384,Math.round(v1.width*25.4/72*8));W=Math.ceil(W/8)*8;const sc=W/v1.width,vp=pg.getViewport({scale:sc}),H=Math.round(vp.height);
+    /* immer exakt 40 × 30 mm (320 × 240 Punkte) – jede Seite wird eingepasst und zentriert, nichts schief oder winzig */
+    const W=320,H=240,sc=Math.min(W/v1.width,H/v1.height),vp=pg.getViewport({scale:sc});
     const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);
-    await pg.render({canvasContext:x,viewport:vp}).promise;
+    await pg.render({canvasContext:x,viewport:vp,transform:[1,0,0,1,Math.round((W-vp.width)/2),Math.round((H-vp.height)/2)]}).promise;
     const px=x.getImageData(0,0,W,H).data,bpr=W/8,data=new Uint8Array(bpr*H);
     for(let y=0;y<H;y++)for(let X=0;X<W;X++){const p=(y*W+X)*4;if(px[p]*0.3+px[p+1]*0.59+px[p+2]*0.11<150)data[y*bpr+(X>>3)]|=0x80>>(X&7)}
     const head=[0x1b,0x4e,0x0d,0x05, 0x1b,0x4e,0x04,0x0a, 0x1f,0x11,0x0a, 0x1d,0x76,0x30,0x00,bpr&255,bpr>>8,H&255,H>>8];
