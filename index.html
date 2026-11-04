@@ -2530,13 +2530,17 @@ function druckMeldung(btn,o,msg,st,fehler){
   btn.textContent=fehler?'⚠️ خطأ':st&&!st.online?'⏳ في الانتظار':'✓ أُرسلت';if(fehler)alert(msg);else toast(msg);
   setTimeout(()=>{btn.disabled=false;btn.innerHTML=o},1500)}
 /* CLP → Druck-Warteschlange → Mini-PC im Lager druckt auf der Epson ColorWorks */
-async function epsonPrint(l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
+/* Druck läuft im Hintergrund – Mitarbeiter wartet nicht und kann sofort weiterarbeiten */
+const epsonLast={};
+async function epsonPrint(l,btn){const o=btn.innerHTML;
+  {const lo0=labOrder(l),k0=orderKey(l)+'|'+clpSig(lo0);if(Date.now()-(epsonLast[k0]||0)<30000&&!confirm('أُرسلت هذه الملصقات للطباعة قبل لحظات.\nطباعة نسخة أخرى؟'))return;epsonLast[k0]=Date.now()}
+  btn.disabled=true;btn.textContent='⏳ في الطريق إلى الطابعة…';toast('⏳ الملصقات تُجهَّز وتُرسل للطابعة في الخلفية – تابع عملك');
+  setTimeout(()=>{if(btn.isConnected&&/في الطريق/.test(btn.textContent)){btn.disabled=false;btn.innerHTML=o}},1500);
   try{const lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»');
     const T0=Date.now(),stP=druckStatus(),r=await clpMake(lo),T1=Date.now();
     /* Epson hat die 102 × 51-Rolle: nur CLP-Etiketten dorthin. Proben 40 × 30 → Phomemo (Mini-PC, Präfix "P-") */
     const ep=r.files.filter(f=>!/^Proben/.test(f.name)),pr=r.files.filter(f=>/^Proben/.test(f.name));
     if(!ep.length&&!pr.length)throw new Error('لا يوجد ملصق CLP لهذه الأصناف');
-    btn.textContent='جاري الإرسال إلى المستودع…';
     await Promise.all(ep.map(async f=>druckQ(f.name,await blob64(f.blob))).concat(pr.map(f=>pmQueue(f.blob,f.name))));
     /* Zeitmessung: warten bis der Server den Auftrag angenommen hat (max. 25 s) */
     {const tE=Date.now()+25000;while(Date.now()<tE&&(DQL||[]).length)await new Promise(r=>setTimeout(r,250))}const T2=Date.now();
