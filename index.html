@@ -2855,7 +2855,7 @@ async function withLinks(files){for(const f of files){if(!f.url)f.url=await srv(
 /* WhatsApp-Link zu einer Kundennummer: 0049…/0… (Deutschland) → internationales Format */
 function custWa(ph,msg){let d=String(ph||'').replace(/[^0-9+]/g,'');if(d.startsWith('+'))d=d.slice(1);else if(d.startsWith('00'))d=d.slice(2);else if(d.startsWith('0'))d='49'+d.slice(1);d=d.replace(/\D/g,'');return 'https://wa.me/'+d+(msg?'?text='+encodeURIComponent(msg):'')}
 function waHref(msg){const num=String(waNum||'').replace(/[^0-9]/g,'');return 'https://api.whatsapp.com/send?'+(num?'phone='+num+'&':'')+'text='+encodeURIComponent(msg)}
-const clpSig=l=>JSON.stringify([(l.items||[]).filter(isOil).map(i=>[i.code,i.tier,i.size,i.q||1,i.t]),l.clpAddr||'',l.country||'DE',l.custNo||'','v7',Object.values(l.lots||{}).map(x=>x&&x.b).join(',')].concat(l.clpLogo?[l.clpLogo]:[]));
+const clpSig=l=>JSON.stringify([(l.items||[]).filter(isOil).map(i=>[i.code,i.tier,i.size,i.q||1,i.t]),l.clpAddr||'',l.country||'DE',l.custNo||'','v8',Object.values(l.lots||{}).map(x=>x&&x.b).join(',')].concat(l.clpLogo?[l.clpLogo]:[]));
 function clpReady(l){return l.clpFiles&&l.clpFiles.length&&l.clpSig===clpSig(l)}
 async function pregenClp(id,rec){
   if(!(rec.items||[]).some(isOil))return;
@@ -5065,7 +5065,18 @@ function shopPwSheet(after,setMode){
     go.onclick=run;i.onkeydown=e=>{if(e.key==='Enter')run()}})}
 /* Laden: sofort aus dem Gerätespeicher anzeigen, im Hintergrund frisch von Shopify holen (stale-while-revalidate) */
 let soP=null;
-function soSetCount(){try{const n=(SO.orders||[]).filter(o=>soPaid(o)&&!soPrep(o).ready).length;const c=$('h-shop-n');if(c)c.textContent=n||'';if(!$('view-home').hidden)homeTop(lists.filter(l=>l.status!=='done'))}catch(e){}}
+/* CLP-Teile eines Shop-Auftrags (Etiketten groß → Epson, Proben → Phomemo) – identisch zur Auftragsansicht, damit der Zwischenspeicher greift */
+const soIsPr=it=>it.oil&&(it.probe||/^(probe\s*)?([6-9]|1[0-5])\s*g$/i.test(String(it.size||'').trim()));
+function soClpSub(l,f){return Object.assign({},l,{items:l.items.map((it,i)=>Object.assign({},it,{_ix:i})).filter(f)})}
+function soClpParts(o){const l=soAsList(o);if(!(l.items||[]).some(i=>i.oil))return [];
+  const nGr=l.items.filter(it=>it.oil&&!soIsPr(it)).length,nPr=l.items.filter(soIsPr).length;
+  return [nGr?clpMake(labOrder(soClpSub(l,it=>it.oil&&!soIsPr(it)))):null,nPr?clpMake(labOrder(soClpSub(l,soIsPr))):null].filter(Boolean)}
+/* alle offenen, bezahlten Shop-Aufträge nacheinander im Hintergrund vorbereiten → beim Öffnen sofort fertig */
+let soWarmT=null,soWarmRun=false;
+function soClpWarmAll(){clearTimeout(soWarmT);soWarmT=setTimeout(async()=>{if(soWarmRun||!can('shop'))return;soWarmRun=true;
+  try{const list=(SO.orders||[]).filter(o=>soPaid(o)&&!soPrep(o).ready).slice(0,25);
+    for(const o of list){try{await Promise.all(soClpParts(o))}catch(_){}}}finally{soWarmRun=false}},4000)}
+function soSetCount(){try{soClpWarmAll()}catch(_){}try{const n=(SO.orders||[]).filter(o=>soPaid(o)&&!soPrep(o).ready).length;const c=$('h-shop-n');if(c)c.textContent=n||'';if(!$('view-home').hidden)homeTop(lists.filter(l=>l.status!=='done'))}catch(e){}}
 async function soCache(){if((SO.orders||[]).length)return SO;try{const c=await IDB.get('so');if(c&&c.orders&&!(SO.orders||[]).length){SO=soqApply(c);SO.at=0;soSetCount()}}catch(e){}return SO}
 function soLoad(force){if(!force&&(SO_LIVE||SO.at&&Date.now()-SO.at<60e3))return Promise.resolve(SO);if(soP)return soP;
   soP=soCall('so_list').then(r=>{SO=soqApply(r);soSetCount();IDB.set('so',r);return SO}).finally(()=>{soP=null});return soP}
