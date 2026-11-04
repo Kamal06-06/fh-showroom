@@ -5401,9 +5401,12 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
     const nPr=l.items.filter(isPr).length,nGr=l.items.filter(it=>it.oil&&!isPr(it)).length;
     if(nPr){const pm=el('button','btn'+(nGr?'':' primary'),'🏷️ ملصقات العينات → Phomemo · '+nPr);pm.onclick=()=>epsonPrint(sub(isPr),pm);a2.append(pm)}
     const ep=el('button','btn','🖨️ ملصقات CLP → Epson'+(nPr?' · '+nGr:''));ep.onclick=()=>epsonPrint(sub(it=>it.oil&&!isPr(it)),ep);if(!nGr)ep.hidden=true;
-    const pdf=el('button','btn','📄 ملصقات PDF');pdf.onclick=async()=>{pdf.disabled=true;try{const r=await clpMake(l);for(const f of r.files){const file=new File([f.blob],f.name.replace(/\.pdf$/i,'')+' '+soNr(o)+'.pdf',{type:'application/pdf'});
-      if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:file.name})}catch(e){}}else{const a=document.createElement('a');a.href=URL.createObjectURL(f.blob);a.download=file.name;a.click()}}
-      if(r.fehlend&&r.fehlend.length)alert('بدون ملصق: '+r.fehlend.join('، '))}catch(e){alert(e.message)}pdf.disabled=false};
+    const pdf=el('button','btn','📄 ملصقات PDF');pdf.onclick=async()=>{const t0=Date.now(),old=pdf.textContent;pdf.disabled=true;pdf.textContent='⏳ جاري إنشاء ملصقات CLP…';
+      /* fertige Datei im App-Fenster öffnen (Öffnen · Drucken · WhatsApp) – das Teilen direkt nach langem Warten scheitert auf Android still */
+      try{const r=await clpMake(l);const files=r.files.map(f=>({name:f.name.replace(/\.pdf$/i,'')+' '+soNr(o)+'.pdf',blob:f.blob}));
+        const note=[(r.fehlend&&r.fehlend.length)?'بدون ملصق: '+r.fehlend.join('، '):'','⏱️ '+Math.round((Date.now()-t0)/1000)+' ث'].filter(Boolean).join(' · ');
+        if(files.length)filesSheet(l,{files,note});else alert(note||'لا يوجد ملف.')}catch(e){alert('تعذّر إنشاء الملصقات: '+e.message)}
+      pdf.disabled=false;pdf.textContent=old};
     a2.append(ep,pdf);if(a2.querySelectorAll('button:not([hidden])').length%2)pdf.classList.add('wide');b.append(a2)}
   if(soAbh(o)){sec('🏬 الاستلام من المستودع');const ap=el('div','so-act');
     const go=async(was,btn,q)=>{if(!confirm(q))return;btn.disabled=true;try{o.stand=await soCall('so_set',{id:o.id,nr:o.nr,patch:{abhol:was}});if(was==='abgeholt')o.ful='FULFILLED';toast(was==='bereit'?'✅ أُرسل للعميل إيميل «جاهز للاستلام»':'✅ أُغلق الطلب في Shopify');soDetail(b,o.id)}catch(e){btn.disabled=false;alert('⚠️ '+e.message)}};
