@@ -2832,8 +2832,8 @@ async function orderFiles(l,which){
   if(['ls','lso','pl','plo','lab','labo'].includes(which)){if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF')}
   if(which==='ls'){await prepImgs(l);out.files.push({name:fname('ls',l),blob:lieferscheinPdf(l).output('blob')})}
   if(which==='lso'){await prepImgs(l);out.files.push({name:fname('lso',l),blob:lieferscheinPdf(l,true).output('blob')})}
-  if(which==='pl'){await prepImgs(l);out.files.push({name:fname('pl',l),blob:prepListPdf(l).output('blob')})}
-  if(which==='plo'){await prepImgs(l);out.files.push({name:fname('plo',l),blob:prepListPdf(l,true).output('blob')})}
+  if(which==='pl'){await prepImgs(l);out.files.push({name:fname('pl',l),blob:prepListPdf(l,false,false,true).output('blob')})}
+  if(which==='plo'){await prepImgs(l);out.files.push({name:fname('plo',l),blob:prepListPdf(l,true,false,true).output('blob')})}
   if(which==='lab'&&hasOil)out.files.push({name:fname('lab',l),blob:labelsPdf(l).output('blob')});
   if(which==='labo'&&hasOil)out.files.push({name:fname('labo',l),blob:labelsPdfOrig(l).output('blob')});
   if(which==='clp'&&hasOil){
