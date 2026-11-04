@@ -2826,7 +2826,8 @@ async function clpLocal(l){
 function clpWarm(l){if(IN_GAS)return;clpFonts().catch(()=>{});clpUrlImg('assets/fh-logo.png').catch(()=>{});
   clpBasis().then(B=>{Object.values(B.pikto||{}).forEach(id=>clpImg(id).catch(()=>{}));if(l&&l.clpAddr&&l.clpLogo)clpImg(l.clpLogo).catch(()=>{})}).catch(()=>{})}
 window.__clp={clpLocal:l=>clpLocal(l),blob64:b=>blob64(b)};
-async function clpMake(l){try{return await clpLocal(l)}catch(e){console.warn('CLP lokal → Server',e);return await clpFetch(l)}}
+/* 04.11.: CLP-Etiketten immer vom Server (mit Duftnoten Kopf/Herz/Basis – vorberechnet); nur wenn der Server nicht antwortet: im Gerät (ohne Noten) */
+async function clpMake(l){try{return await clpFetch(l)}catch(e){console.warn('CLP Server → lokal',e);return await clpLocal(l)}}
 async function orderFiles(l,which){
   const out={files:[],note:''},hasOil=(l.items||[]).some(isOil);
   if(['ls','lso','pl','plo','lab','labo'].includes(which)){if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF')}
