@@ -2827,7 +2827,12 @@ function clpWarm(l){if(IN_GAS)return;clpFonts().catch(()=>{});clpUrlImg('assets/
   clpBasis().then(B=>{Object.values(B.pikto||{}).forEach(id=>clpImg(id).catch(()=>{}));if(l&&l.clpAddr&&l.clpLogo)clpImg(l.clpLogo).catch(()=>{})}).catch(()=>{})}
 window.__clp={clpLocal:l=>clpLocal(l),blob64:b=>blob64(b)};
 /* 04.11.: CLP-Etiketten immer vom Server (mit Duftnoten Kopf/Herz/Basis – vorberechnet); nur wenn der Server nicht antwortet: im Gerät (ohne Noten) */
-async function clpMake(l){try{return await clpFetch(l)}catch(e){console.warn('CLP Server → lokal',e);try{toast('⚠️ الخادم لم يستجب – الملصقات صُنعت في الجهاز بدون النوتات')}catch(_){}return await clpLocal(l)}}
+/* Zwischenspeicher je Auftrag + Inhalt: Etiketten werden beim Öffnen des Auftrags im Hintergrund vorbereitet → Drucken/PDF sofort */
+const clpMemo={};
+const clpMemoKey=l=>orderKey(l)+'|'+clpSig(l)+'|'+((l.items||[]).map(i=>i._ix==null?'':i._ix).join(','));
+function clpMake(l){const k=clpMemoKey(l);if(clpMemo[k])return clpMemo[k];
+  const p=clpFetch(l).catch(async e=>{console.warn('CLP Server → lokal',e);delete clpMemo[k];try{toast('⚠️ الخادم لم يستجب – الملصقات صُنعت في الجهاز بدون النوتات')}catch(_){}return await clpLocal(l)});
+  clpMemo[k]=p;return p}
 async function orderFiles(l,which){
   const out={files:[],note:''},hasOil=(l.items||[]).some(isOil);
   if(['ls','lso','pl','plo','lab','labo'].includes(which)){if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF')}
@@ -5402,9 +5407,13 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
     const nPr=l.items.filter(isPr).length,nGr=l.items.filter(it=>it.oil&&!isPr(it)).length;
     if(nPr){const pm=el('button','btn'+(nGr?'':' primary'),'🏷️ ملصقات العينات → Phomemo · '+nPr);pm.onclick=()=>epsonPrint(sub(isPr),pm);a2.append(pm)}
     const ep=el('button','btn','🖨️ ملصقات CLP → Epson'+(nPr?' · '+nGr:''));ep.onclick=()=>epsonPrint(sub(it=>it.oil&&!isPr(it)),ep);if(!nGr)ep.hidden=true;
+    const gSub=()=>labOrder(sub(it=>it.oil&&!isPr(it))),pSub=()=>labOrder(sub(isPr));
+    const parts=()=>[nGr?clpMake(gSub()):null,nPr?clpMake(pSub()):null].filter(Boolean);
+    /* sofort im Hintergrund vorbereiten (Server, mit Noten) */
+    setTimeout(()=>{try{Promise.all(parts()).then(()=>{[ep,pdf].forEach(x=>{if(x&&x.isConnected&&!/✓/.test(x.textContent))x.textContent+=' ✓'})}).catch(()=>{})}catch(_){}},200);
     const pdf=el('button','btn','📄 ملصقات PDF');pdf.onclick=async()=>{const t0=Date.now(),old=pdf.textContent;pdf.disabled=true;pdf.textContent='⏳ جاري إنشاء ملصقات CLP…';
       /* fertige Datei im App-Fenster öffnen (Öffnen · Drucken · WhatsApp) – das Teilen direkt nach langem Warten scheitert auf Android still */
-      try{const r=await clpMake(l);const files=r.files.map(f=>({name:f.name.replace(/\.pdf$/i,'')+' '+soNr(o)+'.pdf',blob:f.blob}));
+      try{const rs=await Promise.all(parts()),r={files:rs.flatMap(x=>x.files||[]),fehlend:rs.flatMap(x=>x.fehlend||[])};const files=r.files.map(f=>({name:f.name.replace(/\.pdf$/i,'')+' '+soNr(o)+'.pdf',blob:f.blob}));
         const note=[(r.fehlend&&r.fehlend.length)?'بدون ملصق: '+r.fehlend.join('، '):'','⏱️ '+Math.round((Date.now()-t0)/1000)+' ث'].filter(Boolean).join(' · ');
         if(files.length)filesSheet(l,{files,note});else alert(note||'لا يوجد ملف.')}catch(e){alert('تعذّر إنشاء الملصقات: '+e.message)}
       pdf.disabled=false;pdf.textContent=old};
