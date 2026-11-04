@@ -3019,7 +3019,7 @@ async function savePdf(kind,l,btn,out){
 }
 /* choose which oils (and how many labels each) are printed – for CLP, simple and original-name labels */
 const labSel={},LAB_KINDS=['clp','lab','labo'];
-function labOrder(l){const s=labSel[orderKey(l)];if(!s)return l;const items=[];(l.items||[]).forEach((it,i)=>{if(isOil(it)&&s[i]>0)items.push(Object.assign({},it,{q:s[i],_ix:i}))});return Object.assign({},l,{items,_part:true})}
+function labOrder(l){const s=labSel[orderKey(l)];if(!s)return l;const items=[];(l.items||[]).forEach((it,i)=>{const j=it._ix!=null?it._ix:i;if(isOil(it)&&s[j]>0)items.push(Object.assign({},it,{q:s[j],_ix:j}))});return Object.assign({},l,{items,_part:true})}
 function labPicker(l){
   const k=orderKey(l),oils=(l.items||[]).map((it,i)=>[it,i]).filter(([it])=>isOil(it));
   const d=el('details','labsel'),sm=el('summary');d.append(sm);
@@ -5428,7 +5428,7 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
     if(nPr){const pm=el('button','btn'+(nGr?'':' primary'),'🏷️ ملصقات العينات → Phomemo · '+nPr);pm.onclick=()=>epsonPrint(sub(isPr),pm);a2.append(pm)}
     const ep=el('button','btn','🖨️ ملصقات CLP → Epson'+(nPr?' · '+nGr:''));ep.onclick=()=>epsonPrint(sub(it=>it.oil&&!isPr(it)),ep);if(!nGr)ep.hidden=true;
     const gSub=()=>labOrder(sub(it=>it.oil&&!isPr(it))),pSub=()=>labOrder(sub(isPr));
-    const parts=()=>[nGr?clpMake(gSub()):null,nPr?clpMake(pSub()):null].filter(Boolean);
+    const parts=()=>[nGr?gSub():null,nPr?pSub():null].filter(x=>x&&x.items.length).map(clpMake);
     /* sofort im Hintergrund vorbereiten (Server, mit Noten) */
     setTimeout(()=>{try{Promise.all(parts()).then(()=>{[ep,pdf].forEach(x=>{if(x&&x.isConnected&&!/✓/.test(x.textContent))x.textContent+=' ✓'})}).catch(()=>{})}catch(_){}},200);
     const pdf=el('button','btn','📄 ملصقات PDF');pdf.onclick=async()=>{const t0=Date.now(),old=pdf.textContent;pdf.disabled=true;pdf.textContent='⏳ جاري إنشاء ملصقات CLP…';
@@ -5437,7 +5437,7 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
         const note=[(r.fehlend&&r.fehlend.length)?'بدون ملصق: '+r.fehlend.join('، '):'','⏱️ '+Math.round((Date.now()-t0)/1000)+' ث'].filter(Boolean).join(' · ');
         if(files.length)filesSheet(l,{files,note});else alert(note||'لا يوجد ملف.')}catch(e){alert('تعذّر إنشاء الملصقات: '+e.message)}
       pdf.disabled=false;pdf.textContent=old};
-    a2.append(ep,pdf);if(a2.querySelectorAll('button:not([hidden])').length%2)pdf.classList.add('wide');b.append(a2)}
+    a2.append(ep,pdf);if(a2.querySelectorAll('button:not([hidden])').length%2)pdf.classList.add('wide');b.append(labPicker(l),a2)}
   if(soAbh(o)){sec('🏬 الاستلام من المستودع');const ap=el('div','so-act');
     const go=async(was,btn,q)=>{if(!confirm(q))return;btn.disabled=true;try{o.stand=await soCall('so_set',{id:o.id,nr:o.nr,patch:{abhol:was}});if(was==='abgeholt')o.ful='FULFILLED';toast(was==='bereit'?'✅ أُرسل للعميل إيميل «جاهز للاستلام»':'✅ أُغلق الطلب في Shopify');soDetail(b,o.id)}catch(e){btn.disabled=false;alert('⚠️ '+e.message)}};
     const rb=el('button','btn'+(st.abBereitAt?'':' primary'),st.abBereitAt?'✅ جاهز للاستلام · '+soDate(st.abBereitAt):'📦 جاهز للاستلام');rb.disabled=!!st.abBereitAt;
