@@ -5400,10 +5400,13 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
   if(soAbh(o))hd.append(el('div','status','🏬 استلام من المستودع – لا يُشحن'));
   if(o.notiz){const n=el('div','status err','📝 '+o.notiz);if(o.notizAr)n.append(el('div','so-ar','🔤 '+o.notizAr));hd.append(n)}
   if(soLatePaid(o))hd.append(el('div','status','🔔 طلب من '+soDate(o.at)+' دُفع في '+soDate(o.paidAt)));b.append(hd);
-  const l=soAsList(o),pc=el('span','so-ltr');
+  const l=soAsList(o),pc=el('span','so-ltr'),cbs=[];
+  {const ab=el('div','row');ab.style.cssText='gap:8px;flex-wrap:wrap;margin:10px 0 4px';const all=el('button','btn small','✓ تحديد الكل · Alle'),none=el('button','btn small','✗ إلغاء الكل · Keine');
+    const setAll=v=>{o.items.forEach((_,i)=>{chk[i]=v;if(cbs[i])cbs[i].checked=v});soPrepSave(o,chk);pc.textContent=chk.filter(Boolean).length+' / '+o.items.length;try{beepOk&&v&&beepOk()}catch(e){}};
+    all.onclick=e=>{e.preventDefault();setAll(true)};none.onclick=e=>{e.preventDefault();setAll(false)};ab.append(all,none);b.append(ab)}
   const sec=t=>b.append(el('div','so-sec',t));
   const row=(it,ix)=>{const r=el('label','ivrow');r.style.gridTemplateColumns='auto 1fr';const cb=document.createElement('input');cb.type='checkbox';cb.checked=!!chk[ix];
-    cb.onchange=()=>{chk[ix]=cb.checked;save({prep:chk});pc.textContent=chk.filter(Boolean).length+' / '+o.items.length};
+    cb.onchange=()=>{chk[ix]=cb.checked;soPrepSave(o,chk);pc.textContent=chk.filter(Boolean).length+' / '+o.items.length};cbs[ix]=cb;
     const inf=el('div','ivinfo');if(it.oil){const pl=itPlatz(it),tl=String(it.tier||'').trim(),tg=el('div','ipl');tg.append(el('b',null,pl||'—'));if(tl)tg.append(el('span','ivq '+tl.charAt(0).toUpperCase(),tl));inf.append(tg)}inf.append(el('div','ivname',it.q+' × '+it.t));{const fid=((o.stand||{}).freiImg||{})[it.t];if(fid){const im=el('img');im.style.cssText='width:56px;height:56px;object-fit:cover;border-radius:8px;margin:4px 0';driveImg(fid).then(u=>{if(u)im.src=u}).catch(()=>{});inf.append(im)}}{const nn=((o.stand||{}).namen||{})[it.lid],dd=((o.stand||{}).doku||{})[it.lid]||{},t=[nn,dd.code,dd.hs?'HS '+dd.hs:'',dd.ur?'Ursprung '+dd.ur:''].filter(Boolean).join(' · ');if(t)inf.append(el('div','ivtn','✏️ على الأوراق والجمارك: '+t))}
     inf.append(el('div','ivtn',(it.oil?it.code+' · '+it.size:(it.size||''))+(it.sku&&!it.oil?' · '+it.sku:'')));
     if(it.oil){const lo=lotNow(it);if(lo)inf.append(el('div','ivtn','الدفعة · Charge: '+lo.b))}
@@ -5759,7 +5762,25 @@ function soLsPdf(orders){
 var SOQ=null,soqN=0,soqT=0,soqMsg=0;
 async function soqLoad(){if(!SOQ){const c=await IDB.get('soq');if(!SOQ){SOQ=Array.isArray(c)?c:[];SOQ.forEach(j=>{delete j.run});soqApply(SO);soSetCount()}}return SOQ}
 function soqApply(d){try{if(SOQ&&SOQ.length&&d&&d.orders)SOQ.forEach(j=>{const o=d.orders.find(x=>String(x.id)===String(j.id));if(!o)return;const st=o.stand=o.stand||{};if((+st.lsAt||0)>=j.patch.lsAt)return;
-    st.lsN=(+st.lsN||0)+1;Object.assign(st,j.patch);if(j.patch.ready&&!st.readyAt)st.readyAt=j.t})}catch(e){}return d}
+    st.lsN=(+st.lsN||0)+1;const pt=Object.assign({},j.patch),lp=SOPREP[o.id];if(lp&&lp.t>j.t){delete pt.prep;delete pt.ready;delete pt.lots}Object.assign(st,pt);if(pt.ready&&!st.readyAt)st.readyAt=j.t})}catch(e){}
+  try{soPrepOverlay(d)}catch(e){}return d}
+/* Tick-Änderungen der Mitarbeiter haben Vorrang vor älteren Server-/Cache-Ständen (sonst springen Häkchen zurück) */
+var SOPREP=(()=>{try{return JSON.parse(localStorage.getItem('fh-soprep')||'{}')||{}}catch(e){return {}}})();
+const soPrepKeep=()=>{try{localStorage.setItem('fh-soprep',JSON.stringify(SOPREP))}catch(e){}};
+function soPrepOverlay(d){if(!d||!d.orders)return;const now=Date.now();let ch=false;
+  Object.keys(SOPREP).forEach(id=>{const lp=SOPREP[id];if(!lp||now-lp.t>30*60e3){delete SOPREP[id];ch=true;return}
+    const o=d.orders.find(x=>String(x.id)===String(id));if(!o)return;const st=o.stand=o.stand||{};
+    const srv=(st.prep||[]).map(Boolean),loc=lp.p.map(Boolean);
+    if(lp.ok&&srv.length===loc.length&&srv.every((v,i)=>v===loc[i])){delete SOPREP[id];ch=true;return}
+    st.prep=lp.p.slice()});if(ch)soPrepKeep()}
+const soPrepQ={};
+function soPrepSave(o,chk){const id=o.id,t=Date.now();SOPREP[id]={p:chk.map(Boolean),t};soPrepKeep();
+  clearTimeout((soPrepQ[id]||{}).tm);const q=soPrepQ[id]=soPrepQ[id]||{};
+  q.tm=setTimeout(()=>{q.pr=(q.pr||Promise.resolve()).then(async()=>{const lp=SOPREP[id];if(!lp)return;const mine=lp.t;
+    try{const s=await soCall('so_set',{id:o.id,nr:o.nr,patch:{prep:lp.p.slice()}});const cur=SOPREP[id];
+      if(cur&&cur.t===mine){cur.ok=Date.now();soPrepKeep()}
+      if(s){s.prep=(SOPREP[id]||lp).p.slice();o.stand=s;const so=(SO.orders||[]).find(x=>String(x.id)===String(id));if(so)so.stand=s}soSetCount()}
+    catch(e){toast('⚠️ لم يُحفظ التحضير – سيُعاد المحاولة · '+e.message);setTimeout(()=>soPrepSave(o,(SOPREP[id]||lp).p),5000)}})},350)}
 async function soqAdd(o,patch){await soqLoad();SOQ.push({id:o.id,nr:o.nr,patch,t:Date.now()});IDB.set('soq',SOQ);soqRun()}
 function soqRun(){if(!SOQ)return soqLoad().then(soqRun);const now=Date.now(),n0=SOQ.length;
   /* bestätigte Vermerke 15 Min. weiter überlagern (die Serverliste kann kurz älter sein); nach 3 Tagen ohne Erfolg aufgeben */
