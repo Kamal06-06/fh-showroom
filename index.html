@@ -2842,6 +2842,12 @@ const clpNurProben=l=>{const o=(l.items||[]).filter(isOil);return o.length>0&&o.
 function clpMake(l){const k=clpMemoKey(l);if(clpMemo[k])return clpMemo[k];
   /* Proben 40 × 30 (Phomemo): bewährtes Format aus dem Gerät – sofort fertig, scharf */
   if(clpNurProben(l)){const p=clpLocal(l).catch(e=>{delete clpMemo[k];return clpFetch(l)});clpMemo[k]=p;return p}
+  /* gemischter Auftrag: große CLP-Etiketten vom Server (mit Noten), Proben 40 × 30 immer aus dem Gerät (Server-Proben sind 80 × 60 und werden auf der Phomemo unscharf/abgeschnitten) */
+  {const isP=it=>it.probe||/^(probe\s*)?([6-9]|1[0-5])\s*g$/i.test(String(it.size||'').trim()),its=(l.items||[]).map((it,i)=>it._ix!=null?it:Object.assign({},it,{_ix:i}));
+    if(its.some(it=>isOil(it)&&isP(it))&&its.some(it=>isOil(it)&&!isP(it))){
+      const gL=Object.assign({},l,{items:its.filter(it=>!(isOil(it)&&isP(it)))}),pL=Object.assign({},l,{items:its.filter(it=>isOil(it)&&isP(it))});
+      const p=Promise.all([clpMake(gL),clpMake(pL)]).then(([g,q])=>({files:g.files.filter(f=>!/^Proben/.test(f.name)).concat(q.files),fehlend:(g.fehlend||[]).concat(q.fehlend||[])})).catch(e=>{delete clpMemo[k];throw e});
+      clpMemo[k]=p;return p}}
   const p=clpFetch(l).catch(async e=>{console.warn('CLP Server → lokal',e);delete clpMemo[k];try{toast('⚠️ الخادم لم يستجب – الملصقات صُنعت في الجهاز بدون النوتات')}catch(_){}return await clpLocal(l)});
   clpMemo[k]=p;return p}
 async function orderFiles(l,which){
@@ -2866,7 +2872,7 @@ async function withLinks(files){for(const f of files){if(!f.url)f.url=await srv(
 /* WhatsApp-Link zu einer Kundennummer: 0049…/0… (Deutschland) → internationales Format */
 function custWa(ph,msg){let d=String(ph||'').replace(/[^0-9+]/g,'');if(d.startsWith('+'))d=d.slice(1);else if(d.startsWith('00'))d=d.slice(2);else if(d.startsWith('0'))d='49'+d.slice(1);d=d.replace(/\D/g,'');return 'https://wa.me/'+d+(msg?'?text='+encodeURIComponent(msg):'')}
 function waHref(msg){const num=String(waNum||'').replace(/[^0-9]/g,'');return 'https://api.whatsapp.com/send?'+(num?'phone='+num+'&':'')+'text='+encodeURIComponent(msg)}
-const clpSig=l=>JSON.stringify([(l.items||[]).filter(isOil).map(i=>[i.code,i.tier,i.size,i.q||1,i.t]),l.clpAddr||'',l.country||'DE',l.custNo||'','v8',Object.values(l.lots||{}).map(x=>x&&x.b).join(',')].concat(l.clpLogo?[l.clpLogo]:[]));
+const clpSig=l=>JSON.stringify([(l.items||[]).filter(isOil).map(i=>[i.code,i.tier,i.size,i.q||1,i.t]),l.clpAddr||'',l.country||'DE',l.custNo||'','v9',Object.values(l.lots||{}).map(x=>x&&x.b).join(',')].concat(l.clpLogo?[l.clpLogo]:[]));
 function clpReady(l){return l.clpFiles&&l.clpFiles.length&&l.clpSig===clpSig(l)}
 async function pregenClp(id,rec){
   if(!(rec.items||[]).some(isOil))return;
