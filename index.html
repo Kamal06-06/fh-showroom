@@ -2532,13 +2532,15 @@ function druckMeldung(btn,o,msg,st,fehler){
 /* CLP → Druck-Warteschlange → Mini-PC im Lager druckt auf der Epson ColorWorks */
 async function epsonPrint(l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
   try{const lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»');
-    const stP=druckStatus(),r=await clpMake(lo);
+    const T0=Date.now(),stP=druckStatus(),r=await clpMake(lo),T1=Date.now();
     /* Epson hat die 102 × 51-Rolle: nur CLP-Etiketten dorthin. Proben 40 × 30 → Phomemo (Mini-PC, Präfix "P-") */
     const ep=r.files.filter(f=>!/^Proben/.test(f.name)),pr=r.files.filter(f=>/^Proben/.test(f.name));
     if(!ep.length&&!pr.length)throw new Error('لا يوجد ملصق CLP لهذه الأصناف');
     btn.textContent='جاري الإرسال إلى المستودع…';
     await Promise.all(ep.map(async f=>druckQ(f.name,await blob64(f.blob))).concat(pr.map(f=>pmQueue(f.blob,f.name))));
-    const msg=(ep.length?'✓ أُرسلت إلى طابعة Epson':'')+(pr.length?(ep.length?' · ':'✓ ')+'ملصقات العيّنات 40 × 30 → طابعة Phomemo في المستودع':'')+(r.fehlend&&r.fehlend.length?' · بدون ملصق: '+r.fehlend.join('، '):'');
+    /* Zeitmessung: warten bis der Server den Auftrag angenommen hat (max. 25 s) */
+    {const tE=Date.now()+25000;while(Date.now()<tE&&(DQL||[]).length)await new Promise(r=>setTimeout(r,250))}const T2=Date.now();
+    const msg=(ep.length?'✓ أُرسلت إلى طابعة Epson':'')+(pr.length?(ep.length?' · ':'✓ ')+'ملصقات العيّنات 40 × 30 → طابعة Phomemo في المستودع':'')+(r.fehlend&&r.fehlend.length?' · بدون ملصق: '+r.fehlend.join('، '):'')+' · ⏱️ تجهيز '+((T1-T0)/1000).toFixed(1)+' ث + إرسال '+((T2-T1)/1000).toFixed(1)+' ث';
     druckMeldung(btn,o,msg,druckSt.v)}
   catch(e){druckMeldung(btn,o,'تعذّر الإرسال إلى الطابعة: '+(e.message||e),null,true)}}
 /* Angebot/Packliste → Druck-Warteschlange → Mini-PC druckt auf dem A4-Drucker (Brother) im Lager. Dateiname mit "A4-" = A4-Drucker */
