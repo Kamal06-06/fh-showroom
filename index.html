@@ -2072,7 +2072,7 @@ function search(){
   if(!out.length&&!extra.length){box.append(el('p','hint','لا يوجد صنف مطابق. (إذا أضفته في شوبيفاي حديثاً: ⚙️ ← «تحديث الأصناف والأسعار من Shopify»)'));return}
   if(hits.length>out.length){const more=el('button','btn small','عرض كل النتائج ('+hits.length+')');more.onclick=()=>{window._qlim=hits.length;search()};setTimeout(()=>box.append(more),0)}
   else window._qlim=0;
-  out.forEach(p=>{
+  pcCss();out.forEach(p=>{
     const r=el('div','res');
     if(!p.oil&&p.i)r.append(mkImg(p.i,'thumb'));
     const info=el('div','info');
@@ -2080,7 +2080,9 @@ function search(){
     if(!p.oil){const seen=new Set();opts=opts.map((o,ix)=>{const g=grpOf(p,p.v[ix]);if(!g)return o;if(seen.has(g.gb))return null;seen.add(g.gb);
       const ps=g.grp.map(x=>x.price).filter(x=>x!=null);const mu=g.grp.find(x=>/^(muster|1\s*st)/i.test(x.q)),rest=g.grp.filter(x=>x!==mu&&x.price!=null),rk=rest.length?packKey(rest[0].q).replace(/\s*à.*$/,''):'';
       return Object.assign({},o,g,{label:g.gb,price:null,from:null,hint:[mu&&mu.price!=null?'1 Stück '+money(mu.price):'',rest.length?rk+' ab '+money(Math.min(...rest.map(x=>x.price))):''].filter(Boolean).join(' · ')})}).filter(Boolean)}
-    info.append(el('div','name',p.t));if(p.a)info.append(el('div','alias',p.a));info.append(el('div','code',opts[0]?opts[0].code:''));
+    {const nm=el('div','name pc-link',p.t);nm.title='عرض المنتج كما في المتجر';nm.onclick=()=>prodCard(p);info.append(nm)}if(p.a)info.append(el('div','alias',p.a));info.append(el('div','code',opts[0]?opts[0].code:''));
+    {const sws=pcSwatches(p);if(sws.length){const sr=el('div','pc-mini');sws.forEach(x=>{const d=el('span','pc-dot');pcPaint(d,x);d.title=x.v;sr.append(d)});info.append(sr)}}
+    {const ob=el('button','btn small pc-open','🛍️ الخيارات كما في المتجر');ob.onclick=()=>prodCard(p);info.append(ob)}
     const c=el('div','chips');
     opts.forEach(o=>{
       const b=el('button','chip',(o.label||'إضافة')+(o.price!=null?' · '+money(o.price):o.hint?' · '+o.hint:''));
@@ -2240,7 +2242,7 @@ function normVar(v){v=gramProbe(v);const a=String(v[0]||'').split(' / ').map(x=>
 const fold=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’'`´]/g,'').replace(/ß/g,'ss').toLowerCase();
 function setCatalog(ps){
   ps=ps.map(p=>{const oil=p.o!=null?p.o===1:p.v.some(v=>(v[0]||'').includes(' / ')&&/-SH(-|$)/.test(v[1]||''));return oil?Object.assign({},p,{v:p.v.map(normVar)}):p});
-  catalog=ps.map(p=>({t:p.t,v:p.v,i:p.i||'',a:p.a||'',oil:p.o!=null?p.o===1:p.v.some(v=>(v[0]||'').includes(' / ')&&/-SH(-|$)/.test(v[1]||'')),k:fold(p.t+' '+(p.a||'')+' '+p.v.map(v=>v[1]||'').join(' ')),kt:fold(p.t)}));
+  catalog=ps.map(p=>({t:p.t,v:p.v,i:p.i||'',a:p.a||'',op:p.op||null,vo:p.vo||null,vi:p.vi||null,av:p.av||null,im:p.im||null,sw:p.sw||null,h:p.h||'',ty:p.ty||'',oil:p.o!=null?p.o===1:p.v.some(v=>(v[0]||'').includes(' / ')&&/-SH(-|$)/.test(v[1]||'')),k:fold(p.t+' '+(p.a||'')+' '+p.v.map(v=>v[1]||'').join(' ')),kt:fold(p.t)}));
 }
 const pnum=x=>(x==null||x==='')?null:+x;
 const gramsOf=s=>{const m=/^\s*(\d+(?:[.,]\d+)?)\s*g\b/i.exec(String(s||''));return m?+m[1].replace(',','.'):0};
@@ -2272,6 +2274,77 @@ function options(p){
     return {label:t,tier:t,size,code:stem(src[1]),sku:hit?hit[1]:'',price:hit?pnum(hit[2]):null,off:!hit};
   });
 }
+/* ================= 🛍️ Produktkarte wie im Shop: Optionen, Farb-Swatches, Bilder, Preis je Variante ================= */
+function pcCss(){if($('pc-css'))return;const st=document.createElement('style');st.id='pc-css';st.textContent=`
+.pc-link{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+.pc-mini{display:flex;gap:4px;margin:4px 0}.pc-dot{width:16px;height:16px;border-radius:50%;border:1px solid var(--line);background-size:cover;background-position:center;display:inline-block}
+.pc-open{margin-top:6px}
+.pc-wrap{display:grid;gap:16px}@media(min-width:760px){.pc-wrap{grid-template-columns:minmax(260px,1fr) 1.1fr;align-items:start}}
+.pc-img{width:100%;aspect-ratio:1/1;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:16px}
+.pc-thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.pc-thumbs img{width:54px;height:54px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:10px;cursor:pointer}.pc-thumbs img.on{border:2px solid var(--gold)}
+.pc-t{font-size:20px;font-weight:800;line-height:1.3}.pc-a{color:var(--muted);font-size:13px}.pc-sku{font-family:ui-monospace,monospace;font-size:12.5px;color:var(--muted);direction:ltr;text-align:start}
+.pc-price{font-size:26px;font-weight:800;margin:6px 0 2px;direction:ltr;text-align:start}.pc-unit{font-size:13px;color:var(--muted)}
+.pc-opt{margin:14px 0 4px}.pc-opt .lb{font-size:13px;font-weight:700;margin-bottom:6px}.pc-opt .lb span{font-weight:500;color:var(--muted)}
+.pc-vals{display:flex;flex-wrap:wrap;gap:8px}
+.pc-v{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer;direction:ltr;min-height:42px}
+.pc-v.on{border-color:var(--ink);background:var(--ink);color:var(--surface)}.pc-v.x{opacity:.35;text-decoration:line-through}
+.pc-sw{width:40px;height:40px;border-radius:50%;border:2px solid var(--line);padding:0;cursor:pointer;background-size:cover;background-position:center;outline-offset:3px}
+.pc-sw.on{outline:2.5px solid var(--ink)}.pc-sw.x{opacity:.35}
+.pc-qty{display:flex;align-items:center;gap:8px;margin:16px 0 10px}.pc-qty button{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:20px;cursor:pointer;color:var(--ink)}
+.pc-qty input{width:80px;height:44px;text-align:center;font:inherit;font-size:17px;border:1px solid var(--line);border-radius:10px}
+.pc-add{width:100%}.pc-stk{font-size:13px;margin-top:4px}`;document.head.append(st)}
+/* Swatches einer Option „Farbe/Color" (aus Shopify) */
+function pcSwatches(p){if(!p||!p.op||!p.sw)return [];const o=p.op.find(x=>/farbe|color|colour/i.test(x.n));if(!o)return [];
+  return o.v.map(v=>{const s=p.sw[o.n+'|'+v];return s?{v,c:s[0],im:s[1]}:null}).filter(Boolean)}
+function pcPaint(d,x){if(x.im)d.style.backgroundImage='url("'+x.im+'")';else d.style.background=x.c||'#ddd'}
+/* Varianten eines Produkts als Liste {o:[Optionswerte], title, sku, price, img, av} */
+function pcVariants(p){
+  if(p.oil){/* Öle: Titel ist normalisiert „GRÖSSE / QUALITÄT" */
+    return p.v.map(v=>{const a=String(v[0]||'').split(' / ').map(x=>x.trim());const tier=a.length>1?a[a.length-1]:'';return {o:[a[0],tier].filter(x=>x!==''),title:v[0],sku:v[1]||'',price:pnum(v[2]),img:'',av:1,size:a[0],tier}})}
+  return p.v.map((v,i)=>({o:p.vo&&p.vo[i]?p.vo[i]:(v[0]?String(v[0]).split(' / '):[]),title:v[0]||'',sku:v[1]||'',price:pnum(v[2]),img:p.vi&&p.vi[i]||'',av:p.av?p.av[i]!==0:true}))}
+function pcOptions(p,vars){
+  if(p.oil){const sz=[],tr=[];vars.forEach(v=>{if(v.size&&!sz.includes(v.size))sz.push(v.size);if(v.tier&&!tr.includes(v.tier))tr.push(v.tier)});
+    return [{n:'الحجم · Inhalt',v:sz}].concat(tr.length?[{n:'الجودة · Qualität',v:tr}]:[])}
+  if(p.op&&p.op.length)return p.op.map(o=>({n:o.n,v:o.v.slice()}));
+  const n=Math.max(0,...vars.map(v=>v.o.length)),out=[];for(let i=0;i<n;i++){const vals=[];vars.forEach(v=>{const x=v.o[i];if(x!=null&&!vals.includes(x))vals.push(x)});out.push({n:'Option '+(i+1),v:vals})}return out}
+const pcSt=n=>{const m=/^\s*([\d.]+)\s*(stück|stk|pcs)/i.exec(String(n||''));return m?+m[1].replace(/\./g,''):0};
+function prodCard(p){pcCss();const vars=pcVariants(p),opts=pcOptions(p,vars);if(!vars.length)return;
+  /* Startauswahl: bei Ölen die oben gewählte Größe, sonst erste verfügbare Variante */
+  let cur=(p.oil&&vars.find(v=>nz(v.size)===nz(size)))||vars.find(v=>v.av)||vars[0],sel=cur.o.slice(),qty=1;
+  openSheet('🛍️ '+p.t,b=>{
+    const wrap=el('div','pc-wrap'),L=el('div'),R=el('div');wrap.append(L,R);b.append(wrap);
+    const imgs=[...new Set([].concat(p.im||[],vars.map(v=>v.img).filter(Boolean),p.i?[p.i]:[]))];
+    const big=el('img','pc-img');big.alt='';big.onerror=()=>{big.style.visibility='hidden'};L.append(big);const th=el('div','pc-thumbs');L.append(th);
+    imgs.forEach(u=>{const t=el('img');t.src=u;t.loading='lazy';t.alt='';t.onerror=()=>t.remove();t.onclick=()=>{big.src=u;big.style.visibility='';[...th.children].forEach(x=>x.classList.toggle('on',x===t))};th.append(t)});
+    if(!imgs.length){big.remove()}
+    R.append(el('div','pc-t',p.t));if(p.a)R.append(el('div','pc-a',p.a));
+    const sku=el('div','pc-sku'),pr=el('div','pc-price'),un=el('div','pc-unit'),stk=el('div','pc-stk');R.append(sku,pr,un,stk);
+    const ob=el('div');R.append(ob);
+    const find=o=>vars.find(v=>o.every((x,i)=>v.o[i]===x));
+    const exists=(i,val)=>vars.some(v=>v.o[i]===val&&sel.every((x,j)=>j===i||v.o[j]===x));
+    function draw(){ob.textContent='';
+      opts.forEach((o,i)=>{const box=el('div','pc-opt'),lb=el('div','lb');lb.append(o.n.replace(/^Option \d+$/,'الخيار')+': ',el('span',null,sel[i]||'—'));box.append(lb);const vs=el('div','pc-vals');
+        const swOpt=!p.oil&&/farbe|color|colour/i.test(o.n)&&p.sw;
+        o.v.forEach(val=>{const ok=exists(i,val),on=sel[i]===val,s=swOpt&&p.sw[o.n+'|'+val];let x;
+          if(s){x=el('button','pc-sw'+(on?' on':'')+(ok?'':' x'));pcPaint(x,{c:s[0],im:s[1]});x.title=val;x.setAttribute('aria-label',val)}
+          else{x=el('button','pc-v'+(on?' on':'')+(ok?'':' x'),val)}
+          x.type='button';x.onclick=()=>{sel[i]=val;let v=find(sel);if(!v){v=vars.find(w=>w.o[i]===val)||cur;sel=v.o.slice()}cur=v;draw()};vs.append(x)});
+        box.append(vs);ob.append(box)});
+      sku.textContent=(p.oil?stem(cur.sku):cur.sku)||'';
+      pr.textContent=cur.price!=null?money(cur.price):'السعر غير متوفر';
+      const n=pcSt(cur.o.join(' ')),g=p.oil?sizeG(cur.size):0;
+      un.textContent=n>1&&cur.price!=null?'= '+money(cur.price/n)+' للقطعة · '+n+' قطعة':(g>=100&&cur.price!=null?'= '+money(cur.price/g*1000)+' لكل 1 kg':'');
+      stk.textContent='';if(!cur.av)stk.append(el('span','va-bad','⚠️ غير متوفر حالياً في المتجر'));
+      if(p.oil){const x=ivByKey.get(stem(cur.sku).toUpperCase()+'|'+String(cur.tier||'S').trim().charAt(0).toUpperCase());if(x&&!stkUnk(x)){const v=+x.bestand||0;stk.append((v<=0?'🔴 ':'🟢 ')+'المخزون: '+stkFmt(v,x.unit))}}
+      if(cur.img){big.src=cur.img;big.style.visibility='';[...th.children].forEach(x=>x.classList.toggle('on',x.src===cur.img))}else if(!big.getAttribute('src')&&imgs[0])big.src=imgs[0]}
+    draw();
+    const q=el('div','pc-qty'),mi=el('button',null,'−'),qi=el('input'),pl=el('button',null,'+');qi.type='number';qi.min='1';qi.value='1';qi.inputMode='numeric';
+    mi.onclick=()=>{qi.value=Math.max(1,(+qi.value||1)-1)};pl.onclick=()=>{qi.value=(+qi.value||0)+1};q.append(el('b',null,'الكمية'),mi,qi,pl);R.append(q);
+    const add=el('button','btn primary big pc-add','➕ إضافة إلى الطلب');R.append(add);
+    add.onclick=()=>{const n=Math.max(1,Math.floor(+qi.value||1));
+      const it=p.oil?{t:p.t,a:p.a||'',oil:1,tier:cur.tier,code:stem(cur.sku),size:cur.size,sku:cur.sku,price:cur.price}:{t:p.t,a:'',oil:0,tier:'',code:cur.sku,size:cur.title,sku:cur.sku,price:cur.price};
+      for(let k=0;k<n;k++)addItem(Object.assign({},it));toast('✓ أُضيف: '+p.t+' · '+cur.title.replace(/ \/ /g,' · ')+(n>1?' × '+n:''));closeSheet();try{$('q').value='';search();$('q').focus()}catch(e){}};
+  })}
 function catStatus(msg,err){const s=$('cat-status');s.hidden=!msg;s.textContent=msg||'';s.classList.toggle('err',!!err)}
 async function loadCatalog(){
   try{
