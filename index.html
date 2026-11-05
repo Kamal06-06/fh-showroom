@@ -1483,13 +1483,43 @@ function kkAdrForm(g,a0){openSheet('📍 عنوان · Adresse',b=>{soCss();kkCs
 })}
 /* Adress-Auswahl im Auftrag (Schritt 4): gespeicherte Adressen des Kunden als Schnellwahl */
 function kkLiefChips(){const box=$('lief-chips');if(!box)return;box.textContent='';const c=findCust(String(draft.cust||'').trim());const ads=kkAdressen(c);
-  box.hidden=!ads.length||!(draft.lief==='de'||draft.lief==='ab');if(box.hidden)return;
-  box.append(el('span','hint','العناوين المحفوظة:'));
+  box.hidden=!(draft.lief==='de'||draft.lief==='ab');if(box.hidden)return;
+  if(ads.length)box.append(el('span','hint','العناوين المحفوظة:'));
   ads.forEach(a=>{const x=el('button',null,(KK_TYP[a.typ]||'').split(' ')[0]+' '+(a.label||(a.typ==='rech'?'عنوان الفاتورة':[a.name,a.ort].filter(Boolean).join(' · '))));x.type='button';
     const on=draft.dhlAdr?(draft.dhlAdr.a1===a.a1&&draft.dhlAdr.plz===a.plz):(a.typ==='rech'&&draft.street===a.a1);x.classList.toggle('on',!!on);
     x.onclick=()=>{draft.street=[a.a1].filter(Boolean).join('');draft.city=joinCity(a.plz,a.ort);draft.country=a.land||'DE';$('street').value=draft.street;setCityUI(draft.city);$('country').value=draft.country;try{showLang()}catch(e){}
       draft.dhlAdr=a.typ==='rech'?null:kkDhl(c,a);if(draft.lief==='de'&&draft.country!=='DE')draft.lief='ab';saveDraft();liefUI();kkLiefChips();updStepper()};box.append(x)});
-  if(draft.dhlAdr){const d=el('div','note');d.style.width='100%';d.textContent=(draft.dhlAdr.drop?'🔁 مستلم نهائي · المرسِل على الملصق: '+draft.dhlAdr.abs+' c/o Fragrance Hub · ':'📍 ')+kkTxt(draft.dhlAdr).replace(/\n/g,' · ');box.append(d)}}
+  if(draft.dhlAdr){const d=el('div','note');d.style.width='100%';d.textContent=(draft.dhlAdr.drop?'🔁 مستلم نهائي · المرسِل على الملصق: '+draft.dhlAdr.abs+' c/o Fragrance Hub · ':'📍 ')+kkTxt(draft.dhlAdr).replace(/\n/g,' · ');box.append(d)}
+  /* 🔁 Dropshipping immer sichtbar: Versand an den Kunden des Kunden */
+  {const on=!!(draft.dhlAdr&&draft.dhlAdr.drop),dz=el('button',on?'on':'',on?'🔁 تعديل المستلم النهائي (Dropshipping)':'🔁 الشحن إلى عميل عميلي (Dropshipping)');dz.type='button';dz.onclick=()=>dropForm(c);box.append(dz);
+    if(on){const x=el('button',null,'✖ إلغاء Dropshipping');x.type='button';x.onclick=()=>{draft.dhlAdr=null;saveDraft();liefUI();kkLiefChips();updStepper()};box.append(x)}}}
+/* Endempfänger direkt im Auftrag eingeben (ohne den Auftrag zu verlassen) – wird zusätzlich beim Kunden gespeichert */
+function dropForm(c){const g={name:String(draft.cust||'').trim()};if(!g.name){alert('اختر العميل أولاً في الخطوة 1');return}
+  openSheet('🔁 الشحن إلى عميل عميلي · Dropshipping',b=>{soCss();kkCss();
+  const a=Object.assign({land:'DE'},draft.dhlAdr&&draft.dhlAdr.drop?draft.dhlAdr:{}),txt=v=>String(v||'').trim();
+  b.append(el('p','hint','الحساب والفاتورة والدين تبقى باسم «'+g.name+'». على ملصق DHL يظهر «'+g.name+' c/o Fragrance Hub Germany» كمرسِل، والطرد المرتجع يعود إلينا. ورقة الطرد تكون بدون أسعار وبدون شعارنا.'));
+  const inp={},mk=(k,lab,v,x)=>{const i=el('input');i.dir='ltr';i.autocomplete='off';i.value=v||'';Object.assign(i,x||{});inp[k]=i;field(b,lab,i);return i};
+  mk('abs','اسم المرسِل على الملصق · Absender',a.abs||g.name);
+  mk('name','اسم المستلم النهائي · Name *',a.name);mk('firma','الشركة · Firma (اختياري)',a.firma);
+  mk('a1','الشارع ورقم المبنى · Straße + Hausnr. *',a.a1);mk('a2','إضافة على العنوان · Adresszusatz (اختياري)',a.a2);
+  const cw=el('div');cw.style.cssText='display:grid;grid-template-columns:130px 1fr;gap:8px';b.append(cw);
+  const pz=el('input');pz.dir='ltr';pz.maxLength=10;pz.value=a.plz||'';inp.plz=pz;field(cw,'الرمز البريدي · PLZ *',pz);
+  const ot=el('input');ot.dir='ltr';ot.value=a.ort||'';inp.ort=ot;field(cw,'المدينة · Ort *',ot);
+  const ls=countrySel(a.land);ls.style.cssText='padding:10px;font:inherit;border-radius:10px;width:100%';field(b,'الدولة · Land',ls);
+  mk('tel','الهاتف · Telefon (اختياري)',a.tel,{type:'tel'});
+  const sv=el('label','clprow'),sc=el('input');sc.type='checkbox';sc.checked=true;sv.append(sc,' 💾 احفظ هذا العنوان عند العميل للمرات القادمة');b.append(sv);
+  try{adrHilfe({plz:inp.plz,ort:inp.ort,str:inp.a1,land:()=>ls.value})}catch(e){}
+  const m=el('div','status');m.hidden=true;const go=el('button','btn primary big','✅ اعتماد المستلم النهائي');go.style.marginTop='10px';b.append(go,m);
+  go.onclick=async()=>{const v=k=>txt(inp[k].value),err=t=>{m.hidden=false;m.classList.add('err');m.textContent=t};
+    const x={id:kkId(),typ:'end',name:v('name'),firma:v('firma'),a1:v('a1'),a2:v('a2'),plz:v('plz'),ort:v('ort'),land:ls.value,tel:v('tel')};
+    if(!x.name&&!x.firma)return err('اسم المستلم مطلوب');if(!x.name)x.name=x.firma;
+    if(!x.a1)return err('الشارع ورقم المبنى مطلوبان');if(!/\d/.test(x.a1))return err('رقم المبنى ناقص');if(!x.plz||!x.ort)return err('الرمز البريدي والمدينة مطلوبان');
+    if(x.land==='DE'&&!/^\d{5}$/.test(x.plz))return err('الرمز البريدي في ألمانيا من 5 أرقام');
+    const cc=c||{name:g.name};draft.dhlAdr=Object.assign(kkDhl(cc,x),{drop:true,abs:v('abs')||g.name});
+    if(draft.lief==='de'&&x.land!=='DE')draft.lief='ab';saveDraft();
+    if(sc.checked){go.disabled=true;try{const k2=await kkEnsure(g);const arr=(k2.addrs||[]).filter(y=>!(y.typ==='end'&&y.a1===x.a1&&y.plz===x.plz));arr.push(x);await kkSave(k2,{addrs:arr.slice(-30)})}catch(e){toast('⚠️ العنوان معتمد للطلب، لكن لم يُحفظ عند العميل: '+(e.message||e))}}
+    closeSheet();liefUI();updStepper();toast('✓ الشحن إلى عميل عميلك: '+x.name+' · '+x.ort)};
+})}
 
 /* ---------- الأقسام · Bereiche: Start · Verkauf · Versand · Kunden & Finanzen · Lager ---------- */
 const HUBS={sales:{t:'🧾 المبيعات',de:'Verkauf · Aufträge · Angebote · Shop',tiles:['h-new','h-wh','h-off','h-done','h-shop']},
