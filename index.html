@@ -2242,7 +2242,8 @@ function gramProbe(v){if(!/pro\s*gramm/i.test(String(v[0]||'')))return v;const p
 function normVar(v){v=gramProbe(v);const a=String(v[0]||'').split(' / ').map(x=>x.trim()).filter(Boolean);if(a.length<2)return v;
   let si=a.findIndex(x=>SIZE_RX.test(x)&&!TIER_RX.test(x));if(si<0)si=0;
   const tier=a.filter((_,i)=>i!==si).map(normTier).join(' / ');return [normSize(a[si])+' / '+tier].concat(v.slice(1))}
-const fold=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’'`´]/g,'').replace(/ß/g,'ss').toLowerCase();
+/* als Funktionsdeklaration: wird schon beim Start gebraucht (Glas-Positionen im Entwurf) */
+function fold(x){return String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’'`´]/g,'').replace(/ß/g,'ss').toLowerCase()}
 function setCatalog(ps){
   ps=ps.map(p=>{const oil=p.o!=null?p.o===1:p.v.some(v=>(v[0]||'').includes(' / ')&&/-SH(-|$)/.test(v[1]||''));return oil?Object.assign({},p,{v:p.v.map(normVar)}):p});
   catalog=ps.map(p=>({t:p.t,v:p.v,i:p.i||'',a:p.a||'',op:p.op||null,vo:p.vo||null,vi:p.vi||null,av:p.av||null,im:p.im||null,sw:p.sw||null,h:p.h||'',ty:p.ty||'',oil:p.o!=null?p.o===1:p.v.some(v=>(v[0]||'').includes(' / ')&&/-SH(-|$)/.test(v[1]||'')),k:fold(p.t+' '+(p.a||'')+' '+p.v.map(v=>v[1]||'').join(' ')),kt:fold(p.t)}));
@@ -5081,7 +5082,7 @@ function toneRow(nb,lab,key,purpose){const r=el('div','dim'),w=el('div','set-row
   s.onchange=()=>{LS.set(key,s.value);up.hidden=s.value!=='mine';if(s.value==='mine'){IDB.get('tone-'+purpose).then(u=>{if(!u)fi.click();else playTone2('mine',purpose)})}else playTone2(s.value,purpose)};
   const tw=el('div','set-tone');tw.style.flexWrap='wrap';tw.append(s,pl,up,fi);w.append(el('label',null,lab),tw);r.append(w,st);nb.append(r)}
 /* ================= 🎧 راديو سوريا (Radio Browser – kostenloses Senderverzeichnis, live geladen) ================= */
-let radioAu=null,radioCur=LS.get('radioCur',null),radioList=null;
+var radioAu=null,radioCur=LS.get('radioCur',null),radioList=null;
 function radioCss(){if($('radio-css'))return;const s=document.createElement('style');s.id='radio-css';s.textContent=`
 .rd-now{display:flex;align-items:center;gap:12px;background:#141210;color:#fff;border-radius:16px;padding:14px;margin-bottom:12px}
 .rd-now .ic{font-size:30px}.rd-now b{display:block;font-size:16px;color:#c9a24a}.rd-now span{font-size:12.5px;color:#cfc6b4}
@@ -5111,7 +5112,7 @@ async function radioLoad(){if(radioList)return radioList;
     if(/meat\s*loaf/i.test(x.name))return false;const k=String(x.name).toLowerCase().replace(/[^a-z؀-ۿ]/g,'').slice(0,12)+'|'+u.replace(/stream-\d+\./,'stream.');if(seen.has(k))return false;seen.add(k);return true})
     .map(x=>({n:String(x.name).trim(),u:x.url_resolved||x.url,f:x.favicon||'',tags:x.tags||'',id:x.stationuuid}));
   return radioList}
-let radioShown=false;
+var radioShown=false;
 const RD_NEWS=/syria tv|تلفزيون سوريا|damascus|دمشق|sham ?fm|tayf|طيف|althania/i;
 const RD_NEWS_EXTRA=[{n:'الجزيرة · أخبار',u:'https://live-hls-audio-web-aja.getaj.net/VOICE-AJA/index.m3u8',f:'',tags:'أخبار عربية'},{n:'مونت كارلو الدولية · أخبار',u:'https://montecarlodoualiya128k.ice.infomaniak.ch/mc-doualiya.mp3',f:'',tags:'أخبار عربية'},{n:'BBC عربي · أخبار',u:'https://stream.live.vc.bbcmedia.co.uk/bbc_arabic_radio',f:'',tags:'أخبار عربية'}];
 function radioTabList(){if(!radioList)return null;if(LS.get('radioTab','all')!=='news')return radioList;
