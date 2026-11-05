@@ -2082,7 +2082,10 @@ function search(){
       return Object.assign({},o,g,{label:g.gb,price:null,from:null,hint:[mu&&mu.price!=null?'1 Stück '+money(mu.price):'',rest.length?rk+' ab '+money(Math.min(...rest.map(x=>x.price))):''].filter(Boolean).join(' · ')})}).filter(Boolean)}
     {const nm=el('div','name pc-link',p.t);nm.title='عرض المنتج كما في المتجر';nm.onclick=()=>prodCard(p);info.append(nm)}if(p.a)info.append(el('div','alias',p.a));info.append(el('div','code',opts[0]?opts[0].code:''));
     {const sws=pcSwatches(p);if(sws.length){const sr=el('div','pc-mini');sws.forEach(x=>{const d=el('span','pc-dot');pcPaint(d,x);d.title=x.v;sr.append(d)});info.append(sr)}}
-    {const ob=el('button','btn small pc-open','🛍️ الخيارات كما في المتجر');ob.onclick=()=>prodCard(p);info.append(ob)}
+
+    /* nur die Shop-Optionen: Klick öffnet die Produktkarte (wie im Shop) */
+    {const ps=p.v.map(v=>pnum(v[2])).filter(x=>x!=null);if(ps.length)info.append(el('div','alias','ab '+money(Math.min(...ps))+' · '+p.v.length+' خيار'))}
+    {const ob=el('button','chip pc-pick','🛍️ اختيار الخيارات');ob.onclick=e=>{e.stopPropagation();prodCard(p)};r.onclick=e=>{if(!e.target.closest('button'))prodCard(p)};r.classList.add('pc-row');r.append(info,ob);box.append(r);return}
     const c=el('div','chips');
     opts.forEach(o=>{
       const b=el('button','chip',(o.label||'إضافة')+(o.price!=null?' · '+money(o.price):o.hint?' · '+o.hint:''));
@@ -2278,7 +2281,7 @@ function options(p){
 function pcCss(){if($('pc-css'))return;const st=document.createElement('style');st.id='pc-css';st.textContent=`
 .pc-link{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
 .pc-mini{display:flex;gap:4px;margin:4px 0}.pc-dot{width:16px;height:16px;border-radius:50%;border:1px solid var(--line);background-size:cover;background-position:center;display:inline-block}
-.pc-open{margin-top:6px}
+.pc-row{cursor:pointer}.pc-row:hover{background:var(--soft)}.pc-pick{white-space:nowrap}
 .pc-wrap{display:grid;gap:16px}@media(min-width:760px){.pc-wrap{grid-template-columns:minmax(260px,1fr) 1.1fr;align-items:start}}
 .pc-img{width:100%;aspect-ratio:1/1;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:16px}
 .pc-thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.pc-thumbs img{width:54px;height:54px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:10px;cursor:pointer}.pc-thumbs img.on{border:2px solid var(--gold)}
