@@ -1060,6 +1060,9 @@ let toastT=0;function toast(msg,onclick){let t=$('toast');if(!t){t=el('div');t.i
   t.textContent=msg;t.hidden=false;t.onclick=()=>{t.hidden=true;if(onclick)onclick()};clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},9000)}
 let draft=LS.get('draft3',{cust:'',note:'',rabatt:0,rabattFix:0,items:[]});
 const COUNTRIES={DE:'Deutschland',AT:'Österreich',CH:'Schweiz',NL:'Nederland',BE:'België',FR:'France',IT:'Italia',ES:'España',PL:'Polska',GB:'United Kingdom',XX:''};
+/* vollständige Ländernamen (Arabisch · Deutsch) für Auswahllisten im Versand */
+const LAND_N={DE:['ألمانيا','Deutschland'],AT:['النمسا','Österreich'],BE:['بلجيكا','Belgien'],BG:['بلغاريا','Bulgarien'],HR:['كرواتيا','Kroatien'],CY:['قبرص','Zypern'],CZ:['التشيك','Tschechien'],DK:['الدنمارك','Dänemark'],EE:['إستونيا','Estland'],FI:['فنلندا','Finnland'],FR:['فرنسا','Frankreich'],GR:['اليونان','Griechenland'],HU:['المجر','Ungarn'],IE:['أيرلندا','Irland'],IT:['إيطاليا','Italien'],LV:['لاتفيا','Lettland'],LT:['ليتوانيا','Litauen'],LU:['لوكسمبورغ','Luxemburg'],MT:['مالطا','Malta'],NL:['هولندا','Niederlande'],PL:['بولندا','Polen'],PT:['البرتغال','Portugal'],RO:['رومانيا','Rumänien'],SK:['سلوفاكيا','Slowakei'],SI:['سلوفينيا','Slowenien'],ES:['إسبانيا','Spanien'],SE:['السويد','Schweden'],CH:['سويسرا','Schweiz'],GB:['بريطانيا','Vereinigtes Königreich'],NO:['النرويج','Norwegen']};
+const landName=c=>LAND_N[c]?LAND_N[c][0]+' · '+LAND_N[c][1]:(COUNTRIES[c]||c);
 const LANG_OF=c=>({DE:'de',AT:'de',CH:'de',NL:'nl',BE:'fr',FR:'fr',IT:'it',ES:'es',PL:'pl'})[String(c||'').toUpperCase()]||'en';
 const LANG_NAME={de:'Deutsch',en:'English',nl:'Nederlands',fr:'Français',it:'Italiano',es:'Español',pl:'Polski'};
 const T={
@@ -1166,7 +1169,7 @@ function custAll(){const gs=custGroups(),known=new Set(gs.map(g=>g.key));
   customers.forEach(c=>{const k=c.no||custKey(c.name);if(!known.has(k)&&!gs.some(g=>custKey(g.name)===custKey(c.name))){known.add(k);gs.push({key:k,name:c.name,no:c.no||'',orders:[],net:0,paid:0,open:0,street:c.street||'',city:c.city||'',country:c.country||''})}});
   gs.forEach(g=>{const c=findCust(g.name);if(c){if(!g.street&&c.street){g.street=c.street;g.city=c.city||''}if(!g.country&&c.country)g.country=c.country}});return gs}
 const field=(box,label,inp,ph)=>{const w=el('label','fld');w.style.display='flex';w.style.flexDirection='column';w.style.gap='4px';w.style.fontSize='14px';w.append(el('span',null,label),inp);if(ph)inp.placeholder=ph;box.append(w);return inp};
-function countrySel(v){const s=el('select');Object.keys(COUNTRIES).forEach(k=>{const o=el('option',null,k==='XX'?'أخرى':(COUNTRIES[k]+' ('+k+')'));o.value=k;s.append(o)});s.value=v||'DE';return s}
+function countrySel(v){const s=el('select');Object.keys(COUNTRIES).forEach(k=>{const o=el('option',null,k==='XX'?'أخرى':(landName(k)+' ('+k+')'));o.value=k;s.append(o)});s.value=v||'DE';return s}
 function openCustSheet(c,after){
   openSheet(c?'✎ بيانات العميل':'➕ عميل جديد',b=>{
     const g=el('div');g.style.display='grid';g.style.gap='10px';b.append(g);
@@ -6059,7 +6062,7 @@ function apDhlAdr(l,o){openSheet('📦 عنوان الشحن · '+o.nr,b=>{soCss
   mk('pn','رقم DHL الشخصي للمستلم · Postnummer (6–10 أرقام) *',num(/(?:^|\D)(\d{6,10})(?!\d)/),{inputMode:'numeric',maxLength:10});
   const pnHint=el('p','hint','الـ Postnummer هو رقم العميل الشخصي عند DHL (في تطبيق «Post & DHL» أو على بطاقة Packstation). بدونه يرفض DHL التوصيل إلى Packstation أو Postfiliale.');(inp.pn.closest('label')||inp.pn).after(pnHint);
   mk('plz','الرمز البريدي · PLZ *',a.plz,{maxLength:10});mk('ort','المدينة · Ort *',a.ort);
-  const ls=el('select');ls.style.cssText='padding:10px;font:inherit;border-radius:10px;width:100%';AP_EU.forEach(c=>{const op=el('option',null,SO_FLAG(c)+' '+c);op.value=c;ls.append(op)});ls.value=AP_EU.includes(a.land)?a.land:'DE';field(b,'الدولة · Land',ls);
+  const ls=el('select');ls.style.cssText='padding:10px;font:inherit;border-radius:10px;width:100%';AP_EU.forEach(c=>{const op=el('option',null,SO_FLAG(c)+' '+landName(c)+' ('+c+')');op.value=c;ls.append(op)});ls.value=AP_EU.includes(a.land)?a.land:'DE';field(b,'الدولة · Land',ls);
   mk('tel','الهاتف · Telefon',a.tel,{type:'tel'});mk('email','الإيميل · E-Mail (لإشعار DHL)',a.email,{type:'email'});
   const vis=(k,on)=>{const w=inp[k].closest('label');if(w)w.hidden=!on};
   function show(){Object.keys(sb).forEach(k=>sb[k].classList.toggle('primary',k===art));vis('a1',art==='h');vis('a2',art==='h');vis('ps',art==='ps');vis('pf',art==='pf');vis('pn',art!=='h');pnHint.hidden=art==='h';
@@ -6615,7 +6618,7 @@ function vzPaket(prev){openSheet('📦 ملصق DHL داخل ألمانيا · D
   const cw=el('div');cw.style.cssText='display:grid;grid-template-columns:130px 1fr;gap:8px';b.append(cw);
   const pz=el('input');pz.dir='ltr';pz.maxLength=10;pz.inputMode='numeric';pz.value=a.plz||'';inp.plz=field(cw,'الرمز البريدي · PLZ *',pz);
   const ot=el('input');ot.dir='ltr';ot.value=a.ort||'';inp.ort=field(cw,'المدينة · Ort *',ot);
-  const ls=el('select');ls.style.cssText='padding:10px;font:inherit;border-radius:10px;width:100%';AP_EU.forEach(c=>{const op=el('option',null,SO_FLAG(c)+' '+(COUNTRIES[c]||'')+' ('+c+')');op.value=c;ls.append(op)});ls.value=AP_EU.includes(a.land)?a.land:'DE';field(b,'الدولة · Land',ls);
+  const ls=el('select');ls.style.cssText='padding:10px;font:inherit;border-radius:10px;width:100%';AP_EU.forEach(c=>{const op=el('option',null,SO_FLAG(c)+' '+landName(c)+' ('+c+')');op.value=c;ls.append(op)});ls.value=AP_EU.includes(a.land)?a.land:'DE';field(b,'الدولة · Land',ls);
   const euH=el('p','hint','خارج ألمانيا داخل الاتحاد الأوروبي يُرسل الطرد بخدمة DHL Europaket (للشركات فقط). للدول الأخرى استخدم DHL Express.');b.append(euH);
   mk('tel','الهاتف · Telefon (اختياري)',a.tel,{type:'tel'});mk('email','البريد الإلكتروني · E-Mail (لإشعار التتبّع)',a.email,{type:'email'});
   const rf=el('input');rf.dir='ltr';rf.maxLength=30;rf.value=prev&&prev.nr&&!/^FH-\d{8}-\d{4}$/.test(prev.nr)?prev.nr:'';field(b,'المرجع على الملصق · Referenz (اختياري، مثل رقم الفاتورة)',rf,'FH-…');
