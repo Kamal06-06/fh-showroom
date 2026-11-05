@@ -2993,8 +2993,8 @@ async function pmRaw(blob){
     const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);
     await pg.render({canvasContext:x,viewport:vp,transform:[1,0,0,1,Math.round((W-vp.width)/2),Math.round((H-vp.height)/2)]}).promise;
     const px=x.getImageData(0,0,W,H).data,bpr=W/8,data=new Uint8Array(bpr*H);
-    for(let y=0;y<H;y++)for(let X=0;X<W;X++){const p=(y*W+X)*4;if(px[p]*0.3+px[p+1]*0.59+px[p+2]*0.11<150)data[y*bpr+(X>>3)]|=0x80>>(X&7)}
-    const head=[0x1b,0x4e,0x0d,0x03, 0x1b,0x4e,0x04,0x0c, 0x1f,0x11,0x0a, 0x1d,0x76,0x30,0x00,bpr&255,bpr>>8,H&255,H>>8];
+    for(let y=0;y<H;y++)for(let X=0;X<W;X++){const p=(y*W+X)*4;if(px[p]*0.3+px[p+1]*0.59+px[p+2]*0.11<200)data[y*bpr+(X>>3)]|=0x80>>(X&7)}
+    const head=[0x1b,0x4e,0x0d,0x03, 0x1b,0x4e,0x04,0x0f, 0x1f,0x11,0x0a, 0x1d,0x76,0x30,0x00,bpr&255,bpr>>8,H&255,H>>8];
     const foot=[0x1f,0xf0,0x05,0x00, 0x1f,0xf0,0x03,0x00];
     const all=new Uint8Array(head.length+data.length+foot.length);all.set(head,0);all.set(data,head.length);all.set(foot,head.length+data.length);
     pages.push(all);
