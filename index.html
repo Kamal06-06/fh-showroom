@@ -6315,7 +6315,7 @@ function vzArchFill(b,k){soCss();vzCss();const A=VZ_ARCH[k];if(!vzView||vzView.k
       {const an=DHL_ANTW.filter(a=>a.nr===trkNr(x)),nn=an.filter(a=>!DHL_SEEN.has(a.id)).length;if(an.length)i.append(el('div','t va-rek'+(nn?' va-new':''),'💬 '+an.length+' رد من DHL'+(nn?' · '+nn+' جديد':'')))}
       const rk=TRK_REK[trkNr(x)];if(rk){const ff=typeof rk==='object'&&rk.fall&&VZ_FALL[rk.fall];i.append(el('div','t va-rek','📨 '+(ff?ff.t+' · '+ff.de:'تم التواصل مع DHL')+' · '+new Date(rekAt(rk)).toLocaleDateString('de-DE')))}
       const bt=el('div','va-bt');const tr=el('a','btn small vz-trk','📍 تتبّع · Verfolgen');tr.href=vzTrackUrl(x);tr.target='_blank';tr.rel='noopener';bt.append(tr);
-      if(x.src==='shop'&&x.o){const pz=el('button','btn small','🖨️ طباعة');pz.title='إعادة طباعة الملصق على Zebra في المستودع (بدون شحنة جديدة ولا تكلفة)';
+      if(x.src==='shop'&&x.id){const pz=el('button','btn small','🖨️ طباعة');pz.title='إعادة طباعة الملصق على Zebra في المستودع (بدون شحنة جديدة ولا تكلفة)';
         pz.onclick=async()=>{pz.disabled=true;try{await soCall('dhl_druck',{id:x.id,druck:true});toast('✓ أُرسل ملصق '+x.nr+' إلى طابعة Zebra')}catch(e){alert('⚠️ '+dhlErr(e))}pz.disabled=false};
         const pd=el('button','btn small','📄 PDF');pd.onclick=async()=>{pd.disabled=true;try{const r=await soCall('dhl_druck',{id:x.id}),bl=await dhlMerge(r.b64s||r.b64);try{await printPdf(bl)}catch(_){const l=document.createElement('a');l.href=URL.createObjectURL(bl);l.target='_blank';l.click()}}catch(e){alert('⚠️ '+dhlErr(e))}pd.disabled=false};bt.append(pz,pd)}
       {const rb=el('button','btn small'+(tk==='failure'?' va-rekb':''),rk?'📨 DHL ✓':'📨 DHL');rb.title='التواصل مع DHL · Kontakt';rb.onclick=()=>vzKontakt(x);bt.append(rb)}
