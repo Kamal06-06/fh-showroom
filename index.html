@@ -6289,7 +6289,7 @@ function vzMainFill(b){soCss();vzCss();vzView={k:null};
   if(!vzMainFill._a){vzMainFill._a=1;antwLaden().then(c=>{if(c)vzRedraw()})}
   if(isAdmin()){const s=el('button','btn small','✍️ التوقيع والختم · Unterschrift & Stempel');s.onclick=()=>vzSigOpen();b.append(s)}
   vzMailSetup(b);
-  b.append(el('p','hint','تنتقل الشحنة إلى الأرشيف بعد ساعتين من إنشاء ملصقها. حالة التسليم تُحدَّث من DHL تلقائياً كل ساعة (7:00–21:00)، وعند وجود مشكلة يصل تنبيه برنّة ورسالة Telegram.\nZustellstatus wird stündlich bei DHL abgefragt.'))}
+  b.append(el('p','hint','تظهر الشحنة في الأرشيف فور إنشاء ملصقها، ومنه يمكن إعادة طباعة الملصق في أي وقت. حالة التسليم تُحدَّث من DHL تلقائياً كل ساعة (7:00–21:00)، وعند وجود مشكلة يصل تنبيه برنّة ورسالة Telegram.\nZustellstatus wird stündlich bei DHL abgefragt.'))}
 function vzArch(k,f){vzView={k,f:f||'all'};const A=VZ_ARCH[k];openSheet(A.ic+' '+A.t,b=>vzArchFill(b,k))}
 function vzArchFill(b,k){soCss();vzCss();const A=VZ_ARCH[k];if(!vzView||vzView.k!==k)vzView={k,f:'all'};
   const ALL=vzArchData(k);
