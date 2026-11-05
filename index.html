@@ -6318,6 +6318,9 @@ function vzArchFill(b,k){soCss();vzCss();const A=VZ_ARCH[k];if(!vzView||vzView.k
       if(x.src==='shop'&&x.id){const pz=el('button','btn small','🖨️ طباعة');pz.title='إعادة طباعة الملصق على Zebra في المستودع (بدون شحنة جديدة ولا تكلفة)';
         pz.onclick=async()=>{pz.disabled=true;try{await soCall('dhl_druck',{id:x.id,druck:true});toast('✓ أُرسل ملصق '+x.nr+' إلى طابعة Zebra')}catch(e){alert('⚠️ '+dhlErr(e))}pz.disabled=false};
         const pd=el('button','btn small','📄 PDF');pd.onclick=async()=>{pd.disabled=true;try{const r=await soCall('dhl_druck',{id:x.id}),bl=await dhlMerge(r.b64s||r.b64);try{await printPdf(bl)}catch(_){const l=document.createElement('a');l.href=URL.createObjectURL(bl);l.target='_blank';l.click()}}catch(e){alert('⚠️ '+dhlErr(e))}pd.disabled=false};bt.append(pz,pd)}
+      if(x.src==='shopx'&&x.id){const pz=el('button','btn small','🖨️ طباعة');pz.title='إعادة طباعة ملصق DHL Express على Zebra (بدون شحنة جديدة)';
+        pz.onclick=async()=>{pz.disabled=true;try{await dhlxCall('druck',{id:x.id,druck:true});toast('✓ أُرسل ملصق Express '+x.nr+' إلى طابعة Zebra')}catch(e){alert('⚠️ '+dhlxErr(e))}pz.disabled=false};
+        const pd=el('button','btn small','📄 PDF');pd.onclick=async()=>{pd.disabled=true;try{const r=await dhlxCall('druck',{id:x.id}),bl=await dhlMerge(r.b64s||r.b64);try{await printPdf(bl)}catch(_){const l=document.createElement('a');l.href=URL.createObjectURL(bl);l.target='_blank';l.click()}}catch(e){alert('⚠️ '+dhlxErr(e))}pd.disabled=false};bt.append(pz,pd)}
       {const rb=el('button','btn small'+(tk==='failure'?' va-rekb':''),rk?'📨 DHL ✓':'📨 DHL');rb.title='التواصل مع DHL · Kontakt';rb.onclick=()=>vzKontakt(x);bt.append(rb)}
       r.append(i,bt);box.append(r)})}
   q.oninput=draw;draw()}
