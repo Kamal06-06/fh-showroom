@@ -745,7 +745,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
 
     <div class="panel" id="st-2">
       <div class="sec-title"><h2><span class="step">2</span> الأصناف <small class="de">· Artikel</small></h2></div>
-      <div>
+      <div id="size-box" hidden>
         <div class="lbl">حجم الزيت عند الإضافة</div>
         <div class="sizes" id="sizes"></div>
       </div>
@@ -2345,6 +2345,7 @@ function prodCard(p){pcCss();const vars=pcVariants(p),opts=pcOptions(p,vars);if(
     mi.onclick=()=>{qi.value=Math.max(1,(+qi.value||1)-1)};pl.onclick=()=>{qi.value=(+qi.value||0)+1};q.append(el('b',null,'الكمية'),mi,qi,pl);R.append(q);
     const add=el('button','btn primary big pc-add','➕ إضافة إلى الطلب');R.append(add);
     add.onclick=()=>{const n=Math.max(1,Math.floor(+qi.value||1));
+      if(p.oil&&cur.size){try{size=cur.size;LS.set('size2',size)}catch(e){}}
       const it=p.oil?{t:p.t,a:p.a||'',oil:1,tier:cur.tier,code:stem(cur.sku),size:cur.size,sku:cur.sku,price:cur.price}:{t:p.t,a:'',oil:0,tier:'',code:cur.sku,size:cur.title,sku:cur.sku,price:cur.price};
       for(let k=0;k<n;k++)addItem(Object.assign({},it));toast('✓ أُضيف: '+p.t+' · '+cur.title.replace(/ \/ /g,' · ')+(n>1?' × '+n:''));closeSheet();try{$('q').value='';search();$('q').focus()}catch(e){}};
   })}
