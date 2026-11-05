@@ -6137,7 +6137,7 @@ function dhlSheet(o,after){openSheet('📦 DHL Paket · '+o.nr,async b=>{soCss()
     if(!confirm('إنشاء '+(x.kgs.length>1?x.kgs.length+' ملصقات':'ملصق')+' DHL مدفوع؟\n\n'+o.nr+' · '+(e.name1||e.name)+'\n'+x.kgs.map((k,i)=>(x.kgs.length>1?'طرد '+(i+1)+': ':'')+k+' kg').join('\n')+' · '+(x.prod==='V54EPAK'?'Europaket':x.prod==='V62KP'?'Kleinpaket':'Paket')+'\n\nيُحسب كل ملصق عند تسليم الطرد لـ DHL.'))return;
     go.disabled=chk.disabled=true;say('جاري إنشاء الملصق…');
     try{const r=await soCall('dhl_label',x);setStand(r.dhl||{nr:r.nrs?r.nrs[0]:r.nr,at:Date.now(),kg:x.kgs[0],prod:x.prod,shopify:r.shopify});
-      say('✅ رقم الشحنة: '+r.nr+'\n'+(r.gedruckt?'🖨️ أُرسل إلى طابعة الملصقات في المستودع':r.druckFehler?'⚠️ لم يُرسل للطابعة: '+r.druckFehler:'')+(r.fehlend?'\n⚠️ لم يُنشأ '+r.fehlend+' طرد – أضفه لاحقاً بـ «➕ إضافة طرد»':'')+(r.shopify?'\nShopify: '+(r.shopify==='versendet'?'✅ مُعلَّم كمشحون':r.shopify):'')+(r.msgs&&r.msgs.length?'\n'+r.msgs.join('\n'):''));
+      say('✅ رقم الشحنة: '+r.nr+'\n'+(r.gedruckt?'🖨️ أُرسل إلى طابعة الملصقات في المستودع':r.druckFehler?'⚠️ لم يُرسل للطابعة: '+r.druckFehler:'')+(r.fehlend?'\n⚠️ لم يُنشأ '+r.fehlend+' طرد – أضفه لاحقاً بـ «➕ إضافة طرد»':'')+(r.shopify?'\nShopify: '+(r.shopify==='versendet'?'✅ مُعلَّم كمشحون':r.shopify):'')+(r.msgs&&r.msgs.length?'\n'+r.msgs.join('\n'):'')+'\n\n📍 الطلب الآن في: طلبات المتجر ← ③ «تم الشحن» (حتى 20:00)، وفي «🗄️ أرشيف الشحنات» على الصفحة الرئيسية – منهما يمكن إعادة طباعة الملصق في أي وقت.');
       const pf=el('button','btn','📄 فتح PDF');pf.onclick=()=>openPdf(r.b64s||r.b64);
       const rp=el('button','btn primary','🖨️ إعادة طباعة الملصق'+((r.nrs||[]).length>1?'ات':''));rp.title='مثلاً إذا نفد الورق أو خرج الملصق مقصوصاً – يطبع نفس الملصق مرة أخرى دون شحنة جديدة';
       rp.onclick=async()=>{rp.disabled=true;try{await soCall('dhl_druck',{id:o.id,nr:o.nr,druck:true});say('✓ أُرسل الملصق مرة أخرى إلى طابعة Zebra (بدون شحنة جديدة ولا تكلفة)')}catch(e2){say('⚠️ '+dhlErr(e2),1)}rp.disabled=false};
@@ -6244,7 +6244,7 @@ const VZ_ARCH={
   ap:{ic:'🏬',t:'أرشيف شحنات الصالة',de:'Showroom · DHL Paket',src:['ap','frei']},
   shop:{ic:'📦',t:'أرشيف شحنات المتجر · داخلي',de:'Shop · DHL Paket Inland',src:['shop']},
   shopx:{ic:'✈️',t:'أرشيف شحنات المتجر · DHL Express',de:'Shop · DHL Express Ausland',src:['shopx']}};
-function vzArchData(k){const cut=Date.now()-VZ_LOG_MS,S=VZ_ARCH[k].src;return vzSendungen().filter(x=>S.includes(x.src)&&(x.src!=='ap'||apShipDone(x.l))&&(x.at||0)<=cut)}
+function vzArchData(k){const cut=Date.now()-VZ_LOG_MS,S=VZ_ARCH[k].src;return vzSendungen().filter(x=>S.includes(x.src)&&(x.src!=='ap'||apShipDone(x.l))&&(/^shop/.test(x.src)||(x.at||0)<=cut))}
 const vzTrackUrl=x=>x.src==='shopx'?'https://www.dhl.com/de-de/home/tracking/tracking-express.html?submit=1&tracking-id='+encodeURIComponent(x.nr):dhlTrack(x.nr);
 /* ================= 📍 حالة الشحنات · Sendungsstatus (DHL Tracking, über den Server) ================= */
 let TRK=LS.get('trk',{}),TRK_REK=LS.get('trkRek',{}),trkBusy=false,trkErr='',vzView=null;
@@ -6315,6 +6315,9 @@ function vzArchFill(b,k){soCss();vzCss();const A=VZ_ARCH[k];if(!vzView||vzView.k
       {const an=DHL_ANTW.filter(a=>a.nr===trkNr(x)),nn=an.filter(a=>!DHL_SEEN.has(a.id)).length;if(an.length)i.append(el('div','t va-rek'+(nn?' va-new':''),'💬 '+an.length+' رد من DHL'+(nn?' · '+nn+' جديد':'')))}
       const rk=TRK_REK[trkNr(x)];if(rk){const ff=typeof rk==='object'&&rk.fall&&VZ_FALL[rk.fall];i.append(el('div','t va-rek','📨 '+(ff?ff.t+' · '+ff.de:'تم التواصل مع DHL')+' · '+new Date(rekAt(rk)).toLocaleDateString('de-DE')))}
       const bt=el('div','va-bt');const tr=el('a','btn small vz-trk','📍 تتبّع · Verfolgen');tr.href=vzTrackUrl(x);tr.target='_blank';tr.rel='noopener';bt.append(tr);
+      if(x.src==='shop'&&x.o){const pz=el('button','btn small','🖨️ طباعة');pz.title='إعادة طباعة الملصق على Zebra في المستودع (بدون شحنة جديدة ولا تكلفة)';
+        pz.onclick=async()=>{pz.disabled=true;try{await soCall('dhl_druck',{id:x.id,druck:true});toast('✓ أُرسل ملصق '+x.nr+' إلى طابعة Zebra')}catch(e){alert('⚠️ '+dhlErr(e))}pz.disabled=false};
+        const pd=el('button','btn small','📄 PDF');pd.onclick=async()=>{pd.disabled=true;try{const r=await soCall('dhl_druck',{id:x.id});await openPdf(r.b64s||r.b64)}catch(e){alert('⚠️ '+dhlErr(e))}pd.disabled=false};bt.append(pz,pd)}
       {const rb=el('button','btn small'+(tk==='failure'?' va-rekb':''),rk?'📨 DHL ✓':'📨 DHL');rb.title='التواصل مع DHL · Kontakt';rb.onclick=()=>vzKontakt(x);bt.append(rb)}
       r.append(i,bt);box.append(r)})}
   q.oninput=draw;draw()}
