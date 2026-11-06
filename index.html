@@ -3136,7 +3136,8 @@ async function phomemoPrint(blob,progress){
    der Mini-PC schickt sie unverändert (RAW) an die Phomemo → scharfe Schrift statt gerastertem PDF über den Windows-Treiber */
 async function pmQueue(blob,name){
   const pages=await pmRaw(blob),n=pages.reduce((s,p)=>s+p.length,0),all=new Uint8Array(n);let o=0;pages.forEach(p=>{all.set(p,o);o+=p.length});
-  await druckQ('P-'+String(name).replace(/\.pdf$/i,'')+'.bin',await blob64(new Blob([all],{type:'application/octet-stream'})));
+  /* Server kürzt Namen auf 80 Zeichen → bei langen Kundennamen ging „.bin" verloren und der Druck-PC behandelte die Rohdaten als PDF (kein Druck). Darum Name kürzen, Endung bleibt immer. */
+  await druckQ('P-'+String(name).replace(/\.pdf$/i,'').replace(/[^A-Za-z0-9 ._-]/g,'-').slice(0,60)+'.bin',await blob64(new Blob([all],{type:'application/octet-stream'})));
   return pages.length}
 async function savePdf(kind,l,btn,out){
   if(LAB_KINDS.includes(kind)){const lo=labOrder(l);if(lo._part&&!lo.items.length){const o=document.querySelector('[data-files="'+orderKey(l)+'"]')||out;o.textContent='اختر صنفاً واحداً على الأقل من «اختيار أصناف للملصقات».';return}l=lo}
