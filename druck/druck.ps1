@@ -58,6 +58,7 @@ public class FhRaw {
   }
 }
 "@
+function IstPdf($pfad) { try { $b = [IO.File]::ReadAllBytes($pfad); return ($b.Length -ge 4 -and $b[0] -eq 0x25 -and $b[1] -eq 0x50 -and $b[2] -eq 0x44 -and $b[3] -eq 0x46) } catch { return $true } }
 
 # Zebra GK420t direkt ueber USB (ohne Windows-Treiber, ohne Admin): PDF -> Bild (Windows.Data.Pdf) -> ZPL-Grafik -> USB
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
@@ -306,7 +307,7 @@ while ($true) {
         elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'noscale,landscape' }  # Phomemo-Treiber skaliert sonst falsch: 1:1 drucken
         else { $ziel = $DRUCKER; $opt = 'fit,landscape' }
         if ($j.name -like 'Z-*') { [void](ZebraDruck $f $j.name) }
-        elseif ($ziel -and $j.name -match '\.bin(\.pdf)?$') {  # Server haengt .pdf an den Namen an
+        elseif ($ziel -and ($j.name -match '\.bin(\.pdf)?$' -or ($j.name -like 'P-*' -and -not (IstPdf $f)))) {  # Rohdaten (Phomemo) – auch wenn der Name gekürzt wurde
           if ([FhRaw]::Send($ziel, [IO.File]::ReadAllBytes($f), $j.name)) { Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${ziel}: $($j.name)" -ForegroundColor Green }
           else { Write-Host "Fehler beim Senden an ${ziel}: $($j.name)" -ForegroundColor Red }
         } elseif ($ziel) {
