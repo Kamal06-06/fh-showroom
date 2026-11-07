@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="212">
+<meta name="fh-build" content="213">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -283,7 +283,25 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
 .stepper button.ok i{background:#141210;border-color:#141210;color:#c9a24a}.stepper button.ok{color:var(--ink)}
 .stepper button.need i{border-color:#c9a24a;color:#a3460f}
 .sec-title h2 small.de,.panel h2 small.de{font-weight:400;font-size:12px;color:var(--muted)}
-.lief{margin-top:6px}
+.lief{margin-top:6px;display:grid;gap:8px}
+@media(min-width:760px){.lief{grid-template-columns:repeat(3,1fr)}}
+.lief button{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);font:inherit;font-size:15px;font-weight:700;cursor:pointer;text-align:start;transition:border-color .15s,background .15s}
+.lief .li{width:42px;height:42px;flex:0 0 42px;border-radius:12px;background:var(--soft);display:grid;place-items:center;font-size:21px}
+.lief .lt{flex:1;line-height:1.3}.lief .lt small{display:block;font-size:12px;font-weight:500;color:var(--muted)}
+.lief .lc{width:24px;height:24px;flex:0 0 24px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:13px;color:#fff}
+.lief button.on{border-color:#c9a24a;background:#fbf6ea;box-shadow:0 0 0 1px #c9a24a inset}
+.lief button.on .lc{background:#c9a24a;border-color:#c9a24a}.lief button.on .lc:after{content:'✓';font-weight:800}
+.disc{margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--surface)}
+.disc-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:14px}.disc-hd small{font-weight:400;color:var(--muted)}
+#disc-sum{font-weight:800;color:#2f6b4f;direction:ltr;font-size:14px}
+.disc-row{display:flex;gap:8px;align-items:center}
+.disc-f{flex:1;display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;background:var(--soft);overflow:hidden;margin:0}
+.disc-f input{flex:1;min-width:0;border:0!important;background:transparent!important;height:42px;padding:0 10px;font:inherit;font-size:16px;font-weight:700;box-shadow:none!important;margin:0}
+.disc-f i{font-style:normal;font-weight:800;color:var(--muted);padding:0 12px}
+.disc-ch{margin-top:8px;flex-wrap:wrap}
+.disc-ch button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;direction:ltr}
+.disc-ch button.on{background:#141210;color:#c9a24a;border-color:#141210}
+.disc-ch select{flex:1;min-width:130px;height:34px;padding:0 10px;font-size:13px;border-radius:999px;margin:0}
 .sumbar{display:flex;justify-content:space-between;align-items:center;margin:10px 0;font-weight:700}
 #view-new .panel{scroll-margin-top:64px}
 /* ===== Navigation Schritt für Schritt (27.10.2026): „رجوع“ in jedem Fenster, Startseite nur über ⌂ ===== */
@@ -765,20 +783,23 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <div class="labels" id="items"></div>
       <p class="hint" id="empty">السلة فارغة. ابحث عن صنف أو امسح QR فيظهر هنا.</p>
       <div class="sumrow"><span>المجموع الصافي</span><div class="sum" id="sum">0,00 EUR</div></div>
-      <div class="lbl" style="margin-top:12px">الخصم · Rabatt <span id="disc-sum" class="code"></span></div>
-      <div class="row grow">
-        <div><label for="rab">خصم Rabatt %</label><input type="number" id="rab" min="0" max="100" step="0.5" placeholder="0" inputmode="decimal"></div>
-        <div><label for="rabscope">الخصم على</label><select id="rabscope"><option value="all">كل الطلب</option><option value="oil">الزيوت فقط</option></select></div>
-        <div><label for="rabfix">خصم مبلغ ثابت €</label><input type="number" id="rabfix" min="0" step="0.5" placeholder="0" inputmode="decimal"></div>
+      <div class="disc">
+        <div class="disc-hd"><b>🏷️ الخصم <small>· Rabatt</small></b><span id="disc-sum"></span></div>
+        <div class="disc-row">
+          <label class="disc-f"><input type="number" id="rab" min="0" max="100" step="0.5" placeholder="0" inputmode="decimal" aria-label="خصم بالنسبة المئوية"><i>%</i></label>
+          <label class="disc-f"><input type="number" id="rabfix" min="0" step="0.5" placeholder="0" inputmode="decimal" aria-label="خصم مبلغ ثابت"><i>€</i></label>
+        </div>
+        <div class="disc-row disc-ch" id="disc-quick"><button type="button" data-p="5">5 %</button><button type="button" data-p="10">10 %</button><button type="button" data-p="15">15 %</button><button type="button" data-p="20">20 %</button>
+          <select id="rabscope" aria-label="الخصم على"><option value="all">على كل الطلب</option><option value="oil">على الزيوت فقط</option></select></div>
       </div>
     </div>
 
     <div class="panel" id="st-4">
       <div class="sec-title"><h2><span class="step">4</span> طريقة التسليم <small class="de">· Lieferung</small></h2></div>
-      <div class="so-seg lief" id="lief">
-        <button type="button" data-l="pickup">🏬 استلام من المستودع<small>Abholung</small></button>
-        <button type="button" data-l="de">📦 شحن داخل ألمانيا<small>DHL Paket</small></button>
-        <button type="button" data-l="ab">✈️ شحن خارج ألمانيا<small>DHL Europaket / Express</small></button>
+      <div class="lief" id="lief" role="radiogroup">
+        <button type="button" data-l="pickup"><span class="li">🏬</span><span class="lt">استلام من المستودع<small>Abholung · ohne Versand</small></span><span class="lc"></span></button>
+        <button type="button" data-l="de"><span class="li">📦</span><span class="lt">شحن داخل ألمانيا<small>DHL Paket</small></span><span class="lc"></span></button>
+        <button type="button" data-l="ab"><span class="li">✈️</span><span class="lt">شحن خارج ألمانيا<small>DHL Europaket / Express</small></span><span class="lc"></span></button>
       </div>
       <div class="kk-chips" id="lief-chips" hidden></div>
       <p class="hint" id="lief-hint">اختر طريقة التسليم ليعرف المستودع كيف يجهّز الطلب.</p>
@@ -1936,6 +1957,7 @@ $('cust-save').onclick=async()=>{const b=$('cust-save'),name=$('cust').value.tri
 $('note').oninput=e=>{draft.note=e.target.value;saveDraft()};
 $('rab').oninput=e=>{draft.rabatt=+e.target.value||0;saveDraft();renderItems()};
 $('rabfix').oninput=e=>{draft.rabattFix=+e.target.value||0;saveDraft();renderItems()};
+document.querySelectorAll('#disc-quick button').forEach(b=>b.onclick=()=>{const v=+draft.rabatt===+b.dataset.p?'':b.dataset.p;$('rab').value=v;$('rab').dispatchEvent(new Event('input',{bubbles:true}))});
 $('versand').oninput=e=>{draft.versand=+e.target.value||0;saveDraft();renderItems()};
 $('kgprice').checked=!!draft.kg;$('rabscope').value=draft.rabScope||'all';$('rabscope').onchange=e=>{draft.rabScope=e.target.value;saveDraft();renderItems()};
 $('kgprice').onchange=e=>{draft.kg=e.target.checked;draft.kgOff=!e.target.checked;applyKg(draft.items,draft.kg);saveDraft();renderItems();showCust()};
@@ -2008,7 +2030,7 @@ function renderItems(){
   $('count').textContent=n?'('+n+')':'';$('sum').textContent=money(t.net)+(t.ship?' (شامل الشحن '+money(t.ship)+')':'');
   $('send').disabled=!draft.items.length||!db;
   $('offer').disabled=!draft.items.length;
-  {const t2=totals(draft);$('disc-sum').textContent=(t2.disc?' −'+money(t2.disc):'')+(t2.ship?' · شحن '+money(t2.ship):'')}
+  {const t2=totals(draft);$('disc-sum').textContent=(t2.disc?'−'+money(t2.disc):'')+(t2.ship?' · شحن '+money(t2.ship):'');document.querySelectorAll('#disc-quick button').forEach(b=>b.classList.toggle('on',+b.dataset.p===+draft.rabatt))}
   try{liefUI();updStepper()}catch(e){}
   updSendbar();
   const stale=draft.items.length&&!editing&&(Date.now()-(draft.at||0))>15*60000;$('draftbar').hidden=!stale;
