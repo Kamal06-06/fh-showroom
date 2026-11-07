@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="222">
+<meta name="fh-build" content="223">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2422,7 +2422,7 @@ function cfgAdd(d){const its=d.items||[],rows=d.rows||[];let n=0;const sid='S'+D
     if(!hasSet||isTool(r)||/zus(ä|a)tzlich|einzelpreis/i.test(r.name)){push(r.name&&/zus(ä|a)tzlich/i.test(r.name)?Object.assign({},base,{t:base.t+' (zusätzlich)'}):base,q);return}
     const role=i===0?'fl':isSp(r)?'sp':isCap(r)?'cap':'';
     if(!role){push(base,q);return}
-    if(role==='fl'){push(Object.assign({},base,{st:{id:sid,n:sets,k:d.kart?Math.max(1,Math.round(sets/q)):1,kart:!!d.kart,lbl,d:dsc,role}}),q);return}
+    if(role==='fl'){push(Object.assign({},base,{st:{id:sid,n:sets,k:d.kart?Math.max(1,Math.round(sets/q)):1,kart:!!d.kart,lbl,d:dsc,role,img:String(d.thumb||'').slice(0,60000)}}),q);return}
     const inSet=Math.min(q,sets),extra=q-inSet;
     push(Object.assign({},base,{st:{id:sid,role}}),inSet);
     if(extra>0)push(Object.assign({},base,{t:base.t+' (Reserve)'}),extra)});
@@ -2430,7 +2430,7 @@ function cfgAdd(d){const its=d.items||[],rows=d.rows||[];let n=0;const sid='S'+D
 /* ---------- Sets im Auftrag: Gruppe, Preis je Set, Menge, gemischte Kappenfarben ---------- */
 function grpSetCss(){if($('grpset-css'))return;const st=document.createElement('style');st.id='grpset-css';st.textContent=`
 .set-card{border:1.5px solid #c9a24a;border-radius:16px;background:#fffdf8;padding:12px;margin:8px 0;display:grid;gap:8px}
-.set-h{display:flex;gap:10px;align-items:center}.set-img{width:54px;height:54px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid var(--line)}
+.set-h{display:flex;gap:10px;align-items:center}.set-img{width:72px;height:72px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid var(--line)}
 .set-t b{display:block;font-size:15px}.set-d{font-size:12.5px;color:var(--muted);direction:ltr;text-align:start}
 .set-p{display:flex;justify-content:space-between;align-items:baseline;direction:ltr;font-size:14px}.set-p b{font-size:17px}
 .set-parts{display:grid;gap:3px;font-size:12.5px;background:var(--soft);border-radius:10px;padding:8px 10px}.set-parts div{display:flex;gap:8px;justify-content:space-between;direction:ltr}.set-parts code{color:var(--muted);font-size:11.5px}
@@ -2474,7 +2474,7 @@ function setMix(g){const caps=g.parts.filter(x=>x.st.role==='cap');if(!caps.leng
       if(add.length===1){add[0]=Object.assign({},keep,{q:add[0].q,sku:add[0].sku,code:add[0].code,size:add[0].size,t:add[0].sku===keep.sku?keep.t:fam.t})}
       draft.items=draft.items.filter((_,ix)=>!ids.has(ix));draft.items.splice(Math.min(at,draft.items.length),0,...add);saveDraft();renderItems();closeSheet();toast('✓ تم توزيع ألوان الأغطية')};
     const row=el('div','mix-a');row.append(ev,sum,ok);b.append(row);upd()})}
-function setTile(g){const c=el('div','set-card'),h=el('div','set-h'),f=g.fl||g.parts[0];const im=imgOf(f);
+function setTile(g){const c=el('div','set-card'),h=el('div','set-h'),f=g.fl||g.parts[0];const im=(f.st&&f.st.img)||imgOf(f);
   if(im){const i=mkImg(im,'');i.className='set-img';h.append(i)}
   const tt=el('div','set-t');tt.append(el('b',null,g.lbl),el('div','set-d',g.d));h.append(tt);c.append(h);
   const pr=el('div','set-p');pr.append(el('span',null,g.n.toLocaleString('de-DE')+' Sets × '+money(g.per)),el('b',null,money(g.tot)));c.append(pr);
