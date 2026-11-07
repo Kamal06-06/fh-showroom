@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="226">
+<meta name="fh-build" content="227">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -1699,9 +1699,9 @@ function itemRow(it,ix){
   more.onclick=()=>{ed.hidden=!ed.hidden;if(ed.hidden)irOpen.delete(ix);else irOpen.add(ix)};
   w.append(ed);return w;
 }
-function updSendbar(){const n=draft.items.reduce((s,i)=>s+qn(i),0),on=!$('view-new').hidden&&draft.items.length>0;
+function updSendbar(){const n=qnAll(draft.items),on=!$('view-new').hidden&&draft.items.length>0;
   $('sendbar').hidden=!on;document.body.classList.toggle('has-sb',on);if(!on)return;
-  $('sb-sum').textContent=$('sum').textContent;$('sb-n').textContent=draft.items.length+' صنف · '+n+' قطعة'+(draft.cust?' · '+draft.cust:'');
+  $('sb-sum').textContent=$('sum').textContent;$('sb-n').textContent=lnAll(draft.items)+' صنف · '+n+' قطعة'+(draft.cust?' · '+draft.cust:'');
   $('sb-send').disabled=$('send').disabled;$('sb-send').textContent=$('send').textContent}
 function labelTile(it,editable,ix){
   if(editable)return itemRow(it,ix);
@@ -1745,6 +1745,9 @@ function labelTile(it,editable,ix){
 }
 const isOil=it=>it.oil!=null?!!it.oil:!!it.tier;
 const qn=it=>it.unit==='kg'?1:(+it.q||1);
+/* Stückzahl wie im Shop: ein Set zählt als Anzahl Sets (nicht Flakon + Sprühkopf + Kappe einzeln) */
+const lnAll=items=>(items||[]).filter(i=>!i.st||i.st.role==='fl').length;
+const qnAll=items=>(items||[]).reduce((s,i)=>i.st?(i.st.role==='fl'?s+(+i.st.n||1):s):s+qn(i),0);
 const cntTxt=items=>{items=items||[];const a=items.length,pc=items.filter(i=>i.unit!=='kg'&&!(isOil(i)&&sizeG(i.size))),b=pc.reduce((s,i)=>s+qn(i),0),kg=Math.round(items.reduce((s,i)=>{if(pc.includes(i))return s;if(i.unit==='kg')return s+(+i.q||0);return s+sizeG(i.size)*(+i.q||1)/1000},0)*1000)/1000;return a+' صنف'+(kg?' · '+String(kg).replace('.',',')+' kg':'')+(b?' · '+b+' قطعة':'')};   /* pieces count (a line sold by kg counts as one) */
 const qtxt=it=>it.unit?(String(+it.q||1).replace('.',',')+' '+(it.unit==='kg'?'kg':'Stk')):((it.q||1)+'×');
 const imgOf=it=>{if(isOil(it))return '';{const ss=setSrc(it.sku||it.code);if(ss)return ss}const p=(catalog||[]).find(p=>p.t===it.t);if(!p)return '';/* Variantenbild (z. B. richtige Kappe/Sprühkopf-Farbe) vor Produktbild */const ix=(p.v||[]).findIndex(v=>v[1]===(it.sku||it.code)&&(!it.size||v[0]===it.size));const ix2=ix>-1?ix:(p.v||[]).findIndex(v=>v[1]===(it.sku||it.code));return (ix2>-1&&p.vi&&p.vi[ix2])||p.i||''};
@@ -2059,7 +2062,7 @@ function renderItems(){
   const box=$('items');box.textContent='';
   {const gs=setGroups(draft.items),seen=new Set();grpSetCss();draft.items.forEach((it,ix)=>{if(it.st&&gs.has(it.st.id)){if(seen.has(it.st.id))return;seen.add(it.st.id);box.append(setTile(gs.get(it.st.id)));return}box.append(labelTile(it,true,ix))})}
   $('empty').hidden=draft.items.length>0;
-  const n=draft.items.reduce((s,i)=>s+qn(i),0),t=totals(draft);
+  const n=qnAll(draft.items),t=totals(draft);
   $('count').textContent=n?'('+n+')':'';$('sum').textContent=money(t.net)+(t.ship?' (شامل الشحن '+money(t.ship)+')':'');
   $('send').disabled=!draft.items.length||!db;
   $('offer').disabled=!draft.items.length;
@@ -3798,7 +3801,7 @@ function renderLists(){
 }
 /* one order card: in the list only the summary (tap → the full order opens in the middle of the screen) */
 function buildCard(l,full){
-    const done=l.status==='done', items=l.items||[], t=totals(l), n=items.reduce((s,i)=>s+qn(i),0);
+    const done=l.status==='done', items=l.items||[], t=totals(l), n=qnAll(items);
     const c=el('div','card'+(done?' done':''));
     /* header */
     const h=el('div','ohead');const hl=el('div');hl.append(el('div','cust',custLabel(l)));
@@ -3987,7 +3990,7 @@ function omDocs(l){const box=el('div','om-pane'),out=el('div','filebox');out.set
   box.append(out);return box}
 function buildCardV2(l){omCss();
   if(omTabFor!==l.id){omTabFor=l.id;omTab=null}
-  const done=l.status==='done',items=l.items||[],t=totals(l),n=items.reduce((s,i)=>s+qn(i),0),rdy=isReady(l);
+  const done=l.status==='done',items=l.items||[],t=totals(l),n=qnAll(items),rdy=isReady(l);
   const c=el('div','card omc'+(done?' done':''));
   /* ---------- Kopf ---------- */
   const h=el('div','ohead');const hl=el('div');hl.append(el('div','cust',custLabel(l)));
