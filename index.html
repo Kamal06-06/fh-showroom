@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="213">
+<meta name="fh-build" content="214">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -291,6 +291,17 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
 .lief .lc{width:24px;height:24px;flex:0 0 24px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:13px;color:#fff}
 .lief button.on{border-color:#c9a24a;background:#fbf6ea;box-shadow:0 0 0 1px #c9a24a inset}
 .lief button.on .lc{background:#c9a24a;border-color:#c9a24a}.lief button.on .lc:after{content:'✓';font-weight:800}
+.cc{margin-top:10px;border:1.5px solid #c9a24a;border-radius:16px;background:#fbf6ea;padding:12px 14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center}
+.cc .av{grid-row:span 3;width:46px;height:46px;border-radius:50%;background:#141210;color:#c9a24a;display:grid;place-items:center;font-weight:800;font-size:16px}
+.cc .nm{font-weight:800;font-size:16px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.cc .nm small{font-family:ui-monospace,monospace;font-weight:600;color:var(--muted);font-size:12px}
+.cc .ln{font-size:13px;color:var(--ink);line-height:1.45}.cc .ln span{white-space:nowrap}.cc .ln .mu{color:var(--muted)}.cc .warn{color:#a3460f;font-weight:700}
+.cc .bd{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:#141210;color:#c9a24a}
+.cc .ac{grid-column:1/-1;display:flex;gap:8px;margin-top:6px}.cc .ac button{flex:1}
+.cd-g{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin-top:8px}.cd-g .cd-w{grid-column:1/-1}
+.cd-g label{font-size:12px;margin-bottom:3px;display:block;color:var(--muted);font-weight:600}
+.cd-g input,.cd-g select{height:44px;margin:0;width:100%}
+.cd-kg{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;border:1px dashed var(--line);border-radius:12px;font-size:13px;cursor:pointer}.cd-kg small{color:var(--muted)}.cd-kg input{width:20px;height:20px;margin:0}
+.cd-act{display:flex;gap:8px;margin-top:10px}.cd-act button{flex:1}
 .disc{margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--surface)}
 .disc-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:14px}.disc-hd small{font-weight:400;color:var(--muted)}
 #disc-sum{font-weight:800;color:#2f6b4f;direction:ltr;font-size:14px}
@@ -739,26 +750,24 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <div class="sec-title"><h2><span class="step">1</span> العميل <small class="de">· Kunde</small></h2></div>
       <div class="custbox"><label for="cust">اسم العميل <span id="cust-no" class="code"></span></label><input type="text" id="cust" autocomplete="off" placeholder="مثال: Parfümerie Müller"><div id="cust-sug" class="sug" hidden></div></div>
       <div id="cust-quick" class="quick" hidden></div>
-      <label class="clprow" id="kg-box"><input type="checkbox" id="kgprice"> تسعير بالكيلو لهذا العميل (100 / 250 / 500 غ من سعر 1 كغ) <span id="kg-st" class="code"></span></label>
-      <div class="row grow" style="margin-top:8px">
-        <div><label for="cphone">💬 واتساب / هاتف · WhatsApp</label><input type="tel" id="cphone" dir="ltr" autocomplete="off" placeholder="+49 …"></div>
-        <div><label for="cemail">✉️ الإيميل · E-Mail</label><input type="email" id="cemail" dir="ltr" autocomplete="off" placeholder="name@firma.de"></div>
-      </div>
-      <div class="lbl" style="margin-top:10px">📍 عنوان العميل والدولة · Adresse & Land</div>
-      <div class="row grow" style="margin-top:4px">
-        <div style="flex:0 0 110px;min-width:100px"><label for="plz">الرمز البريدي · PLZ</label><input type="text" id="plz" autocomplete="off" inputmode="numeric" maxlength="8" dir="ltr" placeholder="44623"></div>
+      <div id="cust-card" class="cc" hidden></div>
+      <div id="cust-det" class="cd">
+      <label class="cd-kg" id="kg-box"><input type="checkbox" id="kgprice"><span>⚖️ تسعير بالكيلو <small>(100 / 250 / 500 غ من سعر 1 كغ)</small></span> <span id="kg-st" class="code"></span></label>
+      <div class="cd-g">
+        <div><label for="cphone">💬 واتساب / هاتف</label><input type="tel" id="cphone" dir="ltr" autocomplete="off" placeholder="+49 …"></div>
+        <div><label for="cemail">✉️ الإيميل</label><input type="email" id="cemail" dir="ltr" autocomplete="off" placeholder="name@firma.de"></div>
+        <div class="cd-w"><label for="street">📍 الشارع ورقم المبنى</label><input type="text" id="street" autocomplete="off" placeholder="Bahnhofstraße 86"></div>
+        <div><label for="plz">الرمز البريدي · PLZ</label><input type="text" id="plz" autocomplete="off" inputmode="numeric" maxlength="8" dir="ltr" placeholder="44623"></div>
         <div><label for="city">المدينة · Ort</label><input type="text" id="city" autocomplete="off" placeholder="Herne"></div>
-        <div><label for="street">الشارع ورقم المبنى · يظهر الاقتراح أثناء الكتابة</label><input type="text" id="street" autocomplete="off" placeholder="Bahnhofstraße 86"></div>
         <div><label for="country">الدولة <span id="lang-note" class="code"></span></label><select id="country">
           <option value="DE">Deutschland</option><option value="AT">Österreich</option><option value="CH">Schweiz</option>
           <option value="NL">Niederlande</option><option value="BE">Belgien</option><option value="FR">Frankreich</option>
           <option value="IT">Italien</option><option value="ES">Spanien</option><option value="PL">Polen</option>
           <option value="GB">United Kingdom</option><option value="XX">أخرى (English)</option></select></div>
+        <div><label for="note">📝 ملاحظة (اختياري)</label><input type="text" id="note" autocomplete="off" placeholder="مثال: يستلم خلال ساعة"></div>
       </div>
-      <div class="row grow">
-        <div><label for="note">ملاحظة (اختياري)</label><input type="text" id="note" autocomplete="off" placeholder="مثال: يستلم خلال ساعة"></div>
+      <div class="cd-act"><button class="btn small" id="cust-save" type="button">💾 حفظ بيانات العميل</button><button class="btn small primary" id="cust-done" type="button" hidden>✓ تم</button></div>
       </div>
-      <button class="btn" id="cust-save" type="button" style="width:100%;margin-top:10px">💾 حفظ بيانات العميل (بدون طلب)</button>
     </div>
 
     <div class="panel" id="st-2">
@@ -1882,11 +1891,28 @@ function showCust(){
   try{const cs=$('cust-more-s');if(cs)cs.textContent=[draft.phone,draft.city].filter(Boolean).join(' · ')}catch(e){}
   try{renderQuick()}catch(e){console.warn(e)}
   const c=findCust(draft.cust);$('cust-no').textContent=c?'· '+c.no:(draft.cust.trim()?'· عميل جديد':'');
+  try{custCard(c)}catch(e){console.warn(e)}
   if(c&&c.kg&&!draft.kg&&!draft.kgOff){draft.kg=true;$('kgprice').checked=true;applyKg(draft.items,true);saveDraft();renderItems()}
   $('kg-st').textContent=draft.kg?'· سعر الكيلو مفعّل':(c&&c.kg?'· محفوظ لهذا العميل':'');
   {const sk=c&&c.sk&&c.sk.on?c.sk:null;$('cust-no').textContent+=sk?' · ⭐ '+skText(sk):'';
    const had=draft.items.some(i=>i.skAuto||i.skHint);if((sk||had)&&draft.items.length){const b4=JSON.stringify(draft.items);applySK(draft.items,sk);if(JSON.stringify(draft.items)!==b4){saveDraft();renderItems()}}}
 }
+/* Kundenkarte: bekannter Kunde → kompakte Zusammenfassung, Felder nur bei „تعديل" / neuem Kunden */
+var custEdit=false,custEditFor='';
+function custCard(c){const card=$('cust-card'),det=$('cust-det');if(!card||!det)return;const nm=String(draft.cust||'').trim();
+  if(custEditFor!==nm){custEdit=false;custEditFor=nm}
+  const show=!!c&&!custEdit;card.hidden=!show;det.hidden=show||!nm;$('cust-done').hidden=!(c&&custEdit);
+  if(!show)return;card.textContent='';
+  const ini=nm.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  const n=el('div','nm');n.append(nm,el('small',null,c.no||''));if(draft.kg)n.append(el('span','bd','⚖️ سعر الكيلو'));
+  const adr=[draft.street,[String(draft.city||'').trim()].filter(Boolean).join(' '),draft.country&&draft.country!=='DE'?landName(draft.country):''].filter(Boolean);
+  const l1=el('div','ln');if(adr.length)l1.append('📍 '+adr.join(', '));else l1.append(el('span','warn','⚠️ لا يوجد عنوان – اضغط «تعديل» إذا كان الطلب للشحن'));
+  const l2=el('div','ln');const ct=[draft.phone?'💬 '+draft.phone:'',draft.email?'✉️ '+draft.email:''].filter(Boolean);
+  if(ct.length)ct.forEach((t,i)=>{if(i)l2.append(el('span','mu',' · '));const sp=el('span',null,t);sp.dir='ltr';l2.append(sp)});else l2.append(el('span','mu','لا يوجد هاتف أو إيميل'));
+  const ac=el('div','ac'),ed=el('button','btn small','✎ تعديل البيانات'),ch=el('button','btn small','⇄ تغيير العميل');ed.type=ch.type='button';
+  ed.onclick=()=>{custEdit=true;custCard(c);try{$('cphone').focus()}catch(e){}};
+  ch.onclick=()=>{const i=$('cust');i.value='';draft.cust='';saveDraft();showCust();i.focus();try{suggest()}catch(e){}};
+  ac.append(ed,ch);card.append(el('div','av',ini||'👤'),n,l1,l2,ac)}
 /* ---------- Schnelleingabe: letzte Kunden, „letzten Auftrag wiederholen“, häufige Artikel ---------- */
 const realLists=()=>lists.filter(l=>l.kind!=='debt'&&(l.items||[]).length);
 function custLists(name){const k=custKey(name);return k?realLists().filter(l=>custKey(l.customer)===k).sort((a,b)=>(b.at||0)-(a.at||0)):[]}
@@ -1927,6 +1953,7 @@ function suggest(){
   box.hidden=!hits.length;
 }
 $('cust').oninput=e=>{draft.cust=e.target.value;saveDraft();suggest();showCust()};
+$('cust-done').onclick=()=>{custEdit=false;showCust()};
 $('cust').onfocus=suggest;$('cust').onblur=()=>setTimeout(()=>{$('cust-sug').hidden=true},150);
 async function ensureCustomer(name,adr){
   adr=adr||{};const c=findCust(name);
