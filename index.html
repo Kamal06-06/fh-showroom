@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="224">
+<meta name="fh-build" content="225">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -1747,7 +1747,7 @@ const isOil=it=>it.oil!=null?!!it.oil:!!it.tier;
 const qn=it=>it.unit==='kg'?1:(+it.q||1);
 const cntTxt=items=>{items=items||[];const a=items.length,pc=items.filter(i=>i.unit!=='kg'&&!(isOil(i)&&sizeG(i.size))),b=pc.reduce((s,i)=>s+qn(i),0),kg=Math.round(items.reduce((s,i)=>{if(pc.includes(i))return s;if(i.unit==='kg')return s+(+i.q||0);return s+sizeG(i.size)*(+i.q||1)/1000},0)*1000)/1000;return a+' صنف'+(kg?' · '+String(kg).replace('.',',')+' kg':'')+(b?' · '+b+' قطعة':'')};   /* pieces count (a line sold by kg counts as one) */
 const qtxt=it=>it.unit?(String(+it.q||1).replace('.',',')+' '+(it.unit==='kg'?'kg':'Stk')):((it.q||1)+'×');
-const imgOf=it=>{if(isOil(it))return '';{const ss=setSrc(it.sku||it.code);if(ss)return ss}const p=(catalog||[]).find(p=>p.t===it.t);return (p&&p.i)||''};
+const imgOf=it=>{if(isOil(it))return '';{const ss=setSrc(it.sku||it.code);if(ss)return ss}const p=(catalog||[]).find(p=>p.t===it.t);if(!p)return '';/* Variantenbild (z. B. richtige Kappe/Sprühkopf-Farbe) vor Produktbild */const ix=(p.v||[]).findIndex(v=>v[1]===(it.sku||it.code)&&(!it.size||v[0]===it.size));const ix2=ix>-1?ix:(p.v||[]).findIndex(v=>v[1]===(it.sku||it.code));return (ix2>-1&&p.vi&&p.vi[ix2])||p.i||''};
 /* Kappen-Miniatur aus konfig/kappen: erkennt Form + Farbe der gewählten Kappe im Varianten-/Produktnamen (Sets, Kappen) */
 const CAP_SHAPES=['kugel','polo','ribbed','holz','zen','eckig','zylinder'],CAP_COLS=['weiss-gold','schwarz-gold','dunkelbraun','natur','glanz','matt','gold','weiss','schwarz'],
  CAP_FILES=new Set(['eckig-schwarz','holz-dunkelbraun','holz-natur','holz-schwarz','kugel-gold','kugel-schwarz','kugel-weiss','polo-schwarz-gold','polo-weiss-gold','ribbed-gold','ribbed-schwarz','zen-glanz','zen-gold','zen-matt','zylinder-weiss-gold']);
