@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="211">
+<meta name="fh-build" content="212">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2312,7 +2312,8 @@ function pcCss(){if($('pc-css'))return;const st=document.createElement('style');
 .pc-seg{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
 .pc-seg .pc-v{width:100%;border-radius:12px}
 .pc-v.on{border-color:var(--gold)!important;background:var(--soft)!important;color:var(--ink)!important;box-shadow:0 0 0 1.5px var(--gold) inset}
-.pc-list{display:grid;gap:6px}
+.pc-list{display:grid;gap:6px}.pc-prbh{font-size:12.5px;font-weight:700;color:var(--muted);margin:8px 2px 0}
+.pc-prb{grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px}.pc-prb .pc-v{display:flex;flex-direction:column;align-items:center;padding:6px 4px;min-height:48px;gap:1px}.pc-prb .pc-v small{font-size:11px;font-weight:600;color:var(--muted)}
 .pc-li{display:flex;align-items:center;gap:10px;width:100%;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:10px 12px;font:inherit;cursor:pointer;text-align:start}
 .pc-li .rd{width:18px;height:18px;flex:0 0 18px;border-radius:50%;border:2px solid var(--line)}
 .pc-li .nm{flex:1;font-weight:700;direction:ltr;text-align:start}.pc-li .pp{font-weight:800;direction:ltr;white-space:nowrap;text-align:end}.pc-li .pu{display:block;font-size:11.5px;color:var(--muted);font-weight:500}
@@ -2365,16 +2366,19 @@ function prodCard(p){pcCss();const vars=pcVariants(p),opts=pcOptions(p,vars);if(
         const listOpt=!capOpt&&/menge|inhalt|größe|grösse|size|الحجم/i.test(o.n)&&o.v.length>1;
         const pv=val=>{const t=sel.slice();t[i]=val;return find(t)};
         vs.className=capOpt?'pc-tiles':listOpt?'pc-list':swOpt?'pc-vals':'pc-seg';
+        let prb=null;if(listOpt&&o.v.filter(v=>/probe/i.test(v)).length>3){prb=el('div','pc-seg pc-prb')}
         o.v.forEach(val=>{const ok=exists(i,val),on=sel[i]===val,s=swOpt&&p.sw[o.n+'|'+val];let x;
           if(s){x=el('button','pc-sw'+(on?' on':'')+(ok?'':' x'));pcPaint(x,{c:s[0],im:s[1]});x.title=val;x.setAttribute('aria-label',val)}
           else if(capOpt){x=el('button','pc-tile'+(on?' on':'')+(ok?'':' x'));const ti=el('span','ti'),cs=capSrc('',val);
             if(cs)ti.style.backgroundImage='url("'+cs+'")';else ti.textContent=/ohne/i.test(val)?'∅':'•';x.append(ti,el('span','tn',val))}
+          else if(prb&&/probe/i.test(val)){const v2=pv(val)||vars.find(w=>w.o[i]===val);x=el('button','pc-v'+(on?' on':'')+(ok?'':' x'));x.append(el('span',null,val.replace(/^probe\s*/i,'')),el('small',null,v2&&v2.price!=null?money(v2.price):''));x._box=prb}
           else if(listOpt){const v2=pv(val)||vars.find(w=>w.o[i]===val);x=el('button','pc-li'+(on?' on':'')+(ok?'':' x'));const pp=el('span','pp',v2&&v2.price!=null?money(v2.price):'');
             const k=/karton\s*à\s*([\d.]+)/i.exec(val),pcs=(v2?pcSt(v2.o.join(' ')):0)||(k?+k[1].replace(/\./g,''):0),g=p.oil?sizeG(val):0;
             if(v2&&v2.price!=null&&pcs>1)pp.append(el('span','pu',money(v2.price/pcs)+' / Stk'));else if(v2&&v2.price!=null&&g>=100)pp.append(el('span','pu',money(v2.price/g*1000)+' / kg'));
             x.append(el('span','rd'),el('span','nm',val),pp)}
           else{x=el('button','pc-v'+(on?' on':'')+(ok?'':' x'),val)}
-          x.type='button';x.onclick=()=>{sel[i]=val;let v=find(sel);if(!v){v=vars.find(w=>w.o[i]===val)||cur;sel=v.o.slice()}cur=v;draw()};vs.append(x)});
+          x.type='button';x.onclick=()=>{sel[i]=val;let v=find(sel);if(!v){v=vars.find(w=>w.o[i]===val)||cur;sel=v.o.slice()}cur=v;draw()};(x._box||vs).append(x)});
+        if(prb){vs.append(el('div','pc-prbh','🧪 عينات · Proben'),prb)}
         box.append(vs);ob.append(box)});
       sku.textContent=(p.oil?stem(cur.sku):cur.sku)||'';
       pr.textContent=cur.price!=null?money(cur.price):'السعر غير متوفر';
