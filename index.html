@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="215">
+<meta name="fh-build" content="216">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -1900,11 +1900,13 @@ function showCust(){
 }
 /* Kundenkarte: bekannter Kunde → kompakte Zusammenfassung, Felder nur bei „تعديل" / neuem Kunden */
 var custEdit=false,custEditFor='',custNew=false;
+/* Kundendaten im Entwurf leeren (beim Kundenwechsel, damit keine alte Adresse beim neuen Kunden bleibt) */
+function custClear(){Object.assign(draft,{street:'',city:'',country:'DE',phone:'',email:'',dhlAdr:null});try{$('street').value='';setCityUI('');$('country').value='DE';$('cphone').value='';$('cemail').value='';showLang()}catch(e){}}
 function custCard(c){const card=$('cust-card'),det=$('cust-det');if(!card||!det)return;const nm=String(draft.cust||'').trim();
-  if(custEditFor!==nm){custEdit=false;custEditFor=nm;custNew=false}
+  if(custEditFor!==nm){const pc=custEditFor&&findCust(custEditFor);if(pc&&!c&&custKey(pc.name||custEditFor)!==custKey(nm)&&(draft.street||draft.city||draft.phone)&&draft.street===(pc.street||draft.street)){custClear();saveDraft()}custEdit=false;custEditFor=nm;custNew=false}
   /* unbekannter Name: erst „إضافة عميل جديد“, dann die Adressfelder */
   if(!c&&nm&&!custNew){card.hidden=false;card.classList.add('cc-n');det.hidden=true;card.textContent='';const b=el('button','btn primary cc-new','');b.type='button';b.append('➕ إضافة عميل جديد: ',el('b',null,nm));
-    b.onclick=()=>{custNew=true;custCard(null);setTimeout(()=>{try{$('cphone').focus()}catch(e){}},50)};card.append(b,el('div','cc-hint','غير مسجّل بعد – اختر من الاقتراحات أعلاه إن كان العميل موجوداً باسم آخر'));return}
+    b.onclick=()=>{custNew=true;custCard(null);setTimeout(()=>{try{$('cphone').focus()}catch(e){}},50)};card.append(b,el('div','cc-hint','غير مسجّل بعد – إن كان موجوداً باسم آخر اختره من الاقتراحات أثناء الكتابة'));return}
   card.classList.remove('cc-n');const show=!!c&&!custEdit;card.hidden=!show;det.hidden=show||!nm;$('cust-done').hidden=!(c&&custEdit);
   if(!show)return;card.textContent='';
   const ini=nm.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
@@ -1915,7 +1917,7 @@ function custCard(c){const card=$('cust-card'),det=$('cust-det');if(!card||!det)
   if(ct.length)ct.forEach((t,i)=>{if(i)l2.append(el('span','mu',' · '));const sp=el('span',null,t);sp.dir='ltr';l2.append(sp)});else l2.append(el('span','mu','لا يوجد هاتف أو إيميل'));
   const ac=el('div','ac'),ed=el('button','btn small','✎ تعديل البيانات'),ch=el('button','btn small','⇄ تغيير العميل');ed.type=ch.type='button';
   ed.onclick=()=>{custEdit=true;custCard(c);try{$('cphone').focus()}catch(e){}};
-  ch.onclick=()=>{const i=$('cust');i.value='';draft.cust='';saveDraft();showCust();i.focus();try{suggest()}catch(e){}};
+  ch.onclick=()=>{const i=$('cust');i.value='';draft.cust='';custClear();saveDraft();showCust();i.focus();try{suggest()}catch(e){}};
   ac.append(ed,ch);card.append(el('div','av',ini||'👤'),n,l1,l2,ac)}
 /* ---------- Schnelleingabe: letzte Kunden, „letzten Auftrag wiederholen“, häufige Artikel ---------- */
 const realLists=()=>lists.filter(l=>l.kind!=='debt'&&(l.items||[]).length);
