@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="214">
+<meta name="fh-build" content="215">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -297,6 +297,7 @@ header .bn{font-size:17px;letter-spacing:.2em}header .bn small{font-size:8px}
 .cc .ln{font-size:13px;color:var(--ink);line-height:1.45}.cc .ln span{white-space:nowrap}.cc .ln .mu{color:var(--muted)}.cc .warn{color:#a3460f;font-weight:700}
 .cc .bd{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:#141210;color:#c9a24a}
 .cc .ac{grid-column:1/-1;display:flex;gap:8px;margin-top:6px}.cc .ac button{flex:1}
+.cc.cc-n{display:block;border-style:dashed;background:var(--surface)}.cc-new{width:100%;min-height:48px}.cc-hint{font-size:12px;color:var(--muted);margin-top:6px;text-align:center}
 .cd-g{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin-top:8px}.cd-g .cd-w{grid-column:1/-1}
 .cd-g label{font-size:12px;margin-bottom:3px;display:block;color:var(--muted);font-weight:600}
 .cd-g input,.cd-g select{height:44px;margin:0;width:100%}
@@ -1898,10 +1899,13 @@ function showCust(){
    const had=draft.items.some(i=>i.skAuto||i.skHint);if((sk||had)&&draft.items.length){const b4=JSON.stringify(draft.items);applySK(draft.items,sk);if(JSON.stringify(draft.items)!==b4){saveDraft();renderItems()}}}
 }
 /* Kundenkarte: bekannter Kunde → kompakte Zusammenfassung, Felder nur bei „تعديل" / neuem Kunden */
-var custEdit=false,custEditFor='';
+var custEdit=false,custEditFor='',custNew=false;
 function custCard(c){const card=$('cust-card'),det=$('cust-det');if(!card||!det)return;const nm=String(draft.cust||'').trim();
-  if(custEditFor!==nm){custEdit=false;custEditFor=nm}
-  const show=!!c&&!custEdit;card.hidden=!show;det.hidden=show||!nm;$('cust-done').hidden=!(c&&custEdit);
+  if(custEditFor!==nm){custEdit=false;custEditFor=nm;custNew=false}
+  /* unbekannter Name: erst „إضافة عميل جديد“, dann die Adressfelder */
+  if(!c&&nm&&!custNew){card.hidden=false;card.classList.add('cc-n');det.hidden=true;card.textContent='';const b=el('button','btn primary cc-new','');b.type='button';b.append('➕ إضافة عميل جديد: ',el('b',null,nm));
+    b.onclick=()=>{custNew=true;custCard(null);setTimeout(()=>{try{$('cphone').focus()}catch(e){}},50)};card.append(b,el('div','cc-hint','غير مسجّل بعد – اختر من الاقتراحات أعلاه إن كان العميل موجوداً باسم آخر'));return}
+  card.classList.remove('cc-n');const show=!!c&&!custEdit;card.hidden=!show;det.hidden=show||!nm;$('cust-done').hidden=!(c&&custEdit);
   if(!show)return;card.textContent='';
   const ini=nm.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   const n=el('div','nm');n.append(nm,el('small',null,c.no||''));if(draft.kg)n.append(el('span','bd','⚖️ سعر الكيلو'));
@@ -1927,7 +1931,7 @@ function topItems(src,n){const cnt=new Map();src.forEach(l=>(l.items||[]).forEac
   return [...cnt.values()].sort((a,b)=>b.n-a.n||b.at-a.at).slice(0,n)}
 function renderQuick(){const box=$('cust-quick');if(!box)return;box.textContent='';
   const name=(draft.cust||'').trim();
-  if(!name){const seen=new Set(),rec=[];realLists().slice().sort((a,b)=>(b.at||0)-(a.at||0)).forEach(l=>{const k=custKey(l.customer);if(!k||seen.has(k)||rec.length>=6)return;seen.add(k);rec.push(l.customer)});
+  if(false){const seen=new Set(),rec=[];/* „آخر العملاء“ auf Wunsch entfernt */realLists().slice().sort((a,b)=>(b.at||0)-(a.at||0)).forEach(l=>{const k=custKey(l.customer);if(!k||seen.has(k)||rec.length>=6)return;seen.add(k);rec.push(l.customer)});
     if(rec.length){box.append(el('div','qh','🕘 آخر العملاء'));const r=el('div','qrow');rec.forEach(nm=>{const c=findCust(nm)||{name:nm};const b=el('button','qchip',nm);b.type='button';b.onclick=()=>pickCust(c);r.append(b)});box.append(r)}}
   else if(!draft.items.length&&!editing){const ls=custLists(name);if(ls.length){const l=ls[0];const b=el('button','qchip qrep','↻ كرّر آخر طلب لهذا العميل · '+new Date(l.at).toLocaleDateString('de-DE')+' · '+(l.items||[]).length+' أصناف');b.type='button';
     b.onclick=()=>{const n=addCopies(l.items||[]);toast('تمت إضافة '+n+' أصناف من طلب '+new Date(l.at).toLocaleDateString('de-DE')+' — الأسعار الحالية من المتجر');renderQuick()};box.append(b)}}
