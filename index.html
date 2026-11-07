@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="221">
+<meta name="fh-build" content="222">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2419,7 +2419,7 @@ function cfgAdd(d){const its=d.items||[],rows=d.rows||[];let n=0;const sid='S'+D
   const dsc=String(d.desc||'').split(' · ').slice(1).join(' · ');
   rows.forEach((r,i)=>{const q=Math.max(1,+(its[i]&&its[i].quantity)||1),price=r.total?Math.round(r.total/q*10000)/10000:null;const base=cfgItem(r,price);
     const push=(o,qq)=>{const hit=!o.st&&draft.items.find(x=>!x.st&&x.t===o.t&&(x.size||'')===(o.size||'')&&(x.code||'')===(o.code||'')&&!x.unit);if(hit)hit.q=(+hit.q||1)+qq;else draft.items.push(Object.assign({q:qq},o));n++};
-    if(!hasSet||isTool(r)){push(base,q);return}
+    if(!hasSet||isTool(r)||/zus(ä|a)tzlich|einzelpreis/i.test(r.name)){push(r.name&&/zus(ä|a)tzlich/i.test(r.name)?Object.assign({},base,{t:base.t+' (zusätzlich)'}):base,q);return}
     const role=i===0?'fl':isSp(r)?'sp':isCap(r)?'cap':'';
     if(!role){push(base,q);return}
     if(role==='fl'){push(Object.assign({},base,{st:{id:sid,n:sets,k:d.kart?Math.max(1,Math.round(sets/q)):1,kart:!!d.kart,lbl,d:dsc,role}}),q);return}
