@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="223">
+<meta name="fh-build" content="224">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2440,8 +2440,8 @@ function grpSetCss(){if($('grpset-css'))return;const st=document.createElement('
 .mix-a{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}.mix-s{flex:1;font-weight:800;text-align:center;color:#a3460f}.mix-s.ok{color:#2f6b4f}`;document.head.append(st)}
 function setGroups(items){const m=new Map();(items||[]).forEach((it,ix)=>{if(!it.st||!it.st.id)return;let g=m.get(it.st.id);if(!g){g={id:it.st.id,ix:[],parts:[]};m.set(it.st.id,g)}g.ix.push(ix);g.parts.push(it);if(it.st.role==='fl')g.fl=it});
   m.forEach(g=>{const f=g.fl||g.parts[0];g.n=+(f.st&&f.st.n)||1;g.lbl=(f.st&&f.st.lbl)||f.t;g.tot=r2(g.parts.reduce((a,x)=>a+(x.price==null?0:lineTot(x)),0));g.per=g.n?g.tot/g.n:0;
-    const sp=g.parts.find(x=>x.st.role==='sp'),caps=g.parts.filter(x=>x.st.role==='cap');
-    g.d=[sp?'Sprühkopf '+String(sp.size||'').replace(/^.*·\s*/,''):'ohne Sprühkopf',caps.length?(caps.length>1?'Kappen gemischt: '+caps.map(c=>capNm(c)+' ×'+c.q).join(', '):'Kappe '+capNm(caps[0])):'ohne Kappe'].join(' · ')});return m}
+    const sps=g.parts.filter(x=>x.st.role==='sp'),sp=sps[0],caps=g.parts.filter(x=>x.st.role==='cap');
+    g.d=[sps.length>1?'Sprühköpfe gemischt: '+sps.map(x=>String(x.size||'').replace(/^.*·\s*/,'')+' ×'+x.q).join(', '):sp?'Sprühkopf '+String(sp.size||'').replace(/^.*·\s*/,''):'ohne Sprühkopf',caps.length?(caps.length>1?'Kappen gemischt: '+caps.map(c=>capNm(c)+' ×'+c.q).join(', '):'Kappe '+capNm(caps[0])):'ohne Kappe'].join(' · ')});return m}
 function capNm(c){const t=String(c.t||'').replace(/^Parf(ü|u)mkappe\s*(\(im Set\))?\s*/i,'').replace(/^FH\s+/,'');return (t?t+(c.size?' · ':''):'')+(c.size||'')}
 /* Ansicht für Kundendokumente: Set-Teile → eine Position „… – Set" (Preis je Set) */
 function setView(items){const gs=setGroups(items),done=new Set(),out=[];(items||[]).forEach(it=>{if(!it.st||!gs.has(it.st.id)){out.push(it);return}const g=gs.get(it.st.id);if(done.has(g.id))return;done.add(g.id);
