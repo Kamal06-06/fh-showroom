@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="216">
+<meta name="fh-build" content="217">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -1935,7 +1935,7 @@ function renderQuick(){const box=$('cust-quick');if(!box)return;box.textContent=
   const name=(draft.cust||'').trim();
   if(false){const seen=new Set(),rec=[];/* „آخر العملاء“ auf Wunsch entfernt */realLists().slice().sort((a,b)=>(b.at||0)-(a.at||0)).forEach(l=>{const k=custKey(l.customer);if(!k||seen.has(k)||rec.length>=6)return;seen.add(k);rec.push(l.customer)});
     if(rec.length){box.append(el('div','qh','🕘 آخر العملاء'));const r=el('div','qrow');rec.forEach(nm=>{const c=findCust(nm)||{name:nm};const b=el('button','qchip',nm);b.type='button';b.onclick=()=>pickCust(c);r.append(b)});box.append(r)}}
-  else if(!draft.items.length&&!editing){const ls=custLists(name);if(ls.length){const l=ls[0];const b=el('button','qchip qrep','↻ كرّر آخر طلب لهذا العميل · '+new Date(l.at).toLocaleDateString('de-DE')+' · '+(l.items||[]).length+' أصناف');b.type='button';
+  else if(false&&!draft.items.length&&!editing){const ls=custLists(name);/* „Letzten Auftrag wiederholen“ auf Wunsch entfernt */if(ls.length){const l=ls[0];const b=el('button','qchip qrep','↻ كرّر آخر طلب لهذا العميل · '+new Date(l.at).toLocaleDateString('de-DE')+' · '+(l.items||[]).length+' أصناف');b.type='button';
     b.onclick=()=>{const n=addCopies(l.items||[]);toast('تمت إضافة '+n+' أصناف من طلب '+new Date(l.at).toLocaleDateString('de-DE')+' — الأسعار الحالية من المتجر');renderQuick()};box.append(b)}}
   box.hidden=!box.childNodes.length;renderFreq()}
 function renderFreq(){const box=$('freq');if(!box)return;box.textContent='';box.hidden=true;return;/* Liste: kauft dieser Kunde ueblicherweise / meistbestellt – auf Wunsch entfernt */
