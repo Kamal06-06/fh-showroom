@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="225">
+<meta name="fh-build" content="226">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2408,7 +2408,7 @@ function cfgOpen(mk,title){pcModal(title||'تركيب الزجاجة',(b,close)=
   const on=e=>{if(!document.body.contains(fr)){window.removeEventListener('message',on);return}if(e.source!==fr.contentWindow||!e.data||e.data.fhk!=='add')return;
     const n=cfgAdd(e.data);window.removeEventListener('message',on);close();toast(n?'✓ أُضيف التركيب: '+n+' بنود · '+(e.data.desc||''):'⚠️ لم يُضف شيء')};
   window.addEventListener('message',on)})}
-function cfgItem(r,price){let best=null;(catalog||[]).forEach(p=>{if(p.oil)return;(p.v||[]).forEach(v=>{if(String(v[1]||'').trim().toUpperCase()!==String(r.code||'').trim().toUpperCase()||!r.code)return;const d2=price==null?0:Math.abs(pnum(v[2])-price);if(!best||d2<best.d)best={p,v,d:d2}})});
+function cfgItem(r,price){let best=null;(catalog||[]).forEach(p=>{if(p.oil)return;(p.v||[]).forEach(v=>{if(String(v[1]||'').trim().toUpperCase()!==String(r.code||'').trim().toUpperCase()||!r.code)return;const d2=(price==null?0:Math.abs(pnum(v[2])-price))+(String(r.name||'').indexOf(String(v[0]||''))>-1?0:0.0005);if(!best||d2<best.d)best={p,v,d:d2}})});
   return best?{t:best.p.t,a:'',oil:0,tier:'',code:best.v[1],size:best.v[0],sku:best.v[1],price:price!=null?price:pnum(best.v[2])}:{t:r.name||r.code||'Position',a:'',oil:0,tier:'',code:r.code||'',size:'',sku:r.code||'',price}}
 /* Set aus dem Konfigurator: Flakon + Sprühkopf + Kappe bleiben einzelne Positionen (Lager/Bestand), sind aber über it.st zu EINEM Set verbunden;
    Reserve-Teile und Werkzeug werden normale Positionen. */
