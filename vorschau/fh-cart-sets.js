@@ -37,13 +37,15 @@
     return order.map(function (k) {
       var x = g[k];
       if (x.lines.length < 2) return null;
-      if (!x.sets) x.sets = Math.min.apply(null, x.lines.slice(1).map(function (l) { return l.it.quantity; }));
       x.total = x.lines.reduce(function (a, l) { return a + l.it.final_line_price; }, 0);
-      var rest = x.lines.slice(1), sp = rest.filter(function (l) { return /spr(ü|u)hkopf/i.test(l.it.product_title); })[0];
+      var isFl = function (l) { return /flakon/i.test(l.it.product_title); }, fl = x.lines.filter(isFl)[0] || x.lines[0], rest = x.lines.filter(function (l) { return l !== fl; });
+      var sp = rest.filter(function (l) { return /spr(ü|u)hkopf/i.test(l.it.product_title); })[0];
       var caps = rest.filter(function (l) { return /kappe/i.test(l.it.product_title); });
       var nm = function (l) { return (l.it.variant_title || '').replace(/^Default Title$/, '') || l.it.product_title.replace(/^Parf(ü|u)mkappe\s*/i, ''); };
       x.desc = [sp ? 'Sprühkopf ' + nm(sp) : '', caps.length > 1 ? TX.mixed + ': ' + caps.map(function (l) { return nm(l) + ' ×' + l.it.quantity; }).join(', ') : caps.length ? 'Kappe ' + nm(caps[0]) : ''].filter(Boolean).join(' · ');
-      x.img = (x.lines[0].it.image || '');
+      if (!x.sets) x.sets = Math.max.apply(null, rest.map(function (l) { return l.it.quantity; }).concat([1]));
+      x.img = (fl.it.image || '');
+      x.lines.sort(function (a, b) { return (a === fl ? -1 : 0) - (b === fl ? -1 : 0); });
       return x;
     }).filter(Boolean);
   }
