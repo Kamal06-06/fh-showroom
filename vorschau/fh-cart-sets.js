@@ -39,8 +39,8 @@
       if (x.lines.length < 2) return null;
       if (!x.sets) x.sets = Math.min.apply(null, x.lines.slice(1).map(function (l) { return l.it.quantity; }));
       x.total = x.lines.reduce(function (a, l) { return a + l.it.final_line_price; }, 0);
-      var sp = x.lines.filter(function (l) { return /spr(ü|u)hkopf/i.test(l.it.product_title); })[0];
-      var caps = x.lines.filter(function (l) { return /kappe/i.test(l.it.product_title); });
+      var rest = x.lines.slice(1), sp = rest.filter(function (l) { return /spr(ü|u)hkopf/i.test(l.it.product_title); })[0];
+      var caps = rest.filter(function (l) { return /kappe/i.test(l.it.product_title); });
       var nm = function (l) { return (l.it.variant_title || '').replace(/^Default Title$/, '') || l.it.product_title.replace(/^Parf(ü|u)mkappe\s*/i, ''); };
       x.desc = [sp ? 'Sprühkopf ' + nm(sp) : '', caps.length > 1 ? TX.mixed + ': ' + caps.map(function (l) { return nm(l) + ' ×' + l.it.quantity; }).join(', ') : caps.length ? 'Kappe ' + nm(caps[0]) : ''].filter(Boolean).join(' · ');
       x.img = (x.lines[0].it.image || '');
@@ -84,12 +84,15 @@
     });
   }
 
-  function load() { fetch('/cart.js', { headers: { Accept: 'application/json' } }).then(function (r) { return r.json(); }).then(function (c) { cart = c; paint(); }).catch(function () {}); }
+  /* Artikelzahl: ein Set zählt als Anzahl Sets (nicht Flakon + Sprühkopf + Kappe einzeln) */
+  window.fhCartCount = function (c) { var n = 0, seen = {}; (c.items || []).forEach(function (it) { var p = it.properties || {}; if (p._set) { if (!seen[p._set]) { seen[p._set] = 1; n += +p._sets || it.quantity; } return; } n += /-1G$/i.test(it.sku || '') ? 1 : it.quantity; }); return n; };
+  function bubble() { if (!cart) return; var n = window.fhCartCount(cart); document.querySelectorAll('#cart-icon-bubble .cart-count-bubble span[aria-hidden="true"]').forEach(function (el) { if (/^\d+$/.test(el.textContent.trim()) && el.textContent !== String(n)) el.textContent = String(n); }); }
+  function load() { fetch('/cart.js', { headers: { Accept: 'application/json' } }).then(function (r) { return r.json(); }).then(function (c) { cart = c; paint(); bubble(); }).catch(function () {}); }
   function own(m) { var ns = [].slice.call(m.addedNodes).concat([].slice.call(m.removedNodes)); return ns.length && ns.every(function (n) { return n.nodeType === 1 && n.classList && n.classList.contains('fh-set'); }) || (m.target.closest && m.target.closest('.fh-set')); }
   function start() {
     load();
     new MutationObserver(function (ms) {
-      for (var i = 0; i < ms.length; i++) if (!own(ms[i])) { clearTimeout(t); t = setTimeout(paint, 80); return; }
+      for (var i = 0; i < ms.length; i++) if (!own(ms[i])) { clearTimeout(t); t = setTimeout(function () { paint(); bubble(); }, 80); return; }
     }).observe(document.body, { childList: true, subtree: true });
     if (typeof subscribe === 'function' && typeof PUB_SUB_EVENTS !== 'undefined') subscribe(PUB_SUB_EVENTS.cartUpdate, function () { setTimeout(load, 300); });
   }
