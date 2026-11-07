@@ -60,7 +60,8 @@
       root.querySelectorAll('tr.fh-set').forEach(function (x) { x.remove(); });
       root.querySelectorAll('tr.fh-set-part').forEach(function (x) { x.classList.remove('fh-set-part', 'fh-show'); });
       gs.forEach(function (g) {
-        var first = rowsIn(root, g.lines[0].i); if (!first) return;
+        var rws = g.lines.map(function (l) { return rowsIn(root, l.i); }).filter(Boolean); if (!rws.length) return;
+        var first = rws.reduce(function (a, b) { return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_PRECEDING ? b : a; });
         g.lines.forEach(function (l) { var r = rowsIn(root, l.i); if (r) { r.classList.add('fh-set-part'); r.classList.toggle('fh-show', !!open[g.k]); } });
         var tr = document.createElement('tr'); tr.className = 'fh-set';
         var td = document.createElement('td'); td.colSpan = 5; tr.appendChild(td);
