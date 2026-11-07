@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="217">
+<meta name="fh-build" content="218">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2399,7 +2399,24 @@ function pcOptions(p,vars){
   if(p.op&&p.op.length)return p.op.map(o=>({n:o.n,v:o.v.slice()}));
   const n=Math.max(0,...vars.map(v=>v.o.length)),out=[];for(let i=0;i<n;i++){const vals=[];vars.forEach(v=>{const x=v.o[i];if(x!=null&&!vals.includes(x))vals.push(x)});out.push({n:'Option '+(i+1),v:vals})}return out}
 const pcSt=n=>{const m=/^\s*([\d.]+)\s*(stück|stk|pcs)/i.exec(String(n||''));return m?+m[1].replace(/\./g,''):0};
-function prodCard(p){pcCss();const vars=pcVariants(p),opts=pcOptions(p,vars);if(!vars.length)return;
+/* „Set nach Wahl": derselbe Flakon-Konfigurator wie im Shop (alle Kappen auf dem Flakon, Sprühkopf-Farben, Kartonpreise) */
+const CFG_M={'square grace':'sqg','square elegance':'sel','square charm':'sch','square rouge':'sro','square black':'sbl','slim aura':'sla','noble line':'nbl','angel':'ang','olympia':'zen','luna':'luna','orbis':'orb','royal dome':'rdo'};
+function cfgModel(t){const s=fold(String(t||'')).toLowerCase();const k=Object.keys(CFG_M).sort((a,b)=>b.length-a.length).find(n=>s.indexOf(n)===0||s.indexOf(n+' ')>-1);if(!k)return null;const m=/(\d+)\s*ml/i.exec(t);return {k:CFG_M[k],ml:m?m[1]:''}}
+function cfgOpen(mk,title){pcModal(title||'تركيب الزجاجة',(b,close)=>{b.style.padding='0';
+  const fr=document.createElement('iframe');fr.src='konfig/app.html?m='+encodeURIComponent(mk.k)+(mk.ml?'&ml='+encodeURIComponent(mk.ml):'');fr.title='Flakon-Konfigurator';
+  fr.style.cssText='display:block;width:100%;height:min(80vh,900px);border:0;background:#fff';b.append(fr);
+  const on=e=>{if(!document.body.contains(fr)){window.removeEventListener('message',on);return}if(e.source!==fr.contentWindow||!e.data||e.data.fhk!=='add')return;
+    const n=cfgAdd(e.data);window.removeEventListener('message',on);close();toast(n?'✓ أُضيف التركيب: '+n+' بنود · '+(e.data.desc||''):'⚠️ لم يُضف شيء')};
+  window.addEventListener('message',on)})}
+function cfgAdd(d){const its=d.items||[],rows=d.rows||[];let n=0;
+  rows.forEach((r,i)=>{const q=Math.max(1,+(its[i]&&its[i].quantity)||1),price=r.total?Math.round(r.total/q*10000)/10000:null;
+    let best=null;(catalog||[]).forEach(p=>{if(p.oil)return;(p.v||[]).forEach(v=>{if(String(v[1]||'').trim().toUpperCase()!==String(r.code||'').trim().toUpperCase()||!r.code)return;const d2=price==null?0:Math.abs(pnum(v[2])-price);if(!best||d2<best.d)best={p,v,d:d2}})});
+    const it=best?{t:best.p.t,a:'',oil:0,tier:'',code:best.v[1],size:best.v[0],sku:best.v[1],price:price!=null?price:pnum(best.v[2])}:{t:r.name||r.code||'Position',a:'',oil:0,tier:'',code:r.code||'',size:'',sku:r.code||'',price};
+    const hit=draft.items.find(x=>x.t===it.t&&(x.size||'')===(it.size||'')&&(x.code||'')===(it.code||'')&&!x.unit);
+    if(hit)hit.q=(+hit.q||1)+q;else draft.items.push(Object.assign({q},it));n++});
+  if(n){saveDraft();renderItems()}return n}
+function prodCard(p){pcCss();if(!p.oil&&/set nach wahl/i.test(p.t||'')){const mk=cfgModel(p.t);if(mk){cfgOpen(mk,p.t);return}}
+  const vars=pcVariants(p),opts=pcOptions(p,vars);if(!vars.length)return;
   /* Startauswahl: bei Ölen die oben gewählte Größe, sonst erste verfügbare Variante */
   let cur=(p.oil&&vars.find(v=>nz(v.size)===nz(size)))||vars.find(v=>v.av)||vars[0],sel=cur.o.slice(),qty=1;
   pcModal(p.t,(b,close)=>{
