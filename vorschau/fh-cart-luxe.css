@@ -9,8 +9,9 @@ cart-drawer .fh-cnt{font-size:1.35rem;font-family:var(--font-body-family);color:
 cart-drawer .drawer__close{position:static!important;width:4rem;height:4rem;border-radius:50%;display:grid;place-items:center;background:#fff!important;border:1px solid var(--fh-line)!important;transition:transform .2s ease,background .2s}
 cart-drawer .drawer__close:hover{transform:rotate(90deg)}
 /* „Hinzugefügt" als kurze Einblendung statt Block im Kopf */
-cart-drawer .fh-added{position:absolute!important;inset-inline:2rem;top:calc(100% + 1rem);z-index:5;margin:0!important;padding:1rem 1.4rem!important;border-radius:12px!important;background:#fff!important;color:var(--fh-ink)!important;font-weight:600;box-shadow:0 10px 30px rgba(28,33,53,.14);border:1px solid var(--fh-gold-soft);display:flex;align-items:center;gap:.8rem;animation:fh-toast 3.4s var(--fh-ease) forwards}
-@keyframes fh-toast{0%{opacity:0;transform:translateY(-8px)}10%,80%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-6px);visibility:hidden}}
+cart-drawer .fh-added{order:3;flex:0 0 100%;margin:1rem 0 0!important;padding:.9rem 1.2rem!important;border-radius:10px!important;background:#eef6f0!important;color:#25603f!important;font-size:1.3rem!important;font-weight:600;overflow:hidden;animation:fh-toast 5.6s var(--fh-ease) forwards}
+cart-drawer .drawer__header{flex-wrap:wrap}
+@keyframes fh-toast{0%{opacity:0;max-height:0;padding-block:0;margin-top:0}8%,85%{opacity:1;max-height:5rem}100%{opacity:0;max-height:0;padding-block:0;margin-top:0}}
 /* Positionen als ruhige Karten */
 cart-drawer cart-drawer-items{flex:1 1 auto;overflow:auto;padding:0 2rem!important;margin:0!important}
 cart-drawer .cart-items thead{display:none!important}
@@ -33,7 +34,9 @@ cart-drawer .cart-item__quantity{grid-area:q!important;margin-top:.6rem}
 cart-drawer .cart-item__quantity-wrapper{display:flex!important;align-items:center;gap:1rem}
 cart-drawer .cart-item .quantity{min-height:3.8rem!important;width:11.6rem!important;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px rgba(28,33,53,.16)}
 cart-drawer .cart-item .quantity:before,cart-drawer .cart-item .quantity:after{display:none!important}
-cart-drawer .cart-item .quantity__button{width:3.8rem!important}
+cart-drawer .cart-item .quantity__button{width:3.8rem!important;box-shadow:none!important;background:transparent!important}
+cart-drawer .quantity-popover-container{padding:0!important;border:0!important;box-shadow:none!important;width:auto!important}
+cart-drawer .quantity-popover-container:before,cart-drawer .quantity-popover-container:after,cart-drawer .quantity-popover-container--hover:hover:before{display:none!important}
 cart-drawer .cart-item .quantity__input{font-weight:600;font-size:1.45rem!important}
 cart-drawer .cart-remove-button{width:3.8rem!important;height:3.8rem!important;min-width:0!important;border-radius:50%!important;opacity:.55;transition:opacity .2s,background .2s}
 cart-drawer .cart-remove-button:hover{opacity:1;background:#fff!important}
