@@ -13,7 +13,7 @@ html,body{margin:0;background:#fff;font-family:-apple-system,BlinkMacSystemFont,
 /* Der Shop-Konfigurator (gleiches Skript wie im Shop) – in der Showroom-App:
    „In den Warenkorb" legt nichts in den Shop-Warenkorb, sondern schickt die Positionen an die App. */
 (function(){
-  window.FHKR='#';
+  window.FHKR='#';window.Shopify=window.Shopify||{};window.Shopify.routes={root:'#'};/* kein Wechsel zur Shop-Warenkorbseite */
   var of=window.fetch;
   function num(t){t=String(t||'').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.');return parseFloat(t)||0}
   window.fetch=function(u,o){var url=String(u&&u.url||u);
