@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="219">
+<meta name="fh-build" content="220">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2057,7 +2057,7 @@ function renderItems(){
   draft.items.forEach(pcPrep);if(draft.items.reduce((ch,it)=>grpApply(it)||ch,false))saveDraft();
   {const sk=skOf(draft.cust);if(sk||draft.items.some(i=>i.skAuto||i.skHint)){const b4=JSON.stringify(draft.items);applySK(draft.items,sk);if(JSON.stringify(draft.items)!==b4)saveDraft()}}
   const box=$('items');box.textContent='';
-  {const gs=setGroups(draft.items),seen=new Set();setCss();draft.items.forEach((it,ix)=>{if(it.st&&gs.has(it.st.id)){if(seen.has(it.st.id))return;seen.add(it.st.id);box.append(setTile(gs.get(it.st.id)));return}box.append(labelTile(it,true,ix))})}
+  {const gs=setGroups(draft.items),seen=new Set();grpSetCss();draft.items.forEach((it,ix)=>{if(it.st&&gs.has(it.st.id)){if(seen.has(it.st.id))return;seen.add(it.st.id);box.append(setTile(gs.get(it.st.id)));return}box.append(labelTile(it,true,ix))})}
   $('empty').hidden=draft.items.length>0;
   const n=draft.items.reduce((s,i)=>s+qn(i),0),t=totals(draft);
   $('count').textContent=n?'('+n+')':'';$('sum').textContent=money(t.net)+(t.ship?' (شامل الشحن '+money(t.ship)+')':'');
@@ -2428,7 +2428,7 @@ function cfgAdd(d){const its=d.items||[],rows=d.rows||[];let n=0;const sid='S'+D
     if(extra>0)push(Object.assign({},base,{t:base.t+' (Reserve)'}),extra)});
   if(n){saveDraft();renderItems()}return n}
 /* ---------- Sets im Auftrag: Gruppe, Preis je Set, Menge, gemischte Kappenfarben ---------- */
-function setCss(){if($('set-css'))return;const st=document.createElement('style');st.id='set-css';st.textContent=`
+function grpSetCss(){if($('grpset-css'))return;const st=document.createElement('style');st.id='grpset-css';st.textContent=`
 .set-card{border:1.5px solid #c9a24a;border-radius:16px;background:#fffdf8;padding:12px;margin:8px 0;display:grid;gap:8px}
 .set-h{display:flex;gap:10px;align-items:center}.set-img{width:54px;height:54px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid var(--line)}
 .set-t b{display:block;font-size:15px}.set-d{font-size:12.5px;color:var(--muted);direction:ltr;text-align:start}
