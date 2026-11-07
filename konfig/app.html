@@ -24,7 +24,9 @@ html,body{margin:0;background:#fff;font-family:-apple-system,BlinkMacSystemFont,
         var name=td?[].slice.call(td.childNodes).filter(function(n){return n.nodeType===3}).map(function(n){return n.textContent}).join('').trim():'';
         return {name:name,code:b?b.textContent.trim():'',info:k?k.textContent.trim():'',total:r?num(r.textContent):0}});
       var desc=(document.getElementById('fhk-desc')||{}).textContent||'';
-      parent.postMessage({fhk:'add',items:items,rows:rows,desc:desc},'*');
+      var pcsT=(document.getElementById('fhk-pcs')||{}).textContent||'',nIn=document.getElementById('fhk-n');
+      var kart=/St(ü|u)ck/.test(pcsT)&&/=/.test(pcsT);
+      parent.postMessage({fhk:'add',items:items,rows:rows,desc:desc,sets:num(pcsT.replace(/[^\d.]/g,'')),n:nIn?+nIn.value||1:1,kart:kart},'*');
       return Promise.resolve(new Response('{"items":[]}',{status:200,headers:{'Content-Type':'application/json'}}))}
     if(/\/products\/[^/]+\.js/.test(url))return Promise.reject(new Error('offline'));
     return of.apply(this,arguments)};
