@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="227">
+<meta name="fh-build" content="228">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2663,7 +2663,7 @@ function lieferscheinPdf(l,useOrig){
     doc.text(String(i+1),X.pos+1,y);
     nm.forEach((ln,k)=>doc.text(ln,ax,y+k*4.2));
     doc.setFont('helvetica','normal');doc.setFontSize(9);
-    if(oil){doc.text(latin(it.tier)||'-',X.q,y);doc.text(latin(it.size)||'-',X.m,y)}
+    if(oil){tierBadge(doc,it.tier,X.q,y,X.m-X.q-2);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(latin(it.size)||'-',X.m,y)}
     doc.text(it.unit?qtxt(it):String(it.q||1),X.n,y);
     const has=!(it.price==null||it.price==='');
     const skL=!!(it.skAuto&&itRab(it));
@@ -2736,6 +2736,20 @@ const PLT={de:{t:'PACKLISTE',nr:'Nr. PL-',date:'Datum: ',cust:'Kunde',no:'Kunden
  pl:{t:'LISTA PAKOWANIA',nr:'Nr PL-',date:'Data: ',cust:'Klient',no:'Nr klienta ',note:'Uwaga: ',pos:'Poz.',art:'Artykul',q:'Jakosc',m:'Ilosc',n:'Szt.',code:'Kod',oils:'Olejki',other:'Flakony i akcesoria',foot:'Ta lista nie zawiera cen.',sig:'Skompletowal: ____________________     Data / godzina: ______________'}};
 /* Stückzahl je Packung aus der Variante ("100 Stück / Gold" → 100) */
 const packOf=it=>{if(isOil(it)||it.unit)return 1;const m=/(\d+)\s*(st(ü|u)ck|stk|pcs|pz|szt)/i.exec(String(it.size||''));return m?+m[1]:1};
+/* Qualität als deutliches Abzeichen (Standard grau, Premium gold, Exklusiv dunkel/gold) */
+function tierBadge(doc,tier,x,y,w){const t=latin(tier||'').trim();if(!t){doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(150);doc.text('-',x,y);doc.setTextColor(0);return}
+  const c=t.charAt(0).toUpperCase(),lab=t.toUpperCase(),h=5.6,top=y-3.9;doc.setFont('helvetica','bold');doc.setFontSize(8.6);const bw=Math.min(w,doc.getTextWidth(lab)+4.6);
+  if(c==='E'){doc.setFillColor(20,33,31);doc.roundedRect(x,top,bw,h,1.2,1.2,'F');doc.setTextColor(214,178,104)}
+  else if(c==='P'){doc.setFillColor(184,134,47);doc.roundedRect(x,top,bw,h,1.2,1.2,'F');doc.setTextColor(255)}
+  else{doc.setDrawColor(110);doc.setLineWidth(0.35);doc.roundedRect(x,top,bw,h,1.2,1.2,'S');doc.setTextColor(60)}
+  doc.text(lab,x+bw/2,y,{align:'center'});doc.setTextColor(0);doc.setDrawColor(0)}
+/* Lagerplatz als Abzeichen: groß "A01-2-3", darunter "Regal A01 · Ebene 2 · Fach 3" */
+function platzBadge(doc,pl,x,mid,w){const m=/^([A-Z]\d{2})-(\d+)-(\d+)$/.exec(pl||'');
+  if(!pl){doc.setDrawColor(190);doc.setLineWidth(0.3);doc.setLineDashPattern([0.8,0.8],0);doc.roundedRect(x,mid-4,w,8,1.2,1.2,'S');doc.setLineDashPattern([],0);
+    doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(150);doc.text('OHNE FACH',x+w/2,mid+1,{align:'center'});doc.setTextColor(0);doc.setDrawColor(0);return}
+  doc.setFillColor(20,33,31);doc.roundedRect(x,mid-5.2,w,m?10.4:8,1.4,1.4,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(12.5);doc.text(latin(pl),x+w/2,mid+(m?-0.3:1.3),{align:'center'});
+  if(m){doc.setFont('helvetica','normal');doc.setFontSize(5.4);doc.setTextColor(214,178,104);doc.text('Regal '+m[1]+' · Ebene '+m[2]+' · Fach '+m[3],x+w/2,mid+3.7,{align:'center'})}
+  doc.setTextColor(0)}
 function prepListPdf(l,useOrig,neutral,route){
   /* route (Druck fürs Lager): Öle nach Laufweg sortiert, mit Lagerplatz (Fach). Beim Versand an den Kunden bleibt die Liste ohne Fach. */
   /* neutral (Dropshipping): ohne Preise, ohne unser Logo/Anschrift – Absender = Kunde, Empfänger = Kunde des Kunden */
@@ -2743,7 +2757,7 @@ function prepListPdf(l,useOrig,neutral,route){
   const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4',compress:true});const L=15,R=195,d=new Date(l.at||Date.now()),k0=PLT[LANG_OF(l.country)]||PLT.de,
     k=neutral?Object.assign({},k0,LANG_OF(l.country)==='de'?{t:'LIEFERSCHEIN',nr:'Nr. ',cust:'Lieferung an'}:{t:'DELIVERY NOTE',nr:'No. ',cust:'Deliver to'},{sig:'',foot:''}):k0;let y=20;
   /* Spalten: ☐ | Pos | Bild | Artikel (Name, Variante, Code) | Qualität | Inhalt | Menge – nichts überlappt */
-  const IMG=14,X={cb:L+1,pos:L+8.5,img:L+14,art:L+31,q:L+120,m:L+143,n:R-2},AW=X.q-X.art-3,MW=X.n-X.m-14;
+  const IMG=14,PW=31,X={cb:L+1,pos:L+8.5,img:L+14,art:route?L+14+PW+3:L+31,q:L+118,m:L+143,n:R-2},AW=X.q-X.art-3,MW=X.n-X.m-14;
   doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(neutral?latin(l._abs||''):'FRAGRANCE HUB GERMANY',L,y);doc.setFontSize(18);doc.text(k.t,R,y,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(90);
   if(!neutral){doc.text('Inh. Mohammad Kamal Al Masri',L,y+5);doc.text('Am Alten Kirchplatz 10, 45665 Recklinghausen',L,y+9);doc.text('fragranceshub.de',L,y+13)}
@@ -2755,7 +2769,7 @@ function prepListPdf(l,useOrig,neutral,route){
   if(String(l.note||'').trim()){if(latin(l.note)===String(l.note))doc.text(k.note+latin(l.note),L,ya+0.5);else{doc.text(k.note,L,ya+0.5);putText(doc,l.note,L+doc.getTextWidth(k.note)+1,ya+0.5,9,150)}ya+=4.5}
   y=Math.max(y+20,ya+6);
   const head=()=>{doc.setFillColor(20,33,31);doc.rect(L,y-5,R-L,7.5,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
-    doc.text(k.pos,X.pos-1.5,y);if(route)doc.text('Fach',X.img,y);doc.text(k.art,X.art,y);doc.text(k.q,X.q,y);doc.text(k.m,X.m,y);doc.text(k.n,X.n,y,{align:'right'});doc.setTextColor(0);y+=6.5};
+    doc.text(k.pos,X.pos-1.5,y);if(route)doc.text('Lagerplatz',X.img+PW/2,y,{align:'center'});doc.text(k.art,X.art,y);doc.text(k.q,X.q,y);doc.text(k.m,X.m,y);doc.text(k.n,X.n,y,{align:'right'});doc.setTextColor(0);y+=6.5};
   head();
   const ORD={standard:1,premium:2,exklusiv:3},grp={};(l.items||[]).forEach(i=>{const g=isOil(i)?(route?k.oils:(String(i.tier||'').trim()||k.oils)):k.other;(grp[g]=grp[g]||[]).push(i)});
   let pos=0;
@@ -2770,14 +2784,14 @@ function prepListPdf(l,useOrig,neutral,route){
       const sub=!oil&&latin(i.size)?doc.splitTextToSize(latin(i.size),MW+4).slice(0,2):[];
       const note=!oil&&String(i.note||'').trim();
       const txtH=(nm?nm.length:1)*4.1+3.8+(note?4.2:0);
-      const rowH=Math.max(im?IMG+3:0,txtH+3,11);
+      const rowH=Math.max(im?IMG+3:0,txtH+3,route&&oil?14:11);
       if(y+rowH>282){doc.addPage();y=20;head()}
       pos++;const top=y,mid=top+rowH/2,ty=top+4.6;
       /* Checkbox + Position, vertikal mittig */
       doc.setDrawColor(90);doc.setLineWidth(0.25);doc.rect(X.cb,mid-2.5,4.2,4.2);
       doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(90);doc.text(String(pos),X.pos,mid+1);doc.setTextColor(0);
       /* Lagerplatz (nur Öle, nur Druck fürs Lager) */
-      if(route&&oil){const pl=itPlatz(i);if(pl){doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(pl,X.img,mid+1)}else{doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(150);doc.text('kein Fach',X.img,mid+1);doc.setTextColor(0)}}
+      if(route&&oil)platzBadge(doc,itPlatz(i),X.img,mid,PW);
       /* Produktbild mit feinem Rahmen */
       else if(im){const iy=top+(rowH-IMG)/2;try{doc.addImage(im,'JPEG',X.img,iy,IMG,IMG)}catch(_){}doc.setDrawColor(225);doc.setLineWidth(0.2);doc.roundedRect(X.img,iy,IMG,IMG,1,1,'S')}
       /* Name, darunter Code */
@@ -2788,7 +2802,7 @@ function prepListPdf(l,useOrig,neutral,route){
       if(note){yy+=4.2;doc.setTextColor(198,40,40);doc.setFont('helvetica','bold');doc.setFontSize(8.5);putText(doc,'> '+i.note,X.art,yy,8.5,AW);doc.setTextColor(0)}
       /* Qualität + Inhalt */
       doc.setFont('helvetica','normal');doc.setFontSize(9);
-      if(oil){if(route)doc.setFont('helvetica','bold');doc.text(latin(i.tier)||'-',X.q,ty);doc.setFont('helvetica','normal');doc.text(latin(i.size)||'-',X.m,ty)}
+      if(oil){tierBadge(doc,i.tier,X.q,ty,X.m-X.q-2);doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.text(latin(i.size)||'-',X.m,ty);doc.setFont('helvetica','normal');doc.setFontSize(9)}
       else{doc.setTextColor(150);doc.text('-',X.q,ty);doc.setTextColor(0);if(sub.length)sub.forEach((ln,j)=>doc.text(ln,X.m,ty+j*4));else doc.text('-',X.m,ty)}
       /* Menge, fett und rechtsbündig; bei Packungen die Stückzahl darunter */
       const pk=packOf(i);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text(i.unit?qtxt(i):String(i.q||1)+(pk>1?' Pkg':''),X.n,ty,{align:'right'});
