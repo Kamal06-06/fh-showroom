@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="233">
+<meta name="fh-build" content="234">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2688,7 +2688,7 @@ function lieferscheinPdf(l,useOrig){
   head();
   setView(l.items||[]).forEach((it,i)=>{
     if(y>255){doc.addPage();y=20;head()}
-    const oil=isOil(it),im=!oil&&imgs[it.t],ax=X.art+(im?13:0),aw=(oil?72:110)-(im?13:0),y0=y;
+    const oil=isOil(it),im=!oil&&imgs[imgKey(it)],ax=X.art+(im?13:0),aw=(oil?72:110)-(im?13:0),y0=y;
     if(im){try{doc.addImage(im,'JPEG',X.art,y-3.6,11,11)}catch(_){}}
     doc.setFont('helvetica','bold');doc.setFontSize(9.5);
     const nm=doc.splitTextToSize(latin(useOrig&&oil?(origName(it)||it.t):it.t).replace(/\s+/g,' ')||'-',aw).slice(0,2);
@@ -2809,7 +2809,7 @@ function prepListPdf(l,useOrig,neutral,route){
     if(y>258){doc.addPage();y=20;head()}
     doc.setFillColor(246,243,236);doc.rect(L,y-1,R-L,6.4,'F');doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(60);doc.text(latin(g).toUpperCase(),X.art,y+3.4);doc.setTextColor(0);y+=6.4;
     grp[g].slice().sort((a,b)=>(route&&g===k.oils?ivSortKey(itPlatz(a)).localeCompare(ivSortKey(itPlatz(b))):0)||String(a.t).localeCompare(String(b.t))).forEach(i=>{
-      const oil=isOil(i),im=imgs[i.t],name=useOrig&&oil?(origName(i)||i.t):i.t;
+      const oil=isOil(i),im=imgs[imgKey(i)],name=useOrig&&oil?(origName(i)||i.t):i.t;
       doc.setFont('helvetica','bold');doc.setFontSize(9.5);
       const nl=String(name).replace(/[\u2013\u2014]/g,'-').replace(/[\u2018\u2019]/g,"'").replace(/[\u201c\u201d\u201e]/g,'"');
       const nm=latin(nl)===nl?doc.splitTextToSize(nl.replace(/\s+/g,' '),AW).slice(0,2):null;
@@ -2957,15 +2957,17 @@ function docsPanel(l){
 }
 const KINDS={pl:{name:'Packliste',make:l=>prepListPdf(l,false,false,true)},plo:{name:'Packliste-Original',make:l=>prepListPdf(l,true,false,true)},pln:{name:'Lieferschein-Neutral',make:l=>prepListPdf(l,false,true)},lab:{name:'Etiketten',make:labelsPdf},labo:{name:'Etiketten-Original',make:labelsPdfOrig},ls:{name:'Angebotspreis',make:lieferscheinPdf},lso:{name:'Angebotspreis-Original',make:l=>lieferscheinPdf(l,true)}};
 const fname=(kind,l)=>KINDS[kind].name+(l._part?'-Auswahl':'')+'-'+custFile(l)+'-'+stamp(l)+'.pdf';
+const imgKey=it=>it.t+'|'+(it.sku||it.code||'')+'|'+(it.size||'');
 async function prepImgs(l){
   for(const it of (l.items||[])){
-    if(isOil(it)||imgs[it.t])continue;
-    const p=catalog.find(p=>p.t===it.t);if(!p||!p.i)continue;
+    /* Bild je Variante (richtige Farbe von Sprühkopf/Kappe), nicht nur das Produktbild */
+    const key=imgKey(it);if(isOil(it)||imgs[key])continue;
+    const src=(it.st&&it.st.img)||imgOf(it)||(typeof capOf==='function'&&capOf(it))||'';if(!src)continue;
     try{
-      const bmp=await createImageBitmap(await fetch(p.i).then(r=>{if(!r.ok)throw 0;return r.blob()}));
+      const bmp=await createImageBitmap(await fetch(src).then(r=>{if(!r.ok)throw 0;return r.blob()}));
       const S=200,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,S,S);
       const k=Math.min(S/bmp.width,S/bmp.height),w=bmp.width*k,h=bmp.height*k;x.drawImage(bmp,(S-w)/2,(S-h)/2,w,h);
-      imgs[it.t]=c.toDataURL('image/jpeg',0.75);
+      imgs[key]=c.toDataURL('image/jpeg',0.75);
     }catch(e){}
   }
 }
