@@ -1,5 +1,5 @@
 {%- comment -%}
- STARTSEITE – HERO (Slideshow), Stand 08.11.2026 (Folgebilder werden erst nach dem Seitenladen geholt)
+ STARTSEITE – HERO (Slideshow), Stand 08.11.2026 (Slideshow + Folgebilder erst nach erster Besucher-Aktion)
  Wird von sections/custom-liquid.liquid für den ersten Startseiten-Abschnitt geladen (statt des Feldes "Benutzerdefiniertes Liquid").
  Bild-Links: Inhalt > Dateien > Bild hochladen > Link kopieren. Leer = dunkler Hintergrund.
 {%- endcomment -%}
@@ -236,8 +236,9 @@
   document.addEventListener('visibilitychange', function(){ document.hidden ? stop() : start(); });
 
   show(0);
-  // Weitere Hintergrundbilder erst nach dem Laden der Seite holen, Slideshow danach starten
-  function go(){ setTimeout(function(){ load(1); start(); }, 1500); }
-  if (document.readyState === 'complete') go(); else window.addEventListener('load', go);
+  // Slideshow startet erst, wenn der Besucher aktiv wird (Scrollen, Tippen, Maus) – Folgebilder werden erst dann geladen
+  var evs = ['pointermove','pointerdown','touchstart','scroll','keydown','wheel'], begun = false;
+  function go(){ if (begun) return; begun = true; evs.forEach(function(e){ window.removeEventListener(e, go, true); }); load(1); start(); }
+  evs.forEach(function(e){ window.addEventListener(e, go, {capture:true, passive:true}); });
 })();
 </script>
