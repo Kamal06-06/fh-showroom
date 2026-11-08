@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="231">
+<meta name="fh-build" content="232">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2431,7 +2431,7 @@ function cfgAdd(d){const its=d.items||[],rows=d.rows||[];let n=0;const sid='S'+D
     if(extra>0)push(Object.assign({},base,{t:base.t+' (Reserve)'}),extra)});
   if(n){saveDraft();renderItems()}return n}
 /* ---------- Sets im Auftrag: Gruppe, Preis je Set, Menge, gemischte Kappenfarben ---------- */
-function grpSetCss(){if($('grpset-css'))return;const st=document.createElement('style');st.id='grpset-css';st.textContent=`
+function grpSetCss(){if(!$('grpset-css2')){const z=document.createElement('style');z.id='grpset-css2';z.textContent='.set-man{font-size:12px;color:#a4560a;margin-top:6px;font-weight:600}.set-ac{flex-wrap:wrap}';document.head.append(z)}if($('grpset-css'))return;const st=document.createElement('style');st.id='grpset-css';st.textContent=`
 .set-card{border:1.5px solid #c9a24a;border-radius:16px;background:#fffdf8;padding:12px;margin:8px 0;display:grid;gap:8px}
 .set-h{display:flex;gap:10px;align-items:center}.set-img{width:72px;height:72px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid var(--line)}
 .set-t b{display:block;font-size:15px}.set-d{font-size:12.5px;color:var(--muted);direction:ltr;text-align:start}
@@ -2454,10 +2454,30 @@ function setTierFor(it,k){const p=(catalog||[]).find(p=>!p.oil&&p.t===it.t);if(!
   const fit=v=>{const t=String(v[0]);let m=/ab\s*(\d+)\s*Karton/i.exec(t);if(m)return k>=+m[1];m=/(\d+)\s*[–-]\s*(\d+)\s*Karton/i.exec(t);if(m)return k>=+m[1]&&k<=+m[2];m=/·\s*(\d+)\s*Karton\b/i.exec(t);if(m)return k===+m[1];return false};
   return rows.find(fit)||null}
 function setQty(g,dir){const f=g.fl;if(!f)return;const st=f.st,per=st.kart?st.k:1;let sets=Math.max(per,g.n+dir*per);if(sets===g.n)return;const ratio=sets/g.n;
-  if(st.kart){const k=Math.round(sets/st.k);f.q=k;const v=setTierFor(f,k);if(v){f.size=v[0];f.price=pnum(v[2])}}else f.q=sets;
+  if(st.kart){const k=Math.round(sets/st.k);f.q=k;const v=setTierFor(f,k);if(v){f.size=v[0];if(!st.manP)f.price=pnum(v[2])}}else f.q=sets;
   g.parts.forEach(x=>{if(x===f)return;if(x.st.role==='sp')x.q=sets});
   const caps=g.parts.filter(x=>x.st.role==='cap');if(caps.length===1)caps[0].q=sets;else if(caps.length>1){let left=sets;caps.forEach((c,i)=>{c.q=i===caps.length-1?left:Math.max(0,Math.round(c.q*ratio));left-=c.q})}
-  st.n=sets;saveDraft();renderItems()}
+  if(!st.manP)g.parts.forEach(x=>delete x._p0);st.n=sets;saveDraft();renderItems()}
+/* 💶 Preis eines Sets ändern: Preis je Set (verteilt sich anteilig auf Flakon, Sprühkopf, Kappe) oder jedes Teil einzeln; Rückkehr zum Listenpreis möglich */
+function setPrice(g){const f=g.fl||g.parts[0],P=g.parts,n=g.n||1,r4=v=>Math.round(v*10000)/10000;
+  P.forEach(x=>{if(x._p0==null)x._p0=x.price==null?0:+x.price});
+  openSheet('💶 سعر الطقم · '+g.lbl,b=>{
+    const per=el('input');per.type='number';per.step='0.01';per.min='0';per.inputMode='decimal';per.style.cssText='font-size:24px;font-weight:700;text-align:center;width:100%;padding:10px;border:2px solid var(--gold);border-radius:12px';
+    const tot=el('div','note');tot.style.cssText='font-weight:700;font-size:16px;margin:8px 0';
+    b.append(el('div','lbl','السعر لكل طقم (صافي) · Preis je Set'),per,tot,el('div','lbl','أو سعر كل جزء · Preis je Teil'));
+    const ins=P.map(x=>{const row=el('div','row');row.style.cssText='align-items:center;gap:8px;margin:6px 0';const unit=x.st.role==='fl'&&f.st.kart?'€ / كرتون':'€ / قطعة';
+      const i=el('input');i.type='number';i.step='0.0001';i.min='0';i.inputMode='decimal';i.value=x.price==null?'':+x.price;i.style.cssText='width:110px;padding:8px;text-align:center;border:1px solid var(--line);border-radius:10px';
+      const nm=el('div');nm.style.flex='1';nm.append(el('b',null,(x.st.role==='fl'?'🧴 ':x.st.role==='sp'?'💨 ':'🎩 ')+(x.st.role==='cap'?capNm(x):x.t.replace(/\s*–.*$/,''))),el('div','cd',x.q.toLocaleString('de-DE')+(x.st.role==='fl'&&f.st.kart?' كرتون':' قطعة')+' · الأصلي '+money(x._p0)));
+      row.append(nm,i,el('span','cd',unit));b.append(row);return i});
+    const sum=()=>P.reduce((a,x,k)=>a+(+ins[k].value||0)*(+x.q||0),0);
+    const show=(skipPer)=>{const t=sum();if(!skipPer)per.value=(t/n).toFixed(2);tot.textContent='المجموع: '+money(r2(t))+'  ·  '+n.toLocaleString('de-DE')+' طقم × '+money(t/n)};
+    ins.forEach(i=>i.oninput=()=>show());
+    per.oninput=()=>{const want=(+per.value||0)*n,cur=sum();if(cur>0){const fct=want/cur;ins.forEach(i=>i.value=r4((+i.value||0)*fct))}else if(ins[0]){ins[0].value=r4(want/(+P[0].q||1))}show(true)};
+    show();
+    const ok=el('button','btn primary big','✓ حفظ السعر'),rs=el('button','btn','↺ الرجوع للسعر الأصلي');ok.type=rs.type='button';
+    ok.onclick=()=>{P.forEach((x,k)=>{x.price=ins[k].value===''?null:r4(+ins[k].value)});f.st.manP=P.some(x=>Math.abs((+x.price||0)-(+x._p0||0))>0.00005);saveDraft();renderItems();closeSheet();toast('✓ حُفظ سعر الطقم: '+money(sum()/n)+' لكل طقم')};
+    rs.onclick=()=>{P.forEach((x,k)=>ins[k].value=x._p0);show()};
+    const br=el('div','row');br.style.cssText='gap:8px;margin-top:12px;flex-wrap:wrap';br.append(ok,rs);b.append(br);setTimeout(()=>{try{per.focus();per.select()}catch(e){}},80)})}
 function setDel(g){if(!confirm('حذف الطقم بالكامل؟'))return;const ids=new Set(g.ix);draft.items=draft.items.filter((_,i)=>!ids.has(i));saveDraft();renderItems()}
 /* gleiche Kappenform, mehrere Farben: Stückzahlen je Farbe (Summe = Anzahl Sets) */
 function capFamily(c){const sku=String(c.sku||'');let fam=null;(catalog||[]).forEach(p=>{if(p.oil||/\(im set\)/i.test(p.t)||!/kappe/i.test(p.t))return;if(p.v.some(v=>String(v[1]||'')===sku))fam=p});return fam}
@@ -2495,10 +2515,10 @@ function setTile(g){const c=el('div','set-card'),h=el('div','set-h'),f=g.fl||g.p
   const tt=el('div','set-t');tt.append(el('b',null,g.lbl),el('div','set-d',g.d));h.append(tt);c.append(h);
   const pr=el('div','set-p');pr.append(el('span',null,g.n.toLocaleString('de-DE')+' Sets × '+money(g.per)),el('b',null,money(g.tot)));c.append(pr);
   const ul=el('div','set-parts');g.parts.forEach(x=>{const r=el('div');r.append(el('span',null,(x.st.role==='fl'?'🧴 ':x.st.role==='sp'?'💨 ':'🎩 ')+(x.st.role==='cap'?capNm(x):x.t.replace(/\s*–.*$/,''))),el('code',null,x.sku||x.code||''),el('span',null,x.st.role==='fl'&&f.st.kart?x.q+' Karton ('+String(x.size||'').replace(/^.*·\s*/,'')+')':x.q.toLocaleString('de-DE')+' Stk'));ul.append(r)});c.append(ul);
-  const ac=el('div','set-ac'),mi=el('button','btn small','−'),pl=el('button','btn small','+'),lab=el('span','set-q',f.st&&f.st.kart?(f.q+' كرتون · '+g.n+' طقم'):(g.n+' طقم')),mx=el('button','btn small','🎨 ألوان مختلطة'),dl=el('button','btn small','🗑️');
-  [mi,pl,mx,dl].forEach(b=>b.type='button');mi.onclick=()=>setQty(g,-1);pl.onclick=()=>setQty(g,1);mx.onclick=()=>setMix(g);dl.onclick=()=>setDel(g);dl.title='حذف الطقم';
+  const ac=el('div','set-ac'),mi=el('button','btn small','−'),pl=el('button','btn small','+'),lab=el('span','set-q',f.st&&f.st.kart?(f.q+' كرتون · '+g.n+' طقم'):(g.n+' طقم')),mx=el('button','btn small','🎨 ألوان مختلطة'),dl=el('button','btn small','🗑️'),pe=el('button','btn small','💶 تعديل السعر');
+  [mi,pl,mx,dl,pe].forEach(b=>b.type='button');pe.onclick=()=>setPrice(g);mi.onclick=()=>setQty(g,-1);pl.onclick=()=>setQty(g,1);mx.onclick=()=>setMix(g);dl.onclick=()=>setDel(g);dl.title='حذف الطقم';
   if(!g.parts.some(x=>x.st.role==='cap'))mx.hidden=true;
-  ac.append(mi,lab,pl,mx,dl);c.append(ac);return c}
+  ac.append(mi,lab,pl,pe,mx,dl);c.append(ac);if(f.st&&f.st.manP){const m=el('div','set-man','✎ سعر معدَّل يدوياً');c.append(m)}return c}
 function prodCard(p){pcCss();if(!p.oil&&/set nach wahl/i.test(p.t||'')){const mk=cfgModel(p.t);if(mk){cfgOpen(mk,p.t);return}}
   const vars=pcVariants(p),opts=pcOptions(p,vars);if(!vars.length)return;
   /* Startauswahl: bei Ölen die oben gewählte Größe, sonst erste verfügbare Variante */
