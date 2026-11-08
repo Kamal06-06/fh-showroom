@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="235">
+<meta name="fh-build" content="236">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -109,6 +109,7 @@ input[type=text],input[type=tel],input[type=email],input[type=search],input[type
 .res .info{flex:1 1 200px;min-width:0}
 .thumb{width:64px;height:64px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:8px;flex:0 0 auto}
 .lab img.tthumb{width:100%;height:70px;object-fit:contain;background:#fff;border-bottom:1px solid var(--line)}
+.iq.kt{background:#14211f;color:#fff;border-radius:8px;padding:3px 7px;white-space:nowrap;font-weight:700}
 .irow img.ithumb{width:44px;height:44px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:6px}
 .name{font-weight:600;direction:ltr;unicode-bidi:plaintext;overflow-wrap:anywhere}
 .code{font-family:var(--mono);font-size:12.5px;color:var(--muted);direction:ltr;overflow-wrap:anywhere}
@@ -1749,6 +1750,8 @@ const qn=it=>it.unit==='kg'?1:(+it.q||1);
 const lnAll=items=>(items||[]).filter(i=>!i.st||i.st.role==='fl').length;
 const qnAll=items=>(items||[]).reduce((s,i)=>i.st?(i.st.role==='fl'?s+(+i.st.n||1):s):s+qn(i),0);
 const cntTxt=items=>{items=items||[];const a=items.length,pc=items.filter(i=>i.unit!=='kg'&&!(isOil(i)&&sizeG(i.size))),b=pc.reduce((s,i)=>s+qn(i),0),kg=Math.round(items.reduce((s,i)=>{if(pc.includes(i))return s;if(i.unit==='kg')return s+(+i.q||0);return s+sizeG(i.size)*(+i.q||1)/1000},0)*1000)/1000;return a+' صنف'+(kg?' · '+String(kg).replace('.',',')+' kg':'')+(b?' · '+b+' قطعة':'')};   /* pieces count (a line sold by kg counts as one) */
+/* Karton oder Stück eindeutig: "3 Karton (à 80 Stück)" statt "3×" – damit niemand 1 Stück statt 1 Karton packt */
+const kartonN=it=>{if(!it||isOil(it)||it.unit)return 0;const m=/Karton\s*(à|a|x)\s*([\d.]+)/i.exec(String(it.size||''));return m?+m[2].replace(/\./g,''):0};
 const qtxt=it=>it.unit?(String(+it.q||1).replace('.',',')+' '+(it.unit==='kg'?'kg':'Stk')):((it.q||1)+'×');
 /* Bild über die Art.-Nr. aus irgendeinem Produkt (z. B. Kappe aus «Parfümkappe (im Set)») */
 var skuImgC={};function skuImg(sku){sku=String(sku||'').trim().toUpperCase();if(!sku)return '';if(sku in skuImgC)return skuImgC[sku];let r='';
@@ -2699,7 +2702,7 @@ function lieferscheinPdf(l,useOrig){
     nm.forEach((ln,k)=>doc.text(ln,ax,y+k*4.2));
     doc.setFont('helvetica','normal');doc.setFontSize(9);
     if(oil){tierBadge(doc,it.tier,X.q,y,X.m-X.q-2);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(latin(it.size)||'-',X.m,y)}
-    doc.text(it.unit?qtxt(it):String(it.q||1),X.n,y);
+    doc.text(it.unit?qtxt(it):kartonN(it)?(+it.q||1)+' Karton':String(it.q||1)+(oil?'':' Stk'),X.n,y);
     const has=!(it.price==null||it.price==='');
     const skL=!!(it.skAuto&&itRab(it));
     let yc=y+nm.length*4.2,rowMin=0;
@@ -2838,10 +2841,13 @@ function prepListPdf(l,useOrig,neutral,route){
       /* Qualität + Inhalt */
       doc.setFont('helvetica','normal');doc.setFontSize(9);
       if(oil){tierBadge(doc,i.tier,X.q,ty,X.m-X.q-2);doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.text(latin(i.size)||'-',X.m,ty);doc.setFont('helvetica','normal');doc.setFontSize(9)}
-      else{doc.setTextColor(150);doc.text('-',X.q,ty);doc.setTextColor(0);if(sub.length)sub.forEach((ln,j)=>doc.text(ln,X.m,ty+j*4));else doc.text('-',X.m,ty)}
+      else{doc.setTextColor(150);doc.text('-',X.q,ty);doc.setTextColor(0);if(kartonN(i)){}/* Karton: alles steht deutlich unter Menge */else if(sub.length)sub.forEach((ln,j)=>doc.text(ln,X.m,ty+j*4));else doc.text('-',X.m,ty)}
       /* Menge, fett und rechtsbündig; bei Packungen die Stückzahl darunter */
-      const pk=packOf(i);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text(i.unit?qtxt(i):String(i.q||1)+(pk>1?' Pkg':''),X.n,ty,{align:'right'});
-      if(pk>1){doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(90);doc.text('= '+numDE(pk*(+i.q||1))+' Stk',X.n,ty+4,{align:'right'});doc.setTextColor(0)}
+      const pk=packOf(i),kn=kartonN(i);doc.setFont('helvetica','bold');doc.setFontSize(11);
+      if(kn){const t=(+i.q||1)+' KARTON',w=doc.getTextWidth(t)+3;doc.setDrawColor(20,33,31);doc.setLineWidth(0.5);doc.roundedRect(X.n-w+1.5,ty-4.2,w,5.8,1,1,'S');doc.text(t,X.n,ty,{align:'right'});
+        doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(90);doc.text('à '+numDE(kn)+' Stk = '+numDE(kn*(+i.q||1))+' Stk',X.n,ty+4.6,{align:'right'});doc.setTextColor(0)}
+      else doc.text(i.unit?qtxt(i):String(i.q||1)+(pk>1?' Pkg':oil?'':' Stk'),X.n,ty,{align:'right'});
+      if(pk>1&&!kn){doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(90);doc.text('= '+numDE(pk*(+i.q||1))+' Stk',X.n,ty+4,{align:'right'});doc.setTextColor(0)}
       /* Duftöl mehrfach: Gesamtgewicht deutlich darunter (z. B. 2 × 1 kg → = 2 kg) */
       if(oil&&!i.unit&&(+i.q||1)>1){const g=sizeG(i.size)*(+i.q||1);if(g>0){doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(198,40,40);doc.text('= '+(g>=1000?numDE(Math.round(g)/1000)+' kg':numDE(Math.round(g))+' g'),X.n,ty+4.6,{align:'right'});doc.setTextColor(0)}}
       y=top+rowH;doc.setDrawColor(220);doc.setLineWidth(0.2);doc.line(L,y,R,y)});
@@ -3884,7 +3890,7 @@ function buildCard(l,full){
       grp[k].sort((a,b)=>k===OIL?(ivSortKey(itPlatz(a[0])).localeCompare(ivSortKey(itPlatz(b[0])))||String(a[0].t).localeCompare(String(b[0].t))):String(a[0].t).localeCompare(String(b[0].t))).forEach(([i,ix])=>{
         const r=el('div','irow'+(chk[ix]?' ok':''));
         const cb=el('input');cb.type='checkbox';cb.checked=!!chk[ix];cb.title='تم تجهيزه';cb.onchange=()=>{chk[ix]=cb.checked;r.classList.toggle('ok',cb.checked);upd();if(prepSet(l,chk))beepOk()};
-        const q=el('div','iq',qtxt(i));const mid=el('div');
+        const q=el('div','iq'+(kartonN(i)?' kt':''),kartonN(i)?(+i.q||1)+' كرتون':isOil(i)||i.unit?qtxt(i):(+i.q||1)+' قطعة');const mid=el('div');
         if(isOil(i)){const pl=itPlatz(i),tl=String(i.tier||'').trim();const tg=el('div','ipl');tg.append(el('b',null,pl||'—'));if(tl)tg.append(el('span','ivq '+tl.charAt(0).toUpperCase(),tl));mid.append(tg)}
         mid.append(el('div','nm',i.t));if(i.code)mid.append(el('div','cd',i.code));if(isOil(i)){const lo=lotsOf(l)[ix],cur=lo?null:lotNow(i),bt=el('button','lot',lo?'Charge '+lo.b+' ✎':cur?'Charge '+cur.b+' (مقترحة) ✎':'+ Charge');bt.title='رقم دفعة المصنع (Charge / Batch)';bt.onclick=e=>{e.preventDefault();e.stopPropagation();lotEdit(l,ix,()=>{try{renderOrderModal()}catch(_){}})};mid.append(bt)}
         if(!isOil(i)&&i.size){const d=el('div','cd',i.size),cs=capOf(i);if(cs)d.prepend(mkImg(cs,'capi'));mid.append(d)}{const ad=arOf(i);if(ad)mid.append(arEl(ad))}if(i.note)mid.append(el('div','nt','✎ '+i.note));
@@ -4083,7 +4089,7 @@ function buildCardV2(l){omCss();
       grp[k].sort((a,b)=>k===OIL?(ivSortKey(itPlatz(a[0])).localeCompare(ivSortKey(itPlatz(b[0])))||String(a[0].t).localeCompare(String(b[0].t))):String(a[0].t).localeCompare(String(b[0].t))).forEach(([i,ix])=>{
         const r=el('div','irow'+(chk[ix]?' ok':''));
         const cb=el('input');cb.type='checkbox';cb.checked=!!chk[ix];cb.title='تم تجهيزه';cb.onchange=()=>{chk[ix]=cb.checked;r.classList.toggle('ok',cb.checked);upd();if(prepSet(l,chk))beepOk()};
-        const q=el('div','iq',qtxt(i));const mid=el('div');
+        const q=el('div','iq'+(kartonN(i)?' kt':''),kartonN(i)?(+i.q||1)+' كرتون':isOil(i)||i.unit?qtxt(i):(+i.q||1)+' قطعة');const mid=el('div');
         if(isOil(i)){const pl=itPlatz(i),tl=String(i.tier||'').trim();const tg=el('div','ipl');tg.append(el('b',null,pl||'—'));if(tl)tg.append(el('span','ivq '+tl.charAt(0).toUpperCase(),tl));mid.append(tg)}
         mid.append(el('div','nm',i.t));if(i.code)mid.append(el('div','cd',i.code));if(isOil(i)){const lo=lotsOf(l)[ix],cur=lo?null:lotNow(i),bt=el('button','lot',lo?'Charge '+lo.b+' ✎':cur?'Charge '+cur.b+' (مقترحة) ✎':'+ Charge');bt.title='رقم دفعة المصنع (Charge / Batch)';bt.onclick=e=>{e.preventDefault();e.stopPropagation();lotEdit(l,ix,()=>{try{renderOrderModal()}catch(_){}})};mid.append(bt)}
         if(!isOil(i)&&i.size){const d=el('div','cd',i.size),cs=capOf(i);if(cs)d.prepend(mkImg(cs,'capi'));mid.append(d)}{const ad=arOf(i);if(ad)mid.append(arEl(ad))}if(i.note)mid.append(el('div','nt','✎ '+i.note));
@@ -6105,10 +6111,10 @@ function soLsPdf(orders){
           const vt=String(val).toUpperCase(),vw=tw(vt,P(15),1,M(.5))+M(16),vh=M(24);doc.setDrawColor(...NAVY);doc.setLineWidth(M(2));doc.setFillColor(255,255,255);doc.roundedRect(xx,rc-vh/2,vw,vh,M(4),M(4),'FD');
           T(vt,xx+M(8),rc+M(5),{b:1,pt:P(15),cs:M(.5)});yy+=M(26)});
         /* Stück-Kasten */
-        const sm=[];if(it.per>1)sm.push(it.qty+' × '+it.per+' Stück');if(it.isset)sm.push('je Set: Flakon'+(it.spr.includes('Ohne')?'':' + Sprühkopf')+(it.cap.includes('Ohne')?'':' + Kappe'));
+        const isK=/karton/i.test(it.menge||''),sm=[];if(isK)sm.push('à '+it.per+' Stück = '+it.total+' Stück');else if(it.per>1)sm.push(it.qty+' × '+it.per+' Stück');if(it.isset)sm.push('je Set: Flakon'+(it.spr.includes('Ohne')?'':' + Sprühkopf')+(it.cap.includes('Ohne')?'':' + Kappe'));
         const sml=[];sm.forEach(s=>sml.push(...doc.setFontSize(P(11)).splitTextToSize(lat(s),bw-M(12))));
         const bh=M(12)+M(29)+M(14)+sml.length*M(14)+M(4);doc.setDrawColor(...NAVY);doc.setLineWidth(M(3));doc.roundedRect(bxl,yc-bh/2,bw,bh,M(6),M(6),'S');
-        let by=yc-bh/2+M(6)+M(24);T(String(it.total),bxl+bw/2,by,{b:1,pt:P(26),al:'center'});by+=M(14);T(it.isset?'SETS PACKEN':'STÜCK PACKEN',bxl+bw/2,by,{b:1,pt:P(11),al:'center',cs:M(1)});
+        let by=yc-bh/2+M(6)+M(24);T(String(isK?it.qty:it.total),bxl+bw/2,by,{b:1,pt:P(26),al:'center'});by+=M(14);T(isK?(it.qty>1?'KARTONS PACKEN':'KARTON PACKEN'):it.isset?'SETS PACKEN':'STÜCK PACKEN',bxl+bw/2,by,{b:1,pt:P(11),al:'center',cs:M(1)});
         sml.forEach(s=>{by+=M(14);T(s,bxl+bw/2,by,{b:1,pt:P(11),c:RED,al:'center'})});
         y+=h;doc.setDrawColor(221);doc.setLineWidth(M(1));doc.line(L,y,R,y)})}
     /* Summen */
