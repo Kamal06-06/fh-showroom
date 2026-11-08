@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="228">
+<meta name="fh-build" content="229">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -3154,7 +3154,12 @@ window.__clp={clpLocal:l=>clpLocal(l),blob64:b=>blob64(b)};
 const clpMemo={};
 const clpMemoKey=l=>orderKey(l)+'|'+clpSig(l)+'|'+((l.items||[]).map(i=>i._ix==null?'':i._ix).join(','));
 const clpNurProben=l=>{const o=(l.items||[]).filter(isOil);return o.length>0&&o.every(it=>it.probe||/^(probe\s*)?([6-9]|1[0-5])\s*g$/i.test(String(it.size||'').trim()))};
-function clpMake(l){const k=clpMemoKey(l);if(clpMemo[k])return clpMemo[k];
+/* Etiketten (CLP + Proben) in derselben Reihenfolge wie die Packliste: nach Lagerplatz (Laufweg), dann Name; _ix bleibt für Charge/Lot erhalten */
+function clpSorted(l){const its=(l.items||[]).map((it,i)=>it._ix!=null?it:Object.assign({},it,{_ix:i}));
+  const srt=its.slice().sort((a,b)=>(isOil(b)-isOil(a))||(isOil(a)?ivSortKey(itPlatz(a)).localeCompare(ivSortKey(itPlatz(b))):0)||String(a.t).localeCompare(String(b.t)));
+  return srt.every((x,i)=>x===(l.items||[])[i])?l:Object.assign({},l,{items:srt})}
+let clpPlW=null;
+function clpMake(l,_w){if(!_w&&!ivByKey.size&&(l.items||[]).filter(isOil).length>1){clpPlW=clpPlW||ivPlaces().finally(()=>setTimeout(()=>clpPlW=null,60e3));return clpPlW.then(()=>clpMake(l,1))}l=clpSorted(l);const k=clpMemoKey(l);if(clpMemo[k])return clpMemo[k];
   /* Proben 40 × 30 (Phomemo): bewährtes Format aus dem Gerät – sofort fertig, scharf */
   if(clpNurProben(l)){const p=clpLocal(l).catch(e=>{delete clpMemo[k];return clpFetch(l)});clpMemo[k]=p;return p}
   /* gemischter Auftrag: große CLP-Etiketten vom Server (mit Noten), Proben 40 × 30 immer aus dem Gerät (Server-Proben sind 80 × 60 und werden auf der Phomemo unscharf/abgeschnitten) */
