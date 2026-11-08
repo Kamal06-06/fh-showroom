@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="229">
+<meta name="fh-build" content="230">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2632,10 +2632,11 @@ function lieferscheinPdf(l,useOrig){
   const X={pos:L,art:L+9,q:L+84,m:L+106,n:L+124,ep:R-26,g:R};
   const tr=T[LANG_OF(l.country)]||T.de;
   let y=20;
-  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('FRAGRANCE HUB GERMANY',L,y);
+  /* Originalnamen: ohne Firmenname und ohne jede Firmenangabe (Kamal, Nov. 2026) */
+  doc.setFont('helvetica','bold');if(!useOrig){doc.setFontSize(16);doc.text('FRAGRANCE HUB GERMANY',L,y)}
   doc.setFontSize(18);doc.text(tr.title,R,y,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(90);
-  doc.text('Inh. Mohammad Kamal Al Masri',L,y+5);doc.text('Am Alten Kirchplatz 10, 45665 Recklinghausen',L,y+9);doc.text('fragranceshub.de',L,y+13);
+  if(!useOrig){doc.text('Inh. Mohammad Kamal Al Masri',L,y+5);doc.text('Am Alten Kirchplatz 10, 45665 Recklinghausen',L,y+9);doc.text('fragranceshub.de',L,y+13)}
   doc.text(tr.nr+stamp(l),R,y+5,{align:'right'});
   doc.text(tr.date+p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.'+d.getFullYear(),R,y+9,{align:'right'});
   doc.setTextColor(0);y+=24;
@@ -2758,9 +2759,9 @@ function prepListPdf(l,useOrig,neutral,route){
     k=neutral?Object.assign({},k0,LANG_OF(l.country)==='de'?{t:'LIEFERSCHEIN',nr:'Nr. ',cust:'Lieferung an'}:{t:'DELIVERY NOTE',nr:'No. ',cust:'Deliver to'},{sig:'',foot:''}):k0;let y=20;
   /* Spalten: ☐ | Pos | Bild | Artikel (Name, Variante, Code) | Qualität | Inhalt | Menge – nichts überlappt */
   const IMG=14,PW=31,X={cb:L+1,pos:L+8.5,img:L+14,art:route?L+14+PW+3:L+31,q:L+118,m:L+143,n:R-2},AW=X.q-X.art-3,MW=X.n-X.m-14;
-  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(neutral?latin(l._abs||''):'FRAGRANCE HUB GERMANY',L,y);doc.setFontSize(18);doc.text(k.t,R,y,{align:'right'});
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(neutral?latin(l._abs||''):useOrig?'':'FRAGRANCE HUB GERMANY',L,y);doc.setFontSize(18);doc.text(k.t,R,y,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(90);
-  if(!neutral){doc.text('Inh. Mohammad Kamal Al Masri',L,y+5);doc.text('Am Alten Kirchplatz 10, 45665 Recklinghausen',L,y+9);doc.text('fragranceshub.de',L,y+13)}
+  if(!neutral&&!useOrig){doc.text('Inh. Mohammad Kamal Al Masri',L,y+5);doc.text('Am Alten Kirchplatz 10, 45665 Recklinghausen',L,y+9);doc.text('fragranceshub.de',L,y+13)}
   doc.text(k.nr+stamp(l),R,y+5,{align:'right'});doc.text(k.date+p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.'+d.getFullYear(),R,y+9,{align:'right'});doc.setTextColor(0);y+=24;
   doc.setFontSize(9);doc.setTextColor(90);doc.text(k.cust,L,y);doc.setTextColor(0);
   doc.setFont('helvetica','bold');doc.setFontSize(12);putText(doc,l.customer,L,y+6,12,120);
@@ -3235,13 +3236,13 @@ function showFilesFull(l,r,out){
   out.textContent='';
   if(r.note)out.append(el('p','note',r.note));
   const head='Fragrance Hub – '+custLabel(l);
-  r.files.forEach(f=>{
+  r.files.forEach(f=>{const hd=/-Original/.test(f.name)?custLabel(l):head;
     const row=el('div','share');
     const a=el('a','btn small primary','فتح PDF');a.href=f.url||(f.blob?(f._bu=f._bu||URL.createObjectURL(f.blob)):'#');a.target='_blank';a.rel='noopener';
     const canFile=!!(f.blob&&navigator.canShare&&window.File&&navigator.canShare({files:[new File([f.blob],f.name,{type:'application/pdf'})]}));
-    const w=el('a','btn small wa',f.url||canFile?'واتساب':'واتساب (جاري تجهيز الرابط…)');if(f.url)w.href=waHref(head+'\n'+f.name+': '+f.url);else if(!canFile){w.style.opacity='.5';w.style.pointerEvents='none'}w.target='_blank';w.rel='noopener';
+    const w=el('a','btn small wa',f.url||canFile?'واتساب':'واتساب (جاري تجهيز الرابط…)');if(f.url)w.href=waHref(hd+'\n'+f.name+': '+f.url);else if(!canFile){w.style.opacity='.5';w.style.pointerEvents='none'}w.target='_blank';w.rel='noopener';
     /* فوراً: الملف نفسه يُرسل عبر نافذة المشاركة (واتساب) – بدون انتظار رفعه إلى Drive */
-    if(!f.url&&canFile){w.href='#';w.onclick=async e=>{e.preventDefault();try{await navigator.share({files:[new File([f.blob],f.name,{type:'application/pdf'})],title:f.name,text:head})}catch(x){if(x&&x.name!=='AbortError')alert('تعذّرت المشاركة: '+(x.message||x))}}}
+    if(!f.url&&canFile){w.href='#';w.onclick=async e=>{e.preventDefault();try{await navigator.share({files:[new File([f.blob],f.name,{type:'application/pdf'})],title:f.name,text:hd})}catch(x){if(x&&x.name!=='AbortError')alert('تعذّرت المشاركة: '+(x.message||x))}}}
     const c=el('button','btn small','نسخ الرابط');c.disabled=!f.url;c.onclick=async()=>{try{await navigator.clipboard.writeText(f.url);c.textContent='تم النسخ'}catch(e){c.textContent='تعذّر النسخ'}};
     const d=el('button','btn small','تنزيل');d.onclick=()=>download(f.name,f.blob);d.hidden=!f.blob;
     const pr=el('button','btn small primary','🖨️ طباعة');pr.onclick=async()=>{const o=pr.textContent;pr.disabled=true;pr.textContent='جاري التجهيز…';
@@ -3263,7 +3264,7 @@ function showFilesFull(l,r,out){
     row.append(el('span','fname',f.name),pr,pm,sh,a,w,c,d);out.append(row);
   });
   if(r.files.length>1&&r.files.every(f=>f.url)){
-    const all=el('a','btn wa','إرسال كل الروابط عبر واتساب');all.href=waHref(head+'\n'+r.files.map(f=>f.name+': '+f.url).join('\n'));all.target='_blank';all.rel='noopener';
+    const all=el('a','btn wa','إرسال كل الروابط عبر واتساب');all.href=waHref((r.files.some(f=>/-Original/.test(f.name))?custLabel(l):head)+'\n'+r.files.map(f=>f.name+': '+f.url).join('\n'));all.target='_blank';all.rel='noopener';
     out.append(all);
   }
 }
