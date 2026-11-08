@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="232">
+<meta name="fh-build" content="233">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2458,26 +2458,24 @@ function setQty(g,dir){const f=g.fl;if(!f)return;const st=f.st,per=st.kart?st.k:
   g.parts.forEach(x=>{if(x===f)return;if(x.st.role==='sp')x.q=sets});
   const caps=g.parts.filter(x=>x.st.role==='cap');if(caps.length===1)caps[0].q=sets;else if(caps.length>1){let left=sets;caps.forEach((c,i)=>{c.q=i===caps.length-1?left:Math.max(0,Math.round(c.q*ratio));left-=c.q})}
   if(!st.manP)g.parts.forEach(x=>delete x._p0);st.n=sets;saveDraft();renderItems()}
-/* 💶 Preis eines Sets ändern: Preis je Set (verteilt sich anteilig auf Flakon, Sprühkopf, Kappe) oder jedes Teil einzeln; Rückkehr zum Listenpreis möglich */
+/* 💶 Preis eines Sets ändern: EIN Preis je Set – wird auf das ganze Set verteilt (anteilig nach Listenpreis von Flakon, Sprühkopf, Kappe); Rückkehr zum Listenpreis möglich */
 function setPrice(g){const f=g.fl||g.parts[0],P=g.parts,n=g.n||1,r4=v=>Math.round(v*10000)/10000;
   P.forEach(x=>{if(x._p0==null)x._p0=x.price==null?0:+x.price});
+  const w0=P.reduce((a,x)=>a+(+x._p0||0)*(+x.q||0),0),list=w0/n;
+  const dist=per=>{const want=per*n;return P.map(x=>w0>0?r4((+x._p0||0)*want/w0):(x===f?r4(want/(+x.q||1)):0))};
   openSheet('💶 سعر الطقم · '+g.lbl,b=>{
-    const per=el('input');per.type='number';per.step='0.01';per.min='0';per.inputMode='decimal';per.style.cssText='font-size:24px;font-weight:700;text-align:center;width:100%;padding:10px;border:2px solid var(--gold);border-radius:12px';
-    const tot=el('div','note');tot.style.cssText='font-weight:700;font-size:16px;margin:8px 0';
-    b.append(el('div','lbl','السعر لكل طقم (صافي) · Preis je Set'),per,tot,el('div','lbl','أو سعر كل جزء · Preis je Teil'));
-    const ins=P.map(x=>{const row=el('div','row');row.style.cssText='align-items:center;gap:8px;margin:6px 0';const unit=x.st.role==='fl'&&f.st.kart?'€ / كرتون':'€ / قطعة';
-      const i=el('input');i.type='number';i.step='0.0001';i.min='0';i.inputMode='decimal';i.value=x.price==null?'':+x.price;i.style.cssText='width:110px;padding:8px;text-align:center;border:1px solid var(--line);border-radius:10px';
-      const nm=el('div');nm.style.flex='1';nm.append(el('b',null,(x.st.role==='fl'?'🧴 ':x.st.role==='sp'?'💨 ':'🎩 ')+(x.st.role==='cap'?capNm(x):x.t.replace(/\s*–.*$/,''))),el('div','cd',x.q.toLocaleString('de-DE')+(x.st.role==='fl'&&f.st.kart?' كرتون':' قطعة')+' · الأصلي '+money(x._p0)));
-      row.append(nm,i,el('span','cd',unit));b.append(row);return i});
-    const sum=()=>P.reduce((a,x,k)=>a+(+ins[k].value||0)*(+x.q||0),0);
-    const show=(skipPer)=>{const t=sum();if(!skipPer)per.value=(t/n).toFixed(2);tot.textContent='المجموع: '+money(r2(t))+'  ·  '+n.toLocaleString('de-DE')+' طقم × '+money(t/n)};
-    ins.forEach(i=>i.oninput=()=>show());
-    per.oninput=()=>{const want=(+per.value||0)*n,cur=sum();if(cur>0){const fct=want/cur;ins.forEach(i=>i.value=r4((+i.value||0)*fct))}else if(ins[0]){ins[0].value=r4(want/(+P[0].q||1))}show(true)};
-    show();
+    const inp=el('input');inp.type='number';inp.step='0.01';inp.min='0';inp.inputMode='decimal';inp.value=(g.per||0).toFixed(2);
+    inp.style.cssText='font-size:26px;font-weight:700;text-align:center;width:100%;padding:12px;border:2px solid var(--gold);border-radius:12px';
+    const tot=el('div');tot.style.cssText='font-weight:700;font-size:17px;margin:10px 0 4px';
+    const hint=el('div','note','السعر الأصلي حسب القائمة: '+money(list)+' لكل طقم · يُوزَّع السعر الجديد على الطقم كاملاً (الزجاجة + البخاخ + الغطاء).');
+    const det=el('details');det.style.marginTop='10px';det.append(el('summary',null,'تفاصيل التوزيع'));const dl=el('div','note');det.append(dl);
+    const show=()=>{const per=+inp.value||0,pr=dist(per);tot.textContent=n.toLocaleString('de-DE')+' طقم × '+money(per)+' = '+money(r2(per*n));
+      dl.innerHTML='';P.forEach((x,k)=>dl.append(el('div',null,(x.st.role==='fl'?'🧴 ':x.st.role==='sp'?'💨 ':'🎩 ')+(x.st.role==='cap'?capNm(x):x.t.replace(/\s*–.*$/,''))+': '+money(pr[k])+(x.st.role==='fl'&&f.st.kart?' / كرتون':' / قطعة'))))};
+    inp.oninput=show;b.append(el('div','lbl','السعر لكل طقم كامل (صافي) · Preis je Set'),inp,tot,hint,det);show();
     const ok=el('button','btn primary big','✓ حفظ السعر'),rs=el('button','btn','↺ الرجوع للسعر الأصلي');ok.type=rs.type='button';
-    ok.onclick=()=>{P.forEach((x,k)=>{x.price=ins[k].value===''?null:r4(+ins[k].value)});f.st.manP=P.some(x=>Math.abs((+x.price||0)-(+x._p0||0))>0.00005);saveDraft();renderItems();closeSheet();toast('✓ حُفظ سعر الطقم: '+money(sum()/n)+' لكل طقم')};
-    rs.onclick=()=>{P.forEach((x,k)=>ins[k].value=x._p0);show()};
-    const br=el('div','row');br.style.cssText='gap:8px;margin-top:12px;flex-wrap:wrap';br.append(ok,rs);b.append(br);setTimeout(()=>{try{per.focus();per.select()}catch(e){}},80)})}
+    ok.onclick=()=>{const per=+inp.value||0,pr=dist(per);P.forEach((x,k)=>x.price=pr[k]);f.st.manP=Math.abs(per-list)>0.004;if(!f.st.manP)P.forEach((x,k)=>x.price=x._p0);saveDraft();renderItems();closeSheet();toast('✓ سعر الطقم: '+money(per)+' × '+n.toLocaleString('de-DE'))};
+    rs.onclick=()=>{inp.value=list.toFixed(2);show()};
+    const br=el('div','row');br.style.cssText='gap:8px;margin-top:12px;flex-wrap:wrap';br.append(ok,rs);b.append(br);setTimeout(()=>{try{inp.focus();inp.select()}catch(e){}},80)})}
 function setDel(g){if(!confirm('حذف الطقم بالكامل؟'))return;const ids=new Set(g.ix);draft.items=draft.items.filter((_,i)=>!ids.has(i));saveDraft();renderItems()}
 /* gleiche Kappenform, mehrere Farben: Stückzahlen je Farbe (Summe = Anzahl Sets) */
 function capFamily(c){const sku=String(c.sku||'');let fam=null;(catalog||[]).forEach(p=>{if(p.oil||/\(im set\)/i.test(p.t)||!/kappe/i.test(p.t))return;if(p.v.some(v=>String(v[1]||'')===sku))fam=p});return fam}
@@ -3494,7 +3492,7 @@ function preCheck(){const w=[],its=draft.items;
   else if(draft.lief!=='pickup'&&!(draft.street&&draft.city))w.push({t:'عنوان الشحن ناقص',d:'الخطوة 4: الشارع ورقم المبنى والرمز البريدي والمدينة'});
   const noP=its.filter(i=>i.price==null||i.price==='');if(noP.length)w.push({t:'⛔ أصناف بدون سعر ('+noP.length+')',d:noP.map(i=>i.t+(i.size?' · '+i.size:'')).slice(0,5).join('، ')});
   its.forEach(i=>{if(i.grp&&/^muster/i.test(i.gk||'')&&(+i.q||1)>=10)w.push({t:'عينات كثيرة: '+i.t,d:(+i.q||1)+' × Muster (1 Set) — هل تقصد كرتون؟'})});
-  const seen={};its.forEach(i=>{const k=i.t+'|'+(i.tier||'')+'|'+(i.size||'')+'|'+(i.gk||'');if(seen[k])w.push({t:'صنف مكرر في سطرين',d:i.t+' '+(i.tier||'')+' '+(i.size||'')});seen[k]=1});
+  const seen={};its.forEach(i=>{const k=i.t+'|'+(i.tier||'')+'|'+(i.size||'')+'|'+(i.gk||'')+'|'+(i.st&&i.st.id||'');if(seen[k])w.push({t:'صنف مكرر في سطرين',d:i.t+' '+(i.tier||'')+' '+(i.size||'')});seen[k]=1});
   its.forEach(i=>{if(isOil(i)&&!i.unit&&(+i.q||1)>=20)w.push({t:'كمية كبيرة: '+i.t,d:(+i.q||1)+' × '+(i.size||'')+' — تأكد من العدد'})});
   its.forEach(i=>{if(!isOil(i)&&!i.unit&&!i.grp&&(+i.q||1)>=50&&/karton|\d{2,}\s*st/i.test(i.size||''))w.push({t:'كمية كبيرة: '+i.t,d:(+i.q||1)+' × '+(i.size||'')+' — العدد هنا عدد العبوات/الكراتين'})});
   {const need=stkNeed(draft.items);Object.keys(need).forEach(k=>{const it=draft.items.find(i=>stkKey(i)===k),i=it&&stkInfo(it);if(i&&!i.unk&&!i.ok)w.push({t:'⛔ المخزون غير كافٍ: '+it.t+(it.tier?' · '+it.tier:''),d:'الرصيد '+stkFmt(i.have,i.unit)+' · المطلوب '+stkFmt(i.need,i.unit)})})}
@@ -3515,7 +3513,7 @@ function smartChecks(w){const cn=String(draft.cust||'').trim(),c=cn?findCust(cn)
   const sum=draft.items.reduce((s,i)=>s+(+i.price||0)*(+i.q||1),0);
   if(+draft.rabatt>=20)w.push({t:'🧠 خصم كبير: '+draft.rabatt+' %',d:'تأكد أن النسبة صحيحة وليست خطأ في الكتابة.'});
   if(+draft.rabattFix>0&&sum>0&&+draft.rabattFix>=sum*0.2)w.push({t:'🧠 خصم ثابت كبير: '+money(+draft.rabattFix),d:'يساوي '+Math.round(draft.rabattFix/sum*100)+' % من المجموع.'});
-  draft.items.forEach(i=>{if(i.kg||i.skAuto||i.price==null||i.price==='')return;const p=catalog.find(p=>p.t===i.t),sk=i.sku||i.code,v=p&&sk?p.v.find(v=>v[1]===sk):null,lp=v?pnum(v[2]):null;
+  draft.items.forEach(i=>{if(i.st||i.kg||i.skAuto||i.price==null||i.price==='')return;const p=catalog.find(p=>p.t===i.t),sk=i.sku||i.code,v=p&&sk?p.v.find(v=>v[1]===sk):null,lp=v?pnum(v[2]):null;
     if(lp>0&&+i.price<lp*0.7)w.push({t:'🧠 سعر منخفض: '+i.t+(i.size?' · '+i.size:''),d:money(+i.price)+' بدل '+money(lp)+' في المتجر (−'+Math.round((1-i.price/lp)*100)+' %)'})});
   if((draft.lief==='de'||draft.lief==='ab')&&String(draft.country||'DE')!=='DE'&&AP_EU.includes(String(draft.country||''))&&!(draft.dhlAdr&&draft.dhlAdr.firma)&&!(c&&/gmbh|ug\b|e\.?k\.?|ltd|bv|b\.v\.|sarl|srl|s\.l\.|ohg|kg\b|firma|shop|parf/i.test(c.name)))
     w.push({t:'🧠 شحن داخل الاتحاد الأوروبي بدون اسم شركة',d:'DHL Europaket للشركات فقط – أضف اسم الشركة عند إنشاء الملصق، وإلا قد يُرفض.'})}
