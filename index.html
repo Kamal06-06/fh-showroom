@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="230">
+<meta name="fh-build" content="231">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2477,7 +2477,20 @@ function setMix(g){const caps=g.parts.filter(x=>x.st.role==='cap');if(!caps.leng
       if(add.length===1){add[0]=Object.assign({},keep,{q:add[0].q,sku:add[0].sku,code:add[0].code,size:add[0].size,t:add[0].sku===keep.sku?keep.t:fam.t})}
       draft.items=draft.items.filter((_,ix)=>!ids.has(ix));draft.items.splice(Math.min(at,draft.items.length),0,...add);saveDraft();renderItems();closeSheet();toast('✓ تم توزيع ألوان الأغطية')};
     const row=el('div','mix-a');row.append(ev,sum,ok);b.append(row);upd()})}
-function setTile(g){const c=el('div','set-card'),h=el('div','set-h'),f=g.fl||g.parts[0];const im=(f.st&&f.st.img)||imgOf(f);
+/* Set ohne eigenes Bild (älter oder Bild fehlgeschlagen): echtes Bild der gewählten Teile im Hintergrund aus dem Konfigurator erzeugen */
+const snapBusy={};
+function setSnap(g){const f=g.fl;if(!f||!f.st||f.st.img||snapBusy[g.id]||IN_GAS)return;const mk=cfgModel(f.t);if(!mk)return;
+  const sp=g.parts.find(x=>x.st.role==='sp'),cp=g.parts.find(x=>x.st.role==='cap');
+  const SC={GO:'Gold',SI:'Silber',SW:'Schwarz'},spr=sp?(SC[(/-([A-Z]{2})$/.exec(String(sp.sku||sp.code||'').toUpperCase())||[])[1]]||''):'ohne';
+  snapBusy[g.id]=1;const fr=document.createElement('iframe');fr.setAttribute('aria-hidden','true');fr.tabIndex=-1;
+  fr.style.cssText='position:fixed;left:-2000px;top:0;width:420px;height:760px;border:0;opacity:0;pointer-events:none';
+  const done=()=>{window.removeEventListener('message',on);clearTimeout(tm);fr.remove()};
+  const on=e=>{if(e.source!==fr.contentWindow||!e.data||e.data.fhk!=='snap')return;done();const d=String(e.data.thumb||'');
+    if(!/^data:image\//.test(d))return;draft.items.forEach(x=>{if(x.st&&x.st.id===g.id&&x.st.role==='fl')x.st.img=d.slice(0,60000)});saveDraft();renderItems()};
+  const tm=setTimeout(done,20000);window.addEventListener('message',on);
+  fr.src='konfig/app.html?m='+encodeURIComponent(mk.k)+(mk.ml?'&ml='+encodeURIComponent(mk.ml):'')+'&spr='+encodeURIComponent(spr)+'&cap='+encodeURIComponent(cp?(cp.sku||cp.code||''):'ohne')+'&snap='+encodeURIComponent(g.id);
+  document.body.append(fr)}
+function setTile(g){const c=el('div','set-card'),h=el('div','set-h'),f=g.fl||g.parts[0];const im=(f.st&&f.st.img)||imgOf(f);if(!(f.st&&f.st.img))setTimeout(()=>setSnap(g),300);
   if(im){const i=mkImg(im,'');i.className='set-img';h.append(i)}
   const tt=el('div','set-t');tt.append(el('b',null,g.lbl),el('div','set-d',g.d));h.append(tt);c.append(h);
   const pr=el('div','set-p');pr.append(el('span',null,g.n.toLocaleString('de-DE')+' Sets × '+money(g.per)),el('b',null,money(g.tot)));c.append(pr);

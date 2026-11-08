@@ -40,5 +40,18 @@ html,body{margin:0;background:#fff;font-family:-apple-system,BlinkMacSystemFont,
 new MutationObserver(function(){var b=document.getElementById('fhk-add');if(b&&b.textContent.indexOf('Auftrag')<0)b.textContent='➕ In den Auftrag übernehmen · إضافة إلى الطلب'}).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
 </script>
 <script src="https://cdn.shopify.com/s/files/1/0929/4571/1487/files/fh-flakon-konfigurator-v16.js?v=1794024905"></script>
+<script>
+/* Bild eines gespeicherten Sets nachträglich erzeugen: ?snap=<id>&spr=Gold|ohne&cap=<Art.-Nr.>|ohne → echtes Bild (Flakon + Sprühkopf + Kappe) an die App */
+(function(){var q=new URLSearchParams(location.search),id=q.get('snap');if(!id)return;
+  var sp=(q.get('spr')||'').toLowerCase(),cap=(q.get('cap')||'').toUpperCase(),n=0;
+  function bt(box){return [].slice.call(document.querySelectorAll('#fhk-'+box+' button'))}
+  function pick(box,f){var b=bt(box).find(f);if(b&&b.getAttribute('aria-pressed')!=='true')b.click()}
+  function shot(){var d='';try{var cv=document.getElementById('fhk-cv'),w=240,h=Math.round(w*cv.height/cv.width),t=document.createElement('canvas');t.width=w;t.height=h;var x=t.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(cv,0,0,w,h);d=t.toDataURL('image/jpeg',.82)}catch(e){}
+    parent.postMessage({fhk:'snap',id:id,thumb:d},'*')}
+  (function go(){if(!bt('o-cap').length||!bt('o-spr').length){if(++n<60)return setTimeout(go,150);return shot()}
+    if(sp)pick('o-spr',function(b){var t=b.textContent.trim().toLowerCase();return sp==='ohne'?t.indexOf('ohne')===0:t===sp});
+    setTimeout(function(){if(cap)pick('o-cap',function(b){var t=(b.title||b.textContent||'').toUpperCase();return cap==='OHNE'?/OHNE/.test(t):t.indexOf(cap)>=0});setTimeout(shot,2800)},250)})();
+})();
+</script>
 </body>
 </html>
