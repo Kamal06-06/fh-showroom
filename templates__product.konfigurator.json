@@ -1,0 +1,22 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "weiterleitung": {
+      "type": "custom-liquid",
+      "settings": {
+        "custom_liquid": "{%- assign ziel = product.metafields.custom.konfig_url | default: '/pages/flakon-konfigurator' -%}{%- if routes.root_url != '/' -%}{%- assign ziel = routes.root_url | append: ziel -%}{%- endif -%}<script>location.replace({{ ziel | json }});</script><div style=\"text-align:center;padding:60px 16px\"><p><a class=\"button\" href=\"{{ ziel }}\">Flakon-Set zusammenstellen</a></p></div>",
+        "padding_top": 0,
+        "padding_bottom": 0
+      }
+    }
+  },
+  "order": ["weiterleitung"]
+}

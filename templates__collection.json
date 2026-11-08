@@ -1,0 +1,66 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main-collection-banner": {
+      "type": "main-collection-banner",
+      "custom_css": [
+        "@media (max-width: 749px) {.collection-hero__image-container {height: auto; aspect-ratio: 4 / 5; max-width: 32rem; margin: 2rem auto 0; border-radius: 12px; overflow: hidden;}}",
+        "@media (min-width: 750px) {.collection-hero__image-container {border-radius: 12px; overflow: hidden;}}",
+        ".collection-hero__title {font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 600; letter-spacing: 0.02em;}"
+      ],
+      "settings": {
+        "show_collection_description": true,
+        "show_collection_image": true,
+        "color_scheme": "scheme-f0a87df2-f425-4be0-94a8-f93fad5e3198"
+      }
+    },
+    "main-collection-product-grid": {
+      "type": "main-collection-product-grid",
+      "custom_css": [
+        ".card__heading {font-size: 1.5rem;}",
+        ".card-information .price {font-size: 1.4rem;}",
+        ".card-information .unit-price {font-size: 1.1rem; opacity: 0.7;}",
+        ".quick-add__submit {min-height: 3.8rem; font-size: 1.3rem; letter-spacing: 0; padding: 0 0.6rem;}"
+      ],
+      "settings": {
+        "products_per_page": 20,
+        "columns_desktop": 4,
+        "columns_mobile": "2",
+        "color_scheme": "scheme-f0a87df2-f425-4be0-94a8-f93fad5e3198",
+        "image_ratio": "square",
+        "image_shape": "default",
+        "show_secondary_image": true,
+        "show_vendor": false,
+        "show_rating": false,
+        "show_product_code": true,
+        "quick_add": "standard",
+        "enable_filtering": true,
+        "filter_type": "horizontal",
+        "enable_sorting": true,
+        "padding_top": 0,
+        "padding_bottom": 68
+      }
+    },
+    "konfig-karten": {
+      "type": "custom-liquid",
+      "settings": {
+        "custom_liquid": "{%- assign kz = '' -%}{%- for p in collection.products -%}{%- if p.metafields.custom.konfig_url != blank -%}{%- capture kz -%}{{ kz }}{{ p.handle | json }}:{\"u\":{{ p.metafields.custom.konfig_url | json }},\"a\":{{ p.metafields.custom.konfig_ab | json }}},{%- endcapture -%}{%- endif -%}{%- endfor -%}\n{%- if kz != '' -%}\n<script>\n(function(){var M={ {{ kz }} \"_\":0},R={{ routes.root_url | json }},L={{ request.locale.iso_code | json }};\nvar T={de:['Set ab ',' / Stück','Set zusammenstellen'],en:['Set from ',' / pc','Build your set'],ar:['الطقم من ',' / قطعة','صمّم طقمك']}[L]||['Set ab ',' / Stück','Set zusammenstellen'];\nfunction fix(){document.querySelectorAll('.product-card-wrapper:not([data-konfig])').forEach(function(w){var a=w.querySelector('a[href*=\"/products/\"]');if(!a)return;\n var h=new URL(a.href,location.href).pathname.split('/products/')[1];if(!h||!M[h])return;w.setAttribute('data-konfig','1');var m=M[h],u=(R==='/'?'':R)+m.u;\n w.querySelectorAll('a[href*=\"/products/\"]').forEach(function(x){x.href=u});\n var pr=w.querySelector('.price');if(pr)pr.innerHTML='<span class=\"price-item price-item--regular\">'+T[0]+m.a+T[1]+'</span>';\n var qa=w.querySelector('.quick-add');if(qa)qa.innerHTML='<a class=\"quick-add__submit button button--full-width button--secondary\" href=\"'+u+'\">'+T[2]+'</a>';});}\nfix();document.addEventListener('DOMContentLoaded',fix);new MutationObserver(fix).observe(document.documentElement,{childList:true,subtree:true});\n})();\n</script>\n{%- endif -%}",
+        "padding_top": 0,
+        "padding_bottom": 0
+      }
+    }
+  },
+  "order": [
+    "main-collection-banner",
+    "main-collection-product-grid",
+    "konfig-karten"
+  ]
+}

@@ -1,0 +1,33 @@
+{%- layout none -%}
+{%- comment -%}
+  Fragrance Hub – Wissensseite für den KI-Agenten (Superchat).
+  Aufruf: /collections/all?view=ki&page=1 … page=5
+  Wird bei jedem Abruf live aus dem Shop erzeugt (immer aktuelle Namen, Noten, Preise, Farben).
+{%- endcomment -%}
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>Produktwissen Fragrance Hub – Seite {{ current_page }}</title></head>
+<body>
+{%- paginate collection.products by 250 -%}
+<h1>Produktwissen Fragrance Hub Germany – Seite {{ paginate.current_page }} von {{ paginate.pages }}</h1>
+<p>Alle Preise sind Nettopreise in Euro (zzgl. MwSt.). Bestellung direkt im Shop über den jeweiligen Link. Stand: {{ 'now' | date: '%d.%m.%Y %H:%M' }}</p>
+{%- for p in collection.products -%}
+{%- assign noten = '' -%}{%- assign familie = '' -%}{%- assign geschlecht = '' -%}
+{%- for t in p.tags -%}
+  {%- if t contains 'Note: ' -%}{%- assign n = t | remove_first: 'Note: ' -%}{%- if noten == '' -%}{%- assign noten = n -%}{%- else -%}{%- assign noten = noten | append: ', ' | append: n -%}{%- endif -%}{%- endif -%}
+  {%- if t contains 'Duftfamilie: ' -%}{%- assign familie = t | remove_first: 'Duftfamilie: ' -%}{%- endif -%}
+  {%- if t contains 'Geschlecht: ' -%}{%- assign geschlecht = t | remove_first: 'Geschlecht: ' -%}{%- endif -%}
+{%- endfor %}
+<h2>{{ p.title }}</h2>
+<p>Link: {{ shop.url }}{{ p.url }}<br>
+Kategorie: {{ p.type }}{% if geschlecht != '' %} | Für: {{ geschlecht }}{% endif %}{% if familie != '' %} | Duftfamilie: {{ familie }}{% endif %}<br>
+{%- if noten != '' %}Duftnoten: {{ noten }}<br>{% endif %}
+Beschreibung: {{ p.description | strip_html | strip_newlines | truncate: 350 }}</p>
+<ul>
+{%- for v in p.variants %}
+<li>{{ v.title }} – {{ v.price | money_without_currency }} €{% assign fh_s3 = v.sku | slice: -3, 3 | upcase %}{% if fh_s3 == '-1G' %} pro Gramm (6–15 g je Fläschchen, 6 g = {{ v.price | times: 6 | money_without_currency }} €){% endif %}{% if v.sku != blank %} (Art.-Nr. {{ v.sku }}){% endif %}{% unless v.available %} – derzeit nicht verfügbar{% endunless %}</li>
+{%- endfor %}
+</ul>
+{%- endfor %}
+{%- if paginate.next %}<p>Weiter: {{ shop.url }}/collections/all?view=ki&amp;page={{ paginate.current_page | plus: 1 }}</p>{% endif %}
+{%- endpaginate -%}
+</body></html>

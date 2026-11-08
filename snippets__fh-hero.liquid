@@ -1,0 +1,243 @@
+{%- comment -%}
+ STARTSEITE – HERO (Slideshow), Stand 08.11.2026 (Folgebilder werden erst nach dem Seitenladen geholt)
+ Wird von sections/custom-liquid.liquid für den ersten Startseiten-Abschnitt geladen (statt des Feldes "Benutzerdefiniertes Liquid").
+ Bild-Links: Inhalt > Dateien > Bild hochladen > Link kopieren. Leer = dunkler Hintergrund.
+{%- endcomment -%}
+<style>
+  .fhx{--gold:#B8963E;--gold-soft:#F6EEDC;--ink:#262B3B;--muted:#5E6272;--line:#E7E1D3;
+       direction:ltr;text-align:left;color:var(--ink);max-width:1200px;margin:0 auto;padding:0 1.6rem}
+  .fhx h2{font-size:2.6rem;line-height:1.25;margin:0 0 .6rem;font-weight:600;letter-spacing:0}
+  .fhx p{font-size:1.6rem;line-height:1.6;color:var(--muted);margin:0}
+  .fhx-btn{display:inline-block;padding:1.2rem 2.2rem;border-radius:4px;font-size:1.5rem;font-weight:600;
+           text-decoration:none;border:1.5px solid var(--gold);transition:background .2s,color .2s}
+  .fhx-btn--solid{background:var(--gold);color:#fff}
+  .fhx-btn--solid:hover{background:#9C7D30;border-color:#9C7D30}
+  .fhx-btn--ghost{color:#fff;border-color:#fff}
+  .fhx-btn--ghost:hover{background:#fff;color:var(--ink)}
+  .fhx-btn--line{color:var(--ink)}
+  .fhx-btn--line:hover{background:var(--gold);color:#fff}
+  .fhx-btn:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+  .fhx-sec{padding:4.8rem 0}
+  @media(min-width:750px){.fhx h2{font-size:3.2rem}.fhx-sec{padding:6.4rem 0}}
+</style>
+
+{%- comment -%} Hintergrundbilder je Folie: d = Computer, m = Handy (Inhalt > Dateien) {%- endcomment -%}
+{%- assign d1 = 'https://cdn.shopify.com/s/files/1/0929/4571/1487/files/showroom-hero-3.jpg?v=1792811551&width=1920' -%}
+{%- assign m1 = 'https://cdn.shopify.com/s/files/1/0929/4571/1487/files/showroom-hero-2-m.jpg?v=1792811551&width=900' -%}
+{%- assign d2 = 'https://cdn.shopify.com/s/files/1/0929/4571/1487/files/showroom-hero-5.jpg?v=1792811551&width=1920' -%}
+{%- assign m2 = 'https://cdn.shopify.com/s/files/1/0929/4571/1487/files/showroom-hero-5-m.jpg?v=1792811551&width=900' -%}
+{%- assign d3 = 'https://cdn.shopify.com/s/files/1/0929/4571/1487/files/showroom-hero-4.jpg?v=1792811551&width=1920' -%}
+{%- assign m3 = 'https://cdn.shopify.com/s/files/1/0929/4571/1487/files/showroom-hero-4-m.jpg?v=1792811552&width=900' -%}
+{%- assign d4 = 'https://cdn.shopify.com/s/files/1/0929/4571/1487/files/showroom-hero-1.jpg?v=1792811551&width=1920' -%}
+{%- assign m4 = 'https://cdn.shopify.com/s/files/1/0929/4571/1487/files/showroom-hero-1-m.jpg?v=1792811551&width=900' -%}
+{%- assign d5 = 'https://cdn.shopify.com/s/files/1/0929/4571/1487/files/showroom-hero-3.jpg?v=1792811551&width=1920' -%}
+{%- assign m5 = 'https://cdn.shopify.com/s/files/1/0929/4571/1487/files/showroom-hero-3-m.jpg?v=1792811551&width=900' -%}
+{%- assign takt = 6 -%}
+
+<link rel="preload" as="image" href="{{ m1 }}" media="(max-width: 749px)">
+<link rel="preload" as="image" href="{{ d1 }}" media="(min-width: 750px)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet">
+
+<section class="fhn" id="fhn-{{ sid }}" aria-roledescription="{% if request.locale.iso_code == 'en' %}Carousel{% elsif request.locale.iso_code == 'ar' %}عرض متحرك{% else %}Karussell{% endif %}" aria-label="Fragrance Hub Germany">
+  <div class="fhn__media">
+    {%- assign dl = d1 | append: '|' | append: d2 | append: '|' | append: d3 | append: '|' | append: d4 | append: '|' | append: d5 | split: '|' -%}
+    {%- assign ml = m1 | append: '|' | append: m2 | append: '|' | append: m3 | append: '|' | append: m4 | append: '|' | append: m5 | split: '|' -%}
+    {%- for i in (0..4) -%}
+      {%- if forloop.first -%}
+      <div class="fhn__bg is-active" style="--img:url('{{ dl[i] }}');--img-m:url('{{ ml[i] }}')"></div>
+      {%- else -%}
+      <div class="fhn__bg" data-img="{{ dl[i] }}" data-img-m="{{ ml[i] }}"></div>
+      {%- endif -%}
+    {%- endfor -%}
+    <div class="fhn__shade"></div>
+  </div>
+
+  <div class="fhx fhn__inner">
+    <div class="fhn__stage">
+      <article class="fhn__slide is-active">
+        <p class="fhn__kicker">{% if request.locale.iso_code == 'en' %}Wholesale perfume oils{% elsif request.locale.iso_code == 'ar' %}تجارة الجملة للزيوت العطرية{% else %}Großhandel für Parfümöle{% endif %}</p>
+        <h2 class="fhn__title">{% if request.locale.iso_code == 'en' %}Perfume oils for your own fragrance brand{% elsif request.locale.iso_code == 'ar' %}زيوت عطرية لعلامتك العطرية الخاصة{% else %}Parfümöle für Ihre eigene Duftmarke{% endif %}</h2>
+        <p class="fhn__text">{% if request.locale.iso_code == 'en' %}Over 1,200 fragrance oils – freshly filled for business customers.{% elsif request.locale.iso_code == 'ar' %}أكثر من 1200 زيت عطري – تُعبّأ طازجة للعملاء التجاريين.{% else %}Über 1.200 Duftöle – frisch abgefüllt für Gewerbekunden.{% endif %}</p>
+        <div class="fhn__btns">
+          <a class="fhx-btn fhx-btn--solid" href="/collections/all">{% if request.locale.iso_code == 'en' %}Explore the range{% elsif request.locale.iso_code == 'ar' %}اكتشف التشكيلة{% else %}Sortiment entdecken{% endif %}</a>
+          <a class="fhx-btn fhx-btn--ghost" href="/pages/contact">{% if request.locale.iso_code == 'en' %}Request samples{% elsif request.locale.iso_code == 'ar' %}اطلب عينات{% else %}Muster anfragen{% endif %}</a>
+        </div>
+      </article>
+
+      <article class="fhn__slide">
+        <p class="fhn__kicker">{% if request.locale.iso_code == 'en' %}Flexible quantities{% elsif request.locale.iso_code == 'ar' %}كميات مرنة{% else %}Flexible Mengen{% endif %}</p>
+        <h2 class="fhn__title">{% if request.locale.iso_code == 'en' %}From 6 g samples to over 1,000&nbsp;kg{% elsif request.locale.iso_code == 'ar' %}من عينة 6 غ حتى أكثر من 1000&nbsp;كغ{% else %}Vom 6-g-Muster bis über 1.000&nbsp;kg{% endif %}</h2>
+        <p class="fhn__text">{% if request.locale.iso_code == 'en' %}Test at your own pace – then order in production quantities.{% elsif request.locale.iso_code == 'ar' %}جرّب على راحتك – ثم اطلب بكميات الإنتاج.{% else %}Testen Sie in Ruhe – und bestellen Sie dann in Produktionsmengen.{% endif %}</p>
+        <div class="fhn__btns">
+          <a class="fhx-btn fhx-btn--solid" href="/collections/all">{% if request.locale.iso_code == 'en' %}View fragrance oils{% elsif request.locale.iso_code == 'ar' %}عرض الزيوت العطرية{% else %}Duftöle ansehen{% endif %}</a>
+          <a class="fhx-btn fhx-btn--ghost" href="/pages/contact">{% if request.locale.iso_code == 'en' %}Request bulk quantity{% elsif request.locale.iso_code == 'ar' %}اطلب كمية كبيرة{% else %}Großmenge anfragen{% endif %}</a>
+        </div>
+      </article>
+
+      <article class="fhn__slide">
+        <p class="fhn__kicker">{% if request.locale.iso_code == 'en' %}Export{% elsif request.locale.iso_code == 'ar' %}التصدير{% else %}Export{% endif %}</p>
+        <h2 class="fhn__title">{% if request.locale.iso_code == 'en' %}Bulk quantities for the Middle East{% elsif request.locale.iso_code == 'ar' %}كميات كبيرة للشرق الأوسط{% else %}Großmengen für den Nahen Osten{% endif %}</h2>
+        <p class="fhn__text">{% if request.locale.iso_code == 'en' %}For buyers in the Middle East we supply bulk quantities directly from Germany – with an individual quote.{% elsif request.locale.iso_code == 'ar' %}للمشترين في الشرق الأوسط نورّد كميات كبيرة مباشرة من ألمانيا – مع عرض سعر خاص.{% else %}Für Abnehmer im Nahen Osten liefern wir Großmengen direkt ab Deutschland – mit individuellem Angebot.{% endif %}</p>
+        <div class="fhn__btns">
+          <a class="fhx-btn fhx-btn--solid" href="/pages/contact">{% if request.locale.iso_code == 'en' %}Send an export enquiry{% elsif request.locale.iso_code == 'ar' %}أرسل طلب تصدير{% else %}Exportanfrage stellen{% endif %}</a>
+        </div>
+      </article>
+
+      <article class="fhn__slide">
+        <p class="fhn__kicker">{% if request.locale.iso_code == 'en' %}Documented &amp; safe{% elsif request.locale.iso_code == 'ar' %}موثّق وآمن{% else %}Dokumentiert &amp; sicher{% endif %}</p>
+        <h2 class="fhn__title">{% if request.locale.iso_code == 'en' %}IFRA, SDS and CLP label for every fragrance oil{% elsif request.locale.iso_code == 'ar' %}شهادة IFRA وصحيفة السلامة وملصق CLP لكل زيت عطري{% else %}IFRA, SDS und CLP-Etikett zu jedem Duftöl{% endif %}</h2>
+        <p class="fhn__text">{% if request.locale.iso_code == 'en' %}All documents for your own perfume line – available immediately on request.{% elsif request.locale.iso_code == 'ar' %}جميع المستندات لخط عطورك الخاص – متوفرة فوراً عند الطلب.{% else %}Alle Unterlagen für Ihre eigene Parfümlinie – auf Anfrage sofort verfügbar.{% endif %}</p>
+        <div class="fhn__btns">
+          <a class="fhx-btn fhx-btn--solid" href="/pages/contact">{% if request.locale.iso_code == 'en' %}Request documents{% elsif request.locale.iso_code == 'ar' %}اطلب المستندات{% else %}Unterlagen anfragen{% endif %}</a>
+        </div>
+      </article>
+
+      <article class="fhn__slide">
+        <p class="fhn__kicker">{% if request.locale.iso_code == 'en' %}Service for founders{% elsif request.locale.iso_code == 'ar' %}خدمة لرواد الأعمال{% else %}Service für Gründer{% endif %}</p>
+        <h2 class="fhn__title">{% if request.locale.iso_code == 'en' %}Product registration from A to Z{% elsif request.locale.iso_code == 'ar' %}تسجيل المنتجات من الألف إلى الياء{% else %}Produktregistrierung von A bis Z{% endif %}</h2>
+        <p class="fhn__text">{% if request.locale.iso_code == 'en' %}Our experienced team supports you from the first scent to the finished brand.{% elsif request.locale.iso_code == 'ar' %}يرافقك فريقنا ذو الخبرة من أول عطر حتى العلامة التجارية الجاهزة.{% else %}Unser erfahrenes Team begleitet Sie vom ersten Duft bis zur fertigen Marke.{% endif %}</p>
+        <div class="fhn__btns">
+          <a class="fhx-btn fhx-btn--solid" href="/pages/contact">{% if request.locale.iso_code == 'en' %}Request advice{% elsif request.locale.iso_code == 'ar' %}اطلب استشارة{% else %}Beratung anfragen{% endif %}</a>
+        </div>
+      </article>
+    </div>
+
+    <div class="fhn__nav">
+      <span class="fhn__count"><b>01</b> / 05</span>
+      <div class="fhn__dots">
+        {%- for i in (1..5) -%}
+          <button type="button" class="fhn__dot{% if forloop.first %} is-active{% endif %}" aria-label="Folie {{ i }}"><span></span></button>
+        {%- endfor -%}
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="fhn-facts">
+  <div class="fhx fhn-facts__grid">
+    <div><strong>1.200+</strong><span>{% if request.locale.iso_code == 'en' %}fragrance oils in our range{% elsif request.locale.iso_code == 'ar' %}زيت عطري في التشكيلة{% else %}Duftöle im Sortiment{% endif %}</span></div>
+    <div><strong>6 g – 1.000+ kg</strong><span>{% if request.locale.iso_code == 'en' %}From sample to bulk{% elsif request.locale.iso_code == 'ar' %}من العينة حتى الكميات الكبيرة{% else %}Vom Muster bis zur Großmenge{% endif %}</span></div>
+    <div><strong>{% if request.locale.iso_code == 'en' %}12 noon{% elsif request.locale.iso_code == 'ar' %}12 ظهراً{% else %}12 Uhr{% endif %}</strong><span>{% if request.locale.iso_code == 'en' %}Order cut-off for same-day shipping{% elsif request.locale.iso_code == 'ar' %}آخر موعد للطلب للشحن في نفس اليوم{% else %}Bestellschluss für Versand am selben Tag{% endif %}</span></div>
+    <div><strong>{% if request.locale.iso_code == 'en' %}EU &amp; Middle East{% elsif request.locale.iso_code == 'ar' %}أوروبا والشرق الأوسط{% else %}EU &amp; Nahost{% endif %}</strong><span>{% if request.locale.iso_code == 'en' %}Europe in 1–3 days, bulk quantities to the Middle East{% elsif request.locale.iso_code == 'ar' %}أوروبا خلال 1–3 أيام، وكميات كبيرة للشرق الأوسط{% else %}Europa in 1–3 Tagen, Großmengen in den Nahen Osten{% endif %}</span></div>
+  </div>
+</div>
+
+<style>
+  .fhn{position:relative;display:flex;overflow:hidden;background:#131722;color:#fff;min-height:88vh;min-height:88svh}
+  .fhn__media{position:absolute;inset:0}
+  .fhn__bg{position:absolute;inset:0;opacity:0;transition:opacity 1.4s ease;background-color:#131722;
+    background-image:var(--img-m);background-size:cover;background-position:center 30%;transform:scale(1.06)}
+  .fhn__bg.is-active{opacity:1;animation:fhnZoom 12s ease-out forwards}
+  @keyframes fhnZoom{from{transform:scale(1.06)}to{transform:scale(1)}}
+  .fhn__shade{position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(180deg,rgba(19,23,34,.10) 0%,rgba(19,23,34,.30) 30%,rgba(19,23,34,.86) 58%,rgba(19,23,34,.97) 100%)}
+  .fhn__inner{position:relative;width:100%;display:flex;flex-direction:column;justify-content:flex-end;padding-top:6rem;padding-bottom:3rem}
+
+  .fhn__stage{position:relative;display:grid}
+  .fhn__slide{grid-area:1/1;opacity:0;visibility:hidden;transition:opacity .8s ease,visibility .8s}
+  .fhn__slide.is-active{opacity:1;visibility:visible}
+  .fhn__slide>*{transform:translateY(14px);opacity:0;transition:transform .8s ease,opacity .8s ease}
+  .fhn__slide.is-active>*{transform:none;opacity:1}
+  .fhn__slide.is-active>*:nth-child(2){transition-delay:.1s}
+  .fhn__slide.is-active>*:nth-child(3){transition-delay:.2s}
+  .fhn__slide.is-active>*:nth-child(4){transition-delay:.3s}
+  .fhn__kicker{display:flex;align-items:center;gap:1.2rem;color:#D9BF7A!important;font-size:1.15rem!important;font-weight:600;
+    letter-spacing:.24em;text-transform:uppercase;margin:0 0 1.6rem!important}
+  .fhn__kicker::before{content:"";flex:0 0 2.8rem;height:1px;background:currentColor;opacity:.8}
+  .fhn__title{font-variant-numeric:lining-nums;text-shadow:0 2px 24px rgba(0,0,0,.35);font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif!important;color:#fff!important;
+    font-size:4rem!important;line-height:1.06!important;font-weight:600!important;letter-spacing:-.01em;
+    margin:0 0 1.6rem!important;max-width:12em;text-wrap:balance}
+  .fhn__text{color:rgba(255,255,255,.72)!important;font-size:1.55rem!important;line-height:1.65!important;max-width:30em;margin:0 0 2.8rem!important}
+  .fhn__btns{display:flex;flex-wrap:wrap;gap:1rem}
+  .fhn .fhx-btn{flex:1 1 100%;text-align:center;border-radius:2px;padding:1.45rem 2.4rem;font-size:1.45rem;letter-spacing:.04em}
+  .fhn .fhx-btn--solid{background:linear-gradient(180deg,#C9A653,#B08D3A);border-color:#B08D3A;color:#fff;
+    box-shadow:0 8px 24px -10px rgba(201,166,83,.6)}
+  .fhn .fhx-btn--solid:hover{background:#9C7D30;border-color:#9C7D30}
+  .fhn .fhx-btn--ghost{border-color:rgba(255,255,255,.35);color:#fff}
+  .fhn .fhx-btn--ghost:hover{background:#fff;color:#131722;border-color:#fff}
+
+  .fhn__nav{display:flex;align-items:center;gap:1.6rem;margin-top:3.6rem}
+  .fhn__count{font-size:1.2rem;letter-spacing:.08em;color:rgba(255,255,255,.45);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .fhn__count b{color:#D9BF7A;font-weight:600}
+  .fhn__dots{display:flex;gap:.6rem;flex:1;max-width:24rem}
+  .fhn__dot{flex:1;height:2.4rem;padding:0;border:0;background:transparent;cursor:pointer;display:flex;align-items:center}
+  .fhn__dot span{display:block;width:100%;height:2px;border-radius:2px;background:rgba(255,255,255,.18);position:relative;overflow:hidden}
+  .fhn__dot span::after{content:"";position:absolute;inset:0;background:#D9BF7A;transform:scaleX(0);transform-origin:left}
+  .fhn__dot.is-done span::after{transform:scaleX(1);opacity:.55}
+  .fhn__dot.is-active span::after{animation:fhnBar var(--takt,6s) linear forwards}
+  .fhn.is-paused .fhn__dot.is-active span::after{animation-play-state:paused}
+  @keyframes fhnBar{to{transform:scaleX(1)}}
+  .fhn__dot:focus-visible{outline:2px solid #D9BF7A;outline-offset:2px}
+
+  .fhn-facts{background:#FAF8F3;border-bottom:1px solid #E7E1D3}
+  .fhn-facts__grid{display:grid;grid-template-columns:1fr 1fr}
+  .fhn-facts__grid>div{padding:2.2rem 1.2rem 2.4rem 0}
+  .fhn-facts__grid>div:nth-child(even){padding-left:1.6rem;border-left:1px solid #E7E1D3}
+  .fhn-facts__grid>div:nth-child(-n+2){border-bottom:1px solid #E7E1D3}
+  .fhn-facts strong{display:block;font-variant-numeric:lining-nums;font-family:'Cormorant Garamond',Georgia,serif;font-size:2.4rem;font-weight:600;color:#262B3B;line-height:1.15}
+  .fhn-facts span{display:block;font-size:1.25rem;color:#5E6272;margin-top:.4rem;line-height:1.45}
+
+  @media(min-width:750px){
+    .fhn{min-height:80vh}
+    .fhn__bg{background-image:var(--img);background-position:center}
+    .fhn__shade{background:linear-gradient(90deg,rgba(19,23,34,.94) 0%,rgba(19,23,34,.82) 32%,rgba(19,23,34,.35) 62%,rgba(19,23,34,.10) 100%)}
+    .fhn__inner{justify-content:center;padding-top:6.4rem;padding-bottom:4.8rem}
+    .fhn__title{font-size:6.4rem!important}
+    .fhn__text{font-size:1.7rem!important}
+    .fhn .fhx-btn{flex:0 0 auto}
+    .fhn-facts__grid{grid-template-columns:repeat(4,1fr)}
+    .fhn-facts__grid>div{border-bottom:0!important;padding-left:0}
+    .fhn-facts__grid>div+div{padding-left:2.4rem;border-left:1px solid #E7E1D3}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .fhn__bg,.fhn__slide,.fhn__slide>*{transition:none}
+    .fhn__bg.is-active{animation:none;transform:none}
+    .fhn__dot.is-active span::after{animation:none;transform:scaleX(1)}
+  }
+</style>
+
+<script>
+(function(){
+  var root = document.getElementById('fhn-{{ sid }}');
+  if (!root || root.dataset.ready) return; root.dataset.ready = '1';
+  var slides = root.querySelectorAll('.fhn__slide'), bgs = root.querySelectorAll('.fhn__bg'),
+      dots = root.querySelectorAll('.fhn__dot'), count = root.querySelector('.fhn__count b');
+  var takt = {{ takt }} * 1000, i = 0, timer = null, x0 = null;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  root.style.setProperty('--takt', takt/1000 + 's');
+
+  function load(k){
+    var b = bgs[(k + bgs.length) % bgs.length];
+    if (b && b.dataset.img) { b.style.setProperty('--img', "url('" + b.dataset.img + "')"); b.style.setProperty('--img-m', "url('" + b.dataset.imgM + "')"); delete b.dataset.img; }
+  }
+  function show(n){
+    i = (n + slides.length) % slides.length;
+    load(i); if (timer) load(i + 1);
+    slides.forEach(function(s,k){ s.classList.toggle('is-active', k === i); s.setAttribute('aria-hidden', k !== i); });
+    bgs.forEach(function(b,k){ b.classList.toggle('is-active', k === i); });
+    dots.forEach(function(d,k){ d.classList.remove('is-active'); d.classList.toggle('is-done', k < i); void d.offsetWidth; if (k === i) d.classList.add('is-active'); });
+    count.textContent = (i < 9 ? '0' : '') + (i + 1);
+  }
+  function start(){ if (reduce) return; stop(); timer = setInterval(function(){ if (!root.classList.contains('is-paused')) show(i+1); }, takt); }
+  function stop(){ if (timer) clearInterval(timer); }
+
+  dots.forEach(function(d,k){ d.addEventListener('click', function(){ show(k); start(); }); });
+  root.addEventListener('mouseenter', function(){ root.classList.add('is-paused'); });
+  root.addEventListener('mouseleave', function(){ root.classList.remove('is-paused'); });
+  root.addEventListener('focusin', function(){ root.classList.add('is-paused'); });
+  root.addEventListener('focusout', function(){ root.classList.remove('is-paused'); });
+  root.addEventListener('touchstart', function(e){ x0 = e.touches[0].clientX; }, {passive:true});
+  root.addEventListener('touchend', function(e){
+    if (x0 === null) return; var dx = e.changedTouches[0].clientX - x0; x0 = null;
+    if (Math.abs(dx) > 40) { show(i + (dx < 0 ? 1 : -1)); start(); }
+  }, {passive:true});
+  document.addEventListener('visibilitychange', function(){ document.hidden ? stop() : start(); });
+
+  show(0);
+  // Weitere Hintergrundbilder erst nach dem Laden der Seite holen, Slideshow danach starten
+  function go(){ setTimeout(function(){ load(1); start(); }, 1500); }
+  if (document.readyState === 'complete') go(); else window.addEventListener('load', go);
+})();
+</script>

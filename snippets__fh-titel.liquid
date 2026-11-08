@@ -1,0 +1,27 @@
+{%- comment -%}
+  Fragrance Hub Germany – Produkttitel zweizeilig
+  "Square Charm 100 ml – mit Sprühkopf & Kappe" → große Zeile "Square Charm 100 ml"
+  + kleine goldene Zeile "MIT SPRÜHKOPF & KAPPE". Der Produktname selbst bleibt unverändert (SEO, Warenkorb, Rechnung).
+  Eingebunden am Ende von snippets/buy-buttons.liquid.
+{%- endcomment -%}
+<style>
+.product__title h1{line-height:1.15}
+.product__title .fh-t-main{display:block}
+.product__title .fh-t-sub{display:block;margin-top:1rem;font-family:var(--font-body-family);font-size:1.3rem;font-weight:600;letter-spacing:.16em;line-height:1.5;text-transform:uppercase;color:#8a6a2f}
+@media screen and (max-width:749px){.product__title h1{font-size:3rem}.product__title .fh-t-sub{font-size:1.2rem;margin-top:.8rem}}
+</style>
+{%- if product.title contains ' – ' -%}
+<script>
+(function () {
+  document.querySelectorAll('.product__title h1').forEach(function (e) {
+    if (e.dataset.fhT) return;
+    var t = e.textContent.trim(), i = t.indexOf(' – ');
+    if (i < 1) return;
+    e.dataset.fhT = '1';
+    var a = document.createElement('span'); a.className = 'fh-t-main'; a.textContent = t.slice(0, i);
+    var b = document.createElement('span'); b.className = 'fh-t-sub'; b.textContent = t.slice(i + 3);
+    e.textContent = ''; e.appendChild(a); e.appendChild(b);
+  });
+})();
+</script>
+{%- endif -%}

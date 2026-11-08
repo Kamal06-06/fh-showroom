@@ -1,0 +1,142 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "cart-items": {
+      "type": "main-cart-items",
+      "custom_css": [
+        ".title--primary {font-size: 2.6rem;}",
+        ".cart-items thead {display: none;}",
+        ".cart-item__details > .product-option {display: none;}",
+        ".cart-item__totals .price {color: #b8963e;}",
+        ".quantity {min-height: 3.8rem; width: 12rem;}",
+        ".cart-item {grid-template-columns: 7.2rem 1fr; gap: 0.6rem 1.4rem; padding: 1.4rem; border: 1px solid #e7e1d3; border-radius: 6px;}",
+        ".cart-item__media {grid-row: 1/4; width: 7.2rem;}",
+        ".cart-item__media * {width: 7.2rem !important; height: 7.2rem !important;}",
+        ".cart-item__quantity,.cart-item__totals {grid-column: 2;}"
+      ],
+      "settings": {
+        "color_scheme": "scheme-1",
+        "padding_top": 0,
+        "padding_bottom": 24
+      }
+    },
+    "custom_liquid_yNA8UB": {
+      "type": "custom-liquid",
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "{%- comment -%}\n WARENKORB – Fortschrittsbalken, Muster-Hinweis, \"Passend dazu\", Bestellreferenz, Vertrauen\n Im Warenkorb-Template als Abschnitt \"Benutzerdefiniertes Liquid\" zwischen\n \"Warenkorbartikel\" und \"Zwischensumme\" einfügen.\n\n fh_ziel = Betrag für kostenlosen Versand in Euro (0 = Balken ausgeblendet).\n WICHTIG: Den gleichen Betrag in Shopify unter Einstellungen > Versand als\n kostenlose Versandrate anlegen, sonst stimmt die Anzeige nicht.\n{%- endcomment -%}\n{%- assign fh_lg = request.locale.iso_code -%}\n{%- assign fh_ziel = 150 -%}\n{%- comment -%} Nur für Deutschland {%- endcomment -%}\n{%- if localization.country.iso_code != 'DE' -%}{%- assign fh_ziel = 0 -%}{%- endif -%}\n{%- assign fh_anzahl_zubehoer = 3 -%}\n{%- comment -%} Zufallsauswahl aus bis zu fh_pool Produkten; fh_max_preis = Höchstpreis in Euro (0 = ohne Grenze) {%- endcomment -%}\n{%- assign fh_pool = 15 -%}\n{%- assign fh_max_preis = 100 -%}\n{%- assign fh_max_cent = fh_max_preis | times: 100 -%}\n\n{%- comment -%} Eigene Auswahl: Kollektion mit dem Handle \"passend-dazu\" anlegen. Sonst wird die Kollektion \"Laborbedarf\" genutzt. {%- endcomment -%}\n{%- assign fh_lab = collections['passend-dazu'] -%}\n{%- if fh_lab == blank or fh_lab.products_count == 0 -%}\n  {%- assign fh_lab = collections['parfum-werkstatt-zubehor'] -%}\n{%- endif -%}\n\n{%- if cart.item_count > 0 -%}\n<section class=\"fhk\" id=\"fhk\" dir=\"{% if fh_lg == 'ar' %}rtl{% else %}ltr{% endif %}\" data-ziel=\"{{ fh_ziel | times: 100 }}\">\n\n  {%- if fh_ziel > 0 -%}\n  <div class=\"fhk__progress\">\n    <p class=\"fhk__progress-text\" data-progress-text></p>\n    <div class=\"fhk__bar\"><span data-progress-bar></span></div>\n  </div>\n  {%- endif -%}\n\n  <div class=\"fhk__hint\" data-sample-hint hidden>\n    <p>{% if fh_lg == 'en' %}<strong>Like your fragrance?</strong> Choose larger quantities from 100&nbsp;g directly on the product page – up to 5&nbsp;kg online, more on request.{% elsif fh_lg == 'ar' %}<strong>أعجبك العطر؟</strong> اختر كميات أكبر ابتداءً من 100&nbsp;غ مباشرة في صفحة المنتج – حتى 5&nbsp;كغ عبر المتجر، وأكثر عند الطلب.{% else %}<strong>Ihr Duft gefällt Ihnen?</strong> Größere Mengen ab 100&nbsp;g wählen Sie direkt auf der Produktseite – bis 5&nbsp;kg online, darüber auf Anfrage.{% endif %}</p>\n  </div>\n\n  {%- if fh_lab and fh_lab.products_count > 0 -%}\n  <div class=\"fhk__cross\">\n    <p class=\"fhk__title\">{% if fh_lg == 'en' %}You may also need for your perfume{% elsif fh_lg == 'ar' %}قد تحتاج أيضاً لعطرك{% else %}Für Ihr Parfüm benötigen Sie außerdem{% endif %}</p>\n    <ul class=\"fhk__list\">\n      {%- assign shown = 0 -%}\n      {%- for p in fh_lab.products -%}\n        {%- if shown >= fh_pool -%}{%- break -%}{%- endif -%}\n        {%- if p.available and fh_max_cent == 0 or p.available and p.price_min <= fh_max_cent -%}\n          {%- assign v = p.selected_or_first_available_variant -%}\n          <li class=\"fhk__item\" hidden>\n            <a href=\"{{ p.url }}\" class=\"fhk__img\">\n              {%- if p.featured_image -%}{{ p.featured_image | image_url: width: 160 | image_tag: loading: 'lazy', alt: p.title }}{%- endif -%}\n            </a>\n            <div class=\"fhk__info\">\n              <a href=\"{{ p.url }}\" class=\"fhk__name\">{{ p.title }}</a>\n              <span class=\"fhk__price\">{% if p.variants.size > 1 %}{% if fh_lg == 'en' %}from {% elsif fh_lg == 'ar' %}من {% else %}ab {% endif %}{% endif %}{{ p.price_min | money }}</span>\n            </div>\n            {%- if p.variants.size == 1 -%}\n              <button type=\"button\" class=\"fhk__add\" data-add=\"{{ v.id }}\">{% if fh_lg == 'en' %}Add{% elsif fh_lg == 'ar' %}أضف{% else %}Hinzufügen{% endif %}</button>\n            {%- else -%}\n              <a href=\"{{ p.url }}\" class=\"fhk__add\">{% if fh_lg == 'en' %}Choose{% elsif fh_lg == 'ar' %}اختر{% else %}Auswählen{% endif %}</a>\n            {%- endif -%}\n          </li>\n          {%- assign shown = shown | plus: 1 -%}\n        {%- endif -%}\n      {%- endfor -%}\n    </ul>\n  </div>\n  {%- endif -%}\n\n  <div class=\"fhk__fields\">\n    <label class=\"fhk__label\" for=\"fhk-ref\">{% if fh_lg == 'en' %}Your order reference{% elsif fh_lg == 'ar' %}مرجع طلبك{% else %}Ihre Bestellreferenz{% endif %} <span>({% if fh_lg == 'en' %}optional{% elsif fh_lg == 'ar' %}اختياري{% else %}optional{% endif %})</span></label>\n    <input class=\"fhk__input\" id=\"fhk-ref\" type=\"text\" maxlength=\"60\" placeholder=\"{% if fh_lg == 'en' %}e.g. your internal order number{% elsif fh_lg == 'ar' %}مثلاً رقم الطلب الداخلي لديك{% else %}z. B. Ihre interne Bestellnummer{% endif %}\" value=\"{{ cart.attributes['Bestellreferenz'] | escape }}\">\n    <label class=\"fhk__label\" for=\"fhk-note\">{% if fh_lg == 'en' %}Order notes{% elsif fh_lg == 'ar' %}ملاحظات على الطلب{% else %}Hinweise zur Bestellung{% endif %} <span>({% if fh_lg == 'en' %}optional{% elsif fh_lg == 'ar' %}اختياري{% else %}optional{% endif %})</span></label>\n    <textarea class=\"fhk__input fhk__input--area\" id=\"fhk-note\" rows=\"2\" maxlength=\"500\" placeholder=\"{% if fh_lg == 'en' %}e.g. delivery instructions{% elsif fh_lg == 'ar' %}مثلاً تعليمات التوصيل{% else %}z. B. Lieferhinweise{% endif %}\">{{ cart.note | escape }}</textarea>\n    <p class=\"fhk__saved\" data-saved aria-live=\"polite\"></p>\n  </div>\n\n  <ul class=\"fhk__trust\">\n    <li><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"5\" y=\"10\" width=\"14\" height=\"10\" rx=\"1\"/><path d=\"M8 10V7a4 4 0 0 1 8 0v3\"/></svg>{% if fh_lg == 'en' %}Secure payment{% elsif fh_lg == 'ar' %}دفع آمن{% else %}Sichere Zahlung{% endif %}</li>\n    <li><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 7h11v9H3zM14 10h4l3 3v3h-7z\"/><circle cx=\"7\" cy=\"17.5\" r=\"1.6\"/><circle cx=\"17\" cy=\"17.5\" r=\"1.6\"/></svg>{% if fh_lg == 'en' %}Ships today if ordered by 12 noon{% elsif fh_lg == 'ar' %}شحن في نفس اليوم للطلبات قبل الساعة 12 ظهراً{% else %}Versand heute bei Bestellung bis 12 Uhr{% endif %}</li>\n    <li><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 3h9l3 3v15H6zM9 9h6M9 13h6M9 17h4\"/></svg>{% if fh_lg == 'en' %}Invoice with VAT shown separately{% elsif fh_lg == 'ar' %}فاتورة مع إظهار ضريبة القيمة المضافة{% else %}Rechnung mit ausgewiesener MwSt.{% endif %}</li>\n  </ul>\n</section>\n\n<style>\n  .fhk{max-width:1200px;margin:0 auto;padding:1.6rem;display:grid;gap:2rem;text-align:start;color:#262B3B}\n  .fhk__progress{background:#1F2433;border-radius:4px;padding:1.4rem 1.6rem}\n  .fhk__progress-text{margin:0 0 1rem;font-size:1.4rem;color:#fff}\n  .fhk__progress-text strong{color:#D9BF7A}\n  .fhk__bar{height:4px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}\n  .fhk__bar span{display:block;height:100%;width:0;background:#D9BF7A;transition:width .5s ease}\n  .fhk__hint{border-inline-start:3px solid #B8963E;background:#FAF8F3;padding:1.2rem 1.4rem}\n  .fhk__hint p{margin:0;font-size:1.4rem;line-height:1.5;color:#5E6272}\n  .fhk__hint strong{color:#262B3B}\n  .fhk__title{margin:0 0 1.2rem;font-size:1.6rem;font-weight:700}\n  .fhk__list{list-style:none;margin:0;padding:0;display:grid;gap:1rem}\n  .fhk__item{display:flex;align-items:center;gap:1.2rem;padding:1rem;border:1px solid #E7E1D3;border-radius:4px;background:#fff}\n  .fhk__item[hidden],.fhk__hint[hidden]{display:none}\n  .fhk__img{flex:0 0 6.4rem;width:6.4rem;height:6.4rem;border-radius:2px;overflow:hidden;background:#F6EEDC}\n  .fhk__img img{width:100%;height:100%;object-fit:cover}\n  .fhk__info{flex:1;min-width:0;display:flex;flex-direction:column;gap:.2rem}\n  .fhk__name{font-size:1.4rem;font-weight:600;color:#262B3B;text-decoration:none;line-height:1.3}\n  .fhk__name:hover{text-decoration:underline;text-decoration-color:#B8963E}\n  .fhk__price{font-size:1.3rem;color:#5E6272}\n  .fhk__add{flex:0 0 auto;padding:.8rem 1.2rem;border:1px solid #B8963E;border-radius:3px;background:#fff;color:#262B3B;\n    font:inherit;font-size:1.3rem;font-weight:600;cursor:pointer;text-decoration:none;transition:background .2s}\n  .fhk__add:hover{background:#B8963E;color:#fff}\n  .fhk__add[disabled]{opacity:.6;cursor:wait}\n  .fhk__fields{display:grid;gap:.6rem}\n  .fhk__label{font-size:1.4rem;font-weight:600;margin-top:.6rem}\n  .fhk__label span{font-weight:400;color:#5E6272}\n  .fhk__input{width:100%;padding:1.1rem 1.2rem;border:1px solid #D9D3C4;border-radius:3px;font:inherit;font-size:1.5rem;background:#fff;color:#262B3B}\n  .fhk__input:focus{outline:2px solid #B8963E;outline-offset:0;border-color:#B8963E}\n  .fhk__input--area{resize:vertical;min-height:6.4rem}\n  .fhk__saved{margin:0;font-size:1.2rem;color:#8FA36B;min-height:1.6rem}\n  .fhk__trust{list-style:none;margin:0;padding:1.4rem 0 0;border-top:1px solid #E7E1D3;display:grid;gap:.8rem}\n  .fhk__trust li{display:flex;align-items:center;gap:.8rem;font-size:1.35rem;color:#5E6272}\n  .fhk__trust svg{flex:0 0 20px;width:20px;height:20px;fill:none;stroke:#B8963E;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}\n  .fhk button:focus-visible,.fhk a:focus-visible{outline:2px solid #B8963E;outline-offset:2px}\n  @media(min-width:750px){\n    .fhk__list{grid-template-columns:repeat(3,1fr)}\n    .fhk__trust{grid-template-columns:repeat(3,1fr)}\n  }\n</style>\n\n<script>\n(function(){\n  var root = document.getElementById('fhk');\n  if (!root || root.dataset.ready) return; root.dataset.ready = '1';\n  var ziel = parseInt(root.dataset.ziel || '0', 10);\n  var fmt = new Intl.NumberFormat('de-DE', {style:'currency', currency:'{{ cart.currency.iso_code }}'});\n  var LG = {{ fh_lg | json }};\n  var TX = ({\n    de: { left: function(x){ return 'Noch <strong>' + x + '</strong> bis zum kostenlosen Versand innerhalb Deutschlands'; }, free: '<strong>Glückwunsch!</strong> Kostenloser Versand innerhalb Deutschlands.', add: 'Hinzufügen', saved: 'Gespeichert ✓' },\n    en: { left: function(x){ return '<strong>' + x + '</strong> left for free shipping within Germany'; }, free: '<strong>Congratulations!</strong> Free shipping within Germany.', add: 'Add', saved: 'Saved ✓' },\n    ar: { left: function(x){ return 'باقي <strong>' + x + '</strong> للشحن المجاني داخل ألمانيا'; }, free: '<strong>مبروك!</strong> شحن مجاني داخل ألمانيا.', add: 'أضف', saved: 'تم الحفظ ✓' }\n  })[LG] || null;\n  if (!TX) TX = { left: function(x){ return 'Noch <strong>' + x + '</strong> bis zum kostenlosen Versand innerhalb Deutschlands'; }, free: '<strong>Glückwunsch!</strong> Kostenloser Versand innerhalb Deutschlands.', add: 'Hinzufügen', saved: 'Gespeichert ✓' };\n\n  function render(cart){\n    if (ziel > 0) {\n      var t = root.querySelector('[data-progress-text]'), b = root.querySelector('[data-progress-bar]');\n      var rest = ziel - cart.total_price;\n      b.style.width = Math.min(100, cart.total_price / ziel * 100) + '%';\n      t.innerHTML = rest > 0\n        ? TX.left(fmt.format(rest/100))\n        : TX.free;\n    }\n    var hint = root.querySelector('[data-sample-hint]');\n    var onlySamples = cart.items.length > 0 && cart.items.every(function(i){\n      return /(^|\\D)6\\s?g\\b|probe|muster|sample|عينة/i.test(i.variant_title || '') || /-1G$/i.test(i.sku || '');\n    });\n    hint.hidden = !onlySamples;\n  }\n  function refresh(){ fetch('/cart.js').then(function(r){ return r.json(); }).then(render).catch(function(){}); }\n\n  var origFetch = window.fetch;\n  window.fetch = function(){\n    var url = String(arguments[0] && arguments[0].url || arguments[0]);\n    var p = origFetch.apply(this, arguments);\n    if (/\\/cart\\/(change|add|update|clear)/.test(url)) p.then(function(){ setTimeout(refresh, 300); });\n    return p;\n  };\n\n  root.querySelectorAll('[data-add]').forEach(function(btn){\n    btn.addEventListener('click', function(){\n      btn.disabled = true; btn.textContent = '…';\n      origFetch('/cart/add.js', {method:'POST', headers:{'Content-Type':'application/json'},\n        body: JSON.stringify({items:[{id: +btn.dataset.add, quantity: 1}]})})\n        .then(function(){ location.reload(); })\n        .catch(function(){ btn.disabled = false; btn.textContent = TX.add; });\n    });\n  });\n\n  var saved = root.querySelector('[data-saved]'), timer;\n  function save(){\n    var body = { note: root.querySelector('#fhk-note').value,\n                 attributes: { 'Bestellreferenz': root.querySelector('#fhk-ref').value } };\n    origFetch('/cart/update.js', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})\n      .then(function(){ saved.textContent = TX.saved; setTimeout(function(){ saved.textContent = ''; }, 2000); });\n  }\n  ['#fhk-ref','#fhk-note'].forEach(function(s){\n    root.querySelector(s).addEventListener('input', function(){ clearTimeout(timer); timer = setTimeout(save, 700); });\n  });\n\n  var pool = Array.prototype.slice.call(root.querySelectorAll('.fhk__item'));\n  for (var k = pool.length - 1; k > 0; k--) { var j = Math.floor(Math.random() * (k + 1)); var t = pool[k]; pool[k] = pool[j]; pool[j] = t; }\n  pool.slice(0, {{ fh_anzahl_zubehoer }}).forEach(function(li){ li.hidden = false; li.parentNode.appendChild(li); });\n\n  refresh();\n})();\n</script>\n{%- endif -%}",
+        "color_scheme": "",
+        "padding_top": 40,
+        "padding_bottom": 52
+      }
+    },
+    "cart-footer": {
+      "type": "main-cart-footer",
+      "blocks": {
+        "subtotal": {
+          "type": "subtotal",
+          "settings": {}
+        },
+        "buttons": {
+          "type": "buttons",
+          "settings": {}
+        }
+      },
+      "block_order": [
+        "subtotal",
+        "buttons"
+      ],
+      "settings": {
+        "color_scheme": "scheme-1",
+        "padding_top": 0,
+        "padding_bottom": 0
+      }
+    },
+    "179066893639e8dc42": {
+      "type": "apps",
+      "blocks": {
+        "eu_tax_exemption_easy_tax_widget_iBCTpx": {
+          "type": "shopify://apps/eu-tax-exemption-easy/blocks/tax_widget/0199fec2-bb6e-7a4c-aa45-09892d0d3042",
+          "settings": {
+            "background_color": "#FAF8F3",
+            "border_color": "#E7E1D3",
+            "border_width": 1,
+            "border_radius": 6,
+            "widget_padding": 20,
+            "widget_max_width": 360,
+            "container_max_width": 0,
+            "widget_alignment": "right",
+            "full_width_mobile": true,
+            "margin_top": 10,
+            "margin_bottom": 0,
+            "margin_left": 0,
+            "margin_right": 0,
+            "title_color": "#262B3B",
+            "title_font_size": 18,
+            "subtitle_color": "#5E6272",
+            "subtitle_font_size": 14,
+            "label_color": "#262B3B",
+            "label_font_size": 14,
+            "input_background_color": "#ffffff",
+            "input_text_color": "#262B3B",
+            "input_border_color": "#D9D3C4",
+            "input_border_radius": 3,
+            "input_padding": 10,
+            "button_color": "#B8963E",
+            "button_text_color": "#ffffff",
+            "button_border_radius": 4,
+            "button_padding": 12,
+            "button_font_size": 14,
+            "collapse_with_checkbox": false,
+            "widget_style": "auto",
+            "collapse_checkbox_background_color": "#FAF8F3",
+            "collapse_checkbox_text_color": "#262B3B",
+            "collapse_checkbox_border_color": "#E7E1D3",
+            "collapse_checkbox_border_width": 1,
+            "collapse_checkbox_border_radius": 6,
+            "collapse_checkbox_padding": 12,
+            "collapse_checkbox_font_size": 14,
+            "collapse_checkbox_control_size": 18,
+            "enable_b2b_checkout": false,
+            "b2b_store_vat_details": true,
+            "b2b_prices_include_vat": true,
+            "b2b_vat_country": "auto",
+            "b2b_vat_rate_profile": "standard",
+            "b2b_custom_vat_rate": 0,
+            "b2b_free_shipping_threshold": 0,
+            "b2b_free_shipping_title": "Free Shipping",
+            "checkout_button_selector": "[name=\"checkout\"]",
+            "b2b_button_text": "B2B Checkout (VAT Exempt)",
+            "b2b_button_background_color": "#1F2433",
+            "b2b_button_text_color": "#ffffff",
+            "b2b_button_border_color": "#B8963E",
+            "b2b_button_border_width": 1,
+            "b2b_button_border_radius": 4,
+            "b2b_button_padding_vertical": 12,
+            "b2b_button_padding_horizontal": 24
+          }
+        }
+      },
+      "block_order": [
+        "eu_tax_exemption_easy_tax_widget_iBCTpx"
+      ],
+      "settings": {
+        "include_margins": true
+      }
+    }
+  },
+  "order": [
+    "cart-items",
+    "custom_liquid_yNA8UB",
+    "cart-footer",
+    "179066893639e8dc42"
+  ]
+}

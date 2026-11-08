@@ -1,0 +1,137 @@
+{%- comment -%}
+  Fragrance Hub Germany – Mengen-Kacheln für Flakons, Zubehör & Alkohol
+  • Stück:  Preis pro Stück · Gesamtpreis · Ersparnis · "Bester Preis"
+            Flakons (Typ "Leere Parfümflakons"): kleinste Menge > 1 = 1 Karton → "2 Kartons" usw.
+  • Liter:  Preis pro Liter · Gesamtpreis · Ersparnis
+  Eingebunden in snippets/product-variant-picker.liquid. Datei leeren = alter Zustand.
+{%- endcomment -%}
+{%- assign fh_mode = '' -%}
+{%- for v in product.variants -%}
+  {%- assign vt = v.title | downcase -%}
+  {%- if vt contains 'stück' or vt contains 'stk' -%}{%- assign fh_mode = 'pcs' -%}{%- break -%}{%- endif -%}
+  {%- if vt contains 'liter' -%}{%- assign fh_mode = 'ltr' -%}{%- break -%}{%- endif -%}
+{%- endfor -%}
+{%- if fh_mode != '' -%}
+{%- liquid
+  assign fh_karton = false
+  if product.type == 'Leere Parfümflakons'
+    assign fh_karton = true
+  endif
+-%}
+<script type="application/json" id="fh-pcs-data-{{ section.id }}">
+{"mode":{{ fh_mode | json }},"karton":{{ fh_karton | json }},"opts":{{ product.options | json }},"cur":{{ cart.currency.iso_code | json }},"v":[
+{%- for v in product.variants -%}{"o":{{ v.options | json }},"p":{{ v.price }}}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}]}
+</script>
+<style>
+fieldset.fh-pcs input[type=radio]+label{min-height:118px !important;padding:18px 6px 12px !important;gap:2px !important}
+.fh-pcs .fh-vp-price{display:none !important}
+.fh-pcs .fh-pcs-kart{font-size:1.15rem;color:#6b6a66}
+.fh-pcs .fh-pcs-unit{font-size:1.45rem;font-weight:600;margin-top:3px}
+.fh-pcs .fh-pcs-total{font-size:1.1rem;color:#6b6a66}
+.fh-pcs .fh-pcs-save{font-size:1.1rem;font-weight:600;color:#8a6a2f}
+.fh-pcs .fh-pcs-badge{position:absolute;top:-10px;left:50%;transform:translateX(-50%);white-space:nowrap;padding:2px 9px;border-radius:999px;background:#a8823e;color:#fff;font-size:1.05rem;line-height:1.4}
+.fh-pcs input:checked+label .fh-pcs-unit,.fh-pcs input:checked+label .fh-pcs-save{color:#e3c98f}
+.fh-pcs input:checked+label .fh-pcs-kart,.fh-pcs input:checked+label .fh-pcs-total{color:#c9ccd8}
+</style>
+<script>
+(function () {
+  var SID = {{ section.id | json }};
+  var dataEl = document.getElementById('fh-pcs-data-' + SID);
+  if (!dataEl) return;
+  var D = JSON.parse(dataEl.textContent);
+  var LTR = D.mode === 'ltr';
+  var root = dataEl.closest('product-info') || dataEl.closest('.shopify-section') || document;
+  var fmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: D.cur || 'EUR' });
+
+  function norm(s) { return (s || '').toString().trim().toLowerCase(); }
+  /* Menge aus dem Variantennamen: "1.000 Stück", "80 Stück", "5 Liter", "0,5 Liter" */
+  function qty(val) {
+    var re = LTR ? /(\d+(?:[.,]\d+)?)\s*(liter|l)\b/i : /(\d{1,3}(?:\.\d{3})+|\d+)\s*(st(ü|ue)ck|stk)/i;
+    var m = re.exec(val || '');
+    if (!m) return 0;
+    return LTR ? parseFloat(m[1].replace(',', '.')) : parseInt(m[1].replace(/\./g, ''), 10);
+  }
+  var idx = -1;
+  D.opts.forEach(function (n, i) {
+    if (idx < 0 && D.v.some(function (v) { return qty(v.o[i]) > 0; })) idx = i;
+  });
+  if (idx < 0) return;
+
+  function fieldsetFor(i) {
+    var name = norm(D.opts[i]), fs = root.querySelectorAll('fieldset');
+    for (var k = 0; k < fs.length; k++) {
+      var lg = fs[k].querySelector('legend');
+      if (lg && norm(lg.textContent).indexOf(name) === 0 && fs[k].querySelector('input[type=radio]')) return fs[k];
+    }
+    return null;
+  }
+  function selected(i) {
+    var fs = fieldsetFor(i), c = fs && fs.querySelector('input[type=radio]:checked');
+    if (c) return c.value;
+    var sel = root.querySelector('select[name="options[' + D.opts[i] + ']"]');
+    return sel ? sel.value : null;
+  }
+  function variantFor(val) {
+    var others = D.opts.map(function (_, i) { return i === idx ? null : selected(i); });
+    var first = null;
+    for (var k = 0; k < D.v.length; k++) {
+      var o = D.v[k].o;
+      if (o[idx] !== val) continue;
+      if (!first) first = D.v[k];
+      if (others.every(function (x, i) { return x === null || o[i] === x; })) return D.v[k];
+    }
+    return first;
+  }
+  function labelFor(fs, inp) {
+    return (inp.id && fs.querySelector('label[for="' + CSS.escape(inp.id) + '"]')) || inp.nextElementSibling;
+  }
+  function setPart(lb, cls, text) {
+    var el = lb.querySelector('.' + cls);
+    if (!text) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('span'); el.className = cls; lb.appendChild(el); }
+    if (el.textContent !== text) el.textContent = text;
+  }
+
+  function enhance() {
+    var fs = fieldsetFor(idx);
+    if (!fs) return;
+    fs.classList.add('fh-pcs');
+    var items = [];
+    fs.querySelectorAll('input[type=radio]').forEach(function (inp) {
+      var n = qty(inp.value), v = variantFor(inp.value), lb = labelFor(fs, inp);
+      if (n && v && lb) items.push({ n: n, v: v, lb: lb, ml: /\d\s*ml/i.test(inp.value) });
+    });
+    if (!items.length) return;
+    var minN = Infinity, ref = 0, carton = 0, maxN = 0;
+    items.forEach(function (it) {
+      if (it.n < minN) { minN = it.n; ref = it.v.p / it.n; }
+      if (it.n > 1 && (!carton || it.n < carton)) carton = it.n;
+      if (it.n > maxN) maxN = it.n;
+    });
+    var useKarton = D.karton && !LTR && !items.some(function (it) { return it.ml; });
+    var einheit = LTR ? ' / Liter' : ' / Stück';
+    items.forEach(function (it) {
+      var unit = it.v.p / it.n;
+      var pct = ref && items.length > 1 ? Math.round((1 - unit / ref) * 100) : 0;
+      var kart = '';
+      if (useKarton && carton && it.n % carton === 0) { var k = it.n / carton; kart = k + (k === 1 ? ' Karton' : ' Kartons'); }
+      else if (!LTR && it.n === 1) kart = D.karton ? 'Muster' : 'Einzelstück';
+      setPart(it.lb, 'fh-pcs-badge', it.n === maxN && items.length > 2 && pct >= 5 ? 'Bester Preis' : '');
+      setPart(it.lb, 'fh-pcs-kart', kart);
+      setPart(it.lb, 'fh-pcs-unit', fmt.format(unit / 100) + einheit);
+      setPart(it.lb, 'fh-pcs-total', it.n > 1 ? fmt.format(it.v.p / 100) + ' gesamt' : '');
+      setPart(it.lb, 'fh-pcs-save', pct >= 5 ? '−' + pct + ' %' : '');
+    });
+  }
+
+  var timer, obs = new MutationObserver(function () { clearTimeout(timer); timer = setTimeout(run, 40); });
+  function run() {
+    obs.disconnect();
+    try { enhance(); }
+    finally { obs.observe(root, { childList: true, subtree: true }); }
+  }
+  root.addEventListener('change', function () { setTimeout(run, 0); });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+})();
+</script>
+{%- endif -%}

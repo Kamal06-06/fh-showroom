@@ -1,0 +1,46 @@
+{% comment %}
+  Renders a swatch component.
+  Fragrance Hub: zeigt echte Farben statt Fotos (Bild nur, wenn keine Farbe gepflegt ist).
+  Zweifarbige Kappen (Weiß-Gold, Schwarz-Gold, Weiß-Silber, Schwarz-Silber) und Metallfarben als Verlauf.
+  Accepts:
+  - swatch: {Object} a swatch object
+  - shape: {String} swatch shape. Accepts 'square', defaults to circle.
+{% endcomment %}
+
+{%- liquid
+  assign swatch_value = null
+  if swatch.color
+    assign hx = swatch.color | append: '' | downcase
+    case hx
+      when '#f8f6f0'
+        assign swatch_value = 'linear-gradient(180deg,#ffffff 0 58%,#e9d18f 58%,#b8902f 100%)'
+      when '#1a1a1a'
+        assign swatch_value = 'linear-gradient(180deg,#1b1b1b 0 58%,#e9d18f 58%,#b8902f 100%)'
+      when '#fefefe'
+        assign swatch_value = 'linear-gradient(180deg,#ffffff 0 58%,#eeeeee 58%,#a9a9a9 100%)'
+      when '#010101'
+        assign swatch_value = 'linear-gradient(180deg,#1b1b1b 0 58%,#eeeeee 58%,#a9a9a9 100%)'
+      when '#d49a06'
+        assign swatch_value = 'linear-gradient(135deg,#f6e3a1 0%,#d4ad4f 45%,#a8802a 100%)'
+      when '#d3d3d3'
+        assign swatch_value = 'linear-gradient(135deg,#fafafa 0%,#c9c9c9 45%,#8e8e8e 100%)'
+      when '#ffffff'
+        assign swatch_value = '#ffffff'
+      else
+        assign swatch_value = 'rgb(' | append: swatch.color.rgb | append: ')'
+    endcase
+  elsif swatch.image
+    assign image_url = swatch.image | image_url: width: 50
+    assign swatch_value = 'url(' | append: image_url | append: ')'
+    assign swatch_focal_point = swatch.image.presentation.focal_point
+  endif
+-%}
+
+<span
+  {% if swatch_value %}
+    class="swatch{% if shape == 'square' %} swatch--square{% endif %}"
+    style="--swatch--background: {{ swatch_value }};{% if swatch_focal_point %} --swatch-focal-point: {{ swatch_focal_point }};{% endif %}"
+  {% else %}
+    class="swatch swatch--unavailable{% if shape == 'square' %} swatch--square{% endif %}"
+  {% endif %}
+></span>
