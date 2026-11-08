@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="234">
+<meta name="fh-build" content="235">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -1750,7 +1750,10 @@ const lnAll=items=>(items||[]).filter(i=>!i.st||i.st.role==='fl').length;
 const qnAll=items=>(items||[]).reduce((s,i)=>i.st?(i.st.role==='fl'?s+(+i.st.n||1):s):s+qn(i),0);
 const cntTxt=items=>{items=items||[];const a=items.length,pc=items.filter(i=>i.unit!=='kg'&&!(isOil(i)&&sizeG(i.size))),b=pc.reduce((s,i)=>s+qn(i),0),kg=Math.round(items.reduce((s,i)=>{if(pc.includes(i))return s;if(i.unit==='kg')return s+(+i.q||0);return s+sizeG(i.size)*(+i.q||1)/1000},0)*1000)/1000;return a+' صنف'+(kg?' · '+String(kg).replace('.',',')+' kg':'')+(b?' · '+b+' قطعة':'')};   /* pieces count (a line sold by kg counts as one) */
 const qtxt=it=>it.unit?(String(+it.q||1).replace('.',',')+' '+(it.unit==='kg'?'kg':'Stk')):((it.q||1)+'×');
-const imgOf=it=>{if(isOil(it))return '';{const ss=setSrc(it.sku||it.code);if(ss)return ss}const p=(catalog||[]).find(p=>p.t===it.t);if(!p)return '';/* Variantenbild (z. B. richtige Kappe/Sprühkopf-Farbe) vor Produktbild */const ix=(p.v||[]).findIndex(v=>v[1]===(it.sku||it.code)&&(!it.size||v[0]===it.size));const ix2=ix>-1?ix:(p.v||[]).findIndex(v=>v[1]===(it.sku||it.code));return (ix2>-1&&p.vi&&p.vi[ix2])||p.i||''};
+/* Bild über die Art.-Nr. aus irgendeinem Produkt (z. B. Kappe aus «Parfümkappe (im Set)») */
+var skuImgC={};function skuImg(sku){sku=String(sku||'').trim().toUpperCase();if(!sku)return '';if(sku in skuImgC)return skuImgC[sku];let r='';
+  (catalog||[]).some(p=>{if(p.oil)return false;return (p.v||[]).some((v,i)=>{const s=String(v[1]||'').toUpperCase();if((s===sku||s.indexOf(sku+'-')===0)&&p.vi&&p.vi[i]){r=p.vi[i];return true}return false})});return skuImgC[sku]=r}
+const imgOf=it=>{if(isOil(it))return '';{const ss=setSrc(it.sku||it.code);if(ss)return ss}const p=(catalog||[]).find(p=>p.t===it.t);if(!p)return skuImg(it.sku||it.code);/* Variantenbild (z. B. richtige Kappe/Sprühkopf-Farbe) vor Produktbild */const ix=(p.v||[]).findIndex(v=>v[1]===(it.sku||it.code)&&(!it.size||v[0]===it.size));const ix2=ix>-1?ix:(p.v||[]).findIndex(v=>v[1]===(it.sku||it.code));return (ix2>-1&&p.vi&&p.vi[ix2])||skuImg(it.sku||it.code)||p.i||''};
 /* Kappen-Miniatur aus konfig/kappen: erkennt Form + Farbe der gewählten Kappe im Varianten-/Produktnamen (Sets, Kappen) */
 const CAP_SHAPES=['kugel','polo','ribbed','holz','zen','eckig','zylinder'],CAP_COLS=['weiss-gold','schwarz-gold','dunkelbraun','natur','glanz','matt','gold','weiss','schwarz'],
  CAP_FILES=new Set(['eckig-schwarz','holz-dunkelbraun','holz-natur','holz-schwarz','kugel-gold','kugel-schwarz','kugel-weiss','polo-schwarz-gold','polo-weiss-gold','ribbed-gold','ribbed-schwarz','zen-glanz','zen-gold','zen-matt','zylinder-weiss-gold']);
@@ -2302,7 +2305,7 @@ function normVar(v){v=gramProbe(v);const a=String(v[0]||'').split(' / ').map(x=>
   const tier=a.filter((_,i)=>i!==si).map(normTier).join(' / ');return [normSize(a[si])+' / '+tier].concat(v.slice(1))}
 /* als Funktionsdeklaration: wird schon beim Start gebraucht (Glas-Positionen im Entwurf) */
 function fold(x){return String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’'`´]/g,'').replace(/ß/g,'ss').toLowerCase()}
-function setCatalog(ps){
+function setCatalog(ps){skuImgC={};
   ps=ps.map(p=>{const oil=p.o!=null?p.o===1:p.v.some(v=>(v[0]||'').includes(' / ')&&/-SH(-|$)/.test(v[1]||''));return oil?Object.assign({},p,{v:p.v.map(normVar)}):p});
   catalog=ps.map(p=>({t:p.t,v:p.v,i:p.i||'',a:p.a||'',op:p.op||null,vo:p.vo||null,vi:p.vi||null,av:p.av||null,im:p.im||null,sw:p.sw||null,h:p.h||'',ty:p.ty||'',oil:p.o!=null?p.o===1:p.v.some(v=>(v[0]||'').includes(' / ')&&/-SH(-|$)/.test(v[1]||'')),k:fold(p.t+' '+(p.a||'')+' '+p.v.map(v=>v[1]||'').join(' ')),kt:fold(p.t)}));
 }
@@ -2962,7 +2965,7 @@ async function prepImgs(l){
   for(const it of (l.items||[])){
     /* Bild je Variante (richtige Farbe von Sprühkopf/Kappe), nicht nur das Produktbild */
     const key=imgKey(it);if(isOil(it)||imgs[key])continue;
-    const src=(it.st&&it.st.img)||imgOf(it)||(typeof capOf==='function'&&capOf(it))||'';if(!src)continue;
+    const src=imgOf(it)||skuImg(it.sku||it.code)||(typeof capOf==='function'&&capOf(it))||'';if(!src)continue;
     try{
       const bmp=await createImageBitmap(await fetch(src).then(r=>{if(!r.ok)throw 0;return r.blob()}));
       const S=200,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,S,S);
