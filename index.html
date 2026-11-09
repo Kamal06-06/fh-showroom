@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="236">
+<meta name="fh-build" content="237">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -1751,11 +1751,13 @@ const lnAll=items=>(items||[]).filter(i=>!i.st||i.st.role==='fl').length;
 const qnAll=items=>(items||[]).reduce((s,i)=>i.st?(i.st.role==='fl'?s+(+i.st.n||1):s):s+qn(i),0);
 const cntTxt=items=>{items=items||[];const a=items.length,pc=items.filter(i=>i.unit!=='kg'&&!(isOil(i)&&sizeG(i.size))),b=pc.reduce((s,i)=>s+qn(i),0),kg=Math.round(items.reduce((s,i)=>{if(pc.includes(i))return s;if(i.unit==='kg')return s+(+i.q||0);return s+sizeG(i.size)*(+i.q||1)/1000},0)*1000)/1000;return a+' صنف'+(kg?' · '+String(kg).replace('.',',')+' kg':'')+(b?' · '+b+' قطعة':'')};   /* pieces count (a line sold by kg counts as one) */
 /* Karton oder Stück eindeutig: "3 Karton (à 80 Stück)" statt "3×" – damit niemand 1 Stück statt 1 Karton packt */
-const kartonN=it=>{if(!it||isOil(it)||it.unit)return 0;const m=/Karton\s*(à|a|x)\s*([\d.]+)/i.exec(String(it.size||''));return m?+m[2].replace(/\./g,''):0};
+const kartonN=it=>{if(!it||isOil(it)||it.unit)return 0;const m=/Karton\s*(à|a|x)\s*([\d.]+)/i.exec(String(it.size||''));if(m)return +m[2].replace(/\./g,'');
+  /* Set-Flakon im Karton ohne «Karton à …» in der Variante (z. B. Slim Aura 100): Stück je Karton = Sets ÷ Kartons */
+  if(it.st&&it.st.role==='fl'&&it.st.kart){const per=Math.round((+it.st.n||0)/(+it.q||1));return per>1?per:0}return 0};
 const qtxt=it=>it.unit?(String(+it.q||1).replace('.',',')+' '+(it.unit==='kg'?'kg':'Stk')):((it.q||1)+'×');
 /* Bild über die Art.-Nr. aus irgendeinem Produkt (z. B. Kappe aus «Parfümkappe (im Set)») */
 var skuImgC={};function skuImg(sku){sku=String(sku||'').trim().toUpperCase();if(!sku)return '';if(sku in skuImgC)return skuImgC[sku];let r='';
-  (catalog||[]).some(p=>{if(p.oil)return false;return (p.v||[]).some((v,i)=>{const s=String(v[1]||'').toUpperCase();if((s===sku||s.indexOf(sku+'-')===0)&&p.vi&&p.vi[i]){r=p.vi[i];return true}return false})});return skuImgC[sku]=r}
+  (catalog||[]).some(p=>{if(p.oil)return false;return (p.v||[]).some((v,i)=>{const s=String(v[1]||'').toUpperCase();if((s===sku||s.indexOf(sku+'-')===0)&&((p.vi&&p.vi[i])||p.i)){r=(p.vi&&p.vi[i])||p.i;return true}return false})});return skuImgC[sku]=r}
 const imgOf=it=>{if(isOil(it))return '';{const ss=setSrc(it.sku||it.code);if(ss)return ss}const p=(catalog||[]).find(p=>p.t===it.t);if(!p)return skuImg(it.sku||it.code);/* Variantenbild (z. B. richtige Kappe/Sprühkopf-Farbe) vor Produktbild */const ix=(p.v||[]).findIndex(v=>v[1]===(it.sku||it.code)&&(!it.size||v[0]===it.size));const ix2=ix>-1?ix:(p.v||[]).findIndex(v=>v[1]===(it.sku||it.code));return (ix2>-1&&p.vi&&p.vi[ix2])||skuImg(it.sku||it.code)||p.i||''};
 /* Kappen-Miniatur aus konfig/kappen: erkennt Form + Farbe der gewählten Kappe im Varianten-/Produktnamen (Sets, Kappen) */
 const CAP_SHAPES=['kugel','polo','ribbed','holz','zen','eckig','zylinder'],CAP_COLS=['weiss-gold','schwarz-gold','dunkelbraun','natur','glanz','matt','gold','weiss','schwarz'],
@@ -2518,7 +2520,7 @@ function setTile(g){const c=el('div','set-card'),h=el('div','set-h'),f=g.fl||g.p
   if(im){const i=mkImg(im,'');i.className='set-img';h.append(i)}
   const tt=el('div','set-t');tt.append(el('b',null,g.lbl),el('div','set-d',g.d));h.append(tt);c.append(h);
   const pr=el('div','set-p');pr.append(el('span',null,g.n.toLocaleString('de-DE')+' Sets × '+money(g.per)),el('b',null,money(g.tot)));c.append(pr);
-  const ul=el('div','set-parts');g.parts.forEach(x=>{const r=el('div');r.append(el('span',null,(x.st.role==='fl'?'🧴 ':x.st.role==='sp'?'💨 ':'🎩 ')+(x.st.role==='cap'?capNm(x):x.t.replace(/\s*–.*$/,''))),el('code',null,x.sku||x.code||''),el('span',null,x.st.role==='fl'&&f.st.kart?x.q+' Karton ('+String(x.size||'').replace(/^.*·\s*/,'')+')':x.q.toLocaleString('de-DE')+' Stk'));ul.append(r)});c.append(ul);
+  const ul=el('div','set-parts');g.parts.forEach(x=>{const r=el('div');r.append(el('span',null,(x.st.role==='fl'?'🧴 ':x.st.role==='sp'?'💨 ':'🎩 ')+(x.st.role==='cap'?capNm(x):x.t.replace(/\s*–.*$/,''))),el('code',null,x.sku||x.code||''),el('span',null,x.st.role==='fl'&&f.st.kart?x.q+' Karton'+(kartonN(x)?' (à '+kartonN(x)+' Stk)':''):x.q.toLocaleString('de-DE')+' Stk'));ul.append(r)});c.append(ul);
   const ac=el('div','set-ac'),mi=el('button','btn small','−'),pl=el('button','btn small','+'),lab=el('span','set-q',f.st&&f.st.kart?(f.q+' كرتون · '+g.n+' طقم'):(g.n+' طقم')),mx=el('button','btn small','🎨 ألوان مختلطة'),dl=el('button','btn small','🗑️'),pe=el('button','btn small','💶 تعديل السعر');
   [mi,pl,mx,dl,pe].forEach(b=>b.type='button');pe.onclick=()=>setPrice(g);mi.onclick=()=>setQty(g,-1);pl.onclick=()=>setQty(g,1);mx.onclick=()=>setMix(g);dl.onclick=()=>setDel(g);dl.title='حذف الطقم';
   if(!g.parts.some(x=>x.st.role==='cap'))mx.hidden=true;
