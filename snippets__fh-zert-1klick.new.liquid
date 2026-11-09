@@ -1,0 +1,108 @@
+{%- comment -%}
+  Fragrance Hub Germany – IFRA & SDS mit 1 Klick per E-Mail (nur Duftöle)
+  Aufruf: {% render 'fh-zert-1klick', product: product, sid: section.id %}
+  Sendet an die Web-App "Zertifikate-Versand" (form=zert). Artikelcode wird automatisch übernommen.
+{%- endcomment -%}
+{%- if product.type == 'Fragrance Oil' -%}
+{%- liquid
+  assign fz_sku = product.selected_or_first_available_variant.sku | default: ''
+  if fz_sku == blank
+    for v in product.variants
+      if v.sku != blank
+        assign fz_sku = v.sku
+        break
+      endif
+    endfor
+  endif
+  assign fz_code = fz_sku
+  if fz_sku contains '-SH'
+    assign fz_code = fz_sku | split: '-SH' | first | append: '-SH'
+  endif
+  assign fz_lg = request.locale.iso_code
+  assign t_h = 'IFRA-Zertifikat & Sicherheitsdatenblatt'
+  assign t_s = 'Sofort per E-Mail – Deutsch und Englisch.'
+  assign t_ph = 'Ihre E-Mail-Adresse'
+  assign t_b = 'Zusenden'
+  assign t_n = 'Ihre E-Mail-Adresse wird nur für den Versand der Unterlagen verwendet.'
+  assign t_dz = 'Datenschutz'
+  assign t_ok = 'Danke! Die Unterlagen kommen in wenigen Minuten per E-Mail.'
+  if fz_lg == 'en'
+    assign t_h = 'IFRA certificate & safety data sheet'
+    assign t_s = 'Instantly by e-mail – German and English.'
+    assign t_ph = 'Your e-mail address'
+    assign t_b = 'Send'
+    assign t_n = 'Your e-mail address is only used to send the documents.'
+    assign t_dz = 'Privacy'
+    assign t_ok = 'Thank you! The documents will arrive by e-mail within a few minutes.'
+  elsif fz_lg == 'ar'
+    assign t_h = 'شهادة IFRA وصحيفة بيانات السلامة'
+    assign t_s = 'فوراً على الإيميل – بالألمانية والإنجليزية.'
+    assign t_ph = 'بريدك الإلكتروني'
+    assign t_b = 'أرسل'
+    assign t_n = 'نستخدم بريدك فقط لإرسال الوثائق.'
+    assign t_dz = 'الخصوصية'
+    assign t_ok = 'شكراً! ستصلك الوثائق على الإيميل خلال دقائق.'
+  endif
+-%}
+{%- if fz_code != blank -%}
+<div class="fhz1" id="fhz1-{{ sid }}" dir="{% if fz_lg == 'ar' %}rtl{% else %}ltr{% endif %}">
+<style>
+.fhz1{margin:1.4rem 0;padding:1.4rem 1.6rem;border:1px solid #e6dcc6;border-radius:12px;background:#faf8f3;color:#1c2135;text-align:start}
+.fhz1-t{display:flex;align-items:center;gap:.8rem;font-size:1.5rem;font-weight:600;margin:0}
+.fhz1-t svg{flex:0 0 22px}
+.fhz1-s{margin:.3rem 0 1rem;font-size:1.3rem;color:#5b5a57}
+.fhz1-f{display:flex;gap:.8rem}
+.fhz1-f input[type=email]{flex:1;min-width:0;padding:1rem 1.2rem;font-size:1.5rem;border:1px solid #d8cfbd;border-radius:8px;background:#fff;color:#1c2135}
+.fhz1-f input[type=email]:focus{outline:none;border-color:#b8963e}
+.fhz1-f button{flex:0 0 auto;padding:0 1.8rem;border:0;border-radius:8px;background:#1c2135;color:#e3c98f;font-size:1.5rem;font-weight:600;cursor:pointer}
+.fhz1-f button:disabled{opacity:.6}
+.fhz1-hp{position:absolute!important;left:-9999px!important;width:1px;height:1px;opacity:0}
+.fhz1-n{margin:.6rem 0 0;font-size:1.15rem;color:#8a8983}
+.fhz1-n a{color:#8a6a2f}
+.fhz1-ok{display:none;margin:0;font-size:1.4rem;font-weight:600;color:#2e7d32}
+.fhz1.is-sent .fhz1-ok{display:block}
+.fhz1.is-sent .fhz1-f,.fhz1.is-sent .fhz1-n{display:none}
+</style>
+  <p class="fhz1-t"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a8823e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"></path><path d="M9 12l2 2 4-4"></path></svg>{{ t_h }}</p>
+  <p class="fhz1-s">{{ t_s }} <span dir="ltr">(<span class="fhz1-code">{{ fz_code }}</span>)</span></p>
+  <form class="fhz1-f" novalidate>
+    <input type="text" name="website" class="fhz1-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <input type="email" name="em" required autocomplete="email" placeholder="{{ t_ph }}" value="{{ customer.email }}">
+    <button type="submit">{{ t_b }}</button>
+  </form>
+  <p class="fhz1-n">{{ t_n }} <a href="/policies/privacy-policy">{{ t_dz }}</a></p>
+  <p class="fhz1-ok" role="status">{{ t_ok }}</p>
+</div>
+<script>
+(function () {
+  var box = document.getElementById('fhz1-{{ sid }}');
+  if (!box) return;
+  var f = box.querySelector('form'), sent = false;
+  /* Code passend zur gewählten Variante (Standard / Premium / Exklusiv haben eigene Zertifikate) */
+  var VC = { {%- for v in product.variants -%}{%- assign vc = v.sku | default: '' -%}{%- if vc contains '-SH' -%}{%- assign vc = vc | split: '-SH' | first | append: '-SH' -%}{%- endif -%}"{{ v.id }}":{{ vc | json }}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%} };
+  var code = {{ fz_code | json }}, codeEl = box.querySelector('.fhz1-code');
+  function akt() {
+    var pf = document.querySelector('form[action*="/cart/add"] [name="id"]');
+    var c = pf && VC[pf.value];
+    if (c) { code = c; if (codeEl) codeEl.textContent = c; }
+    return code;
+  }
+  document.addEventListener('change', function () { setTimeout(akt, 80); });
+  setTimeout(akt, 300);
+  var EP = 'https://script.google.com/macros/s/AKfycbzU9YIR7tzx1VBzVAVNni93eBBBwGphyzTErrAUOveD2YmvAmiQO81QkyzVcUB5FAUd/exec';
+  f.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var em = f.em.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { f.em.focus(); f.em.style.borderColor = '#c0392b'; return; }
+    if (sent) return; sent = true;
+    f.querySelector('button').disabled = true;
+    var p = new URLSearchParams({ form: 'zert', k: 'fh-zert-26', codes: akt(), name: {{ customer.name | default: '' | json }}, em: em, website: f.website.value });
+    var ok = false;
+    try { ok = navigator.sendBeacon && navigator.sendBeacon(EP, p); } catch (e) {}
+    if (!ok) { try { fetch(EP, { method: 'POST', mode: 'no-cors', keepalive: true, body: p }); } catch (e) {} }
+    box.classList.add('is-sent');
+  });
+})();
+</script>
+{%- endif -%}
+{%- endif -%}
