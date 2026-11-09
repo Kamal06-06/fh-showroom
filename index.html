@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="237">
+<meta name="fh-build" content="238">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -5434,8 +5434,11 @@ const soPrep=o=>{const st=o.stand||{},n=(o.items||[]).length,c=(st.prep||[]).fil
 /* Shop-Bestellung → Auftrags-Objekt nur für Etiketten (wird nirgends gespeichert) */
 /* 🧪 Probierset nach Wahl: gewählte Düfte stehen als Eigenschaften „Duft 1…n“ an der Position → je Duft eine 6-g-Premium-Probe */
 const psDuefte=it=>(it.props||[]).filter(p=>/^duft\s*\d+/i.test(String(p[0]||''))).map(p=>String(p[1]||'').trim()).filter(Boolean);
-function psFind(name){const f=fold(name).trim();let p=catalog.find(x=>x.oil&&x.kt===f)||catalog.find(x=>x.oil&&x.kt.startsWith(f))||catalog.find(x=>x.oil&&x.kt.includes(f));if(!p)return null;
+function psFind(name){const f=fold(name).trim();let p=catalog.find(x=>x.oil&&x.kt===f)||catalog.find(x=>x.oil&&x.kt.startsWith(f))||catalog.find(x=>x.oil&&x.kt.includes(f))||psOrig(f);if(!p)return null;
   const v=p.v.find(v=>/premium/i.test(String(v[0]||'').split(' / ').pop()))||p.v.find(v=>/exklusiv/i.test(String(v[0]||'').split(' / ').pop()))||p.v[0];return {t:p.t,code:v?stem(v[1]):'',tier:v?(String(v[0]||'').split(' / ').pop().trim()||'Premium'):'Premium'}}
+/* Kunde hat den Originalnamen getippt (z. B. «Tom Ford Lost Cherry») → passendes Shop-Öl über den hinterlegten Originalnamen; Etikett/Liste zeigen nur den Handelsnamen */
+function psOrig(f){const tk=f.replace(/[^a-z0-9\u00c0-\u024f ]+/g,' ').split(/\s+/).filter(w=>w.length>1);if(tk.length<2)return null;let best=null;
+  (catalog||[]).forEach(x=>{if(!x.oil||!x.a)return;const a=' '+fold(x.a).replace(/[^a-z0-9\u00c0-\u024f ]+/g,' ').replace(/\s+/g,' ')+' ';const hit=tk.filter(w=>a.indexOf(' '+w)>-1).length;if(hit<2||hit<tk.length-1)return;const male=/ (man|men|homme|him|uomo|pour homme) /.test(a)&&!/\b(man|men|homme|him|uomo)\b/.test(f);const d=(tk.length-hit)*100+Math.abs(a.trim().split(' ').length-hit)+(male?0.5:0);if(!best||d<best.d)best={x,d}});return best?best.x:null}
 function psItems(o){const out=[];(o.items||[]).forEach(it=>{const d=psDuefte(it);if(!d.length)return;const n=Math.max(1,+it.rq||+it.q||1),z={};
   d.forEach(nm=>{const h=psFind(nm),k=(h?h.code:'')+'|'+nm;if(z[k])z[k].q+=n;else out.push(z[k]={t:h?h.t:nm,oil:1,tier:h?h.tier:'Premium',code:h?h.code:'',size:'6 g',probe:true,q:n,sku:'',ps:true})})});return out}
 const soAsList=o=>({id:'so'+o.id,customer:o.kunde,country:o.land,at:o.at,shopNr:o.nr,items:o.items.map(i=>Object.assign({},i)).concat(psItems(o)),lots:(o.stand||{}).lots||{}});
