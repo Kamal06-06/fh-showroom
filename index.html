@@ -2956,8 +2956,10 @@ function docsPanel(l){
   row('📋','قائمة التحضير · Packliste','بدون أسعار – للموظف أو لإرسالها للعميل','pl');
   row('📋','قائمة التحضير بالأسماء الأصلية','Packliste – Originalnamen · بدون أسعار','plo');
   if(l.dhlAdr&&l.dhlAdr.drop)row('🔁','ورقة الطرد للمستلم (Dropshipping)','بدون أسعار وبدون شعارك · باسم '+(l.dhlAdr.abs||'العميل'),'pln');
+  const hasRm=rmItems(l).length>0;
+  if(!hasOil&&hasRm){sec('🏷️ الملصقات');row('🧪','ملصقات المواد الخام','102 × 51 مم · Epson ColorWorks','clp');clpWarm(l)}
   if(hasOil){sec('🏷️ الملصقات');
-    row('⚠️','ملصقات CLP','102 × 51 مم · Epson ColorWorks · وعيّنات 40 × 30','clp');clpWarm(l);
+    row('⚠️','ملصقات CLP'+(hasRm?' + المواد الخام':''),'102 × 51 مم · Epson ColorWorks · وعيّنات 40 × 30','clp');clpWarm(l);
     row('🏷️','ملصقات بسيطة','40 × 30 مم · الاسم والكود والجودة','lab');
     row('🏷️','ملصقات بالأسماء الأصلية','40 × 30 مم · Originalnamen','labo');
     box.append(labPicker(l))}
@@ -3193,7 +3195,7 @@ async function clpLocal(l){
 /* im Hintergrund vorbereiten, damit der Klick sofort fertig ist */
 function clpWarm(l){if(IN_GAS)return;clpFonts().catch(()=>{});clpUrlImg('assets/fh-logo.png').catch(()=>{});
   clpBasis().then(B=>{Object.values(B.pikto||{}).forEach(id=>clpImg(id).catch(()=>{}));if(l&&l.clpAddr&&l.clpLogo)clpImg(l.clpLogo).catch(()=>{})}).catch(()=>{})}
-window.__clp={clpLocal:l=>clpLocal(l),blob64:b=>blob64(b)};
+window.__clp={clpLocal:l=>clpLocal(l),rmLocal:l=>rmLocal(l),blob64:b=>blob64(b)};
 /* 04.11.: CLP-Etiketten immer vom Server (mit Duftnoten Kopf/Herz/Basis – vorberechnet); nur wenn der Server nicht antwortet: im Gerät (ohne Noten) */
 /* Zwischenspeicher je Auftrag + Inhalt: Etiketten werden beim Öffnen des Auftrags im Hintergrund vorbereitet → Drucken/PDF sofort */
 const clpMemo={};
@@ -3204,17 +3206,77 @@ function clpSorted(l){const its=(l.items||[]).map((it,i)=>it._ix!=null?it:Object
   const srt=its.slice().sort((a,b)=>(isOil(b)-isOil(a))||(isOil(a)?ivSortKey(itPlatz(a)).localeCompare(ivSortKey(itPlatz(b))):0)||String(a.t).localeCompare(String(b.t)));
   return srt.every((x,i)=>x===(l.items||[])[i])?l:Object.assign({},l,{items:srt})}
 let clpPlW=null;
-function clpMake(l,_w){if(!_w&&!ivByKey.size&&(l.items||[]).filter(isOil).length>1){clpPlW=clpPlW||ivPlaces().finally(()=>setTimeout(()=>clpPlW=null,60e3));return clpPlW.then(()=>clpMake(l,1))}l=clpSorted(l);const k=clpMemoKey(l);if(clpMemo[k])return clpMemo[k];
+function clpMakeOil(l,_w){if(!_w&&!ivByKey.size&&(l.items||[]).filter(isOil).length>1){clpPlW=clpPlW||ivPlaces().finally(()=>setTimeout(()=>clpPlW=null,60e3));return clpPlW.then(()=>clpMakeOil(l,1))}l=clpSorted(l);const k=clpMemoKey(l);if(clpMemo[k])return clpMemo[k];
   /* Proben 40 × 30 (Phomemo): bewährtes Format aus dem Gerät – sofort fertig, scharf */
   if(clpNurProben(l)){const p=clpLocal(l).catch(e=>{delete clpMemo[k];return clpFetch(l)});clpMemo[k]=p;return p}
   /* gemischter Auftrag: große CLP-Etiketten vom Server (mit Noten), Proben 40 × 30 immer aus dem Gerät (Server-Proben sind 80 × 60 und werden auf der Phomemo unscharf/abgeschnitten) */
   {const isP=it=>it.probe||/^(probe\s*)?([6-9]|1[0-5])\s*g$/i.test(String(it.size||'').trim()),its=(l.items||[]).map((it,i)=>it._ix!=null?it:Object.assign({},it,{_ix:i}));
     if(its.some(it=>isOil(it)&&isP(it))&&its.some(it=>isOil(it)&&!isP(it))){
       const gL=Object.assign({},l,{items:its.filter(it=>!(isOil(it)&&isP(it)))}),pL=Object.assign({},l,{items:its.filter(it=>isOil(it)&&isP(it))});
-      const p=Promise.all([clpMake(gL),clpMake(pL)]).then(([g,q])=>({files:g.files.filter(f=>!/^Proben/.test(f.name)).concat(q.files),fehlend:(g.fehlend||[]).concat(q.fehlend||[])})).catch(e=>{delete clpMemo[k];throw e});
+      const p=Promise.all([clpMakeOil(gL),clpMakeOil(pL)]).then(([g,q])=>({files:g.files.filter(f=>!/^Proben/.test(f.name)).concat(q.files),fehlend:(g.fehlend||[]).concat(q.fehlend||[])})).catch(e=>{delete clpMemo[k];throw e});
       clpMemo[k]=p;return p}}
   const p=clpFetch(l).catch(async e=>{console.warn('CLP Server → lokal',e);delete clpMemo[k];try{toast('⚠️ الخادم لم يستجب – الملصقات صُنعت في الجهاز بدون النوتات')}catch(_){}return await clpLocal(l)});
   clpMemo[k]=p;return p}
+/* ---------- 🧪 Rohstoff-Etiketten (DPG, Solketal, Wasser, Polysorbat 20, Glycerin, IPM) – 102 × 51 wie CLP, eigenes Design (dunkle Seitenleiste), Druck auf der Epson ----------
+   Daten aus den Sicherheitsdatenblättern (Fragrance Hub Germany). Zuordnung über den Stammcode der Shop-SKU (z. B. FH-SOLK-SH-1L → FH-SOLK-SH). */
+const RM_H319={DE:['H319','Verursacht schwere Augenreizung.'],EN:['H319','Causes serious eye irritation.']};
+const RM_PS={DE:[['P101','Ist ärztlicher Rat erforderlich, Verpackung oder Kennzeichnungsetikett des Produkts bereithalten.'],['P102','Darf nicht in die Hände von Kindern gelangen.'],['P264','Nach Gebrauch Hände und exponierte Körperstellen gründlich waschen.'],['P280','Augenschutz tragen.'],['P305+P351+P338','BEI KONTAKT MIT DEN AUGEN: Einige Minuten lang behutsam mit Wasser spülen. Eventuell vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter spülen.'],['P337+P313','Bei anhaltender Augenreizung: Ärztlichen Rat einholen/ärztliche Hilfe hinzuziehen.']],
+  EN:[['P101','If medical advice is needed, have product container or label at hand.'],['P102','Keep out of reach of children.'],['P264','Wash hands and exposed parts of the body thoroughly after handling.'],['P280','Wear eye protection.'],['P305+P351+P338','IF IN EYES: Rinse cautiously with water for several minutes. Remove contact lenses, if present and easy to do. Continue rinsing.'],['P337+P313','If eye irritation persists: Get medical advice/attention.']]};
+const RM={
+  'FH-DPG-SH':{n:{DE:'Dipropylenglykol (DPG) 99,5 %',EN:'Dipropylene Glycol (DPG) 99.5 %'},c:'Dipropylenglykol / Dipropylene glycol',cas:'25265-71-8',ec:'246-770-3',h:'dipropylenglykol-dpg-99-5'},
+  'FH-SOLK-SH':{n:{DE:'Solketal 99 %',EN:'Solketal 99 %'},c:'2,2-Dimethyl-1,3-dioxolan-4-ylmethanol',cas:'100-79-8',ec:'202-888-7',h:'solketal-99',ghs:true},
+  'FH-AQD-SH':{n:{DE:'Destilliertes Wasser',EN:'Distilled Water'},c:'Aqua dest.',cas:'7732-18-5',ec:'231-791-2',h:'destilliertes-wasser-aqua-dest'},
+  'FH-PS20-SH':{n:{DE:'Polysorbat 20',EN:'Polysorbate 20'},c:'Polysorbat 20 / Polysorbate 20 (97 %)',cas:'9005-64-5',ec:'500-018-3',h:'polysorbat-20'},
+  'FH-GLY-SH':{n:{DE:'Glycerin 99,5 %',EN:'Glycerin 99.5 %'},c:'Glycerin (E422) · Pharmaqualität / pharma grade',cas:'56-81-5',ec:'200-289-5',h:'glycerin-99-5'},
+  'FH-IPM-SH':{n:{DE:'Isopropylmyristat (IPM) 99 %',EN:'Isopropyl Myristate (IPM) 99 %'},c:'Isopropylmyristat / Isopropyl myristate',cas:'110-27-0',ec:'203-751-4',h:'isopropylmyristat-ipm-99'}};
+const RM_T={DE:{kopf:'ROHSTOFF',menge:'Nettofüllmenge',sig:'Achtung',ok:'Kein gefährlicher Stoff nach Verordnung (EG) Nr. 1272/2008.',sdb:'Sicherheitsdatenblatt',use:'Nur für gewerbliche Anwender. Nicht zum Verzehr. Kühl, trocken und dicht verschlossen lagern.',b:'Charge',f:'Abfülldatum',o:'Auftrag'},
+  EN:{kopf:'RAW MATERIAL',menge:'Net quantity',sig:'Warning',ok:'Not classified as hazardous according to Regulation (EC) No 1272/2008.',sdb:'Safety data sheet',use:'For commercial users only. Not for consumption. Store cool, dry and tightly closed.',b:'Batch',f:'Filling date',o:'Order'}};
+const rmKey=it=>{const s=String(it.sku||it.code||'').trim().toUpperCase().replace(/-\d+(?:[.,]\d+)?L$/,'');return RM[s]?s:null};
+const rmOf=it=>!isOil(it)&&rmKey(it)?RM[rmKey(it)]:null;
+const rmItems=l=>(l.items||[]).map((it,i)=>it._ix!=null?it:Object.assign({},it,{_ix:i})).filter(it=>rmOf(it));
+const rmMenge=it=>{const m=/(\d+(?:[.,]\d+)?)\s*(l|liter|litre)\b/i.exec(String(it.size||'')+' '+String(it.sku||''));return m?m[1].replace('.',',')+' L':String(it.size||'')};
+const RM_NAVY=[27,42,65],RM_GOLD=[201,161,74];
+function rmLabel(doc,x,lang,s,draw){
+  const T=RM_T[lang],W=102,H=51,bw=27,rx=bw+3,rW=W-rx-2.5,C='center',WH=[255,255,255];
+  if(draw){doc.setFillColor(RM_NAVY[0],RM_NAVY[1],RM_NAVY[2]);doc.rect(0,0,bw,H,'F');doc.setFillColor(RM_GOLD[0],RM_GOLD[1],RM_GOLD[2]);doc.rect(bw,0,0.9,H,'F')}
+  /* Seitenleiste */
+  let y=3;y+=clpPara(doc,[{t:T.kopf,st:'bold',c:RM_GOLD}],1,y,bw-2,6.2,C,draw)+0.6;
+  if(x.logoW){let h=4.6,w=x.logoW.w*h/x.logoW.h;if(w>bw-4){w=bw-4;h=w*x.logoW.h/x.logoW.w}if(draw){doc.setFillColor(255,255,255);doc.roundedRect((bw-w)/2-1,y-0.6,w+2,h+1.2,0.8,0.8,'F')}clpPic(doc,x.logoW,(bw-w)/2,y,w,h,draw);y+=h+2}
+  if(x.d.ghs&&x.ghs){const g=13;clpPic(doc,x.ghs,(bw-g)/2,y,g,g,draw);y+=g+0.4;y+=clpPara(doc,[{t:T.sig,st:'bold',c:WH}],1,y,bw-2,8,C,draw)+0.5}
+  y+=clpPara(doc,[{t:T.menge,c:[200,206,216]}],1,y,bw-2,5.6,C,draw);
+  y+=clpPara(doc,[{t:x.menge,st:'bold',c:WH}],1,y,bw-2,x.d.ghs?12:16,C,draw);
+  const lt=[[T.b+': '+x.batch],[T.f+': '+x.datum],[T.o+': '+x.nr]];let yb=H-2.4-lt.length*4.6*CLP_PT*CLP_LH;
+  lt.forEach(z=>{yb+=clpPara(doc,[{t:z[0],c:[200,206,216]}],1,yb,bw-2,4.6,C,draw)});
+  /* rechts */
+  const qr=13.5;y=3;const hw=rW-qr-1.2;
+  y+=clpPara(doc,[{t:x.name,st:'bold',c:RM_NAVY}],rx,y,hw,s+3.5,null,draw);
+  y+=clpPara(doc,[{t:x.d.c,c:CLP_GRAU}],rx,y,hw,s,null,draw);
+  y+=clpPara(doc,[{t:'CAS '+x.d.cas+'  ·  EG/EC '+x.d.ec,st:'bold',c:CLP_SW}],rx,y,hw,s,null,draw);
+  y+=clpPara(doc,[{t:x.sku,c:CLP_GRAU}],rx,y,hw,s-0.5,null,draw);
+  if(draw){const qx=W-2.5-qr;clpQr(doc,x.url,qx,3,qr);clpPara(doc,[{t:T.sdb,st:'bold',c:RM_GOLD}],qx-1.5,3+qr+0.2,qr+3,3.6,C,true)}
+  y=Math.max(y,3+qr+3)+0.6;if(draw){doc.setDrawColor(RM_GOLD[0],RM_GOLD[1],RM_GOLD[2]);doc.setLineWidth(0.3);doc.line(rx,y,W-2.5,y)}y+=1;
+  if(x.d.ghs){const H3=RM_H319[lang];y+=clpPara(doc,[{t:H3[0]+' ',st:'bold'},{t:H3[1]}],rx,y,rW,s,null,draw);
+    RM_PS[lang].forEach(p=>{y+=clpPara(doc,[{t:p[0]+' ',st:'bold'},{t:p[1]}],rx,y,rW,s-0.3,null,draw)})}
+  else y+=clpPara(doc,[{t:T.ok,st:'bold',c:RM_NAVY}],rx,y,rW,s,null,draw);
+  y+=0.6+clpPara(doc,[{t:T.use,st:'italic',c:CLP_GOLD}],rx,y+0.6,rW,s-0.5,null,draw);
+  y+=0.4+clpPara(doc,[{t:CLP_ADR,c:CLP_GRAU}],rx,y+0.4,rW,s-1,null,draw);
+  return y}
+async function rmLocal(l){
+  const its=rmItems(l);if(!its.length)return {files:[],fehlend:[]};
+  if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');
+  const [F,logoW,ghs]=await Promise.all([clpFonts(),clpUrlImg('assets/fh-logo.png').catch(()=>null),clpUrlImg('assets/ghs07.png').then(g=>Object.assign({},g,{key:'ghs07'})).catch(()=>null)]);
+  const lang=clpLangs(l.country)[0]==='DE'?'DE':'EN',batch=clpCharge(l),datum=ordDatum(l),nr=ordNr(l);
+  const doc=clpDoc(F,[102,51]);let first=true;
+  its.forEach(it=>{const d=rmOf(it),x={d,name:d.n[lang],menge:rmMenge(it),sku:String(it.sku||it.code||''),batch,datum,nr,logoW,ghs,url:'https://fragranceshub.de/products/'+d.h+'?utm_source=etikett'};
+    let s=7;while(s>3.4&&rmLabel(doc,x,lang,s,false)>49.2)s-=0.25;
+    const n=it.unit==='kg'?1:Math.max(1,Math.round(+it.q||1));
+    for(let k=0;k<n;k++){if(!first)doc.addPage([102,51],'landscape');first=false;rmLabel(doc,x,lang,s,true)}});
+  return {files:[{name:'Rohstoff-Etiketten'+(l._part?'-Auswahl':'')+'-'+clpName_(l)+'.pdf',blob:doc.output('blob')}],fehlend:[]}}
+/* CLP-Knopf: Öl-Etiketten (Server/Gerät) + Rohstoff-Etiketten (Gerät) zusammen */
+function clpMake(l,_w){const rm=rmItems(l);if(!rm.length)return clpMakeOil(l,_w);
+  const rest=(l.items||[]).map((it,i)=>it._ix!=null?it:Object.assign({},it,{_ix:i})).filter(it=>!rmOf(it)),hasO=rest.some(isOil);
+  return Promise.all([hasO?clpMakeOil(Object.assign({},l,{items:rest}),_w):Promise.resolve({files:[],fehlend:[]}),rmLocal(l)])
+    .then(([a,b])=>({files:(a.files||[]).concat(b.files),fehlend:(a.fehlend||[]).concat(b.fehlend||[])}))}
 async function orderFiles(l,which){
   const out={files:[],note:''},hasOil=(l.items||[]).some(isOil);
   if(['ls','lso','pl','plo','lab','labo'].includes(which)){if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF')}
@@ -3224,7 +3286,7 @@ async function orderFiles(l,which){
   if(which==='plo'){await prepImgs(l);out.files.push({name:fname('plo',l),blob:prepListPdf(l,true,false,true).output('blob')})}
   if(which==='lab'&&hasOil)out.files.push({name:fname('lab',l),blob:labelsPdf(l).output('blob')});
   if(which==='labo'&&hasOil)out.files.push({name:fname('labo',l),blob:labelsPdfOrig(l).output('blob')});
-  if(which==='clp'&&hasOil){
+  if(which==='clp'&&(hasOil||rmItems(l).length)){
     const r=await clpMake(l);
     r.files.forEach(f=>out.files.push(f));
     if(r.fehlend&&r.fehlend.length)out.note='بدون ملصق CLP: '+r.fehlend.join('، ');
@@ -3398,7 +3460,7 @@ async function savePdf(kind,l,btn,out){
 }
 /* choose which oils (and how many labels each) are printed – for CLP, simple and original-name labels */
 const labSel={},LAB_KINDS=['clp','lab','labo'];
-function labOrder(l){const s=labSel[orderKey(l)];if(!s)return l;const items=[];(l.items||[]).forEach((it,i)=>{const j=it._ix!=null?it._ix:i;if(isOil(it)&&s[j]>0)items.push(Object.assign({},it,{q:s[j],_ix:j}))});return Object.assign({},l,{items,_part:true})}
+function labOrder(l){const s=labSel[orderKey(l)];if(!s)return l;const items=[];(l.items||[]).forEach((it,i)=>{const j=it._ix!=null?it._ix:i;if(isOil(it)&&s[j]>0)items.push(Object.assign({},it,{q:s[j],_ix:j}));else if(rmOf(it))items.push(Object.assign({},it,{_ix:j}))});return Object.assign({},l,{items,_part:true})}
 function labPicker(l){
   const k=orderKey(l),oils=(l.items||[]).map((it,i)=>[it,i]).filter(([it])=>isOil(it));
   const d=el('details','labsel'),sm=el('summary');d.append(sm);
@@ -3427,7 +3489,7 @@ function actions(l,primary){
   const c=el('button','btn'+(primary?' primary':''),clpReady(l)?'ملصقات CLP ✓ جاهزة (إعادة إنشاء)':'ملصقات CLP');c.onclick=()=>savePdf('clp',l,c,out);
   const a=el('button','btn','ملصقات بسيطة');a.onclick=()=>savePdf('lab',l,a,out);
   const ao=el('button','btn','ملصقات بالاسم الأصلي');ao.onclick=()=>savePdf('labo',l,ao,out);
-  if(!hasOil){[c,a,ao].forEach(x=>{x.disabled=true});c.textContent='لا ملصقات (بدون زيوت)';a.hidden=true;ao.hidden=true}
+  if(!hasOil){if(rmItems(l).length){c.textContent='🧪 ملصقات المواد الخام';a.hidden=true;ao.hidden=true}else{[c,a,ao].forEach(x=>{x.disabled=true});c.textContent='لا ملصقات (بدون زيوت)';a.hidden=true;ao.hidden=true}}
   const b=el('button','btn','Angebotspreis');b.onclick=()=>savePdf('ls',l,b,out);
   const bo=el('button','btn','Angebot بالاسم الأصلي');bo.onclick=()=>savePdf('lso',l,bo,out);
   row.append(c,b);box.append(row);if(hasOil)box.append(labPicker(l));
@@ -4046,9 +4108,10 @@ function omDocs(l){const box=el('div','om-pane'),out=el('div','filebox');out.set
   d1.append(doc('📋','قائمة التحضير','بدون أسعار · '+nmT+' · A4',orig?'plo':'pl','a4'));
   if(l.dhlAdr&&l.dhlAdr.drop)d1.append(doc('🔁','ورقة المستلم النهائي','بدون أسعار وبدون شعارك · طابعة A4','pln','a4'));
   box.append(d1);
+  if(!hasOil&&rmItems(l).length){const d3=el('div','om-box'),h3=el('h4');h3.append('🧪 ملصقات المواد الخام');d3.append(h3);clpWarm(l);d3.append(doc('🧪','ملصقات المواد الخام','102 × 51 · مع تحذيرات السلامة · Epson','clp','epson'));box.append(d3)}
   if(hasOil){const d2=el('div','om-box'),h2=el('h4');h2.append('🏷️ ملصقات الزيوت');d2.append(h2);
     const lt=el('div','om-seg');[['clp','⚠️ ملصق السلامة · CLP'],['lab','🏷️ ملصق الاسم 40×30']].forEach(([k,t])=>{const x=el('button',k===omLab?'on':'',t);x.onclick=()=>{omLab=k;LS.set('omLab',k);renderOrderModal()};lt.append(x)});d2.append(lt);
-    if(omLab==='clp'){clpWarm(l);d2.append(doc('⚠️','ملصقات السلامة CLP','مع تحذيرات السلامة · بالأسماء التجارية دائماً · Epson','clp','epson'))}
+    if(omLab==='clp'){clpWarm(l);d2.append(doc('⚠️','ملصقات السلامة CLP','مع تحذيرات السلامة · بالأسماء التجارية دائماً'+(rmItems(l).length?' · + المواد الخام':'')+' · Epson','clp','epson'))}
     else d2.append(doc('🏷️','ملصق الاسم 40×30','الاسم والكود والجودة · '+nmT+' · Phomemo',orig?'labo':'lab','phomemo'));
     d2.append(labPicker(l));box.append(d2)}
   box.append(out);return box}
@@ -5456,7 +5519,7 @@ let soP=null;
 /* CLP-Teile eines Shop-Auftrags (Etiketten groß → Epson, Proben → Phomemo) – identisch zur Auftragsansicht, damit der Zwischenspeicher greift */
 const soIsPr=it=>it.oil&&(it.probe||/^(probe\s*)?([6-9]|1[0-5])\s*g$/i.test(String(it.size||'').trim()));
 function soClpSub(l,f){return Object.assign({},l,{items:l.items.map((it,i)=>Object.assign({},it,{_ix:i})).filter(f)})}
-function soClpParts(o){const l=soAsList(o);if(!(l.items||[]).some(i=>i.oil))return [];
+function soClpParts(o){const l=soAsList(o);if(!(l.items||[]).some(i=>i.oil))return rmItems(l).length?[rmLocal(labOrder(l))]:[];
   const nGr=l.items.filter(it=>it.oil&&!soIsPr(it)).length,nPr=l.items.filter(soIsPr).length;
   return [nGr?clpMake(labOrder(soClpSub(l,it=>it.oil&&!soIsPr(it)))):null,nPr?clpMake(labOrder(soClpSub(l,soIsPr))):null].filter(Boolean)}
 /* alle offenen, bezahlten Shop-Aufträge nacheinander im Hintergrund vorbereiten → beim Öffnen sofort fertig */
