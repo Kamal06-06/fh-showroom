@@ -9,7 +9,7 @@ Einrichten: `FH-Druck-einrichten.cmd` ausführen (fragt einmal die PIN der Showr
 | `A4-…` (Angebot, Packliste) | Brother MFC-J6957DW | `fit` |
 | `P-…` (Etiketten 40 × 30) | Phomemo M110S (USB) | `noscale,landscape` |
 | `Z-…` (DHL-Versandetikett 103 × 199) | Zebra GK420t (USB) | – (direkt per USB als ZPL, ohne Treiber) |
-| `K-…` (farbige Proben-Etiketten 51 × 30, je Etikett eine Seite) | Epson ColorWorks CW-C4000e (USB) | `fit,landscape` |
+| `K-…` (farbige Proben-Etiketten 51 × 30, je Etikett eine Seite) | Epson ColorWorks CW-C4000e (USB) | `fit,portrait` (Treiber-Hochformat = 51 breit × 30 lang) |
 | `R-…` (Regal-Etiketten 102 × 30, je Etikett ein Auftrag) | Epson, Warteschlange „FH Regal 102x30“ | `fit,landscape` |
 | alles andere (CLP 102 × 51) | Epson ColorWorks CW-C6000Ae | `fit,landscape` |
 

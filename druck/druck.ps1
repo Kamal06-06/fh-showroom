@@ -281,7 +281,7 @@ while ($true) {
     if (-not $DRUCKERP) { $DRUCKERP = DruckerP }
     if (-not $DRUCKERZ) { $DRUCKERZ = DruckerZ }
     if (-not $DRUCKERK) { $DRUCKERK = DruckerK }
-    if ($t.Name -like 'A4-*') { $z = $DRUCKERA4; $o = 'fit' } elseif ($t.Name -like 'K-*') { $z = $DRUCKERK; $o = 'fit,landscape' } elseif ($t.Name -like 'Z-*') { $z = $DRUCKERZ; $o = 'fit,portrait' } elseif ($t.Name -like 'R-*') { $z = $DRUCKERR; $o = 'fit,landscape' } elseif ($t.Name -like 'P-*') { $z = $DRUCKERP; $o = $(if ($t.Name -match '__(.+)\.pdf$') { $Matches[1] -replace '_',',' } else { 'noscale,landscape' }) } else { $z = $DRUCKER; $o = 'fit,landscape' }
+    if ($t.Name -like 'A4-*') { $z = $DRUCKERA4; $o = 'fit' } elseif ($t.Name -like 'K-*') { $z = $DRUCKERK; $o = 'fit,portrait' } elseif ($t.Name -like 'Z-*') { $z = $DRUCKERZ; $o = 'fit,portrait' } elseif ($t.Name -like 'R-*') { $z = $DRUCKERR; $o = 'fit,landscape' } elseif ($t.Name -like 'P-*') { $z = $DRUCKERP; $o = $(if ($t.Name -match '__(.+)\.pdf$') { $Matches[1] -replace '_',',' } else { 'noscale,landscape' }) } else { $z = $DRUCKER; $o = 'fit,landscape' }
     if ($t.Name -like 'Z-*') { [void](ZebraDruck $t.FullName $t.Name) }
     elseif ($z) { & $SUM -print-to $z -print-settings $o -silent $t.FullName | Out-Null; Write-Host "$(Get-Date -Format HH:mm:ss)  Test gedruckt auf ${z} ($o): $($t.Name)" -ForegroundColor Cyan }
     Remove-Item $t.FullName -ErrorAction SilentlyContinue
@@ -311,7 +311,7 @@ while ($true) {
         [IO.File]::WriteAllBytes($f, [Convert]::FromBase64String($j.b64))
         # Etiketten 102x51 brauchen 'landscape', sonst dreht SumatraPDF sie um 90 Grad und verkleinert sie
         if ($j.name -like 'A4-*') { $ziel = $DRUCKERA4; $opt = 'fit' }
-        elseif ($j.name -like 'K-*') { $ziel = $DRUCKERK; $opt = 'fit,landscape' }  # Proben-Etikett 51 x 30 farbig -> Epson CW-C4000e (Medium 'fh proben 51x30 endlos')
+        elseif ($j.name -like 'K-*') { $ziel = $DRUCKERK; $opt = 'fit,portrait' }  # Proben-Etikett 51 x 30 farbig -> Epson CW-C4000e (Medium 'fh proben 51x30 endlos')
         elseif ($j.name -like 'Z-*') { $ziel = $DRUCKERZ; $opt = 'fit,portrait' }  # DHL-Versandetikett -> Zebra
         elseif ($j.name -like 'R-*') { $ziel = $DRUCKERR; $opt = 'fit,landscape' }  # Regal-Etikett 102 x 30 -> Epson, Warteschlange Regal (nie auf die CLP-Rolle)
         elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'noscale,landscape' }  # Phomemo-Treiber skaliert sonst falsch: 1:1 drucken
