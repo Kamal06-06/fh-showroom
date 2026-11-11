@@ -431,7 +431,7 @@ while ($true) {
         elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'noscale,landscape' }  # Phomemo-Treiber skaliert sonst falsch: 1:1 drucken
         else { $ziel = $DRUCKER; $opt = 'fit,landscape' }
         if ($j.name -like 'Z-*') { [void](ZebraDruck $f $j.name) }
-        elseif ($j.name -like 'K-*' -and $j.name -match '\.json$') { if ($ziel -and ('FhVektorDruck' -as [type])) { try { KJsonDruck $f $j.name $ziel } catch { Write-Host "Fehler C4000e: $($_.Exception.Message)" -ForegroundColor Red } } else { Write-Host "C4000e nicht bereit - gespeichert: $f" -ForegroundColor Yellow } }
+        elseif ($j.name -like 'K-*' -and ($j.name -match '\.json(\.pdf)?$' -or -not (IstPdf $f))) { if ($ziel -and ('FhVektorDruck' -as [type])) { try { KJsonDruck $f $j.name $ziel } catch { Write-Host "Fehler C4000e: $($_.Exception.Message)" -ForegroundColor Red } } else { Write-Host "C4000e nicht bereit - gespeichert: $f" -ForegroundColor Yellow } }
         elseif ($j.name -like 'K-*' -and $ziel -and ('FhBildDruck' -as [type])) { try { KDruck $f $j.name $ziel } catch { Write-Host "Fehler C4000e: $($_.Exception.Message)" -ForegroundColor Red } }
         elseif ($ziel -and ($j.name -match '\.bin(\.pdf)?$' -or ($j.name -like 'P-*' -and -not (IstPdf $f)))) {  # Rohdaten (Phomemo) – auch wenn der Name gekürzt wurde
           if ([FhRaw]::Send($ziel, [IO.File]::ReadAllBytes($f), $j.name)) { Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${ziel}: $($j.name)" -ForegroundColor Green }
