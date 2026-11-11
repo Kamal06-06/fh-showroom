@@ -2648,6 +2648,38 @@ function labelsPdf(l,useOrig){
   });
   return doc;
 }
+/* Farbige Proben-Etiketten 51 × 30 (Epson CW-C4000e, Medium „fh proben 51x30 endlos“) – Farbe je Duftfamilie (aus dem Shop, Stand 11.2026) */
+const PK_FAM=[['Orientalisch & Oud',[107,62,38]],['Frisch & Zitrisch',[232,163,23]],['Floral',[176,48,106]],['Süß & Gourmand',[192,104,30]],['Holzig',[79,107,50]],['Fruchtig',[210,65,47]],['Moschus & Pudrig',[125,127,176]],['Weitere Duftöle',[31,36,51]]];
+const PK_MAP=(()=>{const m={};'AJ-SUL-U-03,AM-EPI-H-12,AM-GOL-H-15,AM-INT-H-07,AM-ITW-D-10,AM-OPX-U-03,AMO-IBI-20,AMO-OUT-18,AMO-OVM-21,AMO-P50-17,AR-020,AR-021,AR-022,AR-023,AR-024,AR-025,AR-027,AR-028,AR-029,AR-030,AR-031,AR-032,AR-033,AR-034,AR-035,AR-045,AR-052,AR-054,AR-068,AR-086,AR-087,AR-088,AR-090,AR-091,AR-095,AR-097,AR-102,AR-104,AR-106,AR-107,AR-108,AR-109,AR-AMB-U-11,AR-COD-D-14,AR-COD-H-08,AR-OUD-H-09,AT-OSK-U-01,AT-OSQ-U-02,AZZ-WBN-05,BDK-TRO-U-04,BN-DUA-U-02,CD-AMB-U-12,CD-OUR-U-13,CH-COC-D-12,CH-SEX-H-04,CL-LOU-U-01,DG-EXE-H-04,DG-ONE-D-07,DG-ONE-H-02,DI-POI-D-18,DI-SAE-H-07,EXN-VK-06,GU-CHO-U-10,GU-EMO-U-08,GU-HAR-H-02,GU-INU-U-02,GU-SAR-U-04,HB-TSE-H-04,HB-TSE-H-09,IN-OFG-U-02,IN-OFH-U-03,JM-MYT-U-03,KA-IOA-U-07,KA-OVO-D-04,KEN-JUN-D-03,KL-MOU-U-07,KL-PEO-U-04,LC-OUB-H-01,LEP-AMB-001,LI-LIQ-U-02,LV-FDD-U-16,LV-NDF-U-08,LV-NM-U-26,LV-OMB-U-02,MA-AOV-U-03,MA-INC-U-07,MA-RET-U-01,MC-OMA-U-01,MF-BAC-U-02,MF-BAX-U-07,MF-GRS-U-06,MO-AOB-U-01,MO-AOE-U-09,MO-AON-U-06,MO-APR-U-12,MO-INF-U-23,MO-MAZ-U-25,MO-OUP-U-22,MO-SPA-U-10,MO-WHO-U-21,MP-AFL-U-01,NA-BLA-U-02,NI-NEF-U-06,NI-SHE-U-04,OP-TER-U-02,PH-HAL-U-04,PM-HAL-H-03,PM-HER-H-23,PR-APH-H-03,PR-BXS-H-05,PR-BXW-D-17,PR-INI-H-01,PR-LRB-H-01,PR-OGO-H-14,RJ-AMA-U-01,SD-TUR-U-01,SO-IPD-U-43,SOD-MEY-03,TF-BLO-U-02,TF-MYM-U-10,TF-OUM-U-14,TF-TOU-U-05,TF-TUS-U-15,TT-CAS-U-05,VE-CRN-D-08,VE-ERF-H-05,VR-SPI-H-01,WD-LON-U-01,XD-BA-U-01,XJ-AL3-U-11,XJ-BLM-46,XJ-BQT-42,XJ-GOD-U-34,XJ-MTW-U-18,XJ-ZEF-49,YS-KOU-H-13;ACF-FIC-U-01,ADP-CE-02,AR-012,AR-059,AR-073,AR-075,AR-078,AR-082,AR-096,AR-105,AR-105-A,AR-ADG-D-12,AR-ADG-H-02,AR-OCG-D-13,AR-PRO-H-03,ATC-OS-003,AZ-AZZ-H-01,AZ-CHR-H-04,AZ-WAN-H-02,BRU-BRU-U-01,BU-WEE-U-08,BV-AQV-H-02,BV-TYG-H-03,CA-PUH-H-01,CC-1872-H-05,CH-212-H-01,CH-ALS-H-02,CH-BLE-H-05,CH-CET-D-14,CH-PLT-H-03,CH-VIP-H-03,CK-CK1-H-04,CK-ETE-H-01,CR-GRI-U-08,CR-MIL-U-05,CR-SIL-U-02,CR-VIW-U-07,DG-LBM-H-05,DG-LIB-D-09,DI-HOM-COL-29,DI-HOS-H-03,DI-SAU-H-05,DI-SAU-H-06,DI-SEF-H-28,DU-DEB-H-01,DU-FRE-H-03,DV-CHA-H-03,DV-CWM-H-04,DV-CWW-D-06,EN-BLT-U-02,GUY-DRA-U-01,HB-ELE-H-13,HB-ENE-H-06,HB-HUG-D-15,HB-HUG-H-02,HB-ICE-H-11,IM-LEA-D-02,ISS-ISS-U-01,JM-WSS-U-01,JP-LBM-H-06,JP-NIG-H-02,KL-LWT-U-11,LC-CHA-H-01,LC-EFR-D-11,LC-ESS-H-07,LC-WHI-H-05,LL-B22-002,LV-AFS-U-03,LV-CAC-U-04,LV-CAD-U-09,LV-COS-U-10,LV-IMA-U-06,LV-IMM-U-11,LV-MET-U-07,LV-OTB-U-22,MA-CED-U-05,MA-FRV-U-10,MB-LEG-H-01,MF-AQU-U-03,MM-SD-002,NI-WHC-U-05,OP-BER-U-03,OP-MEG-U-01,PDM-SDL-H-17,PM-CAS-U-23,PM-GAL-H-07,PM-GRN-U-18,PM-LAY-H-04,PM-LAY-H-05,PM-PER-H-12,PM-PER-M-19,PR-ADS-U-01,PR-INA-H-02,PR-INV-H-03,PR-LRC-H-02,RAS-HAW-U-02,RJ-ELY-H-02,RL-PBL-H-01,RL-RAL-D-06,ROJ-MSD-06,SH-GOF-U-01,SO-VIB-U-08,TF-CAP-U-12,TF-MDA-U-26,TF-NER-U-20,TT-ROS-U-11,UNK-BLU-U-01,VE-BLU-H-01,VE-DYL-H-02,VO-PHO-H-02,VP-DEP-U-01,XJ-40K-U-13,XJ-CDS-U-28,XJ-NIO-48,XJ-REN-U-1861-35,XJ-T21-U-22,YS-LHO-H-01,YS-YYY-H-04;AJ-MAG-U-01,AM-DIW-D-09,AM-GUI-D-16,AM-GUI-U-06,AM-POW-D-11,AM-REF-D-08,AM-REF-H-01,AR-008,AR-056,AR-060,AR-061,AR-062,AR-063,AR-064,AR-065,AR-066,AR-077,AR-079,AR-083,AR-092,AR-MYW-D-20,BN-NYN-U-01,BU-MBB-D-07,BU-MYB-D-04,BV-JAS-D-05,BV-OPS-D-04,CA-ANA-D-02,CA-LAP-D-03,CD-GRI-U-09,CH-ALS-D-15,CH-CHA-D-08,CH-CHW-D-11,CH-COM-D-10,CH-CON-D-11,CH-GAB-D-13,CH-GOB-D-07,CH-NO1-D-07,CH-NO5-D-06,CHL-EDP-D-01,CK-ETE-D-09,CK-EUP-D-10,DI-FA3-H-16,DI-JAD-D-19,DI-JADLOR-D-30,DI-JIJ-D-20,DI-MDB-D-27,DI-MDR-D-22,DI-MDR-D-23,EL-MOD-D-01,EL-PLE-D-02,EN-FLN-U-01,ES-COL-D-02,EXN-LIP-04,FM-CAR-U-01,FM-POL-D-02,FM-SJ-03,GU-BAM-D-06,GU-BLO-D-05,GU-ENV-D-04,GU-FLG-D-10,GU-FLO-D-12,GU-GUW-D-11,GU-INS-D-05,GU-RU2-D-07,GU-RUS-D-08,GV-AMA-D-07,GV-HOT-D-09,GV-IRR-D-11,GV-LIN-D-10,GV-LIR-D-29,HB-ALI-D-19,HB-MAV-D-17,HB-TSH-D-18,IN-PLO-U-08,JP-CLA-D-08,JP-GAU-D-10,KA-MBO-U-10,KL-GGB-U-13,KL-WIG-U-12,KY-DJW-U-05,LC-IDN-D-04,LC-IDO-D-02,LC-LVB-D-05,LC-LVB-D-06,LC-LVR-D-07,LC-MIR-D-08,LC-PAR-D-12,LC-TRE-D-03,LI-BLA-U-01,LV-APO-D-20,LV-ATR-D-21,LV-CBT-U-24,LV-HDA-D-23,LV-RDV-U-17,LV-TUR-U-14,MA-ROV-U-08,MAB-TIL-U-02,MC-HIB-U-02,MF-HOM-U-04,MF-OSM-U-08,MO-AOF-U-20,MO-CRA-U-19,MO-PUG-U-15,MO-ROS-U-02,MO-STN-U-11,MO-SWP-U-13,MU-ALI-D-04,NI-HSW-U-07,NR-RIC-D-01,OT-SMK-D-05,PAC-CAS-D-01,PDM-DELEXC-20,PDM-DELLR-21,PDM-PLT-U-16,PM-DEL-D-14,PM-SAF-D-13,PM-VAL-D-15,PR-LMI-D-19,PR-LMR-D-21,PR-OLB-D-16,PR-PAR-D-05,RL-ROM-D-07,TF-CRO-U-18,TF-MET-U-27,TF-ROP-U-19,TF-SOL-U-23,TF-VEO-U-30,TF-VIB-U-33,TT-AND-U-13,TT-ATL-U-09,TT-TEL-U-10,VA-DBR-D-04,VE-ABS-H-03,VE-BRC-D-06,VE-EPF-D-09,VR-FLO-D-03,XE-QUP-D-40,XJ-APO-U-05,XJ-DAB-D-32,XJ-GRB-D-30,XJ-OES-U-14,XJ-OPE-U-06,XJ-RWD-U-36,XJ-T23-U-26,XJ-TOS-D-31,XJ-WAR-U-23,YR-EVI-D-10,YR-MAG-D-12,YS-CIN-D-07,YS-LIB-D-08,YS-LIB-D-09,YS-MAN-D-11,YS-MYS-H-03,YSL-LIBRE-LP-14;AC-KHA-U-01,AG-CLO-D-01,AM-LVD-D-13,AR-004,AR-011,AR-018,AR-041,AR-067,AR-069,AR-084,AR-093,AR-098,AR-100,AR-101,AR-IST-H-06,AR-STY-H-05,AR-STY-H-21,AXY-CHO-U-01,AZ-MOW-H-03,BDK-RSM-U-03,BDK-VT-U-02,BS-FAN-D-01,BU-GOD-D-06,CC-JKE-U-03,CD-VAD-U-11,CH-GOG-D-06,CH-VIP-D-10,CR-SUB-U-10,DG-DEV-U-11,DG-PFM-D-10,DI-ADD-D-17,DI-FEV-U-08,DI-HYP-D-25,DI-MDC-D-21,ES-GON-D-01,GT-BIA-D-01,GU-LHI-H-01,GU-MON-D-07,GU-SDV-U-03,GU-TOH-U-09,GU-TSR-U-11,GV-PIH-H-03,HO-DAT-U-01,IN-NDL-U-05,IN-SID-U-01,JG-VAV-U-01,JP-HOM-H-01,JP-JP2-U-02,JP-LEM-H-01,JP-LEMEAB-14,JP-LME-H-04,JP-SAB-13,JP-SBN-D-11,JP-SCM-H-03,JP-SCW-D-07,JP-SLP-D-09,JP-ULM-H-05,KA-LBC-U-08,KA-VAN-D-02,KA-VCR-D-03,KA-YUM-D-01,KIL-AS-ROCKS-14,KIL-BK-PM-15,KIL-INT-18,KIL-PRI-17,KL-ANG-U-01,KL-APH-U-08,KL-BTB-U-03,KL-LDS-U-10,KL-SMK-U-02,KY-MAU-U-06,LC-LVBINTEN-09,LM-SEK-U-01,LV-CMO-D-19,MA-BLA-U-04,MA-COC-U-09,MA-TON-U-06,MF-GFG-U-09,MM-JC-001,MO-ART-U-05,MO-CAF-U-03,MO-DAV-U-29,MO-HOA-U-08,MO-MUK-U-17,MO-SEI-U-28,MO-SWV-U-16,MO-VAC-U-26,MO-VLA-U-27,MU-ANG-D-02,MU-ANG-H-01,NI-ANI-U-02,NN-CAV-U-01,NSH-FYF-08,PDM-ORI-24,PH-CLC-D-03,PH-TRG-H-01,PM-ALT-H-10,PM-OAJ-H-08,PM-PEG-H-02,PR-AEZ-U-02,PR-CAN-D-06,PR-CON-U-03,PR-OEL-H-12,PR-OLY-D-15,PR-OMI-H-09,PR-OML-H-11,PR-OMV-H-10,PR-PHA-H-06,PR-PXS-H-04,PR-VNT-U-04,ROJ-ENI-05,SHL-VEI-U-02,TF-FFF-U-17,TF-NEX-U-09,TF-TOV-U-04,TF-VAF-U-06,TF-VSX-U-29,THO-ALM-U-03,THO-KEG-U-02,TT-DEL-U-02,TT-DRC-15,TT-VEL-U-03,VE-ERO-H-04,VR-BON-D-02,XJ-ITA-U-25,XJ-LAC-U-24,XJ-LIR-D-29,XJ-MML-50,XJ-NAX-U-16,XJ-STR-44,XJ-TMS-U-21,YS-BLO-D-06,YSL-BC-15,YU-BMM-U-11,ZV-HER-D-02;2787-GB-001,AM-BRA-H-14,AM-DIA-H-04,AM-HON-H-02,AM-POM-H-05,AMO-BND-22,AR-026,AR-080,AR-089,BD-GRI-U-01,BDK-CDC-05,BU-BUR-H-01,BU-HER-H-02,BU-MRB-H-03,BY-BAL-U-01,BY-GYW-U-02,CA-1888-U-37,CC-MAT-U-06,CC-NO1-U-02,CC-XFM-H-04,CD-BOI-U-10,CH-BAD-H-05,CIG-CIG-U-01,CK-DEF-H-07,CK-EUP-H-03,CR-ABS-U-12,CR-ORI-U-06,CR-VIK-H-09,DG-DAG-D-06,DG-DAG-H-01,DG-KIN-H-03,DI-FAH-H-15,DI-HOI-H-01,DI-HOI-H-02,DP-ORP-U-01,DU-DES-H-02,EM-MO1-U-02,EXN-HED-05,GI-AMB-H-01,GIS-TIT-03,GIV-GRP-30,GU-BYG-H-03,GU-GUI-H-01,GU-SAM-D-06,GV-GOI-H-02,GV-PLY-H-04,GV-XER-H-05,HB-BAL-H-14,HB-BEP-H-08,HB-BOT-H-07,HB-ELI-H-03,HB-MOT-H-05,HB-ORM-H-12,HE-BAR-D-02,HE-TER-H-01,IN-BBR-U-07,IN-RHB-U-06,JAC-DEJ-U-01,JB-OMS-H-02,JB-SIL-H-01,JCH-MB-001,JCH-UH-002,JM-CYP-U-04,JP-WOW-H-03,KA-WVS-U-09,KL-SAC-U-06,LAP-PHO-U-02,LV-LOV-U-25,LV-ORA-27,MAB-ENC-03,MB-EXP-H-02,MB-GAN-U-01,MF-AMF-U-11,MO-WOS-U-18,NC-PAI-U-02,PM-GOD-H-11,PM-KAL-H-06,PM-SHG-H-09,PR-LIX-H-07,PR-OMR-H-13,RJ-REC-H-03,RL-PBK-H-02,RL-PEX-H-03,RL-PUR-H-04,SO-AFG-U-07,TF-EBE-U-13,TF-OLP-U-21,TF-OUW-U-16,TF-PAT-U-11,VA-UBR-H-02,VA-UOM-H-01,XJ-AL2-U-09,XJ-AL2-U-10,XJ-T22-U-27,XJ-WOW-U-33,YS-LAN-H-02;AR-009,AR-014,AR-015,AR-016,AR-017,AR-047,AR-076,AR-081,AR-BIY-D-16,AR-DIA-D-15,AR-DIA-H-10,AR-SI-D-17,AR-SII-D-19,AR-SIP-D-18,BDK-PCS-07,BU-HER-D-05,CA-AMO-D-01,CH-212H-D-01,CR-AVE-H-04,CR-AVH-D-11,DG-QUE-D-08,DI-ROU-D-26,DK-BED-D-01,DSD-DBR-D-01,ES-SEG-D-01,GI-AMB-D-02,GR-MAO-U-01,GU-BGG-D-09,JM-EPF-U-02,JP-BEL-D-12,KA-EJAP-12,LEP-SBR-002,LP-SUG-U-01,LV-PAC-U-15,MF-KKY-U-10,MO-DAP-U-14,MO-INC-U-07,NI-HAC-U-01,NI-HAX-U-03,NR-NIN-D-02,PDM-CASI-22,PR-FAM-D-18,PR-LML-D-20,TF-BIT-U-24,TF-CHS-U-28,TF-ELC-U-25,TF-LOC-U-32,TT-CAS-U-14,TT-GUM-U-04,TT-HAL-U-07,TT-KIR-U-01,TT-ORI-U-12,TT-ORZ-U-08,TT-SIR-U-06,VE-RED-D-07,XA-T24-U-38,XE-COR-U-39,XE-MUS-D-41,XJ-ACC-U-01,XJ-AOV-U-19,XJ-EGO-U-04,XJ-ERB-U-03,XJ-OUV-U-12,XJ-PAC-U-17,XJ-SOP-U-20;AR-002,AR-003,AR-006,AR-007,AR-010,AR-013,AR-019,AR-071,AR-072,AR-074,AR-099,AR-113,AR-115,AR-119,AR-121,AR-122,BY-BLA-U-03,BYR-MJG-04,DI-HOM-H-04,EM-MO2-U-01,GV-GEN-H-01,IN-MUT-U-04,JH-NAP-U-02,KEN-FLO-D-02,KL-RIL-U-05,LV-SOY-D-18,MF-724-U-05,MO-AMB-U-24,MO-ARM-U-30,MP-VP-01,NR-FH-D-02,NR-MNFH-D-04,NR-MNRFH-D-05,NR-PDR-D-03,NR-RGE-D-01,PR-LHO-H-04,ZRK-MUS-001;AB-SEB-H-01,ADI-ADI-U-01,AJ-SNO-U-02,AME-SPO-U-01,AO-KAS-D-01,AR-037,AR-038,AR-039,AR-040,AR-042,AR-043,AR-044,AR-046,AR-048,AR-049,AR-050,AR-051,AR-055,AR-057,AR-058,AR-070,AR-085,AR-094,AR-103,AR-111,AR-112,ARA-DEV-U-01,BS-MID-D-02,BS-SUN-D-03,BV-BLU-H-01,BY-BK-SN-D-04,CA-DEK-H-01,CA-PAS-H-02,CA-PHO-H-01,CH-CHM-H-02,CH-GFP-D-08,CH-SX2-D-09,CHL-LOV-D-03,CHL-NOM-D-02,CHO-HEA-U-01,CK-CK2-H-06,CK-ESC-D-08,CK-ESC-H-02,CK-GOL-H-05,DI-BAD-H-02,DI-FFL-H-03,DI-OTP-H-01,DU-BRA-H-05,DU-ICO-H-06,DU-LON-H-04,DV-ECH-H-01,DV-SIL-H-02,ES-ESP-D-06,ES-LEP-D-02,ES-MAG-D-03,ES-MON-D-07,ES-TAJ-D-04,ES-TRO-D-05,FEN-FEN-U-01,FER-FER-U-01,GB-GIO-D-01,GF-FER-H-01,GOR-GOR-U-01,GR-CAB-D-01,GV-PLY-D-08,GV-POH-H-06,HB-EXT-H-10,HB-ORW-D-16,HU-HUM-H-01,JA-COB-D-01,JA-JAG-H-01,JIL-SUN-U-01,KE-GRE-H-01,LAM-LAM-U-01,LAN-MAR-D-01,LAP-RUM-D-01,LB-ROM-H-01,LC-BLK-H-08,LC-BLU-H-04,LC-COO-H-06,LC-FRE-H-09,LC-LAC-D-10,LC-MAG-H-02,LC-RED-H-03,LU-LUC-H-01,MA-MON-U-02,MA-UOM-H-01,MDM-MLI-D-01,MER-MER-U-01,ML-HWI-D-01,MM-SEN-U-01,MON-MON-U-01,MP-MAR-U-02,MW-TOS-D-01,NA-FAN-U-03,NA-VOY-D-01,NI-SCU-H-01,NR-PMU-U-06,ORL-DER-U-02,OT-DON-D-04,OT-HDS-D-01,OT-MDZ-D-02,OT-MHB-D-03,PAR-PAR-H-01,PB-PLY-U-01,PH-IWP-H-02,PH-PAR-D-02,RA-BLU-D-03,RA-ROM-D-04,RC-PAF-D-02,RC-ROB-D-01,RE-CHA-D-01,REM-SHA-U-01,RL-SAF-H-05,RM-SHA-D-02,ROC-MAD-D-02,ROC-MAN-D-01,ROY-ROB-U-02,ROY-ROY-U-01,SCO-SCO-U-01,STD-STD-U-01,TH-TOM-H-01,TL-LAP-D-03,UNK-HAM-U-01,UNK-HAM-U-02,UNK-KAH-U-01,VA-DON-D-03,VA-VOC-D-05,VO-PHO-U-02,VS-BSG-D-02,VS-FAB-D-01,VS-LIH-D-03,ZV-HIM-H-01,ZV-ZAD-U-03'.split(';').forEach((g,i)=>g&&g.split(',').forEach(c=>m[c]=i));return m})();
+const pkCanon=k=>{const s=String(k||'').trim().toUpperCase().split('-').filter(Boolean),i=s.lastIndexOf('SH');return i<1?'':s.slice(0,i).filter(x=>x!=='PQ').join('-')};
+function pkFam(it){const i=PK_MAP[pkCanon(it.code||it.sku)];if(i!=null)return PK_FAM[i];
+  const n=String(it.t||'').toLowerCase();
+  const k=/oud|amber|ambre|orient|incense|weihrauch|saffron|safran|leather|leder|bakhoor|musk oud/.test(n)?0:/citrus|zitr|lemon|lime|bergam|orange|fresh|aqua|marine|ocean|sea|neroli|mint/.test(n)?1:/rose|jasmin|flower|fleur|floral|lily|iris|peony|tuberose|blossom|bloom|violet/.test(n)?2:/vanill|caramel|sweet|sugar|candy|honey|coffee|choco|praline|tonka|gourmand|cake|cream/.test(n)?3:/wood|bois|cedar|sandal|vetiver|patchouli|santal|oak/.test(n)?4:/berry|fruit|peach|apple|cherry|pear|mango|pineapple|melon|plum|fig/.test(n)?5:/musk|musc|powder|pudr|cotton|clean|soft/.test(n)?6:7;
+  return PK_FAM[k]}
+const isProbe=it=>isOil(it)&&(!!it.probe||/^(probe\s*)?([1-9]|1[0-5])\s*g$/i.test(String(it.size||'').trim()));
+const pkQual=t=>{const q=clpQual(t);if(q)return q.n;const s=String(t||'').trim().toUpperCase();return s==='S'?'Standard':s==='P'?'Premium':s==='E'?'Exklusiv':latin(t)};
+function probeColorPdf(l){
+  const W=51,H=30,B=4,cx=B+(W-B)/2,MW=W-B-5,doc=new window.jspdf.jsPDF({unit:'mm',format:[W,H],orientation:'landscape',compress:true});
+  const oils=(l.items||[]).filter(isOil),list=oils.some(isProbe)?oils.filter(isProbe):oils;let first=true;
+  list.forEach(it=>{
+    const c=pkFam(it)[1],name=latin(clpName(it))||'-',code=latin(it.code||it.sku||'').toUpperCase(),q=pkQual(it.tier),g=sizeG(it.size);
+    const pill=latin(isProbe(it)||!g?'Duftöl-Probe'+(g?' '+String(g).replace('.',',')+' g':''):'Duftöl · '+(g>=1000?String(g/1000).replace('.',',')+' kg':g+' g'));
+    for(let k=0;k<(it.unit==='kg'?1:Math.max(1,it.q|0));k++){
+      if(!first)doc.addPage([W,H],'landscape');first=false;
+      doc.setFillColor(...c);doc.rect(0,0,B,H,'F');
+      doc.setTextColor(184,145,47);doc.setFont('times','bold');doc.setFontSize(7.5);doc.text('FRAGRANCE HUB',cx,5,{align:'center'});
+      doc.setFont('times','normal');doc.setFontSize(4.5);doc.text('GERMANY',cx,7.6,{align:'center'});
+      doc.setTextColor(34,34,34);doc.setFont('helvetica','bold');
+      const f=fit(doc,name,MW,6.4,2,9,5.5);doc.setFontSize(f.fs);
+      if(f.lines.length>1){const y=12.5-f.lh/2;f.lines.forEach((ln,i)=>doc.text(ln,cx,y+i*f.lh,{align:'center'}))}else doc.text(f.lines[0],cx,13.5,{align:'center'});
+      doc.setFont('helvetica','normal');let fs=6;const al=[code?'Art.-Nr. '+code:'',q].filter(Boolean).join('  ·  ');
+      for(;fs>4;fs-=0.25){doc.setFontSize(fs);if(doc.getTextWidth(al)<=MW)break}doc.text(al,cx,17.5,{align:'center'});
+      doc.setFont('helvetica','bold');doc.setFontSize(6);const pw=Math.min(MW,Math.max(27,doc.getTextWidth(pill)+5));
+      doc.setFillColor(...c);doc.roundedRect(cx-pw/2,19.8,pw,5,0.66,0.66,'F');doc.setTextColor(255,255,255);doc.text(pill,cx,23.1,{align:'center'});
+    }
+  });
+  if(first)throw new Error('لا توجد زيوت في هذا الطلب');
+  return doc}
 const p2=n=>String(n).padStart(2,'0');
 function stamp(l){const d=new Date(l.offerAt||l.at||Date.now());return d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())+'-'+p2(d.getHours())+p2(d.getMinutes())}
 function custFile(l){return latin(String(l.customer||'').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/Ä/g,'Ae').replace(/Ö/g,'Oe').replace(/Ü/g,'Ue').replace(/ß/g,'ss').normalize('NFD').replace(/[\u0300-\u036f]/g,'')).replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-')||'Kunde'}
@@ -2920,7 +2952,7 @@ async function apTog(l,done,tog){
   if(!done&&l.lief==='pickup'){if(!isReady(l)){const chk={};(l.items||[]).forEach((_,i)=>chk[i]=true);prepSet(l,chk);l.prep=chk;l.readyAt=l.readyAt||Date.now();l.readyBy=WHO();beepOk&&beepOk();toast('✅ تم التحضير – الطلب جاهز للاستلام. أبلغ العميل عبر واتساب.');try{renderOrderModal()}catch(e){}return}
     apAbhClose(l,tog);return}
   tog.disabled=true;try{await db.doc('lists/'+l.id).update({status:done?'new':'done',doneAt:Date.now()})}catch(e){tog.disabled=false}}
-async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phomemo':'A4';const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
+async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phomemo':pre==='K-'?'Epson C4000 (عينات ملوّنة)':'A4';const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
     if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
     if(kind==='pl'||kind==='plo')await ivPlaces();if(['ls','lso','pl','plo','pln'].includes(kind))await prepImgs(lo);
@@ -2945,21 +2977,25 @@ function docsPanel(l){
   const hasOil=(l.items||[]).some(isOil),sec=t=>box.append(el('div','dsec',t));
   const row=(ic,title,sub,kind,opt)=>{opt=opt||{};const r=el('div','drow');const i=el('span','dic',ic);const tx=el('div','dt');tx.append(el('b',null,title),el('small',null,sub));r.append(i,tx);
     const bs=el('div','dbtn');
-    if(kind==='clp'){const e=el('button','btn small primary','🏷️ Epson');e.title='يُطبع مباشرة على طابعة الملصقات في المستودع';e.onclick=()=>epsonPrint(l,e);bs.append(e)}
-    if(['ls','lso','pl','plo','pln'].includes(kind)){const a=el('button','btn small primary','🖨️ A4');a.title='يُطبع مباشرة على طابعة A4 (Brother) في المستودع';a.onclick=()=>a4Print(kind,l,a);bs.append(a)}
+    if(kind==='clp'){const e=el('button','btn small primary','⚠️ Epson C6000');e.title='ملصقات السلامة CLP 102 × 51 – Epson CW-C6000 في المستودع';e.onclick=()=>epsonPrint(l,e);bs.append(e)}
+    if(['ls','lso','pl','plo','pln'].includes(kind)){const a=el('button','btn small primary','🖨️ Brother A4');a.title='يُطبع مباشرة على طابعة A4 (Brother) في المستودع';a.onclick=()=>a4Print(kind,l,a);bs.append(a)}
     if(kind==='lab'||kind==='labo'){const a=el('button','btn small primary','🏷️ Phomemo');a.title='يُطبع مباشرة على طابعة Phomemo 40 × 30 في المستودع';a.onclick=()=>a4Print(kind,l,a,'P-');bs.append(a)}
+    if(kind==='kpr'){const a=el('button','btn small primary','🎨 Epson C4000');a.title='ملصق عينة ملوّن 51 × 30 – Epson CW-C4000e في المستودع';a.onclick=()=>a4Print(kind,l,a,'K-');bs.append(a)}
     {const p=el('button','btn small','🖨️ طباعة');p.onclick=()=>directPrint(kind,l,p);const s2=el('button','btn small','📤 إرسال');s2.title='ملف PDF · واتساب · تنزيل';s2.onclick=()=>savePdf(kind,l,s2,out);bs.append(p,s2)}
     r.append(bs);box.append(r)};
-  sec('📄 المستندات');
+  sec('📄 المستندات · Brother A4');
   row('💶','عرض السعر · Angebot','بالأسعار والخصم ومجموع الكيلو','ls');
   row('💶','عرض السعر بالأسماء الأصلية','Angebot – Originalnamen','lso');
   row('📋','قائمة التحضير · Packliste','بدون أسعار – للموظف أو لإرسالها للعميل','pl');
   row('📋','قائمة التحضير بالأسماء الأصلية','Packliste – Originalnamen · بدون أسعار','plo');
   if(l.dhlAdr&&l.dhlAdr.drop)row('🔁','ورقة الطرد للمستلم (Dropshipping)','بدون أسعار وبدون شعارك · باسم '+(l.dhlAdr.abs||'العميل'),'pln');
   const hasRm=rmItems(l).length>0;
-  if(!hasOil&&hasRm){sec('🏷️ الملصقات');row('🧪','ملصقات المواد الخام','102 × 51 مم · Epson ColorWorks','clp');clpWarm(l)}
-  if(hasOil){sec('🏷️ الملصقات');
-    row('⚠️','ملصقات CLP'+(hasRm?' + المواد الخام':''),'102 × 51 مم · Epson ColorWorks · وعيّنات 40 × 30','clp');clpWarm(l);
+  if(!hasOil&&hasRm){sec('⚠️ ملصقات السلامة · Epson C6000 · 102 × 51');row('🧪','ملصقات المواد الخام','102 × 51 مم · Epson CW-C6000','clp');clpWarm(l)}
+  if(hasOil){sec('⚠️ ملصقات السلامة CLP · Epson C6000 · 102 × 51');
+    row('⚠️','ملصقات CLP'+(hasRm?' + المواد الخام':''),'102 × 51 مم · Epson CW-C6000 · وعيّنات 40 × 30','clp');clpWarm(l);
+    sec('🎨 ملصق عينة ملوّن · Epson C4000 · 51 × 30');
+    row('🎨','ملصق عينة ملوّن','51 × 30 مم · بلون عائلة العطر · الاسم كما في المتجر','kpr');
+    sec('🏷️ ملصقات الاسم · Phomemo · 40 × 30');
     row('🏷️','ملصقات بسيطة','40 × 30 مم · الاسم والكود والجودة','lab');
     row('🏷️','ملصقات بالأسماء الأصلية','40 × 30 مم · Originalnamen','labo');
     box.append(labPicker(l))}
@@ -2968,7 +3004,7 @@ function docsPanel(l){
   if(l.clpAddr)ex.push(el('p','note','عنوان العميل على ملصق CLP: '+l.clpAddr+(l.clpLogo?' · مع لوغو العميل':'')));box.extra=ex;
   return box;
 }
-const KINDS={pl:{name:'Packliste',make:l=>prepListPdf(l,false,false,true)},plo:{name:'Packliste-Original',make:l=>prepListPdf(l,true,false,true)},pln:{name:'Lieferschein-Neutral',make:l=>prepListPdf(l,false,true)},lab:{name:'Etiketten',make:labelsPdf},labo:{name:'Etiketten-Original',make:labelsPdfOrig},ls:{name:'Angebotspreis',make:lieferscheinPdf},lso:{name:'Angebotspreis-Original',make:l=>lieferscheinPdf(l,true)}};
+const KINDS={pl:{name:'Packliste',make:l=>prepListPdf(l,false,false,true)},plo:{name:'Packliste-Original',make:l=>prepListPdf(l,true,false,true)},pln:{name:'Lieferschein-Neutral',make:l=>prepListPdf(l,false,true)},lab:{name:'Etiketten',make:labelsPdf},labo:{name:'Etiketten-Original',make:labelsPdfOrig},ls:{name:'Angebotspreis',make:lieferscheinPdf},lso:{name:'Angebotspreis-Original',make:l=>lieferscheinPdf(l,true)},kpr:{name:'Proben-Farbe',make:probeColorPdf}};
 const fname=(kind,l)=>KINDS[kind].name+(l._part?'-Auswahl':'')+'-'+custFile(l)+'-'+stamp(l)+'.pdf';
 const imgKey=it=>it.t+'|'+(it.sku||it.code||'')+'|'+(it.size||'');
 async function prepImgs(l){
@@ -3279,7 +3315,8 @@ function clpMake(l,_w){const rm=rmItems(l);if(!rm.length)return clpMakeOil(l,_w)
     .then(([a,b])=>({files:(a.files||[]).concat(b.files),fehlend:(a.fehlend||[]).concat(b.fehlend||[])}))}
 async function orderFiles(l,which){
   const out={files:[],note:''},hasOil=(l.items||[]).some(isOil);
-  if(['ls','lso','pl','plo','lab','labo'].includes(which)){if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF')}
+  if(['ls','lso','pl','plo','lab','labo','kpr'].includes(which)){if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF')}
+  if(which==='kpr'&&hasOil)out.files.push({name:fname('kpr',l),blob:probeColorPdf(l).output('blob')});
   if(which==='ls'){await prepImgs(l);out.files.push({name:fname('ls',l),blob:lieferscheinPdf(l).output('blob')})}
   if(which==='lso'){await prepImgs(l);out.files.push({name:fname('lso',l),blob:lieferscheinPdf(l,true).output('blob')})}
   if(which==='pl'){await prepImgs(l);out.files.push({name:fname('pl',l),blob:prepListPdf(l,false,false,true).output('blob')})}
@@ -3459,7 +3496,7 @@ async function savePdf(kind,l,btn,out){
   btn.disabled=false;btn.textContent=old;
 }
 /* choose which oils (and how many labels each) are printed – for CLP, simple and original-name labels */
-const labSel={},LAB_KINDS=['clp','lab','labo'];
+const labSel={},LAB_KINDS=['clp','lab','labo','kpr'];
 function labOrder(l){const s=labSel[orderKey(l)];if(!s)return l;const items=[];(l.items||[]).forEach((it,i)=>{const j=it._ix!=null?it._ix:i;if(isOil(it)&&s[j]>0)items.push(Object.assign({},it,{q:s[j],_ix:j}));else if(rmOf(it))items.push(Object.assign({},it,{_ix:j}))});return Object.assign({},l,{items,_part:true})}
 function labPicker(l){
   const k=orderKey(l),oils=(l.items||[]).map((it,i)=>[it,i]).filter(([it])=>isOil(it));
@@ -4094,8 +4131,9 @@ function omDocs(l){const box=el('div','om-pane'),out=el('div','filebox');out.set
   const orig=omNames==='o',hasOil=(l.items||[]).some(isOil);
   const btns=(kind,printer)=>{const w=el('div','om-btns');
     if(printer==='a4'){const a=el('button','btn primary','🖨️ طباعة');a.title='طابعة A4 في المستودع (Brother)';a.onclick=()=>a4Print(kind,l,a);w.append(a)}
-    if(printer==='epson'){const a=el('button','btn primary','🖨️ طباعة');a.title='طابعة Epson في المستودع';a.onclick=()=>epsonPrint(l,a);w.append(a)}
+    if(printer==='epson'){const a=el('button','btn primary','🖨️ طباعة');a.title='طابعة Epson CW-C6000 (CLP 102 × 51) في المستودع';a.onclick=()=>epsonPrint(l,a);w.append(a)}
     if(printer==='phomemo'){const a=el('button','btn primary','🖨️ طباعة');a.title='طابعة Phomemo في المستودع';a.onclick=()=>a4Print(kind,l,a,'P-');w.append(a)}
+    if(printer==='c4000'){const a=el('button','btn primary','🖨️ طباعة');a.title='طابعة Epson CW-C4000e (عينات ملوّنة 51 × 30) في المستودع';a.onclick=()=>a4Print(kind,l,a,'K-');w.append(a)}
     const s=el('button','btn','📤 إرسال');s.title='ملف PDF · واتساب · تنزيل';s.onclick=()=>savePdf(kind,l,s,out);
     const p=el('button','btn','📱 جهازي');p.title='طباعة من هذا الجهاز';p.onclick=()=>directPrint(kind,l,p);w.append(s,p);return w};
   const doc=(ic,t,sub,kind,printer)=>{const r=el('div','om-doc');r.append(el('span','ic',ic),el('b',null,t),el('small',null,sub),btns(kind,printer));return r};
@@ -4103,15 +4141,16 @@ function omDocs(l){const box=el('div','om-pane'),out=el('div','filebox');out.set
   const nm=el('div','om-seg');[['t','🏷️ الأسماء التجارية'],['o','🔤 الأسماء الأصلية']].forEach(([k,t])=>{const x=el('button',k===omNames?'on':'',(k===omNames?'✓ ':'')+t);x.onclick=()=>{omNames=k;LS.set('omNames',k);renderOrderModal()};nm.append(x)});
   const d0=el('div','om-box');d0.append(el('h4',null,'الأسماء المطبوعة'),el('p','hint','اختر أولاً: تُطبع المستندات وملصق الاسم بهذه الأسماء.'),nm);box.append(d0);
   const nmT=orig?'بالأسماء الأصلية':'بالأسماء التجارية';
-  const d1=el('div','om-box'),h1=el('h4');h1.append('📄 المستندات');d1.append(h1);
-  d1.append(doc('💶','عرض السعر','مع الأسعار · '+nmT+' · A4',orig?'lso':'ls','a4'));
-  d1.append(doc('📋','قائمة التحضير','بدون أسعار · '+nmT+' · A4',orig?'plo':'pl','a4'));
-  if(l.dhlAdr&&l.dhlAdr.drop)d1.append(doc('🔁','ورقة المستلم النهائي','بدون أسعار وبدون شعارك · طابعة A4','pln','a4'));
+  const d1=el('div','om-box'),h1=el('h4');h1.append('📄 المستندات · Brother A4');d1.append(h1);
+  d1.append(doc('💶','عرض السعر','مع الأسعار · '+nmT+' · Brother A4',orig?'lso':'ls','a4'));
+  d1.append(doc('📋','قائمة التحضير','بدون أسعار · '+nmT+' · Brother A4',orig?'plo':'pl','a4'));
+  if(l.dhlAdr&&l.dhlAdr.drop)d1.append(doc('🔁','ورقة المستلم النهائي','بدون أسعار وبدون شعارك · Brother A4','pln','a4'));
   box.append(d1);
-  if(!hasOil&&rmItems(l).length){const d3=el('div','om-box'),h3=el('h4');h3.append('🧪 ملصقات المواد الخام');d3.append(h3);clpWarm(l);d3.append(doc('🧪','ملصقات المواد الخام','102 × 51 · مع تحذيرات السلامة · Epson','clp','epson'));box.append(d3)}
+  if(!hasOil&&rmItems(l).length){const d3=el('div','om-box'),h3=el('h4');h3.append('🧪 ملصقات المواد الخام · Epson C6000');d3.append(h3);clpWarm(l);d3.append(doc('🧪','ملصقات المواد الخام','102 × 51 · مع تحذيرات السلامة · Epson C6000','clp','epson'));box.append(d3)}
   if(hasOil){const d2=el('div','om-box'),h2=el('h4');h2.append('🏷️ ملصقات الزيوت');d2.append(h2);
-    const lt=el('div','om-seg');[['clp','⚠️ ملصق السلامة · CLP'],['lab','🏷️ ملصق الاسم 40×30']].forEach(([k,t])=>{const x=el('button',k===omLab?'on':'',t);x.onclick=()=>{omLab=k;LS.set('omLab',k);renderOrderModal()};lt.append(x)});d2.append(lt);
-    if(omLab==='clp'){clpWarm(l);d2.append(doc('⚠️','ملصقات السلامة CLP','مع تحذيرات السلامة · بالأسماء التجارية دائماً'+(rmItems(l).length?' · + المواد الخام':'')+' · Epson','clp','epson'))}
+    const lt=el('div','om-seg');[['clp','⚠️ ملصق السلامة · CLP'],['kpr','🎨 ملصق عينة ملوّن'],['lab','🏷️ ملصق الاسم 40×30']].forEach(([k,t])=>{const x=el('button',k===omLab?'on':'',t);x.onclick=()=>{omLab=k;LS.set('omLab',k);renderOrderModal()};lt.append(x)});d2.append(lt);
+    if(omLab==='clp'){clpWarm(l);d2.append(doc('⚠️','ملصقات السلامة CLP','102 × 51 · مع تحذيرات السلامة · بالأسماء التجارية دائماً'+(rmItems(l).length?' · + المواد الخام':'')+' · Epson C6000','clp','epson'))}
+    else if(omLab==='kpr')d2.append(doc('🎨','ملصق عينة ملوّن','51 × 30 · بلون عائلة العطر · الاسم كما في المتجر · Epson C4000','kpr','c4000'));
     else d2.append(doc('🏷️','ملصق الاسم 40×30','الاسم والكود والجودة · '+nmT+' · Phomemo',orig?'labo':'lab','phomemo'));
     d2.append(labPicker(l));box.append(d2)}
   box.append(out);return box}
@@ -4628,7 +4667,7 @@ async function rgPrint(btn,rows,done){const o=btn.textContent;btn.disabled=true;
 function rgDraw(b){b.textContent='';const rows=rgRows(),sel=new Set(),K=r=>r.code+'|'+r.q;
   const top=el('div','ls-top'),q=document.createElement('input');q.type='search';q.className='ls-q';q.placeholder='بحث: كود، اسم، ماركة، مكان · Suche';
   const reg=document.createElement('select');[['','كل الرفوف']].concat([...new Set(rows.map(r=>(r.platz||'').split('-')[0]).filter(Boolean))].sort().map(x=>[x,'الرف '+x])).forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;reg.append(o)});top.append(q,reg);
-  const acts=el('div','ls-top rg-act'),all=el('button','btn small','☑️ تحديد الظاهر'),none=el('button','btn small','✖️ إلغاء الكل'),cnt=el('b','rg-n','0 ملصق'),pr=el('button','btn primary','🖨️ طباعة على Epson'),pdf=el('button','btn','📄 PDF');acts.append(all,none,cnt,pr,pdf);
+  const acts=el('div','ls-top rg-act'),all=el('button','btn small','☑️ تحديد الظاهر'),none=el('button','btn small','✖️ إلغاء الكل'),cnt=el('b','rg-n','0 ملصق'),pr=el('button','btn primary','🗄️ ملصقات الرفوف → Epson C6000'),pdf=el('button','btn','📄 PDF');acts.append(all,none,cnt,pr,pdf);
   const note=el('div','hint','🧻 قبل الطباعة: تأكد أن رول 102 × 30 موجود في طابعة Epson، وليس رول CLP.');const box=el('div','rg-box');box.dir='ltr';b.append(top,acts,note,box);
   const items=rows.map(r=>{const l=document.createElement('label');l.className='rg-row';const c=document.createElement('input');c.type='checkbox';c.onchange=()=>{if(c.checked)sel.add(K(r));else sel.delete(K(r));upd()};const inf=el('span','rg-inf');inf.append(el('b',null,r.title),el('span','ls-z',' · '+r.orig));const cd=el('span','ls-c',r.code),qt=el('span','ls-'+r.q,LS_Q[r.q]||r.q),pl=el('span','rg-pl',r.platz||'—');l.append(c,inf,cd,qt,pl);box.append(l);return {r,l,c,k:fold(r.code+' '+r.title+' '+r.orig+' '+r.b+' '+r.platz)}});
   const chosen=()=>items.filter(i=>sel.has(K(i.r))).map(i=>i.r);
@@ -5865,13 +5904,14 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
   pc.textContent=chk.filter(Boolean).length+' / '+o.items.length;const pp=el('p','note','تم تحضير ');pp.append(pc);b.append(pp);
   sec('📋 قائمة التحضير · Lieferschein');
   const a1=el('div','so-act');
-  const lsA4=el('button','btn primary','🖨️ طباعة في المستودع (A4)');lsA4.onclick=()=>soLsPrint([o],lsA4,'a4');
+  const lsA4=el('button','btn primary','🖨️ قائمة التحضير → Brother A4');lsA4.onclick=()=>soLsPrint([o],lsA4,'a4');
   const lsP=el('button','btn','📄 PDF / طباعة هنا');lsP.onclick=()=>soLsPrint([o],lsP,'pdf');a1.append(lsA4,lsP);b.append(a1);
   if(l.items.some(i=>i.oil)){sec('🏷️ ملصقات الزيوت');const a2=el('div','so-act');
     const isPr=it=>it.oil&&(it.probe||/^(probe\s*)?([6-9]|1[0-5])\s*g$/i.test(String(it.size||'').trim())),sub=f=>Object.assign({},l,{items:l.items.map((it,i)=>Object.assign({},it,{_ix:i})).filter(f)});
     const nPr=l.items.filter(isPr).length,nGr=l.items.filter(it=>it.oil&&!isPr(it)).length;
     if(nPr){const pm=el('button','btn'+(nGr?'':' primary'),'🏷️ ملصقات العينات → Phomemo · '+nPr);pm.onclick=()=>epsonPrint(sub(isPr),pm);a2.append(pm)}
-    const ep=el('button','btn','🖨️ ملصقات CLP → Epson'+(nPr?' · '+nGr:''));ep.onclick=()=>epsonPrint(sub(it=>it.oil&&!isPr(it)),ep);if(!nGr)ep.hidden=true;
+    if(nPr){const kc=el('button','btn','🎨 ملصق عينة ملوّن → Epson C4000 · '+nPr);kc.title='51 × 30 · بلون عائلة العطر';kc.onclick=()=>a4Print('kpr',sub(isPr),kc,'K-');a2.append(kc)}
+    const ep=el('button','btn','⚠️ ملصقات CLP → Epson C6000'+(nPr?' · '+nGr:''));ep.onclick=()=>epsonPrint(sub(it=>it.oil&&!isPr(it)),ep);if(!nGr)ep.hidden=true;
     const gSub=()=>labOrder(sub(it=>it.oil&&!isPr(it))),pSub=()=>labOrder(sub(isPr));
     const parts=()=>[nGr?gSub():null,nPr?pSub():null].filter(x=>x&&x.items.length).map(clpMake);
     /* sofort im Hintergrund vorbereiten (Server, mit Noten) */
@@ -6280,8 +6320,8 @@ function soBulkLs(list){openSheet('📋 قوائم التحضير · Lieferschei
   const nNeu=list.filter(o=>!soPrinted(o)).length;
   b.append(el('p','hint','كل طلب في صفحة مستقلة. محدد تلقائياً: الطلبات التي لم تُطبع بعد ('+nNeu+'). المطبوعة سابقاً ('+(list.length-nNeu)+') غير محددة – إن اخترتها تُطبع عليها كلمة NACHDRUCK.'));
   const pk=soPickList(b,list,o=>!soPrinted(o)),m=el('div','so-act');m.style.marginTop='12px';
-  const a4=el('button','btn primary','🖨️ طباعة في المستودع (A4)'),pd=el('button','btn','📄 PDF / طباعة هنا');m.append(a4,pd);b.append(m);
-  const upd=()=>{const n=pk.sel.size;a4.textContent='🖨️ طباعة في المستودع (A4) · '+n;pd.textContent='📄 PDF · '+n;a4.disabled=pd.disabled=!n};b.addEventListener('selchange',upd);upd();
+  const a4=el('button','btn primary','🖨️ قوائم التحضير → Brother A4'),pd=el('button','btn','📄 PDF / طباعة هنا');m.append(a4,pd);b.append(m);
+  const upd=()=>{const n=pk.sel.size;a4.textContent='🖨️ قوائم التحضير → Brother A4 · '+n;pd.textContent='📄 PDF · '+n;a4.disabled=pd.disabled=!n};b.addEventListener('selchange',upd);upd();
   const go=(btn,mode)=>soLsPrint(list.filter(o=>pk.sel.has(o.id)),btn,mode);a4.onclick=()=>go(a4,'a4');pd.onclick=()=>go(pd,'pdf')})}
 /* 📦 DHL-Etiketten für mehrere Inlands-Bestellungen auf einmal (kostenpflichtig – mit Bestätigung) */
 function soBulkDhl(list,opt){opt=opt||{};const AP=!!opt.ap,lab=o=>o.ap?o.nr:'#'+soNr(o);openSheet(AP?'📦 ملصقات DHL · طلبات الصالة':'📦 ملصقات DHL شحن داخلي',async b=>{soCss();sheetBack=AP?null:soBackTo(null);
@@ -7081,7 +7121,7 @@ function dhlxSheet(o,after){openSheet('✈️ DHL Express · '+o.nr,async b=>{so
   if(v.dhlx&&v.dhlx.nr){const d=v.dhlx,c=el('div','card');c.style.cssText='padding:10px 12px;margin:8px 0';
     c.append(el('b',null,'✅ شحنة DHL Express · '+d.stk+' طرد'),el('div','ivname',d.nr),el('div','time',new Date(d.at).toLocaleString('de-DE')+' · '+d.kg+' kg · '+d.prod+(d.incoterm?' · '+d.incoterm:'')+(d.by?' · '+d.by:'')),el('div','time','Shopify: '+(d.shopify==='versendet'?'✅ مُعلَّم كمشحون + إيميل التتبع للعميل':d.shopify||'—')));b.append(c);
     const row=el('div','so-act');
-    const pl=el('button','btn primary','🖨️ طباعة الملصق (Zebra)');pl.onclick=async()=>{pl.disabled=true;try{await dhlxCall('druck',{id:o.id,druck:true});say('✓ أُرسل إلى Zebra')}catch(x){say('⚠️ '+dhlxErr(x),1)}pl.disabled=false};
+    const pl=el('button','btn primary','📦 ملصق الشحن → Zebra');pl.onclick=async()=>{pl.disabled=true;try{await dhlxCall('druck',{id:o.id,druck:true});say('✓ أُرسل إلى Zebra')}catch(x){say('⚠️ '+dhlxErr(x),1)}pl.disabled=false};
     const pf=el('button','btn','📄 الملصق PDF');pf.onclick=async()=>{pf.disabled=true;try{const r=await dhlxCall('druck',{id:o.id});await openPdf(r.b64s)}catch(x){say('⚠️ '+dhlxErr(x),1)}pf.disabled=false};
     row.append(pl,pf);
     if(d.files&&d.files.inv&&d.files.inv.length){const pi=el('button','btn','🧾 الفاتورة التجارية (A4)');pi.onclick=async()=>{pi.disabled=true;try{await dhlxCall('druck',{id:o.id,druck:true,was:'inv'});say('✓ أُرسلت الفاتورة إلى طابعة A4')}catch(x){say('⚠️ '+dhlxErr(x),1)}pi.disabled=false};row.append(pi)}

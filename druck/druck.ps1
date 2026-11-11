@@ -204,7 +204,12 @@ while ($true) {
 
 # 3) Epson-Drucker finden
 function Drucker {
-  $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'C6000|C6500|ColorWorks' -and $_.Name -notmatch 'Regal' } | Select-Object -First 1
+  $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'C6000|C6500|ColorWorks' -and $_.Name -notmatch 'Regal|Proben|C4000' -and "$($_.DriverName)" -notmatch 'C4000' } | Select-Object -First 1
+  if ($p) { return $p.Name } else { return $null }
+}
+# Epson CW-C4000e (Proben-Etiketten 51 x 30, farbig) - Dateiname beginnt mit 'K-'. Standard-Medium der Warteschlange: 'fh proben 51x30 endlos'
+function DruckerK {
+  $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'C4000' -or "$($_.DriverName)" -match 'C4000' } | Sort-Object { if ($_.Name -match 'Proben') { 0 } else { 1 } } | Select-Object -First 1
   if ($p) { return $p.Name } else { return $null }
 }
 # Regal-Etiketten 102 x 30 - Dateiname beginnt mit 'R-'. Eigene Windows-Warteschlange derselben Epson mit Medium 'FH Regal 102x30', damit die CLP-Warteschlange (102 x 51) unveraendert bleibt
@@ -212,7 +217,7 @@ $REGALNAME = 'FH Regal 102x30'
 function DruckerR {
   $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'Regal' } | Select-Object -First 1
   if ($p) { return $p.Name }
-  $e = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'C6000|C6500|ColorWorks' } | Select-Object -First 1
+  $e = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'C6000|C6500|ColorWorks' -and $_.Name -notmatch 'C4000' -and "$($_.DriverName)" -notmatch 'C4000' } | Select-Object -First 1
   if ($e) { try { Add-Printer -Name $REGALNAME -DriverName $e.DriverName -PortName $e.PortName -ErrorAction Stop; return $REGALNAME } catch { Write-Host "Regal-Warteschlange konnte nicht angelegt werden: $_" -ForegroundColor Yellow } }
   return $null
 }
@@ -233,6 +238,8 @@ $DRUCKERP = DruckerP
 if (-not $DRUCKERP) { Write-Host 'Hinweis: Kein Phomemo-Drucker (40 x 30) gefunden.' -ForegroundColor DarkGray }
 else { Write-Host "Phomemo-Drucker: $DRUCKERP" -ForegroundColor Green }
 $DRUCKERA4 = DruckerA4
+$DRUCKERK = DruckerK
+if ($DRUCKERK) { Write-Host "Proben-Etiketten 51 x 30 (farbig): $DRUCKERK" -ForegroundColor Green } else { Write-Host 'Hinweis: Keine Epson CW-C4000e gefunden (Dateien K-... werden nur gespeichert).' -ForegroundColor DarkGray }
 $DRUCKERR = DruckerR
 if ($DRUCKERR) { Write-Host "Regal-Etiketten: $DRUCKERR" -ForegroundColor Green } else { Write-Host 'Hinweis: Keine Regal-Warteschlange (Dateien R-... werden nur gespeichert).' -ForegroundColor DarkGray }
 # Zebra GK420t (DHL-Versandetiketten 103 x 199 / 103 x 150) - Dateiname beginnt mit "Z-". Normal direkt per USB (FhZebra), Windows-Treiber nur als Ersatz
@@ -251,7 +258,7 @@ Write-Host 'Bereit. Etiketten und A4-Dokumente aus der App werden automatisch ge
 # Nichts Altes drucken: Auftraege in den Windows-Warteschlangen, die nach 5 Minuten nicht gedruckt sind, werden geloescht
 # (laeuft ein Auftrag gerade, bekommt er 15 Minuten). Regal-Etiketten ausgenommen: dort ist jedes Etikett ein eigener Auftrag.
 function AlteAuftraegeLoeschen {
-  foreach ($q in @($DRUCKERA4, $DRUCKER, $DRUCKERP)) {
+  foreach ($q in @($DRUCKERA4, $DRUCKER, $DRUCKERP, $DRUCKERK)) {
     if (-not $q) { continue }
     foreach ($job in @(Get-PrintJob -PrinterName $q -ErrorAction SilentlyContinue)) {
       if (-not $job) { continue }
@@ -273,7 +280,8 @@ while ($true) {
   foreach ($t in @(Get-ChildItem $TEST -File -Filter *.pdf -ErrorAction SilentlyContinue)) {
     if (-not $DRUCKERP) { $DRUCKERP = DruckerP }
     if (-not $DRUCKERZ) { $DRUCKERZ = DruckerZ }
-    if ($t.Name -like 'A4-*') { $z = $DRUCKERA4; $o = 'fit' } elseif ($t.Name -like 'Z-*') { $z = $DRUCKERZ; $o = 'fit,portrait' } elseif ($t.Name -like 'R-*') { $z = $DRUCKERR; $o = 'fit,landscape' } elseif ($t.Name -like 'P-*') { $z = $DRUCKERP; $o = $(if ($t.Name -match '__(.+)\.pdf$') { $Matches[1] -replace '_',',' } else { 'noscale,landscape' }) } else { $z = $DRUCKER; $o = 'fit,landscape' }
+    if (-not $DRUCKERK) { $DRUCKERK = DruckerK }
+    if ($t.Name -like 'A4-*') { $z = $DRUCKERA4; $o = 'fit' } elseif ($t.Name -like 'K-*') { $z = $DRUCKERK; $o = 'fit,landscape' } elseif ($t.Name -like 'Z-*') { $z = $DRUCKERZ; $o = 'fit,portrait' } elseif ($t.Name -like 'R-*') { $z = $DRUCKERR; $o = 'fit,landscape' } elseif ($t.Name -like 'P-*') { $z = $DRUCKERP; $o = $(if ($t.Name -match '__(.+)\.pdf$') { $Matches[1] -replace '_',',' } else { 'noscale,landscape' }) } else { $z = $DRUCKER; $o = 'fit,landscape' }
     if ($t.Name -like 'Z-*') { [void](ZebraDruck $t.FullName $t.Name) }
     elseif ($z) { & $SUM -print-to $z -print-settings $o -silent $t.FullName | Out-Null; Write-Host "$(Get-Date -Format HH:mm:ss)  Test gedruckt auf ${z} ($o): $($t.Name)" -ForegroundColor Cyan }
     Remove-Item $t.FullName -ErrorAction SilentlyContinue
@@ -297,11 +305,13 @@ while ($true) {
       if (-not $DRUCKERP) { $DRUCKERP = DruckerP }
       if (-not $DRUCKERZ) { $DRUCKERZ = DruckerZ }
       if (-not $DRUCKERR) { $DRUCKERR = DruckerR }
+      if (-not $DRUCKERK) { $DRUCKERK = DruckerK }
       foreach ($j in @($r.val)) {
         $f = Join-Path $DONE ((Get-Date -Format 'yyMMdd-HHmmss') + '-' + $j.name)
         [IO.File]::WriteAllBytes($f, [Convert]::FromBase64String($j.b64))
         # Etiketten 102x51 brauchen 'landscape', sonst dreht SumatraPDF sie um 90 Grad und verkleinert sie
         if ($j.name -like 'A4-*') { $ziel = $DRUCKERA4; $opt = 'fit' }
+        elseif ($j.name -like 'K-*') { $ziel = $DRUCKERK; $opt = 'fit,landscape' }  # Proben-Etikett 51 x 30 farbig -> Epson CW-C4000e (Medium 'fh proben 51x30 endlos')
         elseif ($j.name -like 'Z-*') { $ziel = $DRUCKERZ; $opt = 'fit,portrait' }  # DHL-Versandetikett -> Zebra
         elseif ($j.name -like 'R-*') { $ziel = $DRUCKERR; $opt = 'fit,landscape' }  # Regal-Etikett 102 x 30 -> Epson, Warteschlange Regal (nie auf die CLP-Rolle)
         elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'noscale,landscape' }  # Phomemo-Treiber skaliert sonst falsch: 1:1 drucken
