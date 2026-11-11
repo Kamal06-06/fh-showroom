@@ -2676,11 +2676,11 @@ function pkDraw(doc,L){const W=51,H=30,B=4,cx=B+(W-B)/2,MW=W-B-5,c=L.c;
   doc.setFont('helvetica','bold');doc.setFontSize(6);const pw=Math.min(MW,Math.max(27,doc.getTextWidth(L.pill)+5));
   doc.setFillColor(...c);doc.roundedRect(cx-pw/2,19.8,pw,5,0.66,0.66,'F');doc.setTextColor(255,255,255);doc.text(L.pill,cx,23.1,{align:'center'})}
 function probeColorPdf(l){const doc=pkDoc();pkLabels(l).forEach((L,i)=>{if(i)doc.addPage([51,30],'landscape');pkDraw(doc,L)});return doc}
-/* Druck auf der C4000e: jedes Etikett ein eigener kleiner Auftrag (ein großer Auftrag = >100 MB Rasterdaten → Drucker brach nach wenigen Etiketten ab) */
+/* Druck auf der C4000e: je Etikett ein kleiner Auftrag mit den Etikettendaten (JSON); der Druck-PC zeichnet das Etikett als Vektor (Bild-/PDF-Raster-Aufträge kamen leer heraus) */
 async function pkPrint(l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');const lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»');
     const labs=pkLabels(lo),base=fname('kpr',lo).replace(/\.pdf$/i,'');druckStatus();
-    for(let i=0;i<labs.length;i++){const d=pkDoc();pkDraw(d,labs[i]);await druckQ('K-'+base+'-'+String(i+1).padStart(3,'0')+'.pdf',await blob64(d.output('blob')));if(i%10===9)btn.textContent='جاري الإرسال… '+(i+1)+' / '+labs.length}
+    for(let i=0;i<labs.length;i++){const L=labs[i];await druckQ('K-'+base+'-'+String(i+1).padStart(3,'0')+'.json',await blob64(new Blob([JSON.stringify([{c:L.c,name:L.name,code:L.code,q:L.q,pill:L.pill}])],{type:'application/json'})));if(i%10===9)btn.textContent='جاري الإرسال… '+(i+1)+' / '+labs.length}
     druckMeldung(btn,o,'✓ أُرسل '+labs.length+' ملصق عينة إلى Epson C4000',druckSt.v)}
   catch(e){druckMeldung(btn,o,'تعذّر الإرسال إلى Epson C4000: '+(e.message||e),null,true)}}
 const p2=n=>String(n).padStart(2,'0');

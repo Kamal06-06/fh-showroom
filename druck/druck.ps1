@@ -177,6 +177,70 @@ public static class FhBildDruck {
 }
 "@
 } catch { Write-Host "Hinweis: Bild-Druckweg fuer C4000e nicht verfuegbar ($($_.Exception.Message)) - nutze SumatraPDF" -ForegroundColor Yellow }
+# Vektor-Druck fuer C4000e: die App schickt die Etikettendaten (JSON), hier wird das Etikett mit Windows-Schrift/Formen
+# gezeichnet -> kleiner Auftrag wie beim Drucken aus Edge (Bild-Auftraege > 1 MB kamen leer heraus).
+try {
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
+using System; using System.Drawing; using System.Drawing.Drawing2D; using System.Drawing.Printing; using System.Drawing.Text; using System.Collections.Generic;
+public class FhEtikett { public int R, G, B; public string Name = "", Code = "", Q = "", Pill = ""; }
+public static class FhVektorDruck {
+  static GraphicsPath Rund(RectangleF r, float d) { var p = new GraphicsPath(); p.AddArc(r.X, r.Y, d, d, 180, 90); p.AddArc(r.Right - d, r.Y, d, d, 270, 90); p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90); p.AddArc(r.X, r.Bottom - d, d, d, 90, 90); p.CloseFigure(); return p; }
+  static void Zentriert(Graphics g, string t, Font f, Brush b, float cx, float cy) { var sf = new StringFormat(); sf.Alignment = StringAlignment.Center; sf.LineAlignment = StringAlignment.Center; g.DrawString(t, f, b, new PointF(cx, cy), sf); }
+  public static string Drucken(string drucker, List<FhEtikett> liste, string name, string papierMuster) {
+    var pd = new PrintDocument(); pd.PrinterSettings.PrinterName = drucker; pd.DocumentName = name;
+    if (!pd.PrinterSettings.IsValid) return "Drucker ungueltig";
+    pd.DefaultPageSettings.Landscape = false;
+    foreach (PaperSize ps in pd.PrinterSettings.PaperSizes) { if (ps.PaperName.ToLower().Contains(papierMuster)) { pd.DefaultPageSettings.PaperSize = ps; break; } }
+    int i = 0;
+    pd.PrintPage += (s, e) => {
+      var g = e.Graphics; g.PageUnit = GraphicsUnit.Millimeter; g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+      g.TranslateTransform(-e.PageSettings.HardMarginX * 0.254f, -e.PageSettings.HardMarginY * 0.254f);
+      var L = liste[i]; var farbe = Color.FromArgb(L.R, L.G, L.B);
+      const float W = 51f, B = 4f, CX = B + (W - B) / 2f, MW = W - B - 5f;
+      using (var br = new SolidBrush(farbe)) g.FillRectangle(br, 0f, 0f, B, 30f);
+      using (var gold = new SolidBrush(Color.FromArgb(184, 145, 47))) {
+        using (var f = new Font("Times New Roman", 7.5f, FontStyle.Bold, GraphicsUnit.Point)) Zentriert(g, "FRAGRANCE HUB", f, gold, CX, 4.0f);
+        using (var f = new Font("Times New Roman", 4.5f, FontStyle.Regular, GraphicsUnit.Point)) Zentriert(g, "GERMANY", f, gold, CX, 7.0f);
+      }
+      using (var dunkel = new SolidBrush(Color.FromArgb(34, 34, 34))) {
+        float fs = 9f; Font nf = new Font("Arial", fs, FontStyle.Bold, GraphicsUnit.Point);
+        while (fs > 6.5f && g.MeasureString(L.Name, nf).Width > MW) { nf.Dispose(); fs -= 0.25f; nf = new Font("Arial", fs, FontStyle.Bold, GraphicsUnit.Point); }
+        if (g.MeasureString(L.Name, nf).Width > MW) {
+          nf.Dispose(); nf = new Font("Arial", 7f, FontStyle.Bold, GraphicsUnit.Point);
+          var sf = new StringFormat(); sf.Alignment = StringAlignment.Center; sf.LineAlignment = StringAlignment.Center; sf.Trimming = StringTrimming.EllipsisWord;
+          g.DrawString(L.Name, nf, dunkel, new RectangleF(B + 2.5f, 9.2f, MW, 6.6f), sf);
+        } else Zentriert(g, L.Name, nf, dunkel, CX, 12.4f);
+        nf.Dispose();
+        string al = (L.Code.Length > 0 ? "Art.-Nr. " + L.Code : "") + (L.Code.Length > 0 && L.Q.Length > 0 ? "  ·  " : "") + L.Q;
+        float as2 = 6f; Font af = new Font("Arial", as2, FontStyle.Regular, GraphicsUnit.Point);
+        while (as2 > 4f && g.MeasureString(al, af).Width > MW) { af.Dispose(); as2 -= 0.25f; af = new Font("Arial", as2, FontStyle.Regular, GraphicsUnit.Point); }
+        Zentriert(g, al, af, dunkel, CX, 17.0f); af.Dispose();
+      }
+      using (var pf = new Font("Arial", 6f, FontStyle.Bold, GraphicsUnit.Point)) {
+        float pw = Math.Min(MW, Math.Max(27f, g.MeasureString(L.Pill, pf).Width + 5f));
+        using (var br = new SolidBrush(farbe)) using (var pfad = Rund(new RectangleF(CX - pw / 2f, 19.8f, pw, 5f), 1.32f)) g.FillPath(br, pfad);
+        Zentriert(g, L.Pill, pf, Brushes.White, CX, 22.35f);
+      }
+      i++; e.HasMorePages = i < liste.Count;
+    };
+    pd.Print();
+    return "ok " + pd.DefaultPageSettings.PaperSize.PaperName;
+  }
+}
+"@
+} catch { Write-Host "Hinweis: Vektor-Druck fuer C4000e nicht verfuegbar ($($_.Exception.Message))" -ForegroundColor Yellow }
+function KJsonDruck($datei, $name, $drucker) {
+  $daten = [IO.File]::ReadAllText($datei, [Text.Encoding]::UTF8) | ConvertFrom-Json
+  $liste = New-Object 'System.Collections.Generic.List[FhEtikett]'
+  foreach ($d in @($daten)) {
+    $e = New-Object FhEtikett
+    $e.R = [int]$d.c[0]; $e.G = [int]$d.c[1]; $e.B = [int]$d.c[2]
+    $e.Name = [string]$d.name; $e.Code = [string]$d.code; $e.Q = [string]$d.q; $e.Pill = [string]$d.pill
+    $liste.Add($e)
+  }
+  $r = [FhVektorDruck]::Drucken($drucker, $liste, $name, 'proben')
+  Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${drucker} (Vektor, $r): $name" -ForegroundColor Green
+}
 function KDruck($datei, $name, $drucker) {
   $f = WartenOp ([Windows.Storage.StorageFile]::GetFileFromPathAsync($datei)) ([Windows.Storage.StorageFile])
   $doc = WartenOp ([Windows.Data.Pdf.PdfDocument]::LoadFromFileAsync($f)) ([Windows.Data.Pdf.PdfDocument])
@@ -367,6 +431,7 @@ while ($true) {
         elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'noscale,landscape' }  # Phomemo-Treiber skaliert sonst falsch: 1:1 drucken
         else { $ziel = $DRUCKER; $opt = 'fit,landscape' }
         if ($j.name -like 'Z-*') { [void](ZebraDruck $f $j.name) }
+        elseif ($j.name -like 'K-*' -and $j.name -match '\.json$') { if ($ziel -and ('FhVektorDruck' -as [type])) { try { KJsonDruck $f $j.name $ziel } catch { Write-Host "Fehler C4000e: $($_.Exception.Message)" -ForegroundColor Red } } else { Write-Host "C4000e nicht bereit - gespeichert: $f" -ForegroundColor Yellow } }
         elseif ($j.name -like 'K-*' -and $ziel -and ('FhBildDruck' -as [type])) { try { KDruck $f $j.name $ziel } catch { Write-Host "Fehler C4000e: $($_.Exception.Message)" -ForegroundColor Red } }
         elseif ($ziel -and ($j.name -match '\.bin(\.pdf)?$' -or ($j.name -like 'P-*' -and -not (IstPdf $f)))) {  # Rohdaten (Phomemo) – auch wenn der Name gekürzt wurde
           if ([FhRaw]::Send($ziel, [IO.File]::ReadAllBytes($f), $j.name)) { Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${ziel}: $($j.name)" -ForegroundColor Green }
