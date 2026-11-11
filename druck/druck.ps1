@@ -229,8 +229,98 @@ public static class FhVektorDruck {
 }
 "@
 } catch { Write-Host "Hinweis: Vektor-Druck fuer C4000e nicht verfuegbar ($($_.Exception.Message))" -ForegroundColor Yellow }
+# XPS-Druckweg fuer C4000e (derselbe Weg wie der Windows-Druckdialog, der nachweislich druckt - 11.11.2026 07:43).
+# Der klassische GDI-Weg (SumatraPDF / PrintDocument) wurde vom Treiber als "gedruckt" gemeldet, es kam aber nichts heraus.
+try {
+Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase, ReachFramework, System.Printing, System.Xaml
+$fhWpfRefs = @('PresentationCore','PresentationFramework','WindowsBase','ReachFramework','System.Printing','System.Xaml') | ForEach-Object { $n = $_; ([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -eq $n } | Select-Object -First 1).Location }
+Add-Type -IgnoreWarnings -ReferencedAssemblies ($fhWpfRefs + @('System.Xml')) -TypeDefinition @"
+using System; using System.Collections.Generic; using System.Globalization; using System.IO; using System.Threading;
+using System.Windows; using System.Windows.Media; using System.Windows.Media.Imaging; using System.Windows.Documents; using System.Printing; using System.Windows.Xps;
+public class FhXEtikett { public int R, G, B; public string Name = "", Code = "", Q = "", Pill = ""; public byte[] Bild; }
+public class FhXEl : FrameworkElement {
+  public FhXEtikett L; public double PW, PH;
+  const double MM = 96.0 / 25.4, PT = 0.3528;
+  static Typeface Tf(string f, bool b) { return new Typeface(new FontFamily(f), FontStyles.Normal, b ? FontWeights.Bold : FontWeights.Normal, FontStretches.Normal); }
+  static FormattedText Ft(string t, string f, bool b, double pt, Brush br) { return new FormattedText(t ?? "", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Tf(f, b), pt * PT, br, 1.0); }
+  static void Txt(DrawingContext dc, FormattedText ft, double cx, double baseline) { dc.DrawText(ft, new Point(cx - ft.WidthIncludingTrailingWhitespace / 2, baseline - ft.Baseline)); }
+  static List<string> Umbruch(string t, string f, bool b, double pt, double maxW) {
+    var z = new List<string>(); string cur = "";
+    foreach (var w in (t ?? "").Split(' ')) { string tst = cur.Length == 0 ? w : cur + " " + w; if (cur.Length > 0 && Ft(tst, f, b, pt, Brushes.Black).WidthIncludingTrailingWhitespace > maxW) { z.Add(cur); cur = w; } else cur = tst; }
+    if (cur.Length > 0) z.Add(cur); return z;
+  }
+  protected override void OnRender(DrawingContext dc) {
+    const double W = 51, H = 30, B = 4, CX = B + (W - B) / 2, MW = W - B - 5;
+    bool hoch = PH > PW;
+    if (hoch) { dc.PushTransform(new TranslateTransform(PW, 0)); dc.PushTransform(new RotateTransform(90)); }
+    double bw = hoch ? PH : PW, bh = hoch ? PW : PH, k = Math.Min(bw / (W * MM), bh / (H * MM));
+    dc.PushTransform(new TranslateTransform((bw - W * MM * k) / 2, (bh - H * MM * k) / 2));
+    dc.PushTransform(new ScaleTransform(MM * k, MM * k));
+    if (L.Bild != null) {
+      var bi = new BitmapImage(); bi.BeginInit(); bi.CacheOption = BitmapCacheOption.OnLoad; bi.StreamSource = new MemoryStream(L.Bild); bi.EndInit(); bi.Freeze();
+      dc.DrawImage(bi, new Rect(0, 0, W, H)); return;
+    }
+    var farbe = new SolidColorBrush(Color.FromRgb((byte)L.R, (byte)L.G, (byte)L.B));
+    var gold = new SolidColorBrush(Color.FromRgb(184, 145, 47)); var dunkel = new SolidColorBrush(Color.FromRgb(34, 34, 34));
+    dc.DrawRectangle(farbe, null, new Rect(0, 0, B, H));
+    Txt(dc, Ft("FRAGRANCE HUB", "Times New Roman", true, 7.5, gold), CX, 5);
+    Txt(dc, Ft("GERMANY", "Times New Roman", false, 4.5, gold), CX, 7.6);
+    List<string> zeilen = null; double fs = 9, lh = 0;
+    for (fs = 9; fs >= 5.5; fs -= 0.5) { zeilen = Umbruch(L.Name, "Arial", true, fs, MW); lh = fs * PT * 1.12; bool ok = zeilen.Count <= 2 && zeilen.Count * lh <= 6.4; foreach (var z in zeilen) if (Ft(z, "Arial", true, fs, dunkel).WidthIncludingTrailingWhitespace > MW + 0.01) ok = false; if (ok) break; }
+    if (fs < 5.5) { fs = 5.5; lh = fs * PT * 1.12; zeilen = Umbruch(L.Name, "Arial", true, fs, MW); if (zeilen.Count > 2) zeilen = zeilen.GetRange(0, 2); }
+    if (zeilen.Count > 1) { double y = 12.5 - lh / 2; for (int i = 0; i < zeilen.Count; i++) Txt(dc, Ft(zeilen[i], "Arial", true, fs, dunkel), CX, y + i * lh); }
+    else if (zeilen.Count == 1) Txt(dc, Ft(zeilen[0], "Arial", true, fs, dunkel), CX, 13.5);
+    string al = (L.Code.Length > 0 ? "Art.-Nr. " + L.Code : "") + (L.Code.Length > 0 && L.Q.Length > 0 ? "  ·  " : "") + L.Q;
+    double afs = 6; for (; afs > 4; afs -= 0.25) if (Ft(al, "Arial", false, afs, dunkel).WidthIncludingTrailingWhitespace <= MW) break;
+    Txt(dc, Ft(al, "Arial", false, afs, dunkel), CX, 17.5);
+    var pft = Ft(L.Pill, "Arial", true, 6, Brushes.White);
+    double pw = Math.Min(MW, Math.Max(27, pft.WidthIncludingTrailingWhitespace + 5));
+    dc.DrawRoundedRectangle(farbe, null, new Rect(CX - pw / 2, 19.8, pw, 5), 0.66, 0.66);
+    Txt(dc, pft, CX, 23.1);
+  }
+}
+public static class FhXpsDruck {
+  public static string Drucken(string drucker, List<FhXEtikett> liste, string name) {
+    string res = null; Exception fehler = null;
+    var t = new Thread(() => { try { res = Innen(drucker, liste, name); } catch (Exception e) { fehler = e; } });
+    t.SetApartmentState(ApartmentState.STA); t.Start(); t.Join();
+    if (fehler != null) throw fehler; return res;
+  }
+  static string Innen(string drucker, List<FhXEtikett> liste, string name) {
+    var srv = new LocalPrintServer(); var q = srv.GetPrintQueue(drucker);
+    var ticket = (q.UserPrintTicket ?? q.DefaultPrintTicket).Clone();
+    ticket.PageOrientation = PageOrientation.Portrait; ticket.CopyCount = 1;
+    double pw = 51 * 96 / 25.4, ph = 30 * 96 / 25.4;
+    if (ticket.PageMediaSize != null && ticket.PageMediaSize.Width.HasValue && ticket.PageMediaSize.Height.HasValue) { pw = ticket.PageMediaSize.Width.Value; ph = ticket.PageMediaSize.Height.Value; }
+    var doc = new FixedDocument(); doc.DocumentPaginator.PageSize = new Size(pw, ph);
+    foreach (var L in liste) {
+      var page = new FixedPage(); page.Width = pw; page.Height = ph;
+      var el = new FhXEl(); el.L = L; el.PW = pw; el.PH = ph; el.Width = pw; el.Height = ph;
+      page.Children.Add(el); page.Measure(new Size(pw, ph)); page.Arrange(new Rect(0, 0, pw, ph)); page.UpdateLayout();
+      var pc = new PageContent(); ((System.Windows.Markup.IAddChild)pc).AddChild(page); doc.Pages.Add(pc);
+    }
+    q.CurrentJobSettings.Description = name;
+    var w = PrintQueue.CreateXpsDocumentWriter(q); w.Write(doc, ticket);
+    string medium = ticket.PageMediaSize != null && ticket.PageMediaSize.PageMediaSizeName.HasValue ? ticket.PageMediaSize.PageMediaSizeName.Value.ToString() : "";
+    return "XPS ok " + Math.Round(pw * 25.4 / 96, 1) + " x " + Math.Round(ph * 25.4 / 96, 1) + " mm " + medium;
+  }
+}
+"@
+} catch { Write-Host "Hinweis: XPS-Druckweg fuer C4000e nicht verfuegbar ($($_.Exception.Message))" -ForegroundColor Yellow }
 function KJsonDruck($datei, $name, $drucker) {
   $daten = [IO.File]::ReadAllText($datei, [Text.Encoding]::UTF8) | ConvertFrom-Json
+  if ('FhXpsDruck' -as [type]) {
+    $xl = New-Object 'System.Collections.Generic.List[FhXEtikett]'
+    foreach ($d in @($daten)) {
+      $e = New-Object FhXEtikett
+      $e.R = [int]$d.c[0]; $e.G = [int]$d.c[1]; $e.B = [int]$d.c[2]
+      $e.Name = [string]$d.name; $e.Code = [string]$d.code; $e.Q = [string]$d.q; $e.Pill = [string]$d.pill
+      $xl.Add($e)
+    }
+    $r = [FhXpsDruck]::Drucken($drucker, $xl, $name)
+    Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${drucker} ($r): $name" -ForegroundColor Green
+    return
+  }
   $liste = New-Object 'System.Collections.Generic.List[FhEtikett]'
   foreach ($d in @($daten)) {
     $e = New-Object FhEtikett
@@ -245,7 +335,7 @@ function KDruck($datei, $name, $drucker) {
   $f = WartenOp ([Windows.Storage.StorageFile]::GetFileFromPathAsync($datei)) ([Windows.Storage.StorageFile])
   $doc = WartenOp ([Windows.Data.Pdf.PdfDocument]::LoadFromFileAsync($f)) ([Windows.Data.Pdf.PdfDocument])
   $liste = New-Object 'System.Collections.Generic.List[System.Drawing.Bitmap]'
-  $reste = @()
+  $reste = @(); $xl = $null
   for ($i = 0; $i -lt $doc.PageCount; $i++) {
     $pg = $doc.GetPage($i)
     $opt = New-Object Windows.Data.Pdf.PdfPageRenderOptions
@@ -254,8 +344,17 @@ function KDruck($datei, $name, $drucker) {
     $ms = New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
     WartenAkt ($pg.RenderToStreamAsync($ms, $opt))
     $st = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ms.GetInputStreamAt(0))
-    $liste.Add((New-Object System.Drawing.Bitmap($st)))
+    if ('FhXpsDruck' -as [type]) {
+      $mem = New-Object System.IO.MemoryStream; $st.CopyTo($mem)
+      if (-not $xl) { $xl = New-Object 'System.Collections.Generic.List[FhXEtikett]' }
+      $e = New-Object FhXEtikett; $e.Bild = $mem.ToArray(); $xl.Add($e); $mem.Dispose()
+    } else { $liste.Add((New-Object System.Drawing.Bitmap($st))) }
     $reste += $st; $reste += $ms; $pg.Dispose()
+  }
+  if ($xl) {
+    try { $r = [FhXpsDruck]::Drucken($drucker, $xl, $name) } finally { foreach ($x in $reste) { try { $x.Dispose() } catch {} } }
+    Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${drucker} ($r): $name" -ForegroundColor Green
+    return
   }
   try { $r = [FhBildDruck]::Drucken($drucker, $liste, $name, 'proben') }
   finally { foreach ($b in $liste) { $b.Dispose() }; foreach ($x in $reste) { try { $x.Dispose() } catch {} } }
