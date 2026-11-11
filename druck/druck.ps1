@@ -148,6 +148,55 @@ function PdfZuZpl($datei) {
   }
   return $zpl.ToString()
 }
+# Epson CW-C4000e (Proben-Etiketten 51 x 30): NICHT ueber SumatraPDF (Etiketten kamen leer/gar nicht heraus).
+# Stattdessen wie beim Drucken aus Edge: PDF mit dem Windows-PDF-Renderer in ein Bild (600 dpi) umwandeln und ueber den
+# normalen Windows-Druckweg (Hochformat, Medium "fh proben 51x30 endlos") an den Epson-Treiber geben.
+try {
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
+using System; using System.Drawing; using System.Drawing.Printing; using System.Collections.Generic;
+public static class FhBildDruck {
+  public static string Drucken(string drucker, List<Bitmap> seiten, string name, string papierMuster) {
+    var pd = new PrintDocument(); pd.PrinterSettings.PrinterName = drucker; pd.DocumentName = name;
+    if (!pd.PrinterSettings.IsValid) return "Drucker ungueltig";
+    pd.DefaultPageSettings.Landscape = false;
+    foreach (PaperSize ps in pd.PrinterSettings.PaperSizes) { if (ps.PaperName.ToLower().Contains(papierMuster)) { pd.DefaultPageSettings.PaperSize = ps; break; } }
+    pd.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0); pd.OriginAtMargins = false;
+    int i = 0;
+    pd.PrintPage += (s, e) => {
+      var g = e.Graphics; g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+      g.TranslateTransform(-e.PageSettings.HardMarginX, -e.PageSettings.HardMarginY);
+      var b = e.PageBounds; var img = seiten[i];
+      double k = Math.Min((double)b.Width / img.Width, (double)b.Height / img.Height);
+      float w = (float)(img.Width * k), h = (float)(img.Height * k);
+      g.DrawImage(img, (b.Width - w) / 2f, (b.Height - h) / 2f, w, h);
+      i++; e.HasMorePages = i < seiten.Count;
+    };
+    pd.Print();
+    return "ok " + pd.DefaultPageSettings.PaperSize.PaperName;
+  }
+}
+"@
+} catch { Write-Host "Hinweis: Bild-Druckweg fuer C4000e nicht verfuegbar ($($_.Exception.Message)) - nutze SumatraPDF" -ForegroundColor Yellow }
+function KDruck($datei, $name, $drucker) {
+  $f = WartenOp ([Windows.Storage.StorageFile]::GetFileFromPathAsync($datei)) ([Windows.Storage.StorageFile])
+  $doc = WartenOp ([Windows.Data.Pdf.PdfDocument]::LoadFromFileAsync($f)) ([Windows.Data.Pdf.PdfDocument])
+  $liste = New-Object 'System.Collections.Generic.List[System.Drawing.Bitmap]'
+  $reste = @()
+  for ($i = 0; $i -lt $doc.PageCount; $i++) {
+    $pg = $doc.GetPage($i)
+    $opt = New-Object Windows.Data.Pdf.PdfPageRenderOptions
+    $opt.DestinationWidth  = [uint32][math]::Round($pg.Size.Width  * 600 / 96)
+    $opt.DestinationHeight = [uint32][math]::Round($pg.Size.Height * 600 / 96)
+    $ms = New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
+    WartenAkt ($pg.RenderToStreamAsync($ms, $opt))
+    $st = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ms.GetInputStreamAt(0))
+    $liste.Add((New-Object System.Drawing.Bitmap($st)))
+    $reste += $st; $reste += $ms; $pg.Dispose()
+  }
+  try { $r = [FhBildDruck]::Drucken($drucker, $liste, $name, 'proben') }
+  finally { foreach ($b in $liste) { $b.Dispose() }; foreach ($x in $reste) { try { $x.Dispose() } catch {} } }
+  Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${drucker} ($r): $name" -ForegroundColor Green
+}
 # DHL-Etikett (PDF) auf die Zebra drucken: zuerst direkt per USB, sonst ueber einen Windows-Zebra-Treiber (falls installiert)
 function ZebraDruck($datei, $name) {
   $usb = [FhZebra]::Pfad()
@@ -283,6 +332,7 @@ while ($true) {
     if (-not $DRUCKERK) { $DRUCKERK = DruckerK }
     if ($t.Name -like 'A4-*') { $z = $DRUCKERA4; $o = 'fit' } elseif ($t.Name -like 'K-*') { $z = $DRUCKERK; $o = 'fit,portrait' } elseif ($t.Name -like 'Z-*') { $z = $DRUCKERZ; $o = 'fit,portrait' } elseif ($t.Name -like 'R-*') { $z = $DRUCKERR; $o = 'fit,landscape' } elseif ($t.Name -like 'P-*') { $z = $DRUCKERP; $o = $(if ($t.Name -match '__(.+)\.pdf$') { $Matches[1] -replace '_',',' } else { 'noscale,landscape' }) } else { $z = $DRUCKER; $o = 'fit,landscape' }
     if ($t.Name -like 'Z-*') { [void](ZebraDruck $t.FullName $t.Name) }
+    elseif ($t.Name -like 'K-*' -and $z -and ('FhBildDruck' -as [type])) { try { KDruck $t.FullName $t.Name $z } catch { Write-Host "Fehler C4000e: $($_.Exception.Message)" -ForegroundColor Red } }
     elseif ($z) { & $SUM -print-to $z -print-settings $o -silent $t.FullName | Out-Null; Write-Host "$(Get-Date -Format HH:mm:ss)  Test gedruckt auf ${z} ($o): $($t.Name)" -ForegroundColor Cyan }
     Remove-Item $t.FullName -ErrorAction SilentlyContinue
   }
@@ -317,6 +367,7 @@ while ($true) {
         elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'noscale,landscape' }  # Phomemo-Treiber skaliert sonst falsch: 1:1 drucken
         else { $ziel = $DRUCKER; $opt = 'fit,landscape' }
         if ($j.name -like 'Z-*') { [void](ZebraDruck $f $j.name) }
+        elseif ($j.name -like 'K-*' -and $ziel -and ('FhBildDruck' -as [type])) { try { KDruck $f $j.name $ziel } catch { Write-Host "Fehler C4000e: $($_.Exception.Message)" -ForegroundColor Red } }
         elseif ($ziel -and ($j.name -match '\.bin(\.pdf)?$' -or ($j.name -like 'P-*' -and -not (IstPdf $f)))) {  # Rohdaten (Phomemo) – auch wenn der Name gekürzt wurde
           if ([FhRaw]::Send($ziel, [IO.File]::ReadAllBytes($f), $j.name)) { Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${ziel}: $($j.name)" -ForegroundColor Green }
           else { Write-Host "Fehler beim Senden an ${ziel}: $($j.name)" -ForegroundColor Red }
