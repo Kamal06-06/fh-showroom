@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="240">
+<meta name="fh-build" content="241">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -2658,29 +2658,38 @@ function pkFam(it){const i=PK_MAP[pkCanon(it.code||it.sku)];if(i!=null)return PK
   return PK_FAM[k]}
 const isProbe=it=>isOil(it)&&(!!it.probe||/^(probe\s*)?([1-9]|1[0-5])\s*g$/i.test(String(it.size||'').trim()));
 const pkQual=t=>{const q=clpQual(t);if(q)return q.n;const s=String(t||'').trim().toUpperCase();return s==='S'?'Standard':s==='P'?'Premium':s==='E'?'Exklusiv':latin(t)};
-function pkLabels(l){const oils=(l.items||[]).filter(isOil),list=oils.some(isProbe)?oils.filter(isProbe):oils,out=[];
-  list.forEach(it=>{const c=pkFam(it)[1],name=latin(clpName(it))||'-',code=latin(it.code||it.sku||'').toUpperCase(),q=pkQual(it.tier),g=sizeG(it.size);
-    const pill=latin(isProbe(it)||!g?'Duftöl-Probe'+(g?' '+String(g).replace('.',',')+' g':''):'Duftöl · '+(g>=1000?String(g/1000).replace('.',',')+' kg':g+' g'));
-    for(let k=0;k<(it.unit==='kg'?1:Math.max(1,it.q|0));k++)out.push({c,name,code,q,pill})});
+const pkHeute=()=>new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Europe/Berlin'});
+/* Charge je Position: im Auftrag gespeichert → aktive Werks-Charge (FIFO) → Charge aus den CLP-Daten */
+function pkCharge(l,it,i){const ix=it._ix!=null?it._ix:i,lo=(l.lots||{})[ix];if(lo&&lo.b)return latin(String(lo.b));const n=lotNow(it);return n&&n.b?latin(n.b):''}
+function pkLabels(l){const oils=(l.items||[]).filter(isOil),list=oils.some(isProbe)?oils.filter(isProbe):oils,out=[],nr=latin(ordNr(l)),dat=pkHeute();
+  list.forEach(it=>{const i=(l.items||[]).indexOf(it),c=pkFam(it)[1],name=latin(clpName(it))||'-',code=latin(it.code||it.sku||'').toUpperCase(),q=pkQual(it.tier),g=sizeG(it.size),ch=pkCharge(l,it,i);
+    const pill=latin(isProbe(it)||!g?'Duftöl-Probe'+(g?' · '+String(g).replace('.',',')+' g':''):'Duftöl · '+(g>=1000?String(g/1000).replace('.',',')+' kg':g+' g'));
+    for(let k=0;k<(it.unit==='kg'?1:Math.max(1,it.q|0));k++)out.push({c,name,code,q,pill,nr,dat,ch})});
   if(!out.length)throw new Error('لا توجد زيوت في هذا الطلب');return out}
 const pkDoc=()=>new window.jspdf.jsPDF({unit:'mm',format:[51,30],orientation:'landscape',compress:true});
-function pkDraw(doc,L){const W=51,H=30,B=4,cx=B+(W-B)/2,MW=W-B-5,c=L.c;
-  doc.setFillColor(...c);doc.rect(0,0,B,H,'F');
-  doc.setTextColor(184,145,47);doc.setFont('times','bold');doc.setFontSize(7.5);doc.text('FRAGRANCE HUB',cx,5,{align:'center'});
-  doc.setFont('times','normal');doc.setFontSize(4.5);doc.text('GERMANY',cx,7.6,{align:'center'});
-  doc.setTextColor(34,34,34);doc.setFont('helvetica','bold');
-  const f=fit(doc,L.name,MW,6.4,2,9,5.5);doc.setFontSize(f.fs);
-  if(f.lines.length>1){const y=12.5-f.lh/2;f.lines.forEach((ln,i)=>doc.text(ln,cx,y+i*f.lh,{align:'center'}))}else doc.text(f.lines[0],cx,13.5,{align:'center'});
-  doc.setFont('helvetica','normal');let fs=6;const al=[L.code?'Art.-Nr. '+L.code:'',L.q].filter(Boolean).join('  ·  ');
-  for(;fs>4;fs-=0.25){doc.setFontSize(fs);if(doc.getTextWidth(al)<=MW)break}doc.text(al,cx,17.5,{align:'center'});
-  doc.setFont('helvetica','bold');doc.setFontSize(6);const pw=Math.min(MW,Math.max(27,doc.getTextWidth(L.pill)+5));
-  doc.setFillColor(...c);doc.roundedRect(cx-pw/2,19.8,pw,5,0.66,0.66,'F');doc.setTextColor(255,255,255);doc.text(L.pill,cx,23.1,{align:'center'})}
+/* Design „Minimal Luxe“ (11.2026): weiß, doppelter Goldrahmen, Name in Serifenschrift, Rückverfolgung (Charge, Abfülldatum, Auftrag) */
+const PK_GOLD=[184,145,47],PK_INK=[34,34,34],PK_GRAU=[90,90,90];
+function pkSpaced(doc,t,cx,y,sp){const w=doc.getTextWidth(t)+sp*(t.length-1);let x=cx-w/2;for(const ch of t){doc.text(ch,x,y);x+=doc.getTextWidth(ch)+sp}}
+function pkDraw(doc,L){const W=51,H=30,cx=W/2,MW=40;
+  doc.setDrawColor(...PK_GOLD);doc.setLineWidth(0.18);doc.rect(1.6,1.6,W-3.2,H-3.2);doc.setLineWidth(0.09);doc.rect(2.3,2.3,W-4.6,H-4.6);
+  doc.setTextColor(...PK_GOLD);doc.setFont('times','bold');doc.setFontSize(6);pkSpaced(doc,'FRAGRANCE HUB',cx,5.5,0.32);
+  doc.setFont('times','normal');doc.setFontSize(3.6);pkSpaced(doc,'GERMANY',cx,7.3,0.42);
+  doc.setTextColor(...PK_INK);doc.setFont('times','bold');
+  const f=fit(doc,L.name,MW,5.8,2,10,5.5);doc.setFontSize(f.fs);
+  if(f.lines.length>1){f.lines.forEach((ln,i)=>doc.text(ln,cx,10.4+i*f.lh,{align:'center'}))}else doc.text(f.lines[0],cx,12.4,{align:'center'});
+  doc.setDrawColor(...PK_GOLD);doc.setLineWidth(0.15);doc.line(cx-6,14.4,cx+6,14.4);
+  doc.setFont('helvetica','normal');doc.setTextColor(...PK_GRAU);const al=[L.q,L.code].filter(Boolean).join('  ·  ').toUpperCase();
+  let fs=4.4;for(;fs>3.4;fs-=0.2){doc.setFontSize(fs);if(doc.getTextWidth(al)<=MW)break}doc.text(al,cx,17.1,{align:'center'});
+  doc.setFont('helvetica','bold');doc.setTextColor(...PK_INK);doc.setFontSize(4.8);doc.text(String(L.pill||'').toUpperCase().replace(' G',' g'),cx,19.9,{align:'center'});
+  doc.setDrawColor(215,215,215);doc.setLineWidth(0.08);doc.line(6,21.5,W-6,21.5);
+  doc.setFont('helvetica','normal');doc.setTextColor(...PK_GRAU);
+  const z1=[L.ch?'Charge '+L.ch:'',L.dat?'Abgefüllt '+L.dat:''].filter(Boolean).join('  ·  '),z2=L.nr?'Auftrag '+L.nr:'';
+  [[z1,23.6],[z2,25.7]].forEach(([t,y])=>{if(!t)return;let s2=3.6;for(;s2>2.8;s2-=0.1){doc.setFontSize(s2);if(doc.getTextWidth(t)<=MW)break}doc.text(t,cx,y,{align:'center'})})}
 function probeColorPdf(l){const doc=pkDoc();pkLabels(l).forEach((L,i)=>{if(i)doc.addPage([51,30],'landscape');pkDraw(doc,L)});return doc}
-/* Druck auf der C4000e: je Etikett ein kleiner Auftrag mit den Etikettendaten (JSON); der Druck-PC zeichnet das Etikett als Vektor (Bild-/PDF-Raster-Aufträge kamen leer heraus) */
 async function pkPrint(l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');const lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»');
-    const labs=pkLabels(lo),base=fname('kpr',lo).replace(/\.pdf$/i,'');druckStatus();
-    for(let i=0;i<labs.length;i++){const L=labs[i];await druckQ('K-'+base+'-'+String(i+1).padStart(3,'0')+'.json',await blob64(new Blob([JSON.stringify([{c:L.c,name:L.name,code:L.code,q:L.q,pill:L.pill}])],{type:'application/json'})));if(i%10===9)btn.textContent='جاري الإرسال… '+(i+1)+' / '+labs.length}
+    try{await clpBasis()}catch(_){}const labs=pkLabels(lo),base=fname('kpr',lo).replace(/\.pdf$/i,'');druckStatus();
+    for(let i=0;i<labs.length;i++){const L=labs[i];await druckQ('K-'+base+'-'+String(i+1).padStart(3,'0')+'.json',await blob64(new Blob([JSON.stringify([{c:L.c,name:L.name,code:L.code,q:L.q,pill:L.pill,nr:L.nr,dat:L.dat,ch:L.ch,v:2}])],{type:'application/json'})));if(i%10===9)btn.textContent='جاري الإرسال… '+(i+1)+' / '+labs.length}
     druckMeldung(btn,o,'✓ أُرسل '+labs.length+' ملصق عينة إلى Epson C4000',druckSt.v)}
   catch(e){druckMeldung(btn,o,'تعذّر الإرسال إلى Epson C4000: '+(e.message||e),null,true)}}
 const p2=n=>String(n).padStart(2,'0');
@@ -2955,7 +2964,7 @@ async function apTog(l,done,tog){
   if(!done&&l.lief==='pickup'){if(!isReady(l)){const chk={};(l.items||[]).forEach((_,i)=>chk[i]=true);prepSet(l,chk);l.prep=chk;l.readyAt=l.readyAt||Date.now();l.readyBy=WHO();beepOk&&beepOk();toast('✅ تم التحضير – الطلب جاهز للاستلام. أبلغ العميل عبر واتساب.');try{renderOrderModal()}catch(e){}return}
     apAbhClose(l,tog);return}
   tog.disabled=true;try{await db.doc('lists/'+l.id).update({status:done?'new':'done',doneAt:Date.now()})}catch(e){tog.disabled=false}}
-async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phomemo':pre==='K-'?'Epson C4000 (عينات ملوّنة)':'A4';const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
+async function a4Print(kind,l,btn,pre){pre=pre||'A4-';const nm=pre==='P-'?'Phomemo':pre==='K-'?'Epson C4000 (ملصقات العينات)':'A4';const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');let lo=l;
     if(LAB_KINDS.includes(kind)){lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»')}
     if(kind==='pl'||kind==='plo')await ivPlaces();if(['ls','lso','pl','plo','pln'].includes(kind))await prepImgs(lo);
@@ -2983,7 +2992,7 @@ function docsPanel(l){
     if(kind==='clp'){const e=el('button','btn small primary','⚠️ Epson C6000');e.title='ملصقات السلامة CLP 102 × 51 – Epson CW-C6000 في المستودع';e.onclick=()=>epsonPrint(l,e);bs.append(e)}
     if(['ls','lso','pl','plo','pln'].includes(kind)){const a=el('button','btn small primary','🖨️ Brother A4');a.title='يُطبع مباشرة على طابعة A4 (Brother) في المستودع';a.onclick=()=>a4Print(kind,l,a);bs.append(a)}
     if(kind==='lab'||kind==='labo'){const a=el('button','btn small primary','🏷️ Phomemo');a.title='يُطبع مباشرة على طابعة Phomemo 40 × 30 في المستودع';a.onclick=()=>a4Print(kind,l,a,'P-');bs.append(a)}
-    if(kind==='kpr'){const a=el('button','btn small primary','🎨 Epson C4000');a.title='ملصق عينة ملوّن 51 × 30 – Epson CW-C4000e في المستودع';a.onclick=()=>pkPrint(l,a);bs.append(a)}
+    if(kind==='kpr'){const a=el('button','btn small primary','🎨 Epson C4000');a.title='ملصق عينة 51 × 30 – Epson CW-C4000e في المستودع';a.onclick=()=>pkPrint(l,a);bs.append(a)}
     {const p=el('button','btn small','🖨️ طباعة');p.onclick=()=>directPrint(kind,l,p);const s2=el('button','btn small','📤 إرسال');s2.title='ملف PDF · واتساب · تنزيل';s2.onclick=()=>savePdf(kind,l,s2,out);bs.append(p,s2)}
     r.append(bs);box.append(r)};
   sec('📄 المستندات · Brother A4');
@@ -2996,8 +3005,8 @@ function docsPanel(l){
   if(!hasOil&&hasRm){sec('⚠️ ملصقات السلامة · Epson C6000 · 102 × 51');row('🧪','ملصقات المواد الخام','102 × 51 مم · Epson CW-C6000','clp');clpWarm(l)}
   if(hasOil){sec('⚠️ ملصقات السلامة CLP · Epson C6000 · 102 × 51');
     row('⚠️','ملصقات CLP'+(hasRm?' + المواد الخام':''),'102 × 51 مم · Epson CW-C6000 · وعيّنات 40 × 30','clp');clpWarm(l);
-    sec('🎨 ملصق عينة ملوّن · Epson C4000 · 51 × 30');
-    row('🎨','ملصق عينة ملوّن','51 × 30 مم · بلون عائلة العطر · الاسم كما في المتجر','kpr');
+    sec('🏷️ ملصق العينة · Epson C4000 · 51 × 30');
+    row('🏷️','ملصق العينة 51×30','51 × 30 مم · أبيض بإطار ذهبي · Charge + تاريخ التعبئة + رقم الطلب','kpr');
     sec('🏷️ ملصقات الاسم · Phomemo · 40 × 30');
     row('🏷️','ملصقات بسيطة','40 × 30 مم · الاسم والكود والجودة','lab');
     row('🏷️','ملصقات بالأسماء الأصلية','40 × 30 مم · Originalnamen','labo');
@@ -3319,7 +3328,7 @@ function clpMake(l,_w){const rm=rmItems(l);if(!rm.length)return clpMakeOil(l,_w)
 async function orderFiles(l,which){
   const out={files:[],note:''},hasOil=(l.items||[]).some(isOil);
   if(['ls','lso','pl','plo','lab','labo','kpr'].includes(which)){if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF')}
-  if(which==='kpr'&&hasOil)out.files.push({name:fname('kpr',l),blob:probeColorPdf(l).output('blob')});
+  if(which==='kpr'&&hasOil){try{await clpBasis()}catch(_){}}if(which==='kpr'&&hasOil)out.files.push({name:fname('kpr',l),blob:probeColorPdf(l).output('blob')});
   if(which==='ls'){await prepImgs(l);out.files.push({name:fname('ls',l),blob:lieferscheinPdf(l).output('blob')})}
   if(which==='lso'){await prepImgs(l);out.files.push({name:fname('lso',l),blob:lieferscheinPdf(l,true).output('blob')})}
   if(which==='pl'){await prepImgs(l);out.files.push({name:fname('pl',l),blob:prepListPdf(l,false,false,true).output('blob')})}
@@ -4136,7 +4145,7 @@ function omDocs(l){const box=el('div','om-pane'),out=el('div','filebox');out.set
     if(printer==='a4'){const a=el('button','btn primary','🖨️ طباعة');a.title='طابعة A4 في المستودع (Brother)';a.onclick=()=>a4Print(kind,l,a);w.append(a)}
     if(printer==='epson'){const a=el('button','btn primary','🖨️ طباعة');a.title='طابعة Epson CW-C6000 (CLP 102 × 51) في المستودع';a.onclick=()=>epsonPrint(l,a);w.append(a)}
     if(printer==='phomemo'){const a=el('button','btn primary','🖨️ طباعة');a.title='طابعة Phomemo في المستودع';a.onclick=()=>a4Print(kind,l,a,'P-');w.append(a)}
-    if(printer==='c4000'){const a=el('button','btn primary','🖨️ طباعة');a.title='طابعة Epson CW-C4000e (عينات ملوّنة 51 × 30) في المستودع';a.onclick=()=>pkPrint(l,a);w.append(a)}
+    if(printer==='c4000'){const a=el('button','btn primary','🖨️ طباعة');a.title='طابعة Epson CW-C4000e (ملصقات العينات 51 × 30) في المستودع';a.onclick=()=>pkPrint(l,a);w.append(a)}
     const s=el('button','btn','📤 إرسال');s.title='ملف PDF · واتساب · تنزيل';s.onclick=()=>savePdf(kind,l,s,out);
     const p=el('button','btn','📱 جهازي');p.title='طباعة من هذا الجهاز';p.onclick=()=>directPrint(kind,l,p);w.append(s,p);return w};
   const doc=(ic,t,sub,kind,printer)=>{const r=el('div','om-doc');r.append(el('span','ic',ic),el('b',null,t),el('small',null,sub),btns(kind,printer));return r};
@@ -4151,9 +4160,9 @@ function omDocs(l){const box=el('div','om-pane'),out=el('div','filebox');out.set
   box.append(d1);
   if(!hasOil&&rmItems(l).length){const d3=el('div','om-box'),h3=el('h4');h3.append('🧪 ملصقات المواد الخام · Epson C6000');d3.append(h3);clpWarm(l);d3.append(doc('🧪','ملصقات المواد الخام','102 × 51 · مع تحذيرات السلامة · Epson C6000','clp','epson'));box.append(d3)}
   if(hasOil){const d2=el('div','om-box'),h2=el('h4');h2.append('🏷️ ملصقات الزيوت');d2.append(h2);
-    const lt=el('div','om-seg');[['clp','⚠️ ملصق السلامة · CLP'],['kpr','🎨 ملصق عينة ملوّن'],['lab','🏷️ ملصق الاسم 40×30']].forEach(([k,t])=>{const x=el('button',k===omLab?'on':'',t);x.onclick=()=>{omLab=k;LS.set('omLab',k);renderOrderModal()};lt.append(x)});d2.append(lt);
+    const lt=el('div','om-seg');[['clp','⚠️ ملصق السلامة · CLP'],['kpr','🏷️ ملصق العينة 51×30'],['lab','🏷️ ملصق الاسم 40×30']].forEach(([k,t])=>{const x=el('button',k===omLab?'on':'',t);x.onclick=()=>{omLab=k;LS.set('omLab',k);renderOrderModal()};lt.append(x)});d2.append(lt);
     if(omLab==='clp'){clpWarm(l);d2.append(doc('⚠️','ملصقات السلامة CLP','102 × 51 · مع تحذيرات السلامة · بالأسماء التجارية دائماً'+(rmItems(l).length?' · + المواد الخام':'')+' · Epson C6000','clp','epson'))}
-    else if(omLab==='kpr')d2.append(doc('🎨','ملصق عينة ملوّن','51 × 30 · بلون عائلة العطر · الاسم كما في المتجر · Epson C4000','kpr','c4000'));
+    else if(omLab==='kpr')d2.append(doc('🏷️','ملصق العينة 51×30','51 × 30 · أبيض بإطار ذهبي · Charge + تاريخ التعبئة + رقم الطلب · Epson C4000','kpr','c4000'));
     else d2.append(doc('🏷️','ملصق الاسم 40×30','الاسم والكود والجودة · '+nmT+' · Phomemo',orig?'labo':'lab','phomemo'));
     d2.append(labPicker(l));box.append(d2)}
   box.append(out);return box}
@@ -5913,7 +5922,7 @@ function soDetail(b,id){const o=SO.orders.find(x=>x.id===id);if(!o){soSel=null;r
     const isPr=it=>it.oil&&(it.probe||/^(probe\s*)?([6-9]|1[0-5])\s*g$/i.test(String(it.size||'').trim())),sub=f=>Object.assign({},l,{items:l.items.map((it,i)=>Object.assign({},it,{_ix:i})).filter(f)});
     const nPr=l.items.filter(isPr).length,nGr=l.items.filter(it=>it.oil&&!isPr(it)).length;
     if(nPr){const pm=el('button','btn'+(nGr?'':' primary'),'🏷️ ملصقات العينات → Phomemo · '+nPr);pm.onclick=()=>epsonPrint(sub(isPr),pm);a2.append(pm)}
-    if(nPr){const kc=el('button','btn','🎨 ملصق عينة ملوّن → Epson C4000 · '+nPr);kc.title='51 × 30 · بلون عائلة العطر';kc.onclick=()=>pkPrint(sub(isPr),kc);a2.append(kc)}
+    if(nPr){const kc=el('button','btn','🏷️ ملصق العينة → Epson C4000 · '+nPr);kc.title='51 × 30 · أبيض بإطار ذهبي';kc.onclick=()=>pkPrint(sub(isPr),kc);a2.append(kc)}
     const ep=el('button','btn','⚠️ ملصقات CLP → Epson C6000'+(nPr?' · '+nGr:''));ep.onclick=()=>epsonPrint(sub(it=>it.oil&&!isPr(it)),ep);if(!nGr)ep.hidden=true;
     const gSub=()=>labOrder(sub(it=>it.oil&&!isPr(it))),pSub=()=>labOrder(sub(isPr));
     const parts=()=>[nGr?gSub():null,nPr?pSub():null].filter(x=>x&&x.items.length).map(clpMake);

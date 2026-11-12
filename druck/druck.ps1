@@ -182,7 +182,7 @@ public static class FhBildDruck {
 try {
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
 using System; using System.Drawing; using System.Drawing.Drawing2D; using System.Drawing.Printing; using System.Drawing.Text; using System.Collections.Generic;
-public class FhEtikett { public int R, G, B; public string Name = "", Code = "", Q = "", Pill = ""; }
+public class FhEtikett { public int R, G, B; public string Name = "", Code = "", Q = "", Pill = "", Nr = "", Dat = "", Ch = ""; }
 public static class FhVektorDruck {
   static GraphicsPath Rund(RectangleF r, float d) { var p = new GraphicsPath(); p.AddArc(r.X, r.Y, d, d, 180, 90); p.AddArc(r.Right - d, r.Y, d, d, 270, 90); p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90); p.AddArc(r.X, r.Bottom - d, d, d, 90, 90); p.CloseFigure(); return p; }
   static void Zentriert(Graphics g, string t, Font f, Brush b, float cx, float cy) { var sf = new StringFormat(); sf.Alignment = StringAlignment.Center; sf.LineAlignment = StringAlignment.Center; g.DrawString(t, f, b, new PointF(cx, cy), sf); }
@@ -195,31 +195,34 @@ public static class FhVektorDruck {
     pd.PrintPage += (s, e) => {
       var g = e.Graphics; g.PageUnit = GraphicsUnit.Millimeter; g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
       g.TranslateTransform(-e.PageSettings.HardMarginX * 0.254f, -e.PageSettings.HardMarginY * 0.254f);
-      var L = liste[i]; var farbe = Color.FromArgb(L.R, L.G, L.B);
-      const float W = 51f, B = 4f, CX = B + (W - B) / 2f, MW = W - B - 5f;
-      using (var br = new SolidBrush(farbe)) g.FillRectangle(br, 0f, 0f, B, 30f);
-      using (var gold = new SolidBrush(Color.FromArgb(184, 145, 47))) {
-        using (var f = new Font("Times New Roman", 7.5f, FontStyle.Bold, GraphicsUnit.Point)) Zentriert(g, "FRAGRANCE HUB", f, gold, CX, 4.0f);
-        using (var f = new Font("Times New Roman", 4.5f, FontStyle.Regular, GraphicsUnit.Point)) Zentriert(g, "GERMANY", f, gold, CX, 7.0f);
+      var L = liste[i];
+      const float W = 51f, CX = 25.5f, MW = 40f;
+      var gold = Color.FromArgb(184, 145, 47);
+      using (var p1 = new Pen(gold, 0.18f)) g.DrawRectangle(p1, 1.6f, 1.6f, W - 3.2f, 30f - 3.2f);
+      using (var p2 = new Pen(gold, 0.09f)) g.DrawRectangle(p2, 2.3f, 2.3f, W - 4.6f, 30f - 4.6f);
+      using (var gb = new SolidBrush(gold)) {
+        using (var f = new Font("Times New Roman", 6f, FontStyle.Bold, GraphicsUnit.Point)) Zentriert(g, "F R A G R A N C E   H U B", f, gb, CX, 4.7f);
+        using (var f = new Font("Times New Roman", 3.6f, FontStyle.Regular, GraphicsUnit.Point)) Zentriert(g, "G E R M A N Y", f, gb, CX, 6.8f);
       }
-      using (var dunkel = new SolidBrush(Color.FromArgb(34, 34, 34))) {
-        float fs = 9f; Font nf = new Font("Arial", fs, FontStyle.Bold, GraphicsUnit.Point);
-        while (fs > 6.5f && g.MeasureString(L.Name, nf).Width > MW) { nf.Dispose(); fs -= 0.25f; nf = new Font("Arial", fs, FontStyle.Bold, GraphicsUnit.Point); }
+      using (var dunkel = new SolidBrush(Color.FromArgb(34, 34, 34))) using (var grau = new SolidBrush(Color.FromArgb(90, 90, 90))) {
+        float fs = 10f; Font nf = new Font("Times New Roman", fs, FontStyle.Bold, GraphicsUnit.Point);
+        while (fs > 7f && g.MeasureString(L.Name, nf).Width > MW) { nf.Dispose(); fs -= 0.25f; nf = new Font("Times New Roman", fs, FontStyle.Bold, GraphicsUnit.Point); }
         if (g.MeasureString(L.Name, nf).Width > MW) {
-          nf.Dispose(); nf = new Font("Arial", 7f, FontStyle.Bold, GraphicsUnit.Point);
+          nf.Dispose(); nf = new Font("Times New Roman", 7f, FontStyle.Bold, GraphicsUnit.Point);
           var sf = new StringFormat(); sf.Alignment = StringAlignment.Center; sf.LineAlignment = StringAlignment.Center; sf.Trimming = StringTrimming.EllipsisWord;
-          g.DrawString(L.Name, nf, dunkel, new RectangleF(B + 2.5f, 9.2f, MW, 6.6f), sf);
-        } else Zentriert(g, L.Name, nf, dunkel, CX, 12.4f);
+          g.DrawString(L.Name, nf, dunkel, new RectangleF(CX - MW / 2f, 8.2f, MW, 5.8f), sf);
+        } else Zentriert(g, L.Name, nf, dunkel, CX, 11.2f);
         nf.Dispose();
-        string al = (L.Code.Length > 0 ? "Art.-Nr. " + L.Code : "") + (L.Code.Length > 0 && L.Q.Length > 0 ? "  ·  " : "") + L.Q;
-        float as2 = 6f; Font af = new Font("Arial", as2, FontStyle.Regular, GraphicsUnit.Point);
-        while (as2 > 4f && g.MeasureString(al, af).Width > MW) { af.Dispose(); as2 -= 0.25f; af = new Font("Arial", as2, FontStyle.Regular, GraphicsUnit.Point); }
-        Zentriert(g, al, af, dunkel, CX, 17.0f); af.Dispose();
-      }
-      using (var pf = new Font("Arial", 6f, FontStyle.Bold, GraphicsUnit.Point)) {
-        float pw = Math.Min(MW, Math.Max(27f, g.MeasureString(L.Pill, pf).Width + 5f));
-        using (var br = new SolidBrush(farbe)) using (var pfad = Rund(new RectangleF(CX - pw / 2f, 19.8f, pw, 5f), 1.32f)) g.FillPath(br, pfad);
-        Zentriert(g, L.Pill, pf, Brushes.White, CX, 22.35f);
+        using (var lp = new Pen(gold, 0.15f)) g.DrawLine(lp, CX - 6f, 14.4f, CX + 6f, 14.4f);
+        string al = (L.Q + (L.Q.Length > 0 && L.Code.Length > 0 ? "  ·  " : "") + L.Code).ToUpper();
+        float as2 = 4.4f; Font af = new Font("Arial", as2, FontStyle.Regular, GraphicsUnit.Point);
+        while (as2 > 3.4f && g.MeasureString(al, af).Width > MW) { af.Dispose(); as2 -= 0.2f; af = new Font("Arial", as2, FontStyle.Regular, GraphicsUnit.Point); }
+        Zentriert(g, al, af, grau, CX, 16.4f); af.Dispose();
+        using (var pf = new Font("Arial", 4.8f, FontStyle.Bold, GraphicsUnit.Point)) Zentriert(g, L.Pill.ToUpper().Replace(" G", " g"), pf, dunkel, CX, 19.1f);
+        using (var hp = new Pen(Color.FromArgb(215, 215, 215), 0.08f)) g.DrawLine(hp, 6f, 21.5f, W - 6f, 21.5f);
+        string z1 = (L.Ch.Length > 0 ? "Charge " + L.Ch : "") + (L.Ch.Length > 0 && L.Dat.Length > 0 ? "  ·  " : "") + (L.Dat.Length > 0 ? "Abgefüllt " + L.Dat : "");
+        string z2 = L.Nr.Length > 0 ? "Auftrag " + L.Nr : "";
+        using (var kf = new Font("Arial", 3.4f, FontStyle.Regular, GraphicsUnit.Point)) { if (z1.Length > 0) Zentriert(g, z1, kf, grau, CX, 23.0f); if (z2.Length > 0) Zentriert(g, z2, kf, grau, CX, 25.1f); }
       }
       i++; e.HasMorePages = i < liste.Count;
     };
@@ -237,7 +240,7 @@ $fhWpfRefs = @('PresentationCore','PresentationFramework','WindowsBase','ReachFr
 Add-Type -IgnoreWarnings -ReferencedAssemblies ($fhWpfRefs + @('System.Xml')) -TypeDefinition @"
 using System; using System.Collections.Generic; using System.Globalization; using System.IO; using System.Threading;
 using System.Windows; using System.Windows.Media; using System.Windows.Media.Imaging; using System.Windows.Documents; using System.Printing; using System.Windows.Xps;
-public class FhXEtikett { public int R, G, B; public string Name = "", Code = "", Q = "", Pill = ""; public byte[] Bild; }
+public class FhXEtikett { public int R, G, B; public string Name = "", Code = "", Q = "", Pill = "", Nr = "", Dat = "", Ch = ""; public byte[] Bild; }
 public class FhXEl : FrameworkElement {
   public FhXEtikett L; public double PW, PH;
   const double MM = 96.0 / 25.4, PT = 0.3528;
@@ -260,23 +263,33 @@ public class FhXEl : FrameworkElement {
       var bi = new BitmapImage(); bi.BeginInit(); bi.CacheOption = BitmapCacheOption.OnLoad; bi.StreamSource = new MemoryStream(L.Bild); bi.EndInit(); bi.Freeze();
       dc.DrawImage(bi, new Rect(0, 0, W, H)); return;
     }
-    var farbe = new SolidColorBrush(Color.FromRgb((byte)L.R, (byte)L.G, (byte)L.B));
-    var gold = new SolidColorBrush(Color.FromRgb(184, 145, 47)); var dunkel = new SolidColorBrush(Color.FromRgb(34, 34, 34));
-    dc.DrawRectangle(farbe, null, new Rect(0, 0, B, H));
-    Txt(dc, Ft("FRAGRANCE HUB", "Times New Roman", true, 7.5, gold), CX, 5);
-    Txt(dc, Ft("GERMANY", "Times New Roman", false, 4.5, gold), CX, 7.6);
-    List<string> zeilen = null; double fs = 9, lh = 0;
-    for (fs = 9; fs >= 5.5; fs -= 0.5) { zeilen = Umbruch(L.Name, "Arial", true, fs, MW); lh = fs * PT * 1.12; bool ok = zeilen.Count <= 2 && zeilen.Count * lh <= 6.4; foreach (var z in zeilen) if (Ft(z, "Arial", true, fs, dunkel).WidthIncludingTrailingWhitespace > MW + 0.01) ok = false; if (ok) break; }
-    if (fs < 5.5) { fs = 5.5; lh = fs * PT * 1.12; zeilen = Umbruch(L.Name, "Arial", true, fs, MW); if (zeilen.Count > 2) zeilen = zeilen.GetRange(0, 2); }
-    if (zeilen.Count > 1) { double y = 12.5 - lh / 2; for (int i = 0; i < zeilen.Count; i++) Txt(dc, Ft(zeilen[i], "Arial", true, fs, dunkel), CX, y + i * lh); }
-    else if (zeilen.Count == 1) Txt(dc, Ft(zeilen[0], "Arial", true, fs, dunkel), CX, 13.5);
-    string al = (L.Code.Length > 0 ? "Art.-Nr. " + L.Code : "") + (L.Code.Length > 0 && L.Q.Length > 0 ? "  ·  " : "") + L.Q;
-    double afs = 6; for (; afs > 4; afs -= 0.25) if (Ft(al, "Arial", false, afs, dunkel).WidthIncludingTrailingWhitespace <= MW) break;
-    Txt(dc, Ft(al, "Arial", false, afs, dunkel), CX, 17.5);
-    var pft = Ft(L.Pill, "Arial", true, 6, Brushes.White);
-    double pw = Math.Min(MW, Math.Max(27, pft.WidthIncludingTrailingWhitespace + 5));
-    dc.DrawRoundedRectangle(farbe, null, new Rect(CX - pw / 2, 19.8, pw, 5), 0.66, 0.66);
-    Txt(dc, pft, CX, 23.1);
+    /* Design "Minimal Luxe" (11.2026): weiss, doppelter Goldrahmen, Name in Serifenschrift, Charge/Abfuelldatum/Auftrag - wie in der App (pkDraw) */
+    const double MW2 = 40, C2 = W / 2;
+    var gold = new SolidColorBrush(Color.FromRgb(184, 145, 47)); var dunkel = new SolidColorBrush(Color.FromRgb(34, 34, 34)); var grau = new SolidColorBrush(Color.FromRgb(90, 90, 90));
+    dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, W, H));
+    dc.DrawRectangle(null, new Pen(gold, 0.18), new Rect(1.6, 1.6, W - 3.2, H - 3.2));
+    dc.DrawRectangle(null, new Pen(gold, 0.09), new Rect(2.3, 2.3, W - 4.6, H - 4.6));
+    Spaced(dc, "FRAGRANCE HUB", "Times New Roman", true, 6, gold, C2, 5.5, 0.32);
+    Spaced(dc, "GERMANY", "Times New Roman", false, 3.6, gold, C2, 7.3, 0.42);
+    List<string> zeilen = null; double fs = 10, lh = 0;
+    for (fs = 10; fs >= 5.5; fs -= 0.5) { zeilen = Umbruch(L.Name, "Times New Roman", true, fs, MW2); lh = fs * PT * 1.12; bool ok = zeilen.Count <= 2 && zeilen.Count * lh <= 5.8; foreach (var z in zeilen) if (Ft(z, "Times New Roman", true, fs, dunkel).WidthIncludingTrailingWhitespace > MW2 + 0.01) ok = false; if (ok) break; }
+    if (fs < 5.5) { fs = 5.5; lh = fs * PT * 1.12; zeilen = Umbruch(L.Name, "Times New Roman", true, fs, MW2); if (zeilen.Count > 2) zeilen = zeilen.GetRange(0, 2); }
+    if (zeilen.Count > 1) { for (int i = 0; i < zeilen.Count; i++) Txt(dc, Ft(zeilen[i], "Times New Roman", true, fs, dunkel), C2, 10.4 + i * lh); }
+    else if (zeilen.Count == 1) Txt(dc, Ft(zeilen[0], "Times New Roman", true, fs, dunkel), C2, 12.4);
+    dc.DrawLine(new Pen(gold, 0.15), new Point(C2 - 6, 14.4), new Point(C2 + 6, 14.4));
+    string al = ((L.Q ?? "") + ((L.Q ?? "").Length > 0 && (L.Code ?? "").Length > 0 ? "  ·  " : "") + (L.Code ?? "")).ToUpper();
+    double afs = 4.4; for (; afs > 3.4; afs -= 0.2) if (Ft(al, "Arial", false, afs, grau).WidthIncludingTrailingWhitespace <= MW2) break;
+    Txt(dc, Ft(al, "Arial", false, afs, grau), C2, 17.1);
+    Txt(dc, Ft((L.Pill ?? "").ToUpper().Replace(" G", " g"), "Arial", true, 4.8, dunkel), C2, 19.9);
+    dc.DrawLine(new Pen(new SolidColorBrush(Color.FromRgb(215, 215, 215)), 0.08), new Point(6, 21.5), new Point(W - 6, 21.5));
+    string z1 = ((L.Ch ?? "").Length > 0 ? "Charge " + L.Ch : "") + ((L.Ch ?? "").Length > 0 && (L.Dat ?? "").Length > 0 ? "  ·  " : "") + ((L.Dat ?? "").Length > 0 ? "Abgefüllt " + L.Dat : "");
+    string z2 = (L.Nr ?? "").Length > 0 ? "Auftrag " + L.Nr : "";
+    Klein(dc, z1, grau, C2, 23.6, MW2); Klein(dc, z2, grau, C2, 25.7, MW2);
+  }
+  static void Klein(DrawingContext dc, string t, Brush br, double cx, double y, double mw) { if (string.IsNullOrEmpty(t)) return; double s = 3.6; for (; s > 2.8; s -= 0.1) if (Ft(t, "Arial", false, s, br).WidthIncludingTrailingWhitespace <= mw) break; Txt(dc, Ft(t, "Arial", false, s, br), cx, y); }
+  static void Spaced(DrawingContext dc, string t, string f, bool b, double pt, Brush br, double cx, double baseline, double sp) {
+    double w = 0; foreach (char c in t) w += Ft(c.ToString(), f, b, pt, br).WidthIncludingTrailingWhitespace; w += sp * (t.Length - 1);
+    double x = cx - w / 2; foreach (char c in t) { var ft = Ft(c.ToString(), f, b, pt, br); dc.DrawText(ft, new Point(x, baseline - ft.Baseline)); x += ft.WidthIncludingTrailingWhitespace + sp; }
   }
 }
 public static class FhXpsDruck {
@@ -314,7 +327,7 @@ function KJsonDruck($datei, $name, $drucker) {
     foreach ($d in @($daten)) {
       $e = New-Object FhXEtikett
       $e.R = [int]$d.c[0]; $e.G = [int]$d.c[1]; $e.B = [int]$d.c[2]
-      $e.Name = [string]$d.name; $e.Code = [string]$d.code; $e.Q = [string]$d.q; $e.Pill = [string]$d.pill
+      $e.Name = [string]$d.name; $e.Code = [string]$d.code; $e.Q = [string]$d.q; $e.Pill = [string]$d.pill; $e.Nr = [string]$d.nr; $e.Dat = [string]$d.dat; $e.Ch = [string]$d.ch
       $xl.Add($e)
     }
     $r = [FhXpsDruck]::Drucken($drucker, $xl, $name)
@@ -325,7 +338,7 @@ function KJsonDruck($datei, $name, $drucker) {
   foreach ($d in @($daten)) {
     $e = New-Object FhEtikett
     $e.R = [int]$d.c[0]; $e.G = [int]$d.c[1]; $e.B = [int]$d.c[2]
-    $e.Name = [string]$d.name; $e.Code = [string]$d.code; $e.Q = [string]$d.q; $e.Pill = [string]$d.pill
+    $e.Name = [string]$d.name; $e.Code = [string]$d.code; $e.Q = [string]$d.q; $e.Pill = [string]$d.pill; $e.Nr = [string]$d.nr; $e.Dat = [string]$d.dat; $e.Ch = [string]$d.ch
     $liste.Add($e)
   }
   $r = [FhVektorDruck]::Drucken($drucker, $liste, $name, 'proben')
