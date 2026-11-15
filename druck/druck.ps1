@@ -1,0 +1,566 @@
+﻿# Fragrance Hub - Etiketten-Drucker (Mini-PC im Lager)
+# Holt alle 3 Sekunden neue Druckauftraege aus der Showroom-App: CLP-Etiketten -> Epson ColorWorks, Angebot/Packliste (A4-...) -> Brother A4, DHL-Versandetiketten (Z-...) -> Zebra, Etiketten 40x30 (P-...) -> Phomemo.
+$ErrorActionPreference = 'Continue'
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$URL  = 'https://script.google.com/macros/s/AKfycbzU9YIR7tzx1VBzVAVNni93eBBBwGphyzTErrAUOveD2YmvAmiQO81QkyzVcUB5FAUd/exec?app=sr'
+$DIR  = Join-Path $env:USERPROFILE 'FH-Druck'
+$DONE = Join-Path $DIR 'gedruckt'
+$SUM  = Join-Path $DIR 'SumatraPDF.exe'
+$PINF = Join-Path $DIR 'pin.txt'
+$SUMURL = 'https://www.sumatrapdfreader.org/dl/rel/3.6.1/SumatraPDF-3.6.1-64.zip'
+New-Item -ItemType Directory -Force $DONE | Out-Null
+# Nur EIN Druckprogramm gleichzeitig - aeltere Instanzen beenden (sonst druckt eine alte Version mit)
+Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -like '*FH-Druck\druck.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+$Host.UI.RawUI.WindowTitle = 'FH Druck - Epson ColorWorks (Fenster offen lassen)'
+
+# Mini-PC darf nicht in den Ruhezustand gehen, solange das Druckprogramm laeuft (sonst warten die Etiketten, bis jemand den PC aufweckt)
+Add-Type -Namespace FhPower -Name Win -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);'
+function WachHalten { [void][FhPower.Win]::SetThreadExecutionState([uint32]2147483649) }  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED
+WachHalten
+foreach ($a in @('standby-timeout-ac 0', 'hibernate-timeout-ac 0')) { try { & powercfg /change $a.Split(' ') 2>$null | Out-Null } catch {} }
+
+# Selbst-Aktualisierung: neue Version des Druckprogramms automatisch von der App-Seite holen und neu starten
+$SELFURL = 'https://app.fragranceshub.de/druck/druck.ps1'
+function SelbstUpdate {
+  try {
+    $neu = (Invoke-WebRequest "$SELFURL`?t=$([DateTime]::UtcNow.Ticks)" -UseBasicParsing -TimeoutSec 30).Content
+    if ($neu -is [byte[]]) { $neu = [Text.Encoding]::UTF8.GetString($neu) }
+    if ($neu) { $neu = $neu.TrimStart([char]0xFEFF) }  # BOM nur einmal (sonst Fehler in Zeile 1)
+    if ($neu -and $neu.Length -gt 5000 -and $neu.Contains('FH-Druck') -and $neu -ne (Get-Content $PSCommandPath -Raw)) {
+      Set-Content -Path $PSCommandPath -Value $neu -Encoding UTF8 -NoNewline
+      if ($neu -ne (Get-Content $PSCommandPath -Raw)) { return }  # Schutz gegen Neustart-Schleife
+      Write-Host 'Neue Version des Druckprogramms geladen - starte neu ...' -ForegroundColor Cyan
+      Start-Process powershell -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
+      exit
+    }
+  } catch {}
+}
+SelbstUpdate
+$script:UpdZeit = Get-Date
+
+# Rohdaten (RAW) direkt an einen Drucker schicken - fuer Phomemo: das App-Bild geht 1:1 an die Etikettenmaschine, ohne Windows-Skalierung
+Add-Type -TypeDefinition @"
+using System; using System.Runtime.InteropServices;
+public class FhRaw {
+  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] public class DI { public string pDocName; public string pOutputFile; public string pDataType; }
+  [DllImport("winspool.drv", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool OpenPrinter(string n, out IntPtr h, IntPtr d);
+  [DllImport("winspool.drv", SetLastError=true)] static extern bool ClosePrinter(IntPtr h);
+  [DllImport("winspool.drv", CharSet=CharSet.Unicode, SetLastError=true)] static extern int StartDocPrinter(IntPtr h, int l, [In] DI di);
+  [DllImport("winspool.drv", SetLastError=true)] static extern bool EndDocPrinter(IntPtr h);
+  [DllImport("winspool.drv", SetLastError=true)] static extern bool StartPagePrinter(IntPtr h);
+  [DllImport("winspool.drv", SetLastError=true)] static extern bool EndPagePrinter(IntPtr h);
+  [DllImport("winspool.drv", SetLastError=true)] static extern bool WritePrinter(IntPtr h, byte[] b, int n, out int w);
+  public static bool Send(string printer, byte[] data, string name) {
+    IntPtr h; if (!OpenPrinter(printer, out h, IntPtr.Zero)) return false;
+    var di = new DI { pDocName = name, pDataType = "RAW" }; bool ok = false;
+    if (StartDocPrinter(h, 1, di) > 0) { if (StartPagePrinter(h)) { int w; ok = WritePrinter(h, data, data.Length, out w); EndPagePrinter(h); } EndDocPrinter(h); }
+    ClosePrinter(h); return ok;
+  }
+}
+"@
+function IstPdf($pfad) { try { $b = [IO.File]::ReadAllBytes($pfad); return ($b.Length -ge 4 -and $b[0] -eq 0x25 -and $b[1] -eq 0x50 -and $b[2] -eq 0x44 -and $b[3] -eq 0x46) } catch { return $true } }
+
+# Zebra GK420t direkt ueber USB (ohne Windows-Treiber, ohne Admin): PDF -> Bild (Windows.Data.Pdf) -> ZPL-Grafik -> USB
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
+using System; using System.Text; using System.Drawing; using System.Drawing.Imaging; using System.Runtime.InteropServices; using System.Collections.Generic; using Microsoft.Win32.SafeHandles;
+public class FhZebra {
+  [StructLayout(LayoutKind.Sequential)] struct DID { public int cbSize; public Guid g; public int Flags; public IntPtr Reserved; }
+  [DllImport("setupapi.dll", SetLastError=true)] static extern IntPtr SetupDiGetClassDevs(ref Guid g, IntPtr e, IntPtr h, int f);
+  [DllImport("setupapi.dll", SetLastError=true)] static extern bool SetupDiEnumDeviceInterfaces(IntPtr s, IntPtr d, ref Guid g, int i, ref DID di);
+  [DllImport("setupapi.dll", SetLastError=true, CharSet=CharSet.Unicode)] static extern bool SetupDiGetDeviceInterfaceDetail(IntPtr s, ref DID di, IntPtr buf, int size, out int req, IntPtr dev);
+  [DllImport("setupapi.dll")] static extern bool SetupDiDestroyDeviceInfoList(IntPtr s);
+  [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)] static extern SafeFileHandle CreateFile(string n, uint a, uint s, IntPtr sa, uint c, uint f, IntPtr t);
+  // USB-Pfad des ersten Zebra-Druckers (Hersteller-ID 0A5F)
+  public static string Pfad() {
+    Guid g = new Guid("28d78fad-5a12-11d1-ae5b-0000f803a8c2"); string r = null;
+    IntPtr s = SetupDiGetClassDevs(ref g, IntPtr.Zero, IntPtr.Zero, 0x12);
+    DID di = new DID(); di.cbSize = Marshal.SizeOf(di);
+    for (int i = 0; r == null && SetupDiEnumDeviceInterfaces(s, IntPtr.Zero, ref g, i, ref di); i++) {
+      int req; SetupDiGetDeviceInterfaceDetail(s, ref di, IntPtr.Zero, 0, out req, IntPtr.Zero);
+      IntPtr buf = Marshal.AllocHGlobal(req); Marshal.WriteInt32(buf, IntPtr.Size == 8 ? 8 : 6);
+      if (SetupDiGetDeviceInterfaceDetail(s, ref di, buf, req, out req, IntPtr.Zero)) { string p = Marshal.PtrToStringUni(new IntPtr(buf.ToInt64() + 4)); if (p.ToLower().Contains("vid_0a5f")) r = p; }
+      Marshal.FreeHGlobal(buf);
+    }
+    SetupDiDestroyDeviceInfoList(s); return r;
+  }
+  public static bool Senden(string pfad, byte[] daten) {
+    using (SafeFileHandle h = CreateFile(pfad, 0x40000000, 3, IntPtr.Zero, 3, 0, IntPtr.Zero)) {
+      if (h.IsInvalid) return false;
+      using (var fs = new System.IO.FileStream(h, System.IO.FileAccess.Write, 65536)) { fs.Write(daten, 0, daten.Length); fs.Flush(); }
+      return true;
+    }
+  }
+  // Bild -> ZPL (^GFA, 1 Bit). maxW = Druckbreite in Punkten (GK420t: 832 = 104 mm bei 8 Punkten/mm)
+  public static string Zpl(Bitmap src, int maxW, int maxH, int schwelle) {
+    if (src.Width > src.Height) src.RotateFlip(RotateFlipType.Rotate90FlipNone);
+    // passt in Breite UND Länge des Etiketts (z. B. DHL Express 4 x 8 Zoll auf 103 x 199 mm)
+    double k = Math.Min(1.0, Math.Min((double)maxW / src.Width, (double)maxH / src.Height));
+    int w = (int)Math.Round(src.Width * k), h = (int)Math.Round(src.Height * k);
+    using (var bmp = new Bitmap(w, h, PixelFormat.Format24bppRgb)) {
+      using (var g = Graphics.FromImage(bmp)) { g.Clear(Color.White); g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor; g.DrawImage(src, 0, 0, w, h); }
+      int bpr = (w + 7) / 8; var d = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+      byte[] px = new byte[d.Stride * h]; Marshal.Copy(d.Scan0, px, 0, px.Length); bmp.UnlockBits(d);
+      var sb = new StringBuilder(bpr * h * 2 + 200); const string HX = "0123456789ABCDEF";
+      for (int y = 0; y < h; y++) for (int xb = 0; xb < bpr; xb++) {
+        int b = 0;
+        for (int bit = 0; bit < 8; bit++) { int x = xb * 8 + bit; if (x >= w) break; int o = y * d.Stride + x * 3;
+          if ((px[o + 2] * 299 + px[o + 1] * 587 + px[o] * 114) / 1000 < schwelle) b |= 0x80 >> bit; }
+        sb.Append(HX[b >> 4]).Append(HX[b & 15]);
+      }
+      int links = Math.Max(0, (maxW - w) / 2);
+      return "^XA^PW" + maxW + "^LL" + h + "^LH0,0^FO" + links + ",0^GFA," + (bpr * h) + "," + (bpr * h) + "," + bpr + "," + sb.ToString() + "^FS^XZ";
+    }
+  }
+}
+"@
+
+# PDF-Seiten mit dem in Windows eingebauten PDF-Renderer in Bilder umwandeln (kein Zusatzprogramm noetig)
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+$null = [Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
+$null = [Windows.Data.Pdf.PdfDocument, Windows.Data.Pdf, ContentType = WindowsRuntime]
+$null = [Windows.Storage.Streams.InMemoryRandomAccessStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
+$script:AsTaskOp  = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' } | Select-Object -First 1
+$script:AsTaskAct = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncAction' } | Select-Object -First 1
+function WartenOp($op, [Type]$typ) { $t = $script:AsTaskOp.MakeGenericMethod($typ).Invoke($null, @($op)); [void]$t.Wait(60000); return $t.Result }
+function WartenAkt($op) { $t = $script:AsTaskAct.Invoke($null, @($op)); [void]$t.Wait(60000) }
+# PDF -> ZPL (jede Seite ein Etikett), 8 Punkte/mm = 203 dpi
+function PdfZuZpl($datei) {
+  $f = WartenOp ([Windows.Storage.StorageFile]::GetFileFromPathAsync($datei)) ([Windows.Storage.StorageFile])
+  $doc = WartenOp ([Windows.Data.Pdf.PdfDocument]::LoadFromFileAsync($f)) ([Windows.Data.Pdf.PdfDocument])
+  $zpl = New-Object Text.StringBuilder
+  for ($i = 0; $i -lt $doc.PageCount; $i++) {
+    $pg = $doc.GetPage($i)
+    $opt = New-Object Windows.Data.Pdf.PdfPageRenderOptions
+    $opt.DestinationWidth  = [uint32][math]::Round($pg.Size.Width  * 203.2 / 96)
+    $opt.DestinationHeight = [uint32][math]::Round($pg.Size.Height * 203.2 / 96)
+    $ms = New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
+    WartenAkt ($pg.RenderToStreamAsync($ms, $opt))
+    $st = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ms.GetInputStreamAt(0))
+    $bmp = New-Object System.Drawing.Bitmap($st)
+    # DHL Express Commerce liefert A4 quer (Etikett links, ca. 104 x 199 mm) -> Etikettenbereich ausschneiden
+    if ($pg.Size.Width -gt $pg.Size.Height * 1.2) {
+      $w = $bmp.Width; $h = $bmp.Height
+      $r = New-Object System.Drawing.Rectangle([int]($w * 80 / 842), [int]($h * 16 / 595), [int]($w * 292 / 842), [int]($h * 564 / 595))
+      $teil = $bmp.Clone($r, $bmp.PixelFormat); $bmp.Dispose(); $bmp = $teil
+    }
+    [void]$zpl.Append([FhZebra]::Zpl($bmp, 832, 1600, 140))
+    $bmp.Dispose(); $st.Dispose(); $ms.Dispose(); $pg.Dispose()
+  }
+  return $zpl.ToString()
+}
+# Epson CW-C4000e (Proben-Etiketten 51 x 30): NICHT ueber SumatraPDF (Etiketten kamen leer/gar nicht heraus).
+# Stattdessen wie beim Drucken aus Edge: PDF mit dem Windows-PDF-Renderer in ein Bild (600 dpi) umwandeln und ueber den
+# normalen Windows-Druckweg (Hochformat, Medium "fh proben 51x30 endlos") an den Epson-Treiber geben.
+try {
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
+using System; using System.Drawing; using System.Drawing.Printing; using System.Collections.Generic;
+public static class FhBildDruck {
+  public static string Drucken(string drucker, List<Bitmap> seiten, string name, string papierMuster) {
+    var pd = new PrintDocument(); pd.PrinterSettings.PrinterName = drucker; pd.DocumentName = name;
+    if (!pd.PrinterSettings.IsValid) return "Drucker ungueltig";
+    pd.DefaultPageSettings.Landscape = false;
+    foreach (PaperSize ps in pd.PrinterSettings.PaperSizes) { if (ps.PaperName.ToLower().Contains(papierMuster)) { pd.DefaultPageSettings.PaperSize = ps; break; } }
+    pd.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0); pd.OriginAtMargins = false;
+    int i = 0;
+    pd.PrintPage += (s, e) => {
+      var g = e.Graphics; g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+      g.TranslateTransform(-e.PageSettings.HardMarginX, -e.PageSettings.HardMarginY);
+      var b = e.PageBounds; var img = seiten[i];
+      double k = Math.Min((double)b.Width / img.Width, (double)b.Height / img.Height);
+      float w = (float)(img.Width * k), h = (float)(img.Height * k);
+      g.DrawImage(img, (b.Width - w) / 2f, (b.Height - h) / 2f, w, h);
+      i++; e.HasMorePages = i < seiten.Count;
+    };
+    pd.Print();
+    return "ok " + pd.DefaultPageSettings.PaperSize.PaperName;
+  }
+}
+"@
+} catch { Write-Host "Hinweis: Bild-Druckweg fuer C4000e nicht verfuegbar ($($_.Exception.Message)) - nutze SumatraPDF" -ForegroundColor Yellow }
+# Vektor-Druck fuer C4000e: die App schickt die Etikettendaten (JSON), hier wird das Etikett mit Windows-Schrift/Formen
+# gezeichnet -> kleiner Auftrag wie beim Drucken aus Edge (Bild-Auftraege > 1 MB kamen leer heraus).
+try {
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
+using System; using System.Drawing; using System.Drawing.Drawing2D; using System.Drawing.Printing; using System.Drawing.Text; using System.Collections.Generic;
+public class FhEtikett { public int R, G, B; public string Name = "", Code = "", Q = "", Pill = "", Nr = "", Dat = "", Ch = ""; }
+public static class FhVektorDruck {
+  static GraphicsPath Rund(RectangleF r, float d) { var p = new GraphicsPath(); p.AddArc(r.X, r.Y, d, d, 180, 90); p.AddArc(r.Right - d, r.Y, d, d, 270, 90); p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90); p.AddArc(r.X, r.Bottom - d, d, d, 90, 90); p.CloseFigure(); return p; }
+  static void Zentriert(Graphics g, string t, Font f, Brush b, float cx, float cy) { var sf = new StringFormat(); sf.Alignment = StringAlignment.Center; sf.LineAlignment = StringAlignment.Center; g.DrawString(t, f, b, new PointF(cx, cy), sf); }
+  public static string Drucken(string drucker, List<FhEtikett> liste, string name, string papierMuster) {
+    var pd = new PrintDocument(); pd.PrinterSettings.PrinterName = drucker; pd.DocumentName = name;
+    if (!pd.PrinterSettings.IsValid) return "Drucker ungueltig";
+    pd.DefaultPageSettings.Landscape = false;
+    foreach (PaperSize ps in pd.PrinterSettings.PaperSizes) { if (ps.PaperName.ToLower().Contains(papierMuster)) { pd.DefaultPageSettings.PaperSize = ps; break; } }
+    int i = 0;
+    pd.PrintPage += (s, e) => {
+      var g = e.Graphics; g.PageUnit = GraphicsUnit.Millimeter; g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+      g.TranslateTransform(-e.PageSettings.HardMarginX * 0.254f, -e.PageSettings.HardMarginY * 0.254f);
+      var L = liste[i];
+      const float W = 51f, CX = 25.5f, MW = 40f;
+      var gold = Color.FromArgb(184, 145, 47);
+      using (var p1 = new Pen(gold, 0.18f)) g.DrawRectangle(p1, 1.6f, 1.6f, W - 3.2f, 30f - 3.2f);
+      using (var p2 = new Pen(gold, 0.09f)) g.DrawRectangle(p2, 2.3f, 2.3f, W - 4.6f, 30f - 4.6f);
+      using (var gb = new SolidBrush(gold)) {
+        using (var f = new Font("Times New Roman", 6f, FontStyle.Bold, GraphicsUnit.Point)) Zentriert(g, "F R A G R A N C E   H U B", f, gb, CX, 4.7f);
+        using (var f = new Font("Times New Roman", 3.6f, FontStyle.Regular, GraphicsUnit.Point)) Zentriert(g, "G E R M A N Y", f, gb, CX, 6.8f);
+      }
+      using (var dunkel = new SolidBrush(Color.FromArgb(34, 34, 34))) using (var grau = new SolidBrush(Color.FromArgb(90, 90, 90))) {
+        float fs = 10f; Font nf = new Font("Times New Roman", fs, FontStyle.Bold, GraphicsUnit.Point);
+        while (fs > 7f && g.MeasureString(L.Name, nf).Width > MW) { nf.Dispose(); fs -= 0.25f; nf = new Font("Times New Roman", fs, FontStyle.Bold, GraphicsUnit.Point); }
+        if (g.MeasureString(L.Name, nf).Width > MW) {
+          nf.Dispose(); nf = new Font("Times New Roman", 7f, FontStyle.Bold, GraphicsUnit.Point);
+          var sf = new StringFormat(); sf.Alignment = StringAlignment.Center; sf.LineAlignment = StringAlignment.Center; sf.Trimming = StringTrimming.EllipsisWord;
+          g.DrawString(L.Name, nf, dunkel, new RectangleF(CX - MW / 2f, 8.2f, MW, 5.8f), sf);
+        } else Zentriert(g, L.Name, nf, dunkel, CX, 11.2f);
+        nf.Dispose();
+        using (var lp = new Pen(gold, 0.15f)) g.DrawLine(lp, CX - 6f, 14.4f, CX + 6f, 14.4f);
+        string al = (L.Q + (L.Q.Length > 0 && L.Code.Length > 0 ? "  ·  " : "") + L.Code).ToUpper();
+        float as2 = 4.4f; Font af = new Font("Arial", as2, FontStyle.Regular, GraphicsUnit.Point);
+        while (as2 > 3.4f && g.MeasureString(al, af).Width > MW) { af.Dispose(); as2 -= 0.2f; af = new Font("Arial", as2, FontStyle.Regular, GraphicsUnit.Point); }
+        Zentriert(g, al, af, grau, CX, 16.4f); af.Dispose();
+        using (var pf = new Font("Arial", 4.8f, FontStyle.Bold, GraphicsUnit.Point)) Zentriert(g, L.Pill.ToUpper().Replace(" G", " g"), pf, dunkel, CX, 19.1f);
+        using (var hp = new Pen(Color.FromArgb(215, 215, 215), 0.08f)) g.DrawLine(hp, 6f, 21.5f, W - 6f, 21.5f);
+        string z1 = (L.Ch.Length > 0 ? "Charge " + L.Ch : "") + (L.Ch.Length > 0 && L.Dat.Length > 0 ? "  ·  " : "") + (L.Dat.Length > 0 ? "Abgefüllt " + L.Dat : "");
+        string z2 = L.Nr.Length > 0 ? "Auftrag " + L.Nr : "";
+        using (var kf = new Font("Arial", 3.4f, FontStyle.Regular, GraphicsUnit.Point)) { if (z1.Length > 0) Zentriert(g, z1, kf, grau, CX, 23.0f); if (z2.Length > 0) Zentriert(g, z2, kf, grau, CX, 25.1f); }
+      }
+      i++; e.HasMorePages = i < liste.Count;
+    };
+    pd.Print();
+    return "ok " + pd.DefaultPageSettings.PaperSize.PaperName;
+  }
+}
+"@
+} catch { Write-Host "Hinweis: Vektor-Druck fuer C4000e nicht verfuegbar ($($_.Exception.Message))" -ForegroundColor Yellow }
+# XPS-Druckweg fuer C4000e (derselbe Weg wie der Windows-Druckdialog, der nachweislich druckt - 11.11.2026 07:43).
+# Der klassische GDI-Weg (SumatraPDF / PrintDocument) wurde vom Treiber als "gedruckt" gemeldet, es kam aber nichts heraus.
+try {
+Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase, ReachFramework, System.Printing, System.Xaml
+$fhWpfRefs = @('PresentationCore','PresentationFramework','WindowsBase','ReachFramework','System.Printing','System.Xaml') | ForEach-Object { $n = $_; ([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -eq $n } | Select-Object -First 1).Location }
+Add-Type -IgnoreWarnings -ReferencedAssemblies ($fhWpfRefs + @('System.Xml')) -TypeDefinition @"
+using System; using System.Collections.Generic; using System.Globalization; using System.IO; using System.Threading;
+using System.Windows; using System.Windows.Media; using System.Windows.Media.Imaging; using System.Windows.Documents; using System.Printing; using System.Windows.Xps;
+public class FhXEtikett { public int R, G, B; public string Name = "", Code = "", Q = "", Pill = "", Nr = "", Dat = "", Ch = ""; public byte[] Bild; }
+public class FhXEl : FrameworkElement {
+  public FhXEtikett L; public double PW, PH;
+  const double MM = 96.0 / 25.4, PT = 0.3528;
+  static Typeface Tf(string f, bool b) { return new Typeface(new FontFamily(f), FontStyles.Normal, b ? FontWeights.Bold : FontWeights.Normal, FontStretches.Normal); }
+  static FormattedText Ft(string t, string f, bool b, double pt, Brush br) { return new FormattedText(t ?? "", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Tf(f, b), pt * PT, br, 1.0); }
+  static void Txt(DrawingContext dc, FormattedText ft, double cx, double baseline) { dc.DrawText(ft, new Point(cx - ft.WidthIncludingTrailingWhitespace / 2, baseline - ft.Baseline)); }
+  static List<string> Umbruch(string t, string f, bool b, double pt, double maxW) {
+    var z = new List<string>(); string cur = "";
+    foreach (var w in (t ?? "").Split(' ')) { string tst = cur.Length == 0 ? w : cur + " " + w; if (cur.Length > 0 && Ft(tst, f, b, pt, Brushes.Black).WidthIncludingTrailingWhitespace > maxW) { z.Add(cur); cur = w; } else cur = tst; }
+    if (cur.Length > 0) z.Add(cur); return z;
+  }
+  protected override void OnRender(DrawingContext dc) {
+    const double W = 51, H = 30, B = 4, CX = B + (W - B) / 2, MW = W - B - 5;
+    bool hoch = PH > PW;
+    if (hoch) { dc.PushTransform(new TranslateTransform(PW, 0)); dc.PushTransform(new RotateTransform(90)); }
+    double bw = hoch ? PH : PW, bh = hoch ? PW : PH, k = Math.Min(bw / (W * MM), bh / (H * MM));
+    dc.PushTransform(new TranslateTransform((bw - W * MM * k) / 2, (bh - H * MM * k) / 2));
+    dc.PushTransform(new ScaleTransform(MM * k, MM * k));
+    if (L.Bild != null) {
+      var bi = new BitmapImage(); bi.BeginInit(); bi.CacheOption = BitmapCacheOption.OnLoad; bi.StreamSource = new MemoryStream(L.Bild); bi.EndInit(); bi.Freeze();
+      dc.DrawImage(bi, new Rect(0, 0, W, H)); return;
+    }
+    /* Design "Minimal Luxe" (11.2026): weiss, doppelter Goldrahmen, Name in Serifenschrift, Charge/Abfuelldatum/Auftrag - wie in der App (pkDraw) */
+    const double MW2 = 40, C2 = W / 2;
+    var gold = new SolidColorBrush(Color.FromRgb(184, 145, 47)); var dunkel = new SolidColorBrush(Color.FromRgb(34, 34, 34)); var grau = new SolidColorBrush(Color.FromRgb(90, 90, 90));
+    dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, W, H));
+    dc.DrawRectangle(null, new Pen(gold, 0.18), new Rect(1.6, 1.6, W - 3.2, H - 3.2));
+    dc.DrawRectangle(null, new Pen(gold, 0.09), new Rect(2.3, 2.3, W - 4.6, H - 4.6));
+    Spaced(dc, "FRAGRANCE HUB", "Times New Roman", true, 6, gold, C2, 5.5, 0.32);
+    Spaced(dc, "GERMANY", "Times New Roman", false, 3.6, gold, C2, 7.3, 0.42);
+    List<string> zeilen = null; double fs = 10, lh = 0;
+    for (fs = 10; fs >= 5.5; fs -= 0.5) { zeilen = Umbruch(L.Name, "Times New Roman", true, fs, MW2); lh = fs * PT * 1.12; bool ok = zeilen.Count <= 2 && zeilen.Count * lh <= 5.8; foreach (var z in zeilen) if (Ft(z, "Times New Roman", true, fs, dunkel).WidthIncludingTrailingWhitespace > MW2 + 0.01) ok = false; if (ok) break; }
+    if (fs < 5.5) { fs = 5.5; lh = fs * PT * 1.12; zeilen = Umbruch(L.Name, "Times New Roman", true, fs, MW2); if (zeilen.Count > 2) zeilen = zeilen.GetRange(0, 2); }
+    if (zeilen.Count > 1) { for (int i = 0; i < zeilen.Count; i++) Txt(dc, Ft(zeilen[i], "Times New Roman", true, fs, dunkel), C2, 10.4 + i * lh); }
+    else if (zeilen.Count == 1) Txt(dc, Ft(zeilen[0], "Times New Roman", true, fs, dunkel), C2, 12.4);
+    dc.DrawLine(new Pen(gold, 0.15), new Point(C2 - 6, 14.4), new Point(C2 + 6, 14.4));
+    string al = ((L.Q ?? "") + ((L.Q ?? "").Length > 0 && (L.Code ?? "").Length > 0 ? "  ·  " : "") + (L.Code ?? "")).ToUpper();
+    double afs = 4.4; for (; afs > 3.4; afs -= 0.2) if (Ft(al, "Arial", false, afs, grau).WidthIncludingTrailingWhitespace <= MW2) break;
+    Txt(dc, Ft(al, "Arial", false, afs, grau), C2, 17.1);
+    Txt(dc, Ft((L.Pill ?? "").ToUpper().Replace(" G", " g"), "Arial", true, 4.8, dunkel), C2, 19.9);
+    dc.DrawLine(new Pen(new SolidColorBrush(Color.FromRgb(215, 215, 215)), 0.08), new Point(6, 21.5), new Point(W - 6, 21.5));
+    string z1 = ((L.Ch ?? "").Length > 0 ? "Charge " + L.Ch : "") + ((L.Ch ?? "").Length > 0 && (L.Dat ?? "").Length > 0 ? "  ·  " : "") + ((L.Dat ?? "").Length > 0 ? "Abgefüllt " + L.Dat : "");
+    string z2 = (L.Nr ?? "").Length > 0 ? "Auftrag " + L.Nr : "";
+    Klein(dc, z1, grau, C2, 23.6, MW2); Klein(dc, z2, grau, C2, 25.7, MW2);
+  }
+  static void Klein(DrawingContext dc, string t, Brush br, double cx, double y, double mw) { if (string.IsNullOrEmpty(t)) return; double s = 3.6; for (; s > 2.8; s -= 0.1) if (Ft(t, "Arial", false, s, br).WidthIncludingTrailingWhitespace <= mw) break; Txt(dc, Ft(t, "Arial", false, s, br), cx, y); }
+  static void Spaced(DrawingContext dc, string t, string f, bool b, double pt, Brush br, double cx, double baseline, double sp) {
+    double w = 0; foreach (char c in t) w += Ft(c.ToString(), f, b, pt, br).WidthIncludingTrailingWhitespace; w += sp * (t.Length - 1);
+    double x = cx - w / 2; foreach (char c in t) { var ft = Ft(c.ToString(), f, b, pt, br); dc.DrawText(ft, new Point(x, baseline - ft.Baseline)); x += ft.WidthIncludingTrailingWhitespace + sp; }
+  }
+}
+public static class FhXpsDruck {
+  public static string Drucken(string drucker, List<FhXEtikett> liste, string name) {
+    string res = null; Exception fehler = null;
+    var t = new Thread(() => { try { res = Innen(drucker, liste, name); } catch (Exception e) { fehler = e; } });
+    t.SetApartmentState(ApartmentState.STA); t.Start(); t.Join();
+    if (fehler != null) throw fehler; return res;
+  }
+  static string Innen(string drucker, List<FhXEtikett> liste, string name) {
+    var srv = new LocalPrintServer(); var q = srv.GetPrintQueue(drucker);
+    var ticket = (q.UserPrintTicket ?? q.DefaultPrintTicket).Clone();
+    ticket.PageOrientation = PageOrientation.Portrait; ticket.CopyCount = 1;
+    double pw = 51 * 96 / 25.4, ph = 30 * 96 / 25.4;
+    if (ticket.PageMediaSize != null && ticket.PageMediaSize.Width.HasValue && ticket.PageMediaSize.Height.HasValue) { pw = ticket.PageMediaSize.Width.Value; ph = ticket.PageMediaSize.Height.Value; }
+    var doc = new FixedDocument(); doc.DocumentPaginator.PageSize = new Size(pw, ph);
+    foreach (var L in liste) {
+      var page = new FixedPage(); page.Width = pw; page.Height = ph;
+      var el = new FhXEl(); el.L = L; el.PW = pw; el.PH = ph; el.Width = pw; el.Height = ph;
+      page.Children.Add(el); page.Measure(new Size(pw, ph)); page.Arrange(new Rect(0, 0, pw, ph)); page.UpdateLayout();
+      var pc = new PageContent(); ((System.Windows.Markup.IAddChild)pc).AddChild(page); doc.Pages.Add(pc);
+    }
+    q.CurrentJobSettings.Description = name;
+    var w = PrintQueue.CreateXpsDocumentWriter(q); w.Write(doc, ticket);
+    string medium = ticket.PageMediaSize != null && ticket.PageMediaSize.PageMediaSizeName.HasValue ? ticket.PageMediaSize.PageMediaSizeName.Value.ToString() : "";
+    return "XPS ok " + Math.Round(pw * 25.4 / 96, 1) + " x " + Math.Round(ph * 25.4 / 96, 1) + " mm " + medium;
+  }
+}
+"@
+} catch { Write-Host "Hinweis: XPS-Druckweg fuer C4000e nicht verfuegbar ($($_.Exception.Message))" -ForegroundColor Yellow }
+function KJsonDruck($datei, $name, $drucker) {
+  $daten = [IO.File]::ReadAllText($datei, [Text.Encoding]::UTF8) | ConvertFrom-Json
+  if ('FhXpsDruck' -as [type]) {
+    $xl = New-Object 'System.Collections.Generic.List[FhXEtikett]'
+    foreach ($d in @($daten)) {
+      $e = New-Object FhXEtikett
+      $e.R = [int]$d.c[0]; $e.G = [int]$d.c[1]; $e.B = [int]$d.c[2]
+      $e.Name = [string]$d.name; $e.Code = [string]$d.code; $e.Q = [string]$d.q; $e.Pill = [string]$d.pill; $e.Nr = [string]$d.nr; $e.Dat = [string]$d.dat; $e.Ch = [string]$d.ch
+      $xl.Add($e)
+    }
+    $r = [FhXpsDruck]::Drucken($drucker, $xl, $name)
+    Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${drucker} ($r): $name" -ForegroundColor Green
+    return
+  }
+  $liste = New-Object 'System.Collections.Generic.List[FhEtikett]'
+  foreach ($d in @($daten)) {
+    $e = New-Object FhEtikett
+    $e.R = [int]$d.c[0]; $e.G = [int]$d.c[1]; $e.B = [int]$d.c[2]
+    $e.Name = [string]$d.name; $e.Code = [string]$d.code; $e.Q = [string]$d.q; $e.Pill = [string]$d.pill; $e.Nr = [string]$d.nr; $e.Dat = [string]$d.dat; $e.Ch = [string]$d.ch
+    $liste.Add($e)
+  }
+  $r = [FhVektorDruck]::Drucken($drucker, $liste, $name, 'proben')
+  Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${drucker} (Vektor, $r): $name" -ForegroundColor Green
+}
+function KDruck($datei, $name, $drucker) {
+  $f = WartenOp ([Windows.Storage.StorageFile]::GetFileFromPathAsync($datei)) ([Windows.Storage.StorageFile])
+  $doc = WartenOp ([Windows.Data.Pdf.PdfDocument]::LoadFromFileAsync($f)) ([Windows.Data.Pdf.PdfDocument])
+  $liste = New-Object 'System.Collections.Generic.List[System.Drawing.Bitmap]'
+  $reste = @(); $xl = $null
+  for ($i = 0; $i -lt $doc.PageCount; $i++) {
+    $pg = $doc.GetPage($i)
+    $opt = New-Object Windows.Data.Pdf.PdfPageRenderOptions
+    $opt.DestinationWidth  = [uint32][math]::Round($pg.Size.Width  * 600 / 96)
+    $opt.DestinationHeight = [uint32][math]::Round($pg.Size.Height * 600 / 96)
+    $ms = New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
+    WartenAkt ($pg.RenderToStreamAsync($ms, $opt))
+    $st = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ms.GetInputStreamAt(0))
+    if ('FhXpsDruck' -as [type]) {
+      $mem = New-Object System.IO.MemoryStream; $st.CopyTo($mem)
+      if (-not $xl) { $xl = New-Object 'System.Collections.Generic.List[FhXEtikett]' }
+      $e = New-Object FhXEtikett; $e.Bild = $mem.ToArray(); $xl.Add($e); $mem.Dispose()
+    } else { $liste.Add((New-Object System.Drawing.Bitmap($st))) }
+    $reste += $st; $reste += $ms; $pg.Dispose()
+  }
+  if ($xl) {
+    try { $r = [FhXpsDruck]::Drucken($drucker, $xl, $name) } finally { foreach ($x in $reste) { try { $x.Dispose() } catch {} } }
+    Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${drucker} ($r): $name" -ForegroundColor Green
+    return
+  }
+  try { $r = [FhBildDruck]::Drucken($drucker, $liste, $name, 'proben') }
+  finally { foreach ($b in $liste) { $b.Dispose() }; foreach ($x in $reste) { try { $x.Dispose() } catch {} } }
+  Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${drucker} ($r): $name" -ForegroundColor Green
+}
+# DHL-Etikett (PDF) auf die Zebra drucken: zuerst direkt per USB, sonst ueber einen Windows-Zebra-Treiber (falls installiert)
+function ZebraDruck($datei, $name) {
+  $usb = [FhZebra]::Pfad()
+  if ($usb) {
+    try {
+      $daten = [Text.Encoding]::ASCII.GetBytes((PdfZuZpl $datei))
+      if ([FhZebra]::Senden($usb, $daten)) { Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf Zebra (USB): $name" -ForegroundColor Green; return $true }
+      Write-Host "Zebra (USB) nicht erreichbar: $name" -ForegroundColor Red
+    } catch { Write-Host "Zebra-Fehler: $($_.Exception.Message)" -ForegroundColor Red }
+  }
+  $q = DruckerZ
+  if ($q) { & $SUM -print-to $q -print-settings 'fit,portrait' -silent $datei | Out-Null; Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${q}: $name" -ForegroundColor Green; return $true }
+  Write-Host "Keine Zebra gefunden (USB-Kabel?) - Datei gespeichert: $datei" -ForegroundColor Yellow; return $false
+}
+
+function Api($action, $a) {
+  $body = @{ pin = $script:PIN; action = $action; a = $a } | ConvertTo-Json -Compress
+  return Invoke-RestMethod -Uri $URL -Method Post -Body $body -ContentType 'text/plain; charset=utf-8' -TimeoutSec 60
+}
+
+# 1) SumatraPDF (kostenlos) zum stillen Drucken
+if (-not (Test-Path $SUM)) {
+  Write-Host 'Lade SumatraPDF (kostenlos) ...'
+  $zip = Join-Path $DIR 'sumatra.zip'
+  Invoke-WebRequest $SUMURL -OutFile $zip -UseBasicParsing
+  Expand-Archive $zip -DestinationPath $DIR -Force
+  Remove-Item $zip
+  $exe = Get-ChildItem $DIR -Filter 'SumatraPDF*.exe' | Select-Object -First 1
+  if ($exe -and $exe.FullName -ne $SUM) { Move-Item $exe.FullName $SUM -Force }
+}
+
+# 2) Zugangscode (PIN der Showroom-App) einmal eingeben
+while ($true) {
+  if (Test-Path $PINF) { $script:PIN = (Get-Content $PINF -Raw).Trim() }
+  else { $script:PIN = (Read-Host 'Zugangscode (PIN) der Showroom-App eingeben').Trim() }
+  $r = $null
+  try { $r = Api 'check' '' } catch {}
+  # Server antwortet je nach Version mit true oder {ok:true,...}
+  if ($r -and ($r.val -eq $true -or $r.val.ok -eq $true)) { Set-Content $PINF $script:PIN; break }
+  # Nur bei klarer Antwort "PIN falsch" neu fragen. Keine Verbindung (z. B. WLAN nach dem Einschalten noch nicht da) -> gespeicherte PIN behalten und warten.
+  if ($r -and "$($r.err)" -notmatch 'zu viele|gesperrt' -and ($r.val -eq $false -or "$($r.err)" -match 'pin|code|zugang')) {
+    Write-Host 'PIN falsch - bitte nochmal.' -ForegroundColor Red
+    if (Test-Path $PINF) { Remove-Item $PINF }
+    Start-Sleep 2
+  } elseif ($r -and "$($r.err)" -match 'zu viele|gesperrt') {
+    Write-Host 'App wegen Fehlversuchen gesperrt - warte 10 Minuten.' -ForegroundColor Yellow
+    Start-Sleep -Seconds 600
+  } else {
+    Write-Host 'Warte auf Internetverbindung ...' -ForegroundColor DarkGray
+    if (-not (Test-Path $PINF) -and $script:PIN) { Set-Content $PINF $script:PIN }
+    Start-Sleep 10
+  }
+}
+
+# 3) Epson-Drucker finden
+function Drucker {
+  $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'C6000|C6500|ColorWorks' -and $_.Name -notmatch 'Regal|Proben|C4000' -and "$($_.DriverName)" -notmatch 'C4000' } | Select-Object -First 1
+  if ($p) { return $p.Name } else { return $null }
+}
+# Epson CW-C4000e (Proben-Etiketten 51 x 30, farbig) - Dateiname beginnt mit 'K-'. Standard-Medium der Warteschlange: 'fh proben 51x30 endlos'
+function DruckerK {
+  $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'C4000' -or "$($_.DriverName)" -match 'C4000' } | Sort-Object { if ($_.Name -match 'Proben') { 0 } else { 1 } } | Select-Object -First 1
+  if ($p) { return $p.Name } else { return $null }
+}
+# Regal-Etiketten 102 x 30 - Dateiname beginnt mit 'R-'. Eigene Windows-Warteschlange derselben Epson mit Medium 'FH Regal 102x30', damit die CLP-Warteschlange (102 x 51) unveraendert bleibt
+$REGALNAME = 'FH Regal 102x30'
+function DruckerR {
+  $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'Regal' } | Select-Object -First 1
+  if ($p) { return $p.Name }
+  $e = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'C6000|C6500|ColorWorks' -and $_.Name -notmatch 'C4000' -and "$($_.DriverName)" -notmatch 'C4000' } | Select-Object -First 1
+  if ($e) { try { Add-Printer -Name $REGALNAME -DriverName $e.DriverName -PortName $e.PortName -ErrorAction Stop; return $REGALNAME } catch { Write-Host "Regal-Warteschlange konnte nicht angelegt werden: $_" -ForegroundColor Yellow } }
+  return $null
+}
+# A4-Drucker (Brother) fuer Angebot / Packliste - Dateiname beginnt mit "A4-"
+function DruckerA4 {
+  $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'Brother|MFC-J6957' } | Select-Object -First 1
+  if ($p) { return $p.Name } else { return $null }
+}
+$DRUCKER = Drucker
+if (-not $DRUCKER) { Write-Host 'WARNUNG: Kein Epson ColorWorks Drucker gefunden - bitte Epson-Treiber installieren.' -ForegroundColor Yellow }
+else { Write-Host "Drucker: $DRUCKER" -ForegroundColor Green }
+# Phomemo M110 (40 x 30) - Dateiname beginnt mit "P-"
+function DruckerP {
+  $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'Phomemo|M110' } | Select-Object -First 1
+  if ($p) { return $p.Name } else { return $null }
+}
+$DRUCKERP = DruckerP
+if (-not $DRUCKERP) { Write-Host 'Hinweis: Kein Phomemo-Drucker (40 x 30) gefunden.' -ForegroundColor DarkGray }
+else { Write-Host "Phomemo-Drucker: $DRUCKERP" -ForegroundColor Green }
+$DRUCKERA4 = DruckerA4
+$DRUCKERK = DruckerK
+if ($DRUCKERK) { Write-Host "Proben-Etiketten 51 x 30 (farbig): $DRUCKERK" -ForegroundColor Green } else { Write-Host 'Hinweis: Keine Epson CW-C4000e gefunden (Dateien K-... werden nur gespeichert).' -ForegroundColor DarkGray }
+$DRUCKERR = DruckerR
+if ($DRUCKERR) { Write-Host "Regal-Etiketten: $DRUCKERR" -ForegroundColor Green } else { Write-Host 'Hinweis: Keine Regal-Warteschlange (Dateien R-... werden nur gespeichert).' -ForegroundColor DarkGray }
+# Zebra GK420t (DHL-Versandetiketten 103 x 199 / 103 x 150) - Dateiname beginnt mit "Z-". Normal direkt per USB (FhZebra), Windows-Treiber nur als Ersatz
+function DruckerZ {
+  $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'Zebra|ZDesigner|GK420' } | Select-Object -First 1
+  if ($p) { return $p.Name } else { return $null }
+}
+$DRUCKERZ = DruckerZ
+if ([FhZebra]::Pfad()) { Write-Host 'Zebra-Drucker (DHL-Etiketten): direkt per USB' -ForegroundColor Green }
+elseif ($DRUCKERZ) { Write-Host "Zebra-Drucker: $DRUCKERZ" -ForegroundColor Green }
+else { Write-Host 'Hinweis: Kein Zebra-Drucker (DHL-Etiketten) gefunden.' -ForegroundColor DarkGray }
+if (-not $DRUCKERA4) { Write-Host 'WARNUNG: Kein A4-Drucker (Brother) gefunden.' -ForegroundColor Yellow }
+else { Write-Host "A4-Drucker: $DRUCKERA4" -ForegroundColor Green }
+Write-Host 'Bereit. Etiketten und A4-Dokumente aus der App werden automatisch gedruckt. Dieses Fenster offen lassen.' -ForegroundColor Green
+
+# Nichts Altes drucken: Auftraege in den Windows-Warteschlangen, die nach 5 Minuten nicht gedruckt sind, werden geloescht
+# (laeuft ein Auftrag gerade, bekommt er 15 Minuten). Regal-Etiketten ausgenommen: dort ist jedes Etikett ein eigener Auftrag.
+function AlteAuftraegeLoeschen {
+  foreach ($q in @($DRUCKERA4, $DRUCKER, $DRUCKERP, $DRUCKERK)) {
+    if (-not $q) { continue }
+    foreach ($job in @(Get-PrintJob -PrinterName $q -ErrorAction SilentlyContinue)) {
+      if (-not $job) { continue }
+      $min = ((Get-Date) - $job.SubmittedTime).TotalMinutes
+      if ($min -gt 15 -or ($min -gt 5 -and "$($job.JobStatus)" -notmatch 'Printing')) {
+        Remove-PrintJob -InputObject $job -ErrorAction SilentlyContinue
+        Write-Host "$(Get-Date -Format HH:mm:ss)  zu alt, nicht gedruckt: $(Split-Path $job.DocumentName -Leaf)" -ForegroundColor Yellow
+      }
+    }
+  }
+}
+if ($DRUCKERA4) { try { Set-Printer -Name $DRUCKERA4 -KeepPrintedJobs $false -ErrorAction Stop } catch {} }
+AlteAuftraegeLoeschen
+$script:AltZeit = Get-Date
+$n = 0
+while ($true) {
+  # Testordner: PDF in FH-Druck\test legen -> wird wie ein App-Auftrag gedruckt (Name bestimmt den Drucker: A4-..., P-..., sonst Epson)
+  $TEST = Join-Path $DIR 'test'; New-Item -ItemType Directory -Force $TEST | Out-Null
+  foreach ($t in @(Get-ChildItem $TEST -File -Filter *.pdf -ErrorAction SilentlyContinue)) {
+    if (-not $DRUCKERP) { $DRUCKERP = DruckerP }
+    if (-not $DRUCKERZ) { $DRUCKERZ = DruckerZ }
+    if (-not $DRUCKERK) { $DRUCKERK = DruckerK }
+    if ($t.Name -like 'A4-*') { $z = $DRUCKERA4; $o = 'fit' } elseif ($t.Name -like 'K-*') { $z = $DRUCKERK; $o = 'fit,portrait' } elseif ($t.Name -like 'Z-*') { $z = $DRUCKERZ; $o = 'fit,portrait' } elseif ($t.Name -like 'R-*') { $z = $DRUCKERR; $o = 'fit,landscape' } elseif ($t.Name -like 'P-*') { $z = $DRUCKERP; $o = $(if ($t.Name -match '__(.+)\.pdf$') { $Matches[1] -replace '_',',' } else { 'noscale,landscape' }) } else { $z = $DRUCKER; $o = 'fit,landscape' }
+    if ($t.Name -like 'Z-*') { [void](ZebraDruck $t.FullName $t.Name) }
+    elseif ($t.Name -like 'K-*' -and $z -and ('FhBildDruck' -as [type])) { try { KDruck $t.FullName $t.Name $z } catch { Write-Host "Fehler C4000e: $($_.Exception.Message)" -ForegroundColor Red } }
+    elseif ($z) { & $SUM -print-to $z -print-settings $o -silent $t.FullName | Out-Null; Write-Host "$(Get-Date -Format HH:mm:ss)  Test gedruckt auf ${z} ($o): $($t.Name)" -ForegroundColor Cyan }
+    Remove-Item $t.FullName -ErrorAction SilentlyContinue
+  }
+  try {
+    $r = Api 'druckholen' $(if ($n % 20 -eq 0) { '1' } else { '' })
+    if ($r.err) {
+      Write-Host "Fehler: $($r.err)" -ForegroundColor Red
+      Start-Sleep -Seconds 3
+      # PIN falsch oder Sperre wegen Fehlversuchen: nicht alle 3 s weiter probieren (sonst bleibt die App fuer alle gesperrt).
+      # 10 Minuten warten und die PIN aus pin.txt neu lesen (dort kann eine neue PIN eingetragen werden).
+      if ("$($r.err)" -match 'pin|code|zugang|zu viele|gesperrt') {
+        Write-Host 'PIN falsch/gesperrt - warte 10 Minuten. Neue PIN in pin.txt eintragen.' -ForegroundColor Yellow
+        Start-Sleep -Seconds 600
+        if (Test-Path $PINF) { $script:PIN = (Get-Content $PINF -Raw).Trim() }
+      }
+    }
+    elseif ($r.val) {
+      if (-not $DRUCKER) { $DRUCKER = Drucker }
+      if (-not $DRUCKERA4) { $DRUCKERA4 = DruckerA4 }
+      if (-not $DRUCKERP) { $DRUCKERP = DruckerP }
+      if (-not $DRUCKERZ) { $DRUCKERZ = DruckerZ }
+      if (-not $DRUCKERR) { $DRUCKERR = DruckerR }
+      if (-not $DRUCKERK) { $DRUCKERK = DruckerK }
+      foreach ($j in @($r.val)) {
+        $f = Join-Path $DONE ((Get-Date -Format 'yyMMdd-HHmmss') + '-' + $j.name)
+        [IO.File]::WriteAllBytes($f, [Convert]::FromBase64String($j.b64))
+        # Etiketten 102x51 brauchen 'landscape', sonst dreht SumatraPDF sie um 90 Grad und verkleinert sie
+        if ($j.name -like 'A4-*') { $ziel = $DRUCKERA4; $opt = 'fit' }
+        elseif ($j.name -like 'K-*') { $ziel = $DRUCKERK; $opt = 'fit,portrait' }  # Proben-Etikett 51 x 30 farbig -> Epson CW-C4000e (Medium 'fh proben 51x30 endlos')
+        elseif ($j.name -like 'Z-*') { $ziel = $DRUCKERZ; $opt = 'fit,portrait' }  # DHL-Versandetikett -> Zebra
+        elseif ($j.name -like 'R-*') { $ziel = $DRUCKERR; $opt = 'fit,landscape' }  # Regal-Etikett 102 x 30 -> Epson, Warteschlange Regal (nie auf die CLP-Rolle)
+        elseif ($j.name -like 'P-*') { $ziel = $DRUCKERP; $opt = 'noscale,landscape' }  # Phomemo-Treiber skaliert sonst falsch: 1:1 drucken
+        else { $ziel = $DRUCKER; $opt = 'fit,landscape' }
+        if ($j.name -like 'Z-*') { [void](ZebraDruck $f $j.name) }
+        elseif ($j.name -like 'K-*' -and ($j.name -match '\.json(\.pdf)?$' -or -not (IstPdf $f))) { if ($ziel -and ('FhVektorDruck' -as [type])) { try { KJsonDruck $f $j.name $ziel } catch { Write-Host "Fehler C4000e: $($_.Exception.Message)" -ForegroundColor Red } } else { Write-Host "C4000e nicht bereit - gespeichert: $f" -ForegroundColor Yellow } }
+        elseif ($j.name -like 'K-*' -and $ziel -and ('FhBildDruck' -as [type])) { try { KDruck $f $j.name $ziel } catch { Write-Host "Fehler C4000e: $($_.Exception.Message)" -ForegroundColor Red } }
+        elseif ($ziel -and ($j.name -match '\.bin(\.pdf)?$' -or ($j.name -like 'P-*' -and -not (IstPdf $f)))) {  # Rohdaten (Phomemo) – auch wenn der Name gekürzt wurde
+          if ([FhRaw]::Send($ziel, [IO.File]::ReadAllBytes($f), $j.name)) { Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${ziel}: $($j.name)" -ForegroundColor Green }
+          else { Write-Host "Fehler beim Senden an ${ziel}: $($j.name)" -ForegroundColor Red }
+        } elseif ($ziel) {
+          & $SUM -print-to $ziel -print-settings $opt -silent $f | Out-Null
+          Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${ziel}: $($j.name)" -ForegroundColor Green
+        } else { Write-Host "Kein passender Drucker - Datei gespeichert: $f" -ForegroundColor Yellow }
+      }
+    }
+  } catch { Write-Host "$(Get-Date -Format HH:mm:ss)  keine Verbindung ..." -ForegroundColor DarkGray; Start-Sleep -Seconds 3 }
+  if (((Get-Date) - $script:AltZeit).TotalSeconds -ge 30) { $script:AltZeit = Get-Date; AlteAuftraegeLoeschen }
+  # alte Dateien (älter als 30 Tage) aufräumen
+  if ($n % 1200 -eq 0) { Get-ChildItem $DONE -File | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } | Remove-Item -ErrorAction SilentlyContinue }
+  # alle 3 Stunden nach einer neuen Version schauen
+  if (((Get-Date) - $script:UpdZeit).TotalHours -ge 3) { $script:UpdZeit = Get-Date; WachHalten; SelbstUpdate }
+  $n++
+  # Der Server wartet selbst bis zu 15 s auf neue Auftraege (Long-Polling) - danach sofort wieder fragen
+  Start-Sleep -Milliseconds 300
+}

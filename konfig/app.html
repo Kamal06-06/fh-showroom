@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flakon-Konfigurator (App)</title>
+<style>
+html,body{margin:0;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+#fhk{left:auto!important;transform:none!important;width:auto!important;margin:12px!important}
+#fhk .stage{top:8px!important}
+</style>
+<script>
+/* Der Shop-Konfigurator (gleiches Skript wie im Shop) – in der Showroom-App:
+   „In den Warenkorb" legt nichts in den Shop-Warenkorb, sondern schickt die Positionen an die App. */
+(function(){
+  window.FHKR='#';window.Shopify=window.Shopify||{};window.Shopify.routes={root:'#'};/* kein Wechsel zur Shop-Warenkorbseite */
+  var of=window.fetch;
+  function num(t){t=String(t||'').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.');return parseFloat(t)||0}
+  window.fetch=function(u,o){var url=String(u&&u.url||u);
+    if(/cart\/add\.js/.test(url)){
+      var items=[];try{items=JSON.parse(o.body).items||[]}catch(e){}
+      var rows=[].slice.call(document.querySelectorAll('#fhk-sum tr')).filter(function(tr){return !tr.classList.contains('t')}).map(function(tr){
+        var td=tr.querySelector('td'),k=td&&td.querySelector('.k'),b=k&&k.querySelector('b'),r=tr.querySelector('td.r');
+        var name=td?[].slice.call(td.childNodes).filter(function(n){return n.nodeType===3}).map(function(n){return n.textContent}).join('').trim():'';
+        return {name:name,code:b?b.textContent.trim():'',info:k?k.textContent.trim():'',total:r?num(r.textContent):0}});
+      var desc=(document.getElementById('fhk-desc')||{}).textContent||'';
+      var pcsT=(document.getElementById('fhk-pcs')||{}).textContent||'',nIn=document.getElementById('fhk-n');
+      var kart=/St(ü|u)ck/.test(pcsT)&&/=/.test(pcsT);
+      parent.postMessage({fhk:'add',thumb:window.FHK_THUMB||'',items:items,rows:rows,desc:desc,sets:num(pcsT.replace(/[^\d.]/g,'')),n:nIn?+nIn.value||1:1,kart:kart},'*');
+      return Promise.resolve(new Response('{"items":[]}',{status:200,headers:{'Content-Type':'application/json'}}))}
+    if(/\/products\/[^/]+\.js/.test(url))return Promise.reject(new Error('offline'));
+    return of.apply(this,arguments)};
+})();
+</script>
+</head>
+<body>
+<div id="fhk-root"></div>
+<script>
+/* Knopf in der App: „In den Auftrag übernehmen" statt „In den Warenkorb" */
+new MutationObserver(function(){var b=document.getElementById('fhk-add');if(b&&b.textContent.indexOf('Auftrag')<0)b.textContent='➕ In den Auftrag übernehmen · إضافة إلى الطلب'}).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+</script>
+<script src="https://cdn.shopify.com/s/files/1/0929/4571/1487/files/fh-flakon-konfigurator-v17.js?v=1794480933"></script>
+<script>
+/* Bild eines gespeicherten Sets nachträglich erzeugen: ?snap=<id>&spr=Gold|ohne&cap=<Art.-Nr.>|ohne → echtes Bild (Flakon + Sprühkopf + Kappe) an die App */
+(function(){var q=new URLSearchParams(location.search),id=q.get('snap');if(!id)return;
+  var sp=(q.get('spr')||'').toLowerCase(),cap=(q.get('cap')||'').toUpperCase(),n=0;
+  function bt(box){return [].slice.call(document.querySelectorAll('#fhk-'+box+' button'))}
+  function pick(box,f){var b=bt(box).find(f);if(b&&b.getAttribute('aria-pressed')!=='true')b.click()}
+  function shot(){var d='';try{var cv=document.getElementById('fhk-cv'),w=240,h=Math.round(w*cv.height/cv.width),t=document.createElement('canvas');t.width=w;t.height=h;var x=t.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(cv,0,0,w,h);d=t.toDataURL('image/jpeg',.82)}catch(e){}
+    parent.postMessage({fhk:'snap',id:id,thumb:d},'*')}
+  (function go(){if(!bt('o-cap').length||!bt('o-spr').length){if(++n<60)return setTimeout(go,150);return shot()}
+    if(sp)pick('o-spr',function(b){var t=b.textContent.trim().toLowerCase();return sp==='ohne'?t.indexOf('ohne')===0:t===sp});
+    setTimeout(function(){if(cap)pick('o-cap',function(b){var t=(b.title||b.textContent||'').toUpperCase();return cap==='OHNE'?/OHNE/.test(t):t.indexOf(cap)>=0});setTimeout(shot,2800)},250)})();
+})();
+</script>
+</body>
+</html>
