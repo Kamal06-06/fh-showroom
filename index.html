@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="243">
+<meta name="fh-build" content="244">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -4099,12 +4099,12 @@ function openSammel(g){if(!isAdmin())return;const ls=g.orders.filter(l=>l.kind!=
       go.disabled=true;const o=go.textContent;go.textContent='جاري إنشاء المسودة…';out.textContent='';
       try{const r=await srv('lex_draft',JSON.stringify(lexPayloadMulti(chosen)));const info={id:r.id,url:r.url,at:Date.now(),by:WHO(),sammel:chosen.length};
         for(const l of chosen)await db.doc('lists/'+l.id).update({lex:info});
-        go.textContent='✓ تم إنشاء المسودة';const a=el('a','btn primary','🧾 فتح المسودة في Lexware');a.href=r.url;a.target='_blank';a.rel='noopener';out.append(a,el('p','note',chosen.length+' طلبات في فاتورة واحدة · '+(r.kontakt?'مربوطة بالعميل في Lexware.':'العنوان مكتوب يدوياً — العميل غير موجود في Lexware بنفس الاسم.')))}
+        go.textContent='✓ تم إنشاء المسودة';const a=el('a','btn primary','🧾 فتح المسودة في Lexware');a.href=r.url;a.target='_blank';a.rel='noopener';if(r.hinweis)out.append(el('p','note',r.hinweis));out.append(a,el('p','note',chosen.length+' طلبات في فاتورة واحدة · '+(r.kontakt?'مربوطة بالعميل في Lexware.':'العنوان مكتوب يدوياً — العميل غير موجود في Lexware بنفس الاسم.')))}
       catch(e){go.disabled=false;go.textContent=o;const m=String(e.message||e);out.append(el('p','status err',/LEXWARE_KEY_FEHLT/.test(m)?'مفتاح Lexware غير مضبوط في الخادم.':/Unbekannte Aktion/.test(m)?'الخادم لم يُحدَّث بعد.':'فشل: '+m))}};
     pick(mStart(now.getFullYear(),now.getMonth()),Infinity);b.append(box,sum,go,out)})}
 async function lexDraft(l,btn,out){if(!isAdmin())return;const o=btn.textContent;btn.disabled=true;btn.textContent='جاري إنشاء المسودة في Lexware…';out.textContent='';
   try{const r=await srv('lex_draft',JSON.stringify(lexPayload(l)));await db.doc('lists/'+l.id).update({lex:{id:r.id,url:r.url,at:Date.now(),by:WHO()}});
-    btn.textContent='✓ تم إنشاء المسودة';const a=el('a','btn primary','🧾 فتح المسودة في Lexware');a.href=r.url;a.target='_blank';a.rel='noopener';out.append(a,el('p','note',r.kontakt?'رُبطت بالعميل الموجود في Lexware.':'العميل غير موجود في Lexware بنفس الاسم — العنوان مكتوب يدوياً في المسودة. راجع الضريبة لعملاء خارج ألمانيا.'))}
+    btn.textContent='✓ تم إنشاء المسودة';const a=el('a','btn primary','🧾 فتح المسودة في Lexware');a.href=r.url;a.target='_blank';a.rel='noopener';out.append(a,el('p','note',r.kontakt?'رُبطت بالعميل الموجود في Lexware.':'العميل غير موجود في Lexware بنفس الاسم — العنوان مكتوب يدوياً في المسودة.'));if(r.hinweis)out.append(el('p','note',r.hinweis))}
   catch(e){btn.disabled=false;btn.textContent=o;const m=String(e.message||e);out.append(el('p','status err',/LEXWARE_KEY_FEHLT/.test(m)?'مفتاح Lexware غير مضبوط بعد في الخادم.':/Unbekannte Aktion/.test(m)?'الخادم لم يُحدَّث بعد لميزة Lexware.':/NUR_INHABER/.test(m)?'هذه الميزة للمدير فقط.':'فشل: '+m))}}
 /* ================= 🗂️ نافذة الطلب · Auftragsfenster (v2, 27.10.2026) =================
    Kopf mit allem Wichtigen, darunter 5 Reiter: التحضير · المستندات والملصقات · الشحن · الحساب · إدارة */
@@ -7253,7 +7253,7 @@ const plEm=P=>String(P.e||'').trim().toLowerCase();
 function plLast(P){const a=plContact()[P.key]||0,b=(PLK&&PLK.kontakt&&P.e&&PLK.kontakt[plEm(P)])||0;return Math.max(a,b)}
 const plRecent=P=>{const t=plLast(P);return !!t&&Date.now()-t<30*864e5};
 const plIsOut=P=>!!(plOptout()[P.key]||(PLK&&PLK.abmeld&&P.e&&PLK.abmeld[plEm(P)]));
-function plMark(P,art){const x=plContact();x[P.key]=Date.now();LS.set('plContact',x);
+function plContactMark(P,art){const x=plContact();x[P.key]=Date.now();LS.set('plContact',x);
   if(P.e){if(PLK){PLK.kontakt=PLK.kontakt||{};PLK.kontakt[plEm(P)]=Date.now()}if(art)srv('pl_kontakt',JSON.stringify({e:P.e,name:P.name,art})).catch(()=>{})}}
 async function plSetOut(P,on){const x=plOptout();if(on)x[P.key]=Date.now();else delete x[P.key];LS.set('plOptout',x);
   if(P.e){if(PLK){PLK.abmeld=PLK.abmeld||{};if(on)PLK.abmeld[plEm(P)]=1;else delete PLK.abmeld[plEm(P)]}try{await srv('pl_optout',JSON.stringify({e:P.e,name:P.name,on:!!on}))}catch(e){toast('⚠️ '+e.message)}}}
@@ -7275,7 +7275,7 @@ async function plBulkSend(all,k,btn,msg,after){
   let sent=0,err=0;const todo=L.slice(0,n),byKey=new Map(todo.map(P=>[P.key,P]));
   while(todo.length){const ch=todo.splice(0,10);msg.textContent='📨 جاري الإرسال… '+sent+' / '+n;
     try{const r=await srv('pl_mail_bulk',JSON.stringify(ch.map(P=>{const m=plMail(P);return{k:P.key,to:P.e,name:P.name,s:m.s,b:m.b}})));
-      (r.ok||[]).forEach(k2=>{const P=byKey.get(k2);if(P)plMark(P,'')});sent+=(r.ok||[]).length;err+=(r.fehler||[]).length;if(!r.frei&&todo.length)break}
+      (r.ok||[]).forEach(k2=>{const P=byKey.get(k2);if(P)plContactMark(P,'')});sent+=(r.ok||[]).length;err+=(r.fehler||[]).length;if(!r.frei&&todo.length)break}
     catch(e){err+=ch.length;msg.classList.add('err');msg.textContent='⚠️ توقف الإرسال: '+e.message;break}}
   if(!msg.classList.contains('err'))msg.textContent='✅ أُرسل '+sent+' إيميل من info@fragranceshub.de – اختفوا من القائمة وسيعودون بعد 30 يوماً'+(err?' · لم يُرسل '+err:'')+(sent<L.length?' · الباقي '+(L.length-sent)+' (اضغط مرة أخرى غداً)':'');
   toast('✅ أُرسل '+sent+' إيميل');btn.disabled=false;if(after)after()}
@@ -7291,7 +7291,7 @@ function plMailSheet(P,done){const ml=plMail(P);
     if(plIsOut(P))b.append(el('p','note','🚫 هذا العميل طلب عدم مراسلته.'));
     const msg=el('div','status');msg.hidden=true;const go=el('button','btn primary big','📨 إرسال من info@fragranceshub.de');
     go.onclick=async()=>{if(!confirm('إرسال الإيميل إلى '+to.value.trim()+' ؟'))return;go.disabled=true;msg.hidden=false;msg.classList.remove('err');msg.textContent='جاري الإرسال… · wird gesendet…';
-      try{await srv('pl_mail',JSON.stringify({to:to.value.trim(),name:P.name,s:sj.value,b:tx.value}));msg.textContent='✅ أُرسل من info@fragranceshub.de';plMark(P,'');if(done)done();toast('✅ أُرسل الإيميل');setTimeout(()=>{closeSheet()},900)}
+      try{await srv('pl_mail',JSON.stringify({to:to.value.trim(),name:P.name,s:sj.value,b:tx.value}));msg.textContent='✅ أُرسل من info@fragranceshub.de';plContactMark(P,'');if(done)done();toast('✅ أُرسل الإيميل');setTimeout(()=>{closeSheet()},900)}
       catch(e){msg.classList.add('err');msg.textContent=/ABSENDER_FEHLT/.test(e.message)?'⚠️ لم يُرسل: عنوان info@fragranceshub.de غير مفعّل للإرسال في Gmail.':'⚠️ لم يُرسل: '+e.message;go.disabled=false}};
     b.append(go,msg)})}
 /* Text je nach Status: متوقف/متأخر (lange nichts bestellt), مرة واحدة, جديد, نشط */
@@ -7378,10 +7378,10 @@ function plSheet(start){if(!isAdmin())return;
         const c=plLast(P);if(c)r.append(el('div','time','✓ تم التواصل '+new Date(c).toLocaleDateString('de-DE')+(Date.now()-c<30*864e5?' – يعود للقائمة '+new Date(c+30*864e5).toLocaleDateString('de-DE'):'')));
         const out=plIsOut(P);if(out)r.append(el('div','time','🚫 طلب عدم مراسلته – لا يُرسل له في الإرسال الجماعي'));
         const a=el('div','row');a.style.cssText='gap:6px;flex-wrap:wrap;margin-top:6px';
-        if(P.p){const w=el('a','btn small ctc','💬 واتساب');w.href=custWa(P.p,plMsg(P));w.target='_blank';w.rel='noopener';w.onclick=()=>{plMark(P,'WhatsApp');setTimeout(()=>draw(true),300)};a.append(w)}
+        if(P.p){const w=el('a','btn small ctc','💬 واتساب');w.href=custWa(P.p,plMsg(P));w.target='_blank';w.rel='noopener';w.onclick=()=>{plContactMark(P,'WhatsApp');setTimeout(()=>draw(true),300)};a.append(w)}
         if(P.e){const m=el('button','btn small ctc','✉️ إيميل');m.onclick=()=>plMailSheet(P,()=>setTimeout(()=>{try{draw(true)}catch(e){}},1000));a.append(m)}
         const g=custAll().find(x=>custKey(x.name)===P.key);if(g){const o=el('button','btn small','📂 طلبات الصالة');o.onclick=()=>{closeSheet();focusId=null;focusCust=g.key;tab('wh');renderLists()};a.append(o)}
-        if(!done){const mk=el('button','btn small','✓ تم التواصل');mk.onclick=()=>{plMark(P,'manuell');draw(true)};a.append(mk)}
+        if(!done){const mk=el('button','btn small','✓ تم التواصل');mk.onclick=()=>{plContactMark(P,'manuell');draw(true)};a.append(mk)}
         const ob=el('button','btn small',out?'🔔 السماح بالرسائل':'🚫 لا يريد رسائل');ob.onclick=async()=>{ob.disabled=true;await plSetOut(P,!out);draw(true)};a.append(ob);
         r.append(a);box.append(r)});
       const n=plBulkList(all,tabK).length;bulk.hidden=done;bulk.textContent='📨 إيميل جماعي لقائمة «'+tn+'» ('+n+')';bulk.disabled=!n;
