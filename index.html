@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="256">
+<meta name="fh-build" content="257">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -1345,10 +1345,7 @@ async function fsPushReg(){try{
 if(!IN_GAS){
   document.addEventListener('click',()=>{try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission().then(p=>{if(p==='granted')fsPushReg()})}catch(e){}},{once:true});
   /* ⚡ neue App-Version im Hintergrund geladen → beim nächsten Wechsel in den Hintergrund still übernehmen (Entwürfe bleiben gespeichert) */
-  if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',e=>{if(!(e.data&&e.data.upd)||window._fhUpd)return;window._fhUpd=1;try{appUpd=Date.now()}catch(_){}
-    try{if(APP_RELOAD&&Date.now()-APP_T0<20000&&!appTyped(document.body)){location.reload();return}}catch(_){}
-    try{toast('🔄 نسخة جديدة من التطبيق جاهزة – اضغط للتحديث',()=>location.reload())}catch(_){}
-    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')setTimeout(()=>{if(document.visibilityState==='hidden')location.reload()},1500)})});
+  if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',e=>{if(!(e.data&&e.data.upd))return;try{appUpdSoon()}catch(_){}});
   if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',e=>{const o=e.data&&e.data.open;if(!o)return;
     try{if(o==='shop')shopOpen();else if(String(o).indexOf('list:')===0)openOrder(String(o).slice(5))}catch(x){}});
 }
@@ -6594,22 +6591,39 @@ function soView(){try{sessionStorage.setItem('fhSo',JSON.stringify({sel:soSel,re
 /* 🔄 Aktualisieren: lädt wirklich alles neu (Aufträge, Kunden, Shop-Bestellungen, Artikel, App-Version) –
    im Hintergrund, die Seite bleibt bedienbar; am Ende wird die aktuelle Seite neu gezeichnet. */
 let appRefP=null;
-function appRefresh(){if(appRefP){toast('🔄 التحديث يعمل في الخلفية…');return Promise.resolve()}
-  const T0=Date.now(),t=[];toast('🔄 جاري التحديث في الخلفية…');
+function appRefresh(){if(appRefP)return Promise.resolve();
+  const t=[];
   try{if(FS_ON)t.push(srv('fs_ping').then(r=>{try{onDevWait(r&&r.devWait)}catch(_){}}).catch(()=>{}));else t.push(Promise.resolve(db&&db.pull()))}catch(e){}
   try{if(soPw()&&can('shop'))t.push(soLoad(true).then(()=>{try{soSetCount()}catch(e){}}).catch(()=>{}))}catch(e){}
   try{if(!$('view-inv').hidden||!$('view-new').hidden||!$('view-lg').hidden)t.push(ivLoad(true,true).catch(()=>{}))}catch(e){}
   try{if(navigator.serviceWorker)t.push(navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{}))}catch(e){}
   appRefP=Promise.race([Promise.all(t),new Promise(r=>setTimeout(r,30000))]).then(async()=>{
-    if(await appVerCheck(true))return;appRedraw();toast('✅ تم التحديث · '+((Date.now()-T0)/1000).toFixed(1)+' ث')}).catch(e=>toast('⚠️ '+(e.message||e))).finally(()=>{appRefP=null});
+    if(await appVerCheck(true))return;appRedraw()}).catch(e=>toast('⚠️ '+(e.message||e))).finally(()=>{appRefP=null});
   return Promise.resolve()}
 /* App-Version: neue Version erkennen (sw.js) – beim Ziehen automatisch laden, sonst Hinweis zum Antippen */
-let appUpd=0;
-async function appVerCheck(auto){try{if(IN_GAS)return false;const r=await fetch('sw.js?t='+Date.now(),{cache:'no-store'});const m=/fh-shell-v(\d+)/.exec(await r.text());const me=document.querySelector('meta[name=fh-build]');let cur=me?+me.content:0;try{(await caches.keys()).forEach(k=>{const x=/fh-shell-v(\d+)/.exec(k);if(x&&+x[1]>cur)cur=+x[1]})}catch(_){}
+
+async function appVerCheck(auto){try{if(IN_GAS)return false;const r=await fetch('sw.js?t='+Date.now(),{cache:'no-store'});const m=/fh-shell-v(\d+)/.exec(await r.text());const me=document.querySelector('meta[name=fh-build]');const cur=me?+me.content:0;
   if(!m||!cur||+m[1]<=cur)return false;
-  if(auto&&!appTyped(document.body)){toast('🆕 جاري تحميل النسخة الجديدة…');setTimeout(()=>location.reload(),600);return true}
-  if(Date.now()-appUpd>600000){appUpd=Date.now();toast('🆕 نسخة جديدة من التطبيق جاهزة – اضغط هنا للتحديث',()=>location.reload())}return true}catch(e){return false}}
-if(!IN_GAS){setTimeout(()=>appVerCheck(false),60000);setInterval(()=>{if(!document.hidden)appVerCheck(false)},900000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)appVerCheck(false)})}
+  if(auto&&appSafe()){appReloadNew();return true}
+  appUpdSoon();return true}catch(e){return false}}
+/* Stilles Selbst-Update (wie große Apps): keine Hinweise. Neue Version wird geladen, sobald es niemanden stört –
+   wenn die App in den Hintergrund geht, oder nach 45 s ohne Bedienung, ohne offenes Fenster und ohne Eingaben. Seite/Reiter bleiben erhalten. */
+let appUpdP=false,appAct=Date.now();
+['pointerdown','keydown','touchstart','wheel'].forEach(ev=>addEventListener(ev,()=>{appAct=Date.now()},{passive:true,capture:true}));
+function appSafe(){try{return !appTyped(document.body)&&$('omodal').hidden&&!document.querySelector('.busy,[aria-busy=true]')&&!(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))}catch(e){return false}}
+async function appReloadNew(){if(window._fhRel)return;window._fhRel=1;
+  try{const res=await fetch('./?v='+Date.now(),{cache:'no-store',credentials:'same-origin'});if(res.ok){const tx=await res.text();for(const k of await caches.keys()){if(/^fh-shell-v/.test(k))await (await caches.open(k)).put('index.html',new Response(tx,{headers:{'Content-Type':'text/html; charset=utf-8'}}))}}}catch(e){}
+  try{const r=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();if(r)await r.update()}catch(e){}
+  location.reload()}
+function appUpdSoon(){if(appUpdP)return;appUpdP=true;
+  if(APP_RELOAD&&Date.now()-APP_T0<20000&&appSafe())return appReloadNew();
+  const go=()=>{if(document.visibilityState==='hidden'||(Date.now()-appAct>45000&&appSafe()))appReloadNew()};
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')setTimeout(()=>{if(document.visibilityState==='hidden')appReloadNew()},1200)});
+  setInterval(go,10000)}
+/* Prüfen: kurz nach dem Start, alle 5 Minuten, und beim Zurückkehren in die App; nach längerer Pause zusätzlich Daten still auffrischen */
+let appHidAt=0;
+if(!IN_GAS){setTimeout(()=>appVerCheck(false),30000);setInterval(()=>{if(!document.hidden)appVerCheck(false)},300000);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){appHidAt=Date.now();return}appVerCheck(false);if(appHidAt&&Date.now()-appHidAt>180000&&PIN){try{appRefresh()}catch(e){}}appHidAt=0})}
 /* nach dem Aktualisieren die aktuelle Seite neu zeichnen – aber nie, wenn dort gerade etwas eingetippt wurde */
 function appTyped(root){return !!root&&[...root.querySelectorAll('input,textarea')].some(i=>i.type!=='checkbox'&&i.type!=='radio'&&i.type!=='file'&&i.value!==i.defaultValue)}
 function appRedraw(){
