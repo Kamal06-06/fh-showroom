@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="260">
+<meta name="fh-build" content="261">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -835,6 +835,23 @@ html,#sheet .sh,#omodal *{scrollbar-width:auto;scrollbar-color:#B8963E transpare
 /* Seitenleiste: passt ohne eigene Leiste; bei kleinen Bildschirmen enger, Scrollen mit dem Mausrad bleibt */
 #appnav{scrollbar-width:none}#appnav::-webkit-scrollbar{display:none}
 @media (min-width:900px) and (max-height:940px){#appnav{gap:0!important;padding-top:14px!important}#appnav .nv{padding-top:6px!important;padding-bottom:6px!important;min-height:0!important}}
+/* Auftrag: Positionen bearbeiten */
+.oe-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.oe-h{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}.oe-h b{font-size:16px}.oe-h small{color:var(--muted);font-size:12.5px}
+.oe-list{display:flex;flex-direction:column;gap:6px}
+.oe-row{display:grid;grid-template-columns:minmax(0,1fr) auto 44px 96px 36px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--surface)}
+.oe-row.nw{border-color:var(--gold);background:#FFFBF0}
+.oe-m .nm{font-weight:800;font-size:14px}.oe-m .cd{font-size:12px;color:var(--muted)}
+.oe-st{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;overflow:hidden;direction:ltr}
+.oe-st button{width:38px;height:38px;border:0;background:var(--soft);font-size:20px;font-weight:700;cursor:pointer;color:var(--navy)}.oe-st button:hover{background:#EFE6CF}
+.oe-st input{width:58px;height:38px;border:0;text-align:center;font:inherit;font-weight:800;font-size:15px;-moz-appearance:textfield}
+.oe-st input::-webkit-inner-spin-button{display:none}
+.oe-u{font-size:12px;color:var(--muted)}.oe-p{font-weight:800;text-align:end;white-space:nowrap}
+.oe-x{width:36px;height:36px;border:0;border-radius:9px;background:#FCE8E6;color:#B4231A;font-weight:800;cursor:pointer}
+.oe-addh{font-size:12.5px;font-weight:800;color:var(--muted);margin:14px 2px 6px}
+.oe-tot{margin-top:12px;text-align:end;font-weight:800}
+.oe-ft{display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:12px;position:sticky;bottom:0;background:var(--surface);padding-top:8px}
+@media (max-width:560px){.oe-row{grid-template-columns:minmax(0,1fr) auto 36px;}.oe-row .oe-u{display:none}.oe-row .oe-p{grid-column:1/3;text-align:start;font-size:13px}}
 /* Versand ohne Auftrag (Startseite) */
 .shipx{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:12px 14px;margin-top:12px;box-shadow:var(--sh)}
 .shipx .sx-t{flex:1 1 180px;display:flex;flex-direction:column}.shipx .sx-t b{font-size:15px;font-weight:800}.shipx .sx-t small{font-size:12px;color:var(--muted)}
@@ -4398,7 +4415,7 @@ async function lexDraft(l,btn,out){if(!isAdmin())return;const o=btn.textContent;
   catch(e){btn.disabled=false;btn.textContent=o;const m=String(e.message||e);out.append(el('p','status err',/LEXWARE_KEY_FEHLT/.test(m)?'مفتاح Lexware غير مضبوط بعد في الخادم.':/Unbekannte Aktion/.test(m)?'الخادم لم يُحدَّث بعد لميزة Lexware.':/NUR_INHABER/.test(m)?'هذه الميزة للمدير فقط.':'فشل: '+m))}}
 /* ================= 🗂️ نافذة الطلب · Auftragsfenster (v2, 27.10.2026) =================
    Kopf mit allem Wichtigen, darunter 5 Reiter: التحضير · المستندات والملصقات · الشحن · الحساب · إدارة */
-let omTab=null,omTabFor=null,omNames=LS.get('omNames','t'),omLab=LS.get('omLab','clp');
+let omEd=null,omTab=null,omTabFor=null,omNames=LS.get('omNames','t'),omLab=LS.get('omLab','clp');
 function omCss(){if($('om-css'))return;const s=document.createElement('style');s.id='om-css';s.textContent=`
 .om-sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:8px 0 4px}
 .om-sum div{background:var(--soft);border-radius:12px;padding:8px 6px;text-align:center;min-width:0}
@@ -4457,7 +4474,7 @@ function omDocs(l){const box=el('div','om-pane'),out=el('div','filebox');out.set
     d2.append(labPicker(l));box.append(d2)}
   box.append(out);return box}
 function buildCardV2(l){omCss();
-  if(omTabFor!==l.id){omTabFor=l.id;omTab=null}
+  if(omTabFor!==l.id){omTabFor=l.id;omTab=null;omEd=null}
   const done=l.status==='done',items=l.items||[],t=totals(l),n=qnAll(items),rdy=isReady(l);
   const c=el('div','card omc'+(done?' done':''));
   /* ---------- Kopf ---------- */
@@ -4465,9 +4482,6 @@ function buildCardV2(l){omCss();
   const meta=el('div','meta');meta.append(el('span','pill '+(done?'done':rdy?'ready':'new'),done?'مكتمل':rdy?'✓ جاهز للتسليم':'قيد التحضير'+(prepN(l)?' · '+prepN(l)+'/'+items.length:'')),payBtn(l),el('span',null,new Date(l.at).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})));
   if(l.by)meta.append(el('span',null,'· 👤 '+dispN(l.by)));hl.append(meta);
   const hr=el('div');hr.style.textAlign='left';hr.append(el('div','tot',money(t.net)),el('div','meta','netto'));h.append(hl,hr);c.append(h,omSteps(l));
-  const sm=el('div','om-sum'),S=(v,k)=>{const d=el('div');d.append(el('b',null,v),el('span',null,k));sm.append(d)};
-  S(String(items.length),'أصناف');S(l.lief?({pickup:'🏬 استلام',de:'📦 ألمانيا',ab:'✈️ خارج'})[l.lief]||'—':'—','التسليم');
-  S(l.dhl&&l.dhl.nr?'✅ '+(l.dhl.n||1):(l.lief==='de'||l.lief==='ab'?'⏳ '+Math.max(1,+l.pakete||1):'—'),'ملصق DHL');S(l.lex?'✅':'—','الفاتورة');c.append(sm);
   if(l.note)c.append(el('p','note','📝 '+l.note));
   {const cr=findCust(l.customer)||{},ph=l.phone||cr.phone||'',em=l.email||cr.email||'';const cb=el('div','row');cb.style.cssText='gap:6px;margin:6px 0 0;flex-wrap:wrap';
     if(ph){const a=el('a','btn small ctc','💬 واتساب');a.href=custWa(ph,'');a.target='_blank';a.rel='noopener';cb.append(a)}
@@ -4483,13 +4497,17 @@ function buildCardV2(l){omCss();
     x.onclick=()=>{omTab=k;renderOrderModal();const b=$('om-b');const tt=b.querySelector('.om-tabs');if(tt)b.scrollTop=Math.max(0,tt.offsetTop-8)};tb.append(x)});
   c.append(tb,pane);
   /* ---------- 📦 التحضير ---------- */
-  if(omTab==='prep'){const p=el('div','om-pane');
+  if(omTab==='prep'&&omEd&&omEd.id===l.id)pane.append(omEditPane(l));
+  else if(omTab==='prep'){const p=el('div','om-pane');
     const odb=el('div','om-box');const chk=prepOf(l);const prog=el('div','prog');
     const upd=()=>{const k=items.filter((_,i)=>chk[i]).length;prog.textContent=k?('جُهّز '+k+' من '+items.length+' سطر'):''};
     if(rdy)odb.append(el('div','readybar','✅ كل الأصناف جاهزة'+(l.readyBy?' · 👤 '+l.readyBy:'')+' — '+agoTxt(l.readyAt)));
     const OIL='🧭 الزيوت حسب مسار المستودع · Öle nach Laufweg',REST='فوارغ وإكسسوارات · Flakons & Zubehör',grp={};
     items.forEach((i,ix)=>{const key=isOil(i)?OIL:REST;(grp[key]=grp[key]||[]).push([i,ix])});
-    if(!done&&!rdy&&grp[OIL]){const sb=el('button','btn primary','📷 تحضير بالمسح · Mit Scan prüfen');sb.onclick=()=>pickStart(l);odb.append(sb)}
+    {const tb2=el('div','oe-bar');
+      if(!done){const eb=el('button','btn','تعديل الأصناف والكميات');eb.title='Positionen bearbeiten';eb.onclick=()=>{omEd={id:l.id,its:items.map((x,i)=>Object.assign({},x,{_ox:i}))};renderOrderModal()};tb2.append(eb)}
+      if(!done&&!rdy&&grp[OIL]){const sb=el('button','btn primary','تحضير بالمسح · Mit Scan prüfen');sb.onclick=()=>pickStart(l);tb2.append(sb)}
+      if(tb2.children.length)odb.append(tb2)}
     [OIL,REST].filter(k=>grp[k]).forEach(k=>{
       odb.append(el('div','igrp',k+' · '+grp[k].reduce((s,x)=>s+qn(x[0]),0)));
       grp[k].sort((a,b)=>k===OIL?(ivSortKey(itPlatz(a[0])).localeCompare(ivSortKey(itPlatz(b[0])))||String(a[0].t).localeCompare(String(b[0].t))):String(a[0].t).localeCompare(String(b[0].t))).forEach(([i,ix])=>{
@@ -4533,8 +4551,6 @@ function buildCardV2(l){omCss();
   /* ---------- ⚙️ إدارة ---------- */
   if(omTab==='log')pane.append(omLog(l));
   if(omTab==='more'){const p=el('div','om-pane');
-    const b1=el('div','om-box'),h1=el('h4');h1.append('✎ تعديل الطلب');b1.append(h1,el('p','hint','إضافة أصناف، تغيير الكميات أو حذف صنف. يُحدَّث المخزون والمستندات تلقائياً.'));
-    const ed=el('button','btn primary big om-wide','✎ تعديل الأصناف والكميات');ed.onclick=()=>editList(l);b1.append(ed);p.append(b1);
     const b2=el('div','om-box'),h2=el('h4');h2.append('↩︎ مرتجع / شكوى');b2.append(h2);
     if(cl)claimsOf(l).forEach((x,i)=>b2.append(claimRow(l,x,i,()=>{try{renderOrderModal()}catch(e){}})));else b2.append(el('p','hint','لا توجد مرتجعات أو شكاوى لهذا الطلب.'));
     const cb=el('button','btn om-wide','＋ تسجيل مرتجع أو شكوى');cb.onclick=()=>claimForm(l);b2.append(cb);p.append(b2);
@@ -4546,6 +4562,54 @@ function buildCardV2(l){omCss();
     pane.append(p)}
   return c}
 
+/* ✎ Positionen direkt im Auftrag bearbeiten: Menge −/+, entfernen, Artikel hinzufügen – ein Klick «حفظ». Lager wird beim Speichern automatisch angepasst. */
+function omEditPane(l){const E=omEd,p=el('div','om-pane'),box=el('div','om-box oe');
+  const hd=el('div','oe-h');hd.append(el('b',null,'تعديل الأصناف والكميات'),el('small',null,'غيّر الكمية بـ − و +، أو احذف، أو أضف صنفاً، ثم احفظ مرة واحدة. المخزون يُحدَّث تلقائياً.'));box.append(hd);
+  const list=el('div','oe-list'),sumL=el('div','oe-tot');box.append(list);
+  const lineNet=it=>(+it.price||0)*(+it.q||1)*(1-(itRab(it)||0)/100);
+  const draw=()=>{list.textContent='';
+    if(!E.its.length)list.append(el('div','xf-empty','لا أصناف – أضف صنفاً بالأسفل'));
+    E.its.forEach((it,k)=>{const r=el('div','oe-row'+(it._new?' nw':''));
+      const m=el('div','oe-m'),cdE=el('div','cd',[it.size,it.tier,it.code].filter(Boolean).join(' · '));cdE.dir='ltr';cdE.style.textAlign='right';m.append(el('div','nm',it.t),cdE);
+      const step=it.unit==='kg'?0.5:1,st=el('div','oe-st'),mi=el('button',null,'−'),qi=el('input'),pl=el('button',null,'+');
+      mi.type=pl.type='button';mi.title='إنقاص';pl.title='زيادة';qi.type='number';qi.inputMode='decimal';qi.min=String(step);qi.step=String(step);qi.value=String(+it.q||1);
+      const set=v=>{v=Math.max(step,Math.round((+String(v).replace(',','.')||step)/step)*step);it.q=v;draw()};
+      mi.onclick=()=>set((+it.q||1)-step);pl.onclick=()=>set((+it.q||1)+step);qi.onchange=()=>set(qi.value);qi.onkeydown=e=>{if(e.key==='Enter')qi.blur()};
+      st.append(mi,qi,pl);
+      const un=el('span','oe-u',kartonN(it)?'كرتون':it.unit==='kg'?'kg':isOil(it)?'عبوة':'قطعة');
+      const pr=el('span','oe-p',money(lineNet(it)));
+      const x=el('button','oe-x','✕');x.type='button';x.title='حذف الصنف';x.onclick=()=>{E.its.splice(k,1);draw()};
+      r.append(m,st,un,pr,x);list.append(r)});
+    const orig=JSON.stringify(l.items||[]),now=JSON.stringify(E.its.map(x=>{const y=Object.assign({},x);delete y._ox;delete y._new;return y}));
+    sumL.textContent=E.its.length+' صنف · '+money(E.its.reduce((s,it)=>s+lineNet(it),0))+(orig===now?'':' · تغييرات غير محفوظة');sv.disabled=orig===now};
+  /* hinzufügen */
+  const ad=el('div','xf-add'),pi=el('input');pi.setAttribute('list','oe-pl');pi.placeholder='إضافة صنف: ابحث بالاسم أو الكود…';pi.autocomplete='off';
+  const dlp=el('datalist');dlp.id='oe-pl';(catalog||[]).forEach(pp=>{const op=el('option');op.value=pp.t;dlp.append(op)});
+  const vs=el('select');vs.hidden=true;const qn=el('input');qn.type='number';qn.min='1';qn.value='1';qn.title='الكمية';const ab=el('button','btn','إضافة');ab.type='button';
+  let cp=null;pi.oninput=()=>{const t=pi.value.trim();cp=(catalog||[]).find(pp=>pp.t===t)||(catalog||[]).find(pp=>(pp.v||[]).some(v=>stem(String(v[1]||'')).toUpperCase()===t.toUpperCase()))||null;vs.textContent='';vs.hidden=!cp;
+    if(cp){if(pi.value!==cp.t)pi.value=cp.t;cp.v.forEach((v,k)=>{const o=el('option',null,String(v[0]||'').replace(/ \/ /g,' · ')+(v[2]!=null&&v[2]!==''?' · '+money(+v[2]):''));o.value=k;vs.append(o)})}};
+  ab.onclick=()=>{if(!cp){pi.focus();return}const n=Math.max(1,Math.floor(+qn.value||1)),v=cp.v[+vs.value||0]||cp.v[0],pa=String(v[0]||'').split(' / ').map(x=>x.trim());
+    const it=cp.oil?{t:cp.t,a:cp.a||'',oil:1,tier:pa.length>1?pa[pa.length-1]:'',code:stem(v[1]||''),size:pa[0]||'',sku:v[1]||'',price:+v[2]||0,q:n}:{t:cp.t,a:'',oil:0,tier:'',code:v[1]||'',size:String(v[0]||''),sku:v[1]||'',price:+v[2]||0,q:n};
+    if(l.kg&&cp.oil){try{const kp=kgPrice(it);if(kp!=null)it.price=kp}catch(e){}}
+    it._new=1;E.its.push(it);pi.value='';cp=null;vs.hidden=true;qn.value='1';draw();pi.focus()};
+  pi.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();ab.click()}};
+  ad.append(pi,vs,qn,ab);box.append(el('div','oe-addh','إضافة صنف · Artikel hinzufügen'),ad,dlp,sumL);
+  const m=el('div','status');m.hidden=true;
+  const sv=el('button','btn primary big','حفظ التعديلات'),cn=el('button','btn big','إلغاء');sv.type=cn.type='button';
+  cn.onclick=()=>{omEd=null;renderOrderModal()};
+  sv.onclick=async()=>{m.hidden=false;m.classList.remove('err');
+    if(!E.its.length){m.classList.add('err');m.textContent='لا يمكن حفظ طلب بدون أصناف – لإلغاء الطلب استخدم تبويب «إدارة».';return}
+    const its=E.its.map(x=>{const y=Object.assign({},x);delete y._ox;delete y._new;return y});
+    try{const cc=findCust(l.customer);if(cc&&cc.sk&&cc.sk.on)applySK(its,cc.sk)}catch(e){}
+    const op=prepOf(l),ol=lotsOf(l),np={},nl={};
+    E.its.forEach((x,k)=>{if(x._ox==null)return;const o=(l.items||[])[x._ox];if(op[x._ox]&&o&&+o.q===+x.q)np[k]=true;if(ol[x._ox])nl[k]=ol[x._ox]});
+    const allOk=its.length&&its.every((_,k)=>np[k]);
+    sv.disabled=cn.disabled=true;m.textContent='جاري الحفظ…';
+    try{await db.doc('lists/'+l.id).update({items:its,prep:np,lots:nl,editedAt:Date.now(),clpFiles:[],clpSig:'',readyAt:allOk?(l.readyAt||Date.now()):0});
+      try{LS.set('chk-'+l.id,np)}catch(e){}try{delete fileCache[orderKey(l)]}catch(e){}
+      l.items=its;l.prep=np;l.lots=nl;if(!allOk)l.readyAt=0;omEd=null;renderOrderModal();toast('✓ حُفظت التعديلات · المخزون مُحدَّث')}
+    catch(e){m.classList.add('err');m.textContent='لم يُحفظ: '+(e.message||e);sv.disabled=cn.disabled=false}};
+  const ft=el('div','oe-ft');ft.append(sv,cn);box.append(ft,m);draw();p.append(box);return p}
 let omId=null,omSig='';
 function openOrder(id){const top=scrTop();if(!(top&&top.k==='order'&&top.id===id))SCR.push({k:'order',id});showOrder(id)}
 function showOrder(id){const fresh=omId!==id||$('omodal').hidden;$('sheet').hidden=true;omId=id;renderOrderModal();
