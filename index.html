@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="255">
+<meta name="fh-build" content="256">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -1261,7 +1261,7 @@ header .row .btn.small{min-height:38px}
       <div id="cs-msg" class="status" hidden></div>
     </div></div>
     <div class="panel">
-      <div class="sec-title"><h2>📒 دفتر الصندوق</h2><div class="row"><select id="cs-filter"><option value="">كل الحركات</option><option value="exp">المصروفات فقط</option><option value="in">القبض النقدي</option><option value="withdraw">السحب</option><option value="deposit">الإيداع</option><option value="own">مستحقات الموظفين</option></select><input type="month" id="cs-month-f"></div></div>
+      <div class="sec-title"><h2>📒 دفتر الصندوق</h2><div class="row"><select id="cs-filter"><option value="">كل الحركات</option><option value="exp">المصروفات فقط</option><option value="in">القبض النقدي</option><option value="withdraw">السحب</option><option value="deposit">الإيداع</option><option value="adj">الرصيد الافتتاحي</option><option value="own">مستحقات الموظفين</option></select><input type="month" id="cs-month-f"></div></div>
       <div id="cs-import" class="status" hidden><span id="cs-import-txt"></span> <button class="btn small" id="cs-import-btn">إضافتها إلى الصندوق</button></div>
       <div id="cs-cats" class="hint"></div>
       <div id="cs-list" class="hlist"></div>
@@ -3964,7 +3964,7 @@ $('lw').onchange=$('lh').onchange=()=>{dim={w:+$('lw').value||40,h:+$('lh').valu
 let cash=[],cashSig='';
 const WHO=()=>($('who').value||'').trim();
 $('who').value=LS.get('who','');$('who').onchange=e=>LS.set('who',e.target.value.trim());
-const CT={exp:'مصروف',in:'قبض نقدي',withdraw:'سحب',deposit:'إيداع'};
+const CT={exp:'مصروف',in:'قبض نقدي',withdraw:'سحب',deposit:'إيداع',adj:'رصيد افتتاحي'};
 const csHolder=c=>c.holder||'box';
 function cashSums(){
   let box=0,held={},owed={},month=0,cats={};const m0=new Date();m0.setDate(1);m0.setHours(0,0,0,0);
@@ -3972,6 +3972,7 @@ function cashSums(){
     if(c.type==='in'){if(csHolder(c)==='box')box+=a;else if(csHolder(c)!=='kamal')held[csHolder(c)]=(held[csHolder(c)]||0)+a}
     else if(c.type==='deposit')box+=a;
     else if(c.type==='withdraw')box-=a;
+    else if(c.type==='adj')box+=a;
     else if(c.type==='exp'){if(c.src==='box'||c.reimb)box-=a;if(c.src==='own'&&!c.reimb)owed[c.who||'?']=(owed[c.who||'?']||0)+a;
       if((c.at||0)>=m0.getTime()){month+=a;cats[c.cat||'أخرى']=(cats[c.cat||'أخرى']||0)+a}}});
   return {box,held,owed,month,cats};
@@ -4082,7 +4083,21 @@ function cashUnlinked(){return lists.concat(debtLists()).filter(l=>l.pay&&l.pay.
 $('cs-import-btn').onclick=async()=>{const b=$('cs-import-btn');b.disabled=true;const u=cashUnlinked();let n=0;
   for(const l of u){try{const r=await db.collection('cash').add({type:'in',amount:+l.pay.paid,note:custLabel(l),orderId:l.id,who:WHO(),holder:'box',at:l.pay.at||l.at||Date.now()});await docOf(l).update({pay:Object.assign({},l.pay,{cashId:(r&&r.id)||''})});n++;b.textContent='…'+n+'/'+u.length}catch(e){}}
   b.disabled=false;b.textContent='إضافتها إلى الصندوق';try{await db.refresh('cash');await db.refresh('lists')}catch(_){}renderCash()};
+/* Inhaber: Entnahmen und Ausgaben auf 0 setzen – Einträge bleiben im Kassenbuch (alter Betrag gespeichert), Kassenstand bleibt gleich (ein Saldo-Übertrag). Kundenkonten unberührt. */
+function cashResetOpen(){if(!ME.owner)return;openSheet('تصفير السحوبات والمصروفات · Kassenbuch neu',b=>{
+  const L=cash.filter(c=>(c.type==='withdraw'||c.type==='exp')&&Math.abs(+c.amount||0)>0.004),wd=L.filter(c=>c.type==='withdraw'),ex=L.filter(c=>c.type==='exp'),sum=a=>a.reduce((t,c)=>t+(+c.amount||0),0),box=cashSums().box;
+  const w=el('div');w.style.cssText='max-width:520px;display:flex;flex-direction:column;gap:10px';
+  w.append(el('p',null,'تصبح مبالغ كل السحوبات والمصروفات صفراً. القيود تبقى في دفتر الصندوق مع المبلغ القديم للرجوع إليه.'));
+  const t=el('div','note');t.style.whiteSpace='pre-line';t.textContent='السحوبات: '+wd.length+' قيد · '+money(sum(wd))+'\nالمصروفات: '+ex.length+' قيد · '+money(sum(ex))+'\nرصيد الصندوق يبقى: '+money(box)+'\nحسابات العملاء ودفعاتهم لا تتغيّر.';w.append(t);
+  const m=el('div','status');m.hidden=true;const go=el('button','btn danger big','تأكيد التصفير');go.disabled=!L.length;if(!L.length)w.append(el('p','hint','لا توجد سحوبات أو مصروفات بمبالغ.'));
+  go.onclick=async()=>{go.disabled=true;m.hidden=false;m.classList.remove('err');let n=0;
+    try{for(const c of L){m.textContent='جاري التصفير… '+(++n)+'/'+L.length;await db.doc('cash/'+c.id).update({amount:0,amt0:+c.amount,zeroAt:Date.now(),zeroBy:WHO()||'Inhaber'});c.amount=0;c.amt0=c.amt0!=null?c.amt0:null}
+      const d=r2(box-cashSums().box);if(Math.abs(d)>0.004)await db.collection('cash').add({type:'adj',amount:d,holder:'box',who:WHO()||'Inhaber',note:'رصيد افتتاحي بعد التصفير · Saldo-Übertrag',at:Date.now()});
+      m.textContent='✓ تم التصفير – رصيد الصندوق '+money(box);try{await db.refresh('cash')}catch(_){}setTimeout(()=>{closeSheet();try{renderCash()}catch(_){}},1200)}
+    catch(e){m.classList.add('err');m.textContent='فشل: '+(e.message||e)+' – ما تم تصفيره يبقى مصفّراً، أعد المحاولة لإكمال الباقي';go.disabled=false}};
+  w.append(go,m);b.append(w)})}
 function renderCash(){
+  {const q=document.querySelector('#view-cash .csq');if(q&&!$('cs-reset')){const x=el('button','btn small','تصفير السحوبات والمصروفات');x.id='cs-reset';x.type='button';x.onclick=cashResetOpen;q.after(x)}const x=$('cs-reset');if(x)x.hidden=!ME.owner}
   const u=cashUnlinked();$('cs-import').hidden=!u.length;if(u.length)$('cs-import-txt').textContent='💵 يوجد '+u.length+' طلب مدفوع نقداً غير مسجّل في الصندوق ('+money(u.reduce((s,l)=>s+(+l.pay.paid||0),0))+'): '+u.map(custLabel).join('، ');
   if(!WHO())$('cs-who').value='';else $('cs-who').value=WHO();$('cs-who-note').textContent=WHO()?'هذا الجهاز: '+WHO():'حدد اسم المستخدم في الإعدادات';
   $('cs-type').onchange();
@@ -4098,9 +4113,9 @@ function renderCashList(){
   if(!rows.length){box.append(el('p','hint','لا توجد حركات.'));return}
   rows.forEach(c=>{
     const r=el('div','hrow');r.style.cursor='default';const left=el('div');
-    const sign=(c.type==='exp'||c.type==='withdraw')?'−':'+';
-    left.append(el('b',sign==='−'?'neg':'pos',sign+' '+money(c.amount)+' · '+CT[c.type]+(c.cat?' · '+c.cat:'')));
-    const d=[new Date(c.at||0).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'}),c.who?'👤 '+c.who:'',c.note||''];
+    const sign=(c.type==='exp'||c.type==='withdraw'||(c.type==='adj'&&+c.amount<0))?'−':'+';
+    left.append(el('b',sign==='−'?'neg':'pos',sign+' '+money(Math.abs(+c.amount||0))+' · '+(CT[c.type]||c.type)+(c.cat?' · '+c.cat:'')));
+    const d=[new Date(c.at||0).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'}),c.who?'👤 '+c.who:'',c.note||'',c.amt0!=null?'صُفّر (كان '+money(+c.amt0)+')':''];
     if(c.type==='exp')d.push(c.src==='own'?(c.reimb?'رُدّ للموظف ✓':'⚠️ من جيب الموظف — لم يُرد بعد'):'من الصندوق');
     if(c.type==='in')d.push(csHolder(c)==='box'?'في الصندوق':csHolder(c)==='kamal'?'سُلّم لكمال':'💼 عند '+csHolder(c));
     left.append(el('div','time',d.filter(Boolean).join(' · ')));
