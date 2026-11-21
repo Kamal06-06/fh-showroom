@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="262">
+<meta name="fh-build" content="263">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -839,7 +839,10 @@ html,#sheet .sh,#omodal *{scrollbar-width:auto;scrollbar-color:#B8963E transpare
 .oe-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .oe-h{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}.oe-h b{font-size:16px}.oe-h small{color:var(--muted);font-size:12.5px}
 .oe-list{display:flex;flex-direction:column;gap:6px}
-.oe-img{width:52px;height:52px;border-radius:10px;background:var(--soft);overflow:hidden;display:grid;place-items:center}.oe-img img{width:100%;height:100%;object-fit:cover}.oe-img.no::after{content:'';width:18px;height:18px;border-radius:50%;background:#E7E1D3}
+.oe-img{width:52px;height:52px;border-radius:10px;background:var(--soft);overflow:hidden;display:grid;place-items:center}.oe-img img{width:100%;height:100%;object-fit:cover}
+.oe-img.oil{position:relative;background:#EEF2F9;color:#2457A4}.oe-img.oil .ico{width:26px;height:26px}.oe-img.oil b{position:absolute;bottom:3px;inset-inline-end:5px;font-size:10px;font-weight:900}
+.oe-img.oil.tP{background:#FFF4D6;color:#8A6A14}.oe-img.oil.tE{background:#1F2433;color:#D9BF7A}
+.oe-img.no::after{content:'';width:18px;height:18px;border-radius:50%;background:#E7E1D3}
 .oe-row{display:grid;grid-template-columns:52px minmax(0,1fr) auto 44px 96px 36px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--surface)}
 .oe-row.nw{border-color:var(--gold);background:#FFFBF0}
 .oe-m .nm{font-weight:800;font-size:14px}.oe-m .cd{font-size:12px;color:var(--muted)}
@@ -4572,7 +4575,12 @@ function omEditPane(l){const E=omEd,p=el('div','om-pane'),box=el('div','om-box o
     if(!E.its.length)list.append(el('div','xf-empty','لا أصناف – أضف صنفاً بالأسفل'));
     E.its.forEach((it,k)=>{const r=el('div','oe-row'+(it._new?' nw':''));
       const m=el('div','oe-m'),cdE=el('div','cd',[it.size,it.tier,it.code].filter(Boolean).join(' · '));cdE.dir='ltr';cdE.style.textAlign='right';m.append(el('div','nm',it.t),cdE);
-      const im=el('div','oe-img');try{let src=imgOf(it);if(!src){const pc=(catalog||[]).find(q=>q.t===it.t);src=pc&&pc.i||''}if(src)im.append(mkImg(src,'oe-th'));else im.classList.add('no')}catch(e){im.classList.add('no')}
+      const im=el('div','oe-img');try{let src=imgOf(it);
+        if(!src&&/alkohol|alcohol|ethanol/i.test(it.t)){const pc=(catalog||[]).find(q=>q.i&&/alkohol|alcohol|ethanol/i.test(q.t)&&(/denat/i.test(it.t)===/denat/i.test(q.t)))||(catalog||[]).find(q=>q.i&&/alkohol|alcohol|ethanol/i.test(q.t));src=pc?pc.i:''}
+        if(!src&&!isOil(it)){const cd=String(it.code||'').toUpperCase(),pc=(catalog||[]).find(q=>q.i&&(q.t===it.t||(cd&&(q.v||[]).some(v=>String(v[1]||'').toUpperCase()===cd))));src=pc?pc.i:''}
+        if(src)im.append(mkImg(src,'oe-th'));
+        else if(isOil(it)){const tl=String(it.tier||'S').trim().charAt(0).toUpperCase()||'S';im.classList.add('oil','t'+tl);im.append(ico('drop'),el('b',null,tl))}
+        else im.classList.add('no')}catch(e){im.classList.add('no')}
       const step=it.unit==='kg'?0.5:1,st=el('div','oe-st'),mi=el('button',null,'−'),qi=el('input'),pl=el('button',null,'+');
       mi.type=pl.type='button';mi.title='إنقاص';pl.title='زيادة';qi.type='number';qi.inputMode='decimal';qi.min=String(step);qi.step=String(step);qi.value=String(+it.q||1);
       const set=v=>{v=Math.max(step,Math.round((+String(v).replace(',','.')||step)/step)*step);it.q=v;draw()};
@@ -5183,7 +5191,7 @@ const ROLES={sales:['مبيعات الصالة','Verkauf',['new','off','cust']],
 function roleBtns(u,draw){const r=el('div','role-b');r.append(el('span',null,'دور جاهز:'));Object.keys(ROLES).forEach(k=>{const b=el('button','btn small'+(u.role===k?' primary':''),ROLES[k][0]);b.title=ROLES[k][1];b.onclick=()=>{u.role=k;u.full=false;u.perms=ROLES[k][2].slice();draw()};r.append(b)});return r}
 
 /* ================= 🚚 تبويب الشحن في الطلب (v2): طريقة التسليم كبطاقات واضحة · العنوان · الطرود · ملصق DHL ================= */
-ICP.plus='<path d="M12 5v14M5 12h14"/>';ICP.globe='<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>';
+ICP.drop='<path d="M12 3c3.5 4.2 6 7.6 6 10.6A6 6 0 0 1 6 13.6C6 10.6 8.5 7.2 12 3z"/>';ICP.plus='<path d="M12 5v14M5 12h14"/>';ICP.globe='<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>';
 function omShip(l){const p=el('div','om-pane'),done=l.status==='done';
   const b1=el('div','om-box'),h1=el('h4');h1.append('طريقة التسليم',el('small',null,'Lieferart'));b1.append(h1);
   const g=el('div','dl-g');
