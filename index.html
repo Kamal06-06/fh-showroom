@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="258">
+<meta name="fh-build" content="259">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -825,6 +825,16 @@ label.fld>input:focus,label.fld>select:focus{outline:2px solid var(--gold);outli
 #sheet .so-tag.new{background:#E5EDF8;color:#2457A4}#sheet .so-tag.bad{background:#FCE8E6;color:#B4231A}
 #sheet .so-foot{text-align:center;font-size:11.5px;margin-top:14px}
 @media (max-width:560px){#sheet .sx-cut2,#sheet .sx-ab{flex:1}}
+/* Scrollen: immer nur EINE Leiste – rechts am Rand des sichtbaren Bereichs, gut greifbar */
+html:has(#sheet:not([hidden])),html:has(#omodal:not([hidden])){overflow:hidden}
+#sheet .sh{direction:ltr;scrollbar-gutter:stable}#sheet .sh>*{direction:rtl}
+html,#sheet .sh,#omodal *{scrollbar-width:auto;scrollbar-color:#B8963E transparent}
+::-webkit-scrollbar{width:12px;height:12px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#C9B37A;border-radius:8px;border:3px solid transparent;background-clip:padding-box;min-height:48px}
+::-webkit-scrollbar-thumb:hover{background:#B8963E;border:2px solid transparent;background-clip:padding-box}
+/* Seitenleiste: passt ohne eigene Leiste; bei kleinen Bildschirmen enger, Scrollen mit dem Mausrad bleibt */
+#appnav{scrollbar-width:none}#appnav::-webkit-scrollbar{display:none}
+@media (min-width:900px) and (max-height:940px){#appnav{gap:0!important;padding-top:14px!important}#appnav .nv{padding-top:6px!important;padding-bottom:6px!important;min-height:0!important}}
 /* Versand ohne Auftrag (Startseite) */
 .shipx{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:12px 14px;margin-top:12px;box-shadow:var(--sh)}
 .shipx .sx-t{flex:1 1 180px;display:flex;flex-direction:column}.shipx .sx-t b{font-size:15px;font-weight:800}.shipx .sx-t small{font-size:12px;color:var(--muted)}
