@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="263">
+<meta name="fh-build" content="264">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -856,6 +856,12 @@ html,#sheet .sh,#omodal *{scrollbar-width:auto;scrollbar-color:#B8963E transpare
 .oe-tot{margin-top:12px;text-align:end;font-weight:800}
 .oe-ft{display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:12px;position:sticky;bottom:0;background:var(--surface);padding-top:8px}
 @media (max-width:560px){.oe-row{grid-template-columns:44px minmax(0,1fr) auto 36px}.oe-img{width:44px;height:44px}.oe-row .oe-u{display:none}.oe-row .oe-p{grid-column:2/4;text-align:start;font-size:13px}}
+/* Liste: Lagerplatz deutlich */
+.ls-t th.ls-plh{width:118px}
+.ls-t td.ls-pl{white-space:nowrap}
+.ls-plz{display:inline-flex;align-items:baseline;gap:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:800;font-size:14px;letter-spacing:.3px;color:#1F2433;background:#FFF4D6;border:1.5px solid #B8963E;border-radius:8px;padding:3px 9px;direction:ltr}
+.ls-plz b{background:#1F2433;color:#D9BF7A;border-radius:5px;padding:0 5px;margin-inline-end:3px;font-weight:900}
+.ls-plx{color:#C9C3B4;font-weight:700}
 /* Versand ohne Auftrag (Startseite) */
 .shipx{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:12px 14px;margin-top:12px;box-shadow:var(--sh)}
 .shipx .sx-t{flex:1 1 180px;display:flex;flex-direction:column}.shipx .sx-t b{font-size:15px;font-weight:800}.shipx .sx-t small{font-size:12px;color:var(--muted)}
@@ -5620,8 +5626,9 @@ async function lsShare(btn,data){btn.disabled=true;const o=btn.textContent;btn.t
 function lsDraw(b,data){b.textContent='';const n=data.reduce((a,s)=>a+s.rows.length,0),off=data.reduce((a,s)=>a+s.rows.filter(r=>!r.shop).length,0);
   const top=el('div','ls-top'),q=document.createElement('input');q.type='search';q.placeholder='بحث بالكود أو الاسم · Suche';q.className='ls-q';const pdf=el('button','btn','📄 ملف PDF');pdf.onclick=()=>lsShare(pdf,data);top.append(q,pdf);
   const info=el('div','hint',data.length+' ماركة · '+n+' صنف'+(off?' · '+off+' ليس منشورًا في المتجر (سعره من الليستا)':''));const box=el('div','ls-box');box.dir='ltr';b.append(top,info,box);
-  const secs=data.map(s=>{const sec=el('section','ls-sec');sec.append(el('h3',null,s.b));const wrap=el('div','ls-wrap'),tb=document.createElement('table');tb.className='ls-t';const hd=document.createElement('tr');['Artikel-Code','Qualität','Duftname','100g','250g','500g','1000g'].forEach((t,i)=>{const th=document.createElement('th');th.textContent=t;if(i>2)th.className='n';hd.append(th)});tb.append(hd);
-    const rows=s.rows.map(r=>{const tr=document.createElement('tr'),c=document.createElement('td');c.append(el('div','ls-c',r.code));if(r.z)c.append(el('div','ls-z','Zert.: '+r.z));const qt=document.createElement('td');qt.append(el('span','ls-'+r.q,LS_Q[r.q]||r.q));const nm=document.createElement('td');nm.append(el('div',null,r.name||''));if(r.t&&r.t!==r.name)nm.append(el('div','ls-z',r.t));if(!r.shop)nm.append(el('div','ls-off','ليس في المتجر'));tr.append(c,qt,nm);r.pr.forEach(x=>{const td=document.createElement('td');td.className='n';td.textContent=lsMoney(x);tr.append(td)});tb.append(tr);return {tr,k:fold(r.code+' '+r.name+' '+r.t+' '+s.b+' '+(r.z||''))}});wrap.append(tb);sec.append(wrap);box.append(sec);return {sec,rows}});
+  const secs=data.map(s=>{const sec=el('section','ls-sec');sec.append(el('h3',null,s.b));const wrap=el('div','ls-wrap'),tb=document.createElement('table');tb.className='ls-t';const hd=document.createElement('tr');['Lagerplatz · المكان','Artikel-Code','Qualität','Duftname','100g','250g','500g','1000g'].forEach((t,i)=>{const th=document.createElement('th');th.textContent=t;if(i>3)th.className='n';if(!i)th.className='ls-plh';hd.append(th)});tb.append(hd);
+    const rows=s.rows.map(r=>{const tr=document.createElement('tr'),c=document.createElement('td');c.append(el('div','ls-c',r.code));if(r.z)c.append(el('div','ls-z','Zert.: '+r.z));const qt=document.createElement('td');qt.append(el('span','ls-'+r.q,LS_Q[r.q]||r.q));const nm=document.createElement('td');nm.append(el('div',null,r.name||''));if(r.t&&r.t!==r.name)nm.append(el('div','ls-z',r.t));if(!r.shop)nm.append(el('div','ls-off','ليس في المتجر'));const pz=((ivByKey.get(String(r.code).toUpperCase()+'|'+r.q)||{}).platz||'').trim(),pt=document.createElement('td');pt.className='ls-pl';if(pz){const bz=el('span','ls-plz'),[rw,...rest]=pz.split('-');bz.append(el('b',null,rw),rest.length?'-'+rest.join('-'):'');bz.title='الصف '+rw+(rest[0]?' · الرف '+rest[0]:'')+(rest[1]?' · الطابق '+rest[1]:'')+(rest[2]?' · المكان '+rest[2]:'');pt.append(bz)}else pt.append(el('span','ls-plx','—'));
+      tr.append(pt,c,qt,nm);r.pr.forEach(x=>{const td=document.createElement('td');td.className='n';td.textContent=lsMoney(x);tr.append(td)});tb.append(tr);return {tr,k:fold(r.code+' '+r.name+' '+r.t+' '+s.b+' '+(r.z||'')+' '+pz)}});wrap.append(tb);sec.append(wrap);box.append(sec);return {sec,rows}});
   q.oninput=()=>{const w=fold(q.value).split(/\s+/).filter(Boolean);secs.forEach(s=>{let any=false;s.rows.forEach(r=>{const on=w.every(x=>r.k.includes(x));r.tr.hidden=!on;if(on)any=true});s.sec.hidden=!any})}}
 async function lsOpen(){drawer(false);sheetFor='ls';openSheet('📑 الليستا',b=>{sheetFor='ls';lsDraw(b,lsBuild())});
   try{await lsLoad()}catch(e){}try{await clpBasis()}catch(e){}try{await ivLoad(false,true)}catch(e){}const b=$('sheet-b');if(b&&!$('sheet').hidden&&sheetFor==='ls'&&!(b.querySelector('.ls-q')||{}).value)lsDraw(b,lsBuild())}
