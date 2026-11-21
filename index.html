@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="251">
+<meta name="fh-build" content="252">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -800,6 +800,25 @@ label,.lbl{font-size:12.5px;font-weight:600;color:var(--muted);letter-spacing:.0
 .tk+.tk{margin-top:8px}
 .tk .nm{font-weight:800;font-size:14.5px}.tk .mt{font-size:12.5px;color:var(--muted)}
 .tk-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--soft)}
+/* Erledigte Aufträge (Startseite) */
+.hd-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.hd-st{display:flex;gap:8px;flex-wrap:wrap}
+.hd-st>button,.hd-sum{display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 16px;min-width:120px;box-shadow:var(--sh);font:inherit;cursor:pointer;text-align:start}
+.hd-st b{font-size:22px;font-weight:800;color:var(--ok);line-height:1.1}.hd-st span{font-size:12px;color:var(--muted)}
+.hd-sum{cursor:default}.hd-sum b{color:var(--navy)}
+.hd-st>button:hover{border-color:var(--gold)}
+.hd-sw{display:inline-flex;background:var(--soft);border-radius:999px;padding:3px}
+.hd-sw button{border:0;background:transparent;font:inherit;font-size:13px;font-weight:700;padding:6px 14px;border-radius:999px;color:var(--muted);cursor:pointer}
+.hd-sw button.on{background:var(--surface);color:var(--navy);box-shadow:var(--sh)}
+.hd-list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh);overflow:hidden}
+.hd-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 14px;cursor:pointer}
+.hd-row+.hd-row{border-top:1px solid var(--line)}.hd-row:hover{background:var(--soft)}
+.hd-row .nm{font-weight:800;font-size:14px}.hd-row .mt{font-size:12.5px;color:var(--muted)}
+.hd-ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:#DDF1E5;color:var(--ok)}
+.hd-r{display:flex;align-items:center;gap:8px}.hd-r .sum{font-weight:800;font-size:14px;white-space:nowrap}
+.hd-empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r-md);padding:18px;text-align:center;color:var(--muted);font-size:13.5px}
+.hd-ft{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+@media (max-width:560px){.hd-r .pay{display:none}.hd-st>button,.hd-sum{min-width:0;flex:1}}
 .tk0 .tk-ic{background:#FCE8E6;color:#B4231A}.tk1 .tk-ic{background:#FFF1DD;color:#B2620B}.tk2 .tk-ic{background:#E5EDF8;color:#2457A4}.tk3 .tk-ic{background:#DDF1E5;color:var(--ok)}
 /* Kopfzeile oben ruhiger */
 header .row .btn.small{min-height:38px}
@@ -992,6 +1011,7 @@ header .row .btn.small{min-height:38px}
     </div>
     <div class="hcols">
     <div class="hpanel"><div class="hsech"><span class="hsec">يحتاج انتباهك <small>· Aufgaben</small></span></div><div class="hlist hcards" id="h-last"></div></div>
+    <div class="hpanel" id="h-fin-p"><div class="hsech"><span class="hsec">الطلبات المكتملة <small>· Erledigt</small></span></div><div id="h-fin"></div></div>
     </div>
   </section>
   <section id="view-lane" hidden dir="rtl" lang="ar"></section>
@@ -4540,7 +4560,32 @@ async function renderHome(){homeTop();try{trkHome()}catch(e){}
   const openL=lists.filter(l=>lnReal(l)&&l.status!=='done');{const c=$('h-cust-n');if(c)c.textContent=custAll().length}
   {const o=$('h-off-n');if(o)o.textContent=offers.length}{const o=$('h-open');if(o)o.textContent=openL.length}
   try{const due=lists.concat(debtLists()).reduce((s,l)=>s+payOf(l).open,0),eurS=n=>Math.round(n).toLocaleString('de-DE')+' €';$('h-due').textContent=due>0.004?eurS(due):'';$('h-cash-n').textContent=cash.length?eurS(cashSums().box):''}catch(e){}
-  homeTasks()}
+  homeTasks();try{homeDone()}catch(e){}}
+/* Startseite: erledigte Aufträge (heute / 7 Tage) – übergeben im Showroom und versendet */
+let hdPer='t';
+function homeDone(){const box=$('h-fin');if(!box)return;box.textContent='';
+  const from=hdPer==='t'?sodNow():sodNow()-6*864e5,seeAcc=isAdmin()||can('acc');
+  const rows=lists.filter(l=>lnReal(l)&&l.status==='done'&&(l.doneAt||0)>=from).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
+  const pk=rows.filter(lnPick),sp=rows.filter(lnShip),net=l=>{try{return totals(l).net}catch(e){return 0}};
+  const top=el('div','hd-top'),st=el('div','hd-st');
+  const kp=(v,lab,go)=>{const b=el('button');b.append(el('b',null,String(v)),el('span',null,lab));b.onclick=go;st.append(b)};
+  kp(pk.length,'سُلّمت من الصالة · Abgeholt',()=>lnGo('pick','done'));kp(sp.length,'شُحنت · Versendet',()=>lnGo('ship','done'));
+  if(seeAcc){const d=el('div','hd-sum');d.append(el('b',null,money(rows.reduce((s,l)=>s+net(l),0))),el('span',null,'صافي المكتمل · Netto'));st.append(d)}
+  const sw=el('div','hd-sw');[['t','اليوم'],['w','آخر 7 أيام']].forEach(([k,t])=>{const b=el('button',hdPer===k?'on':'',t);b.onclick=()=>{hdPer=k;homeDone()};sw.append(b)});
+  top.append(st,sw);box.append(top);
+  if(!rows.length){box.append(el('div','hd-empty',hdPer==='t'?'لم يكتمل أي طلب اليوم بعد · Heute noch nichts erledigt':'لا طلبات مكتملة خلال آخر 7 أيام'));return}
+  const lst=el('div','hd-list');
+  rows.slice(0,8).forEach(l=>{const r=el('div','hd-row'),ic=el('span','hd-ic');ic.append(ico('check'));
+    const d=new Date(l.doneAt),tt=(hdPer==='t'?'':d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' · ')+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    const nr=(l.dhlx&&l.dhlx.nr)||(l.dhl&&l.dhl.nr)||'',how=lnShip(l)?(l.lief==='ab'?'DHL Express':'DHL Paket')+(nr?' · '+nr:''):'سُلّم من الصالة';
+    const m=el('div');m.append(el('div','nm',l.customer||'—'),el('div','mt',how+' · '+tt+' · AP-'+stamp(l)));
+    const rt=el('div','hd-r');if(seeAcc){rt.append(el('span','sum',money(net(l))),payBadge(l))}
+    r.append(ic,m,rt);r.onclick=()=>openOrder(l.id);lst.append(r)});
+  box.append(lst);
+  const ft=el('div','hd-ft');
+  if(rows.length>8)ft.append(el('span','hint','و'+(rows.length-8)+' طلبات أخرى'));
+  const a=el('button','btn small','كل المكتملة · الاستلام');a.onclick=()=>lnGo('pick','done');
+  const b=el('button','btn small','كل المكتملة · الشحن');b.onclick=()=>lnGo('ship','done');ft.append(a,b);box.append(ft)}
 function navBadge(){const set=(id,n,hot)=>{const b=$(id);if(b){b.hidden=!n;b.textContent=n;b.classList.toggle('hot',!!hot)}};
   try{const p=lnCounts('pick'),s=lnCounts('ship');set('nv-pick-n',p.open,p.ready>0);set('nv-ship-n',s.prep,false)}catch(e){}
   try{const n=(SO.orders||[]).filter(o=>soPaid(o)&&!soPrep(o).ready).length;set('nv-shop-n',n,false)}catch(e){}}
