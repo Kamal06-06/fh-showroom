@@ -843,6 +843,9 @@ header .row .btn.small{min-height:38px}
 .cskpi b{display:block;font-size:20px!important;font-weight:800;color:var(--ink)!important;direction:ltr;text-align:right}.cskpi span{font-size:12px;color:var(--muted)!important}
 .csq{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
 @media (max-width:560px){.cskpi{grid-template-columns:1fr!important}.csq{grid-template-columns:repeat(2,1fr)}}
+
+.va-ic .ico{width:26px;height:26px;color:var(--gold)}
+.sx-reg .f:empty{display:none}
 </style>
 </head>
 <body>
@@ -4450,7 +4453,7 @@ function renderLane(k){k=k||lnCur;lnCur=k;const L=LN[k],v=$('view-lane');if(!v||
   const keepQ=v.querySelector('.ln-q'),hadFocus=keepQ&&document.activeElement===keepQ;
   v.textContent='';const f=lnFilter[k],c=lnCounts(k),s=sodNow();
   const h=el('div','ln-head'),h2=el('h2');h2.append(ico(L.ic,'h'),L.t,el('small',null,L.de));h.append(h2,el('span','sp'));
-  if(k==='ship'&&can('shop')){const b=el('button','btn primary','ملصقات DHL لكل الطلبات');b.title='ملصقات DHL لكل طلبات الشحن بدون ملصق';b.onclick=()=>apBulkDhl();h.append(b);
+  if(k==='ship'&&can('shop')){const n0=el('button','btn','ملصق DHL جديد');n0.title='ملصق لأي مستلم بدون طلب';n0.onclick=()=>vzPaket();h.append(n0);const b=el('button','btn primary','ملصقات DHL لكل الطلبات');b.title='ملصقات DHL لكل طلبات الشحن بدون ملصق';b.onclick=()=>apBulkDhl();h.append(b);
     const a=el('button','btn','أرشيف الشحنات');a.onclick=()=>vzOpen();h.append(a)}
   v.append(h);
   const tb=el('div','ln-tabs');LN_F.forEach(([id,t,de])=>{const b=el('button',id===f?'on':'');b.append(t,el('i',null,String(c[id])));b.title=de;b.onclick=()=>{lnFilter[k]=id;renderLane(k)};tb.append(b)});v.append(tb);
@@ -4629,7 +4632,6 @@ const SET_CATS=[
  ['me','user','حسابي','Mein Konto · Benutzer wechseln · Passwort · Fingerabdruck',0],
  ['team','team','الفريق والأجهزة','Mitarbeiter · Rechte · Geräte · Protokoll',1],
  ['notif','bell','الإشعارات والنغمات','Benachrichtigungen · Töne · Funk',0],
- ['sig','pen','التوقيع والختم','Unterschrift & Firmenstempel',1],
  ['data','sync','البيانات والربط','Shopify-Abgleich · WhatsApp',0],
  ['about','info','حول التطبيق','Version · Aktualisieren',0]];
 function setOpen(){setCss();setNodes();openSheet('⚙️ الإعدادات · Einstellungen',b=>{
@@ -4640,7 +4642,6 @@ function setPage(k){const c=SET_CATS.find(x=>x[0]===k);if(!c)return;const N=setN
   if(k==='team'){add(N.team);if(N.team)N.team.hidden=false}
   if(k==='notif'){add(N.snd);toneRow(box,'🗂️ نغمة الطلب الجديد في المستودع','toneOrder2','toneOrder');toneRow(box,'💬 نغمة رسائل الفريق','toneChat2','toneChat');
     const r=el('div','dim'),l=el('label','clprow'),cb=el('input');cb.type='checkbox';cb.checked=LS.get('funkAuto',true)!==false;cb.onchange=()=>LS.set('funkAuto',cb.checked);l.append(cb,' 📻 تشغيل رسائل اللاسلكي تلقائياً عند وصولها');r.append(l);box.append(r)}
-  if(k==='sig'){const r=el('div','dim'),w=el('div','set-row'),sb=el('button','btn small','✍️ فتح');sb.onclick=()=>vzSigOpen();w.append(el('label',null,'توقيعي وختم الشركة – يُستخدم في نماذج DHL والمطالبات'),sb);r.append(w);box.append(r)}
   if(k==='data'){add(N.sync);add(N.wa)}
   if(k==='about'){const bd=(document.querySelector('meta[name=fh-build]')||{}).content||'',ui=(document.querySelector('meta[name=fh-ui]')||{}).content||'v1';
     const kv=el('div','om-kv');[['الإصدار · Version',ui+' · Build '+bd],['المستخدم',dispN(WHO()||ME.user||'')||'—'],['الاتصال',($('syncdot')||{}).textContent||'—']].forEach(([a,v2])=>{kv.append(el('span',null,a),el('span',null,v2))});box.append(kv);
@@ -4760,8 +4761,8 @@ const ICP={home:'<path d="M3 11l9-7 9 7v9H3z"/><path d="M9 20v-6h6v6"/>',pick:'<
 function ico(k,cls){const s=document.createElementNS('http://www.w3.org/2000/svg','svg');s.setAttribute('viewBox','0 0 24 24');s.setAttribute('aria-hidden','true');s.setAttribute('class','ico'+(cls?' '+cls:''));s.innerHTML=ICP[k]||ICP.info;return s}
 /* Emojis aus Beschriftungen entfernen (Knöpfe, Titel, Status, Hinweise) – Chat, Funk und Radio bleiben wie sie sind */
 const EMO=/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}️‍⃣]/gu;
-const EMO_IN='#toast,#cat-status,.disc-hd,.sumbar,#sb-n,#sb-sum,.cc,.cd-kg,button,a.btn,h1,h2,h3,h4,summary,label,option,.pill,.pay,.tg,.lbl,.hsec,.ln-grp,.hint,.status,.note,.ago,.mt,.time,.meta,.sec-title,#sheet-t,#om-t,.om-kv,.om-sum,.lane-f,.prog,.readybar,.igrp,.ho-ok,.cc .ln,.set-item small,.chips small,.pz';
-const EMO_OUT='#sheet.chat,.chat,#funk,.hq-rd,#rd-chip,.keep-emoji,input,textarea,[contenteditable],.lane-ic,.set-item .ic,.pc-prn .ic,.tile .ic';
+const EMO_IN='body';
+const EMO_OUT='#syncdot,#sheet.chat,.chat,#funk,.hq-rd,#rd-chip,.keep-emoji,input,textarea,[contenteditable],.lane-ic,.set-item .ic,.pc-prn .ic,.tile .ic';
 function emoClean(root){const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;const todo=[];
   while((n=w.nextNode())){const v=n.nodeValue;if(!v||!EMO.test(v)){EMO.lastIndex=0;continue}EMO.lastIndex=0;const p=n.parentElement;if(!p||!p.closest(EMO_IN)||p.closest(EMO_OUT))continue;todo.push(n)}
   todo.forEach(n=>{const nv=n.nodeValue.replace(EMO,'').replace(/^\s+/,m=>m.includes('\n')?m:'').replace(/\s{2,}/g,' ');if(nv.trim()||!n.parentElement.closest('button,a.btn'))n.nodeValue=nv})}
@@ -7310,7 +7311,7 @@ function vzMainFill(b){soCss();vzCss();vzView={k:null};
   if(trkErr&&TRK_ERR[trkErr])b.append(el('p','status err',TRK_ERR[trkErr]));
   const g=el('div','va-grid');
   Object.keys(VZ_ARCH).forEach(k=>{const A=VZ_ARCH[k],L=vzArchData(k),x=el('button','va-tile va-'+k);x.type='button';
-    const top=el('div','va-top');top.append(el('span','va-ic',A.ic),el('b',null,String(L.length)));
+    const top=el('div','va-top');top.append((()=>{const s=el('span','va-ic');s.append(ico(k==='ap'?'pick':'ship'));return s})(),el('b',null,String(L.length)));
     const c=s=>L.filter(y=>trkKey(y)===s).length,bad=c('failure');
     const st=el('div','va-st');st.append(el('span',null,'✅ '+c('delivered')+' تم التسليم'),el('span',null,'🚚 '+(c('transit')+c('pre-transit'))+' في الطريق'));if(bad)st.append(el('span','va-bad','⚠️ '+bad+' مشكلة'));
     x.append(top,el('div','va-t',A.t),el('div','va-de',A.de),st,el('div','va-go','فتح الأرشيف · Archiv öffnen ‹'));x.onclick=()=>vzArch(k);g.append(x)});
