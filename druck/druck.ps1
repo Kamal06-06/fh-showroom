@@ -550,6 +550,7 @@ while ($true) {
       if (-not $DRUCKERR) { $DRUCKERR = DruckerR }
       if (-not $DRUCKERK) { $DRUCKERK = DruckerK }
       foreach ($j in @($r.val)) {
+        if ($j.name -like 'CMD-UPDATE*') { Write-Host 'Fernbefehl: nach neuer Version schauen ...' -ForegroundColor Cyan; SelbstUpdate; continue }  # aus der App ausloesbar, kein Druck
         $f = Join-Path $DONE ((Get-Date -Format 'yyMMdd-HHmmss') + '-' + $j.name)
         [IO.File]::WriteAllBytes($f, [Convert]::FromBase64String($j.b64))
         # Etiketten 102x51 brauchen 'landscape', sonst dreht SumatraPDF sie um 90 Grad und verkleinert sie
