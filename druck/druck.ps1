@@ -577,8 +577,8 @@ while ($true) {
   if (((Get-Date) - $script:AltZeit).TotalSeconds -ge 30) { $script:AltZeit = Get-Date; AlteAuftraegeLoeschen }
   # alte Dateien (älter als 30 Tage) aufräumen
   if ($n % 1200 -eq 0) { Get-ChildItem $DONE -File | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } | Remove-Item -ErrorAction SilentlyContinue }
-  # alle 3 Stunden nach einer neuen Version schauen
-  if (((Get-Date) - $script:UpdZeit).TotalHours -ge 3) { $script:UpdZeit = Get-Date; WachHalten; SelbstUpdate }
+  # alle 10 Minuten nach einer neuen Version schauen (Aenderungen kommen ohne Neustart von Hand an)
+  if (((Get-Date) - $script:UpdZeit).TotalMinutes -ge 10) { $script:UpdZeit = Get-Date; WachHalten; SelbstUpdate }
   $n++
   # Der Server wartet selbst bis zu 15 s auf neue Auftraege (Long-Polling) - danach sofort wieder fragen
   Start-Sleep -Milliseconds 300
