@@ -865,6 +865,10 @@ header .row .btn.small{min-height:38px}
 @media (max-width:560px){.cx-g{grid-template-columns:1fr}}
 .kk-row .t.bad{color:#B4231A;font-weight:600}
 .role-b{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0}.role-b span{font-size:12.5px;color:var(--muted)}
+
+/* Bestand: Ampel statt Emoji, Originalname sichtbar */
+.lg-st{display:inline-block;width:9px;height:9px;border-radius:50%;margin-inline-end:8px;vertical-align:middle}.lg-st.e{background:#D9452F}.lg-st.n{background:#E59A2F}
+#lg-low .alias,#lg-results .alias{font-size:13px;color:var(--gold);font-weight:600}
 </style>
 </head>
 <body>
@@ -5385,6 +5389,8 @@ let lgSel=null;
 const lgUnit=o=>o.oil?'kg':(/alkohol|alcohol|ethanol/i.test(o.t||'')?'L':'قطعة');
 const lgTierAr=t=>({Standard:'Standard',Premium:'Premium',Exklusiv:'Exklusiv'})[t]||t||'';
 function lgStatus(msg,err){const s=$('lg-status');s.hidden=!msg;s.textContent=msg||'';s.classList.toggle('err',!!err)}
+/* Originalname aus dem Katalog (über Titel, sonst über den Stammcode) */
+function lgOrig(t,code){const p=catalog.find(x=>x.t===t)||(code?catalog.find(x=>x.v.some(v=>stem(v[1]||'').toUpperCase()===String(code).toUpperCase())):null);return (p&&p.a)||''}
 function lgSearch(){
   const raw=$('lg-q').value.trim(), words=fold(raw).split(/\s+/).filter(Boolean);
   const box=$('lg-results');box.textContent='';$('lg-low').hidden=true;
@@ -5414,7 +5420,7 @@ $('lg-q').oninput=lgSearch;
 async function lgOpen(o){
   if($('view-lg').hidden)tab('lg');
   lgSel=o;$('lg-results').textContent='';$('lg-q').value='';$('lg-box').hidden=false;$('lg-low').hidden=true;
-  $('lg-name').textContent=o.t+(o.tier?' · '+o.tier:'');$('lg-code').textContent=o.code+(o.a?' · '+o.a:'');
+  if(!o.a)o.a=lgOrig(o.t,o.code);$('lg-name').textContent=o.t+(o.tier?' · '+o.tier:'');$('lg-code').textContent=o.code+(o.a?' · '+o.a:'');
   $('lg-bestand').textContent='…';$('lg-min').textContent='';$('lg-ein').value='';$('lg-inv').value='';lgStatus('');
   await lgRefresh();
 }
@@ -5460,8 +5466,8 @@ $('lg-low-btn').onclick=async()=>{
     const l=await srv('lg_low');box.textContent='';
     if(!l.length){box.append(el('p','hint','كل الأصناف فوق الحد الأدنى ✅'));return}
     box.append(el('h2',null,'الأصناف الناقصة ('+l.length+')'));
-    l.forEach(x=>{const r=el('div','res');const info=el('div','info');info.append(el('div','name',(x.status==='LEER'?'🔴 ':'🟠 ')+x.title+(x.tier?' · '+x.tier:'')),el('div','code',x.code+' · '+x.bestand+' '+x.unit+' (الحد '+x.min+')'));
-      const b=el('button','chip','فتح');b.onclick=()=>lgOpen({t:x.title,a:'',oil:x.unit==='kg'?1:0,tier:x.tier,code:x.code});r.append(info,b);box.append(r)});
+    l.forEach(x=>{const r=el('div','res');const info=el('div','info'),og=lgOrig(x.title,x.code);info.append(el('div','name',x.title+(x.tier?' · '+x.tier:'')));if(og)info.append(el('div','alias',og));info.append(el('div','code',x.code+' · '+x.bestand+' '+x.unit+' (الحد '+x.min+')'));info.querySelector('.name').prepend(el('i','lg-st '+(x.status==='LEER'?'e':'n')));
+      const b=el('button','chip','فتح');b.onclick=()=>lgOpen({t:x.title,a:og,oil:x.unit==='kg'?1:0,tier:x.tier,code:x.code});r.append(info,b);box.append(r)});
   }catch(e){box.textContent='تعذّر التحميل: '+e.message}
 };
 
