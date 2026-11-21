@@ -905,6 +905,7 @@ header .row .btn.small{min-height:38px}
   <button class="nv side-only" id="nv-print"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg><span class="t">مركز الطباعة<small>Druckzentrum</small></span></button>
   <div class="nvg">العملاء · Kunden</div>
   <button class="nv side-only p-cust" id="nv-cust"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/></svg><span class="t">العملاء والحسابات<small>Kunden & Konten</small></span></button>
+  <button class="nv side-only adm-only" id="nv-bill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h5"/></svg><span class="t">الفوترة<small>Fakturierung</small></span></button>
   <button class="nv side-only p-cash" id="nv-cash"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg><span class="t">الصندوق<small>Kasse</small></span></button>
   <div class="nvg">المستودع · Lager</div>
   <button class="nv side-only p-lg" id="nv-lg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span class="t">المخزون<small>Bestand</small></span></button>
@@ -1794,7 +1795,7 @@ function hubGroups(){document.querySelectorAll('#view-home .hgrp').forEach(g=>{g
 document.querySelectorAll('.hgh').forEach(x=>x.onclick=()=>hubGo(x.dataset.hub));
 $('hq-rd').onclick=e=>{if(!e.target.closest('.rd-ctl button'))radioOpen()};setTimeout(radioChip,0);
 $('nv-home').onclick=goHome;$('nv-pick').onclick=()=>{drawer(false);lnGo('pick')};$('nv-ship').onclick=()=>{drawer(false);lnGo('ship')};$('nv-new').onclick=()=>$('h-new').click();
-$('nv-shop').onclick=()=>{drawer(false);shopOpen()};$('nv-off').onclick=()=>$('h-off').click();$('nv-sup').onclick=()=>$('h-sup').click();$('nv-liste').onclick=()=>$('h-list').click();$('nv-set').onclick=()=>$('tab-set').click();$('nv-print').onclick=()=>{drawer(false);pcOpen()};$('nv-menu').onclick=()=>navMenu();
+$('nv-shop').onclick=()=>{drawer(false);shopOpen()};$('nv-off').onclick=()=>$('h-off').click();$('nv-bill').onclick=()=>billOpen();$('nv-sup').onclick=()=>$('h-sup').click();$('nv-liste').onclick=()=>$('h-list').click();$('nv-set').onclick=()=>$('tab-set').click();$('nv-print').onclick=()=>{drawer(false);pcOpen()};$('nv-menu').onclick=()=>navMenu();
 $('nv-lg').onclick=()=>{drawer(false);$('h-lg').click()};$('nv-cash').onclick=()=>$('h-cash').click();$('nv-cust').onclick=()=>$('h-cust').click();
 
 {const IC={'h-wh':'<path d="M3 7h6l2 2h10v10H3z"/>','h-done':'<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>','h-lg':'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>','h-cust':'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>','h-cash':'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/>','h-acc':'<path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/>','h-inv':'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM8.5 12l2 2 4-4M8.5 17h7"/>','h-off':'<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h5"/>','h-shop':'<path d="M3 4h2.5l2.2 11h10.6l2.2-8H6.6"/><circle cx="9.5" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>','h-ship':'<path d="M2 7h11v9H2zM13 10h4l3 3v3h-7"/><circle cx="6" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>','h-dhl':'<path d="M3 8l9-4 9 4v9l-9 4-9-4z"/><path d="M3 8l9 4 9-4M12 12v9M7.5 6l9 4"/>','h-reg':'<path d="M3 5h18v14H3z"/><path d="M7 9h4v4H7zM14 10h4M14 14h4"/>','h-list':'<path d="M6 3h9l4 4v14H6z"/><path d="M9 10h7M9 14h7M9 18h4"/>','h-sup':'<path d="M4 9h16v11H4z"/><path d="M9 9V6a3 3 0 016 0v3M4 13h16"/>'};
@@ -3906,7 +3907,7 @@ async function syncCash(l,pay){
   if(!isCash){if(pay.cashId){try{await db.doc('cash/'+pay.cashId).delete()}catch(_){}}return ''}
   const rec={type:'in',amount:cashAmt,note:custLabel(l),orderId:l.id,who:WHO(),at:Date.now()};
   if(pay.cashId&&cash.some(c=>c.id===pay.cashId)){await db.doc('cash/'+pay.cashId).update({amount:rec.amount,note:rec.note});return pay.cashId}
-  rec.holder=WHO()||'box';const r=await db.collection('cash').add(rec);return (r&&r.id)||'';
+  rec.holder='box';const r=await db.collection('cash').add(rec);return (r&&r.id)||'';
 }
 const shrink=f=>new Promise((ok,no)=>{if(!/^image\//.test(f.type)){const r=new FileReader();r.onload=()=>ok({b64:String(r.result).split(',').pop(),mime:f.type||'application/pdf',name:f.name});r.onerror=no;r.readAsDataURL(f);return}
   const im=new Image();im.onload=()=>{const k=Math.min(1,1600/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);ok({b64:c.toDataURL('image/jpeg',.82).split(',').pop(),mime:'image/jpeg',name:f.name.replace(/\.[^.]+$/,'')+'.jpg'})};im.onerror=no;im.src=URL.createObjectURL(f)});
@@ -3918,7 +3919,7 @@ $('cs-save').onclick=async()=>{
   const who=($('cs-who').value||WHO()).trim();if(!who){msg.textContent='اكتب اسم الموظف / الشخص.';msg.classList.add('err');$('cs-who').focus();return}
   const rec={type:t,amount:a,who,note:($('cs-note').value||'').trim(),at:Date.now()};
   if(t==='exp'){rec.cat=$('cs-cat').value;rec.src=$('cs-src').value}
-  if(t==='in')rec.holder=who;
+  if(t==='in')rec.holder='box';
   if(t==='withdraw')rec.holder='kamal';
   $('cs-save').disabled=true;
   try{const f=$('cs-file').files[0];if(f){msg.textContent='جاري رفع الفاتورة…';rec.receipt=await uploadReceipt(f,who)}
@@ -3961,10 +3962,10 @@ $('cs-cust').oninput=()=>{csCustInfo();csCustDD()};$('cs-cust').onfocus=csCustDD
       msg.textContent='جاري الحفظ… '+(n+1)+'/'+ords.length;
       const pay={status:tot>=p.net-0.004?'paid':'part',paid:tot,method:'Bar',at:Date.now(),payAt:Date.now(),cashId:(l.pay&&l.pay.cashId)||''};
       nextPay(l,pay);
-      if(p.paidAll>0.004&&om&&om!=='Bar'){await db.collection('cash').add({type:'in',amount:use,note:custLabel(l)+(note?' · '+note:''),orderId:l.id,who,holder:who,at:Date.now()})}
-      else{const had=pay.cashId;pay.cashId=await syncCash(l,pay);if(pay.cashId&&!had){try{await db.doc('cash/'+pay.cashId).update({who,holder:who})}catch(_){}}}
+      if(p.paidAll>0.004&&om&&om!=='Bar'){await db.collection('cash').add({type:'in',amount:use,note:custLabel(l)+(note?' · '+note:''),orderId:l.id,who,holder:'box',at:Date.now()})}
+      else{const had=pay.cashId;pay.cashId=await syncCash(l,pay);if(pay.cashId&&!had){try{await db.doc('cash/'+pay.cashId).update({who,holder:'box'})}catch(_){}}}
       await docOf(l).update({pay});l.pay=pay;rest=r2(rest-use);n++}
-    if(rest>0.004)await db.collection('cash').add({type:'in',amount:rest,who,holder:who,note:(g?g.name+(g.no?' ('+g.no+')':''):nm)+' · رصيد للعميل'+(note?' · '+note:''),custNo:g?g.no||'':'',at:Date.now()});
+    if(rest>0.004)await db.collection('cash').add({type:'in',amount:rest,who,holder:'box',note:(g?g.name+(g.no?' ('+g.no+')':''):nm)+' · رصيد للعميل'+(note?' · '+note:''),custNo:g?g.no||'':'',at:Date.now()});
     msg.textContent='✓ تم: '+money(a)+' من '+(g?g.name:nm)+(n?' · سُدّد '+n+' طلب/دين':'')+(rest>0.004?' · '+money(rest)+' رصيد له':'');
     $('cs-amt').value='';$('cs-note').value='';$('cs-cust').value='';$('cs-cust-info').textContent='';$('cs-cust-dd').hidden=true;$('cs-file').value='';
     try{renderLists()}catch(_){}try{if(!$('view-cust').hidden)renderCust()}catch(_){}
@@ -4248,10 +4249,10 @@ function lexPayloadMulti(ls){ls=ls.slice().sort((a,b)=>(a.at||0)-(b.at||0));cons
     p.lineItems.forEach(x=>li.push(Object.assign({},x,x.name==='Versandkosten'?{name:'Versandkosten ('+tag+')'}:{description:tag+(x.description?' · '+x.description:'')})))});
   const last=ps[ps.length-1].p;return Object.assign({},last,{lineItems:li,totalDiscountAbsolute:Math.round(fix*100)/100,shipFrom:ps[0].p.shipFrom,shipTo:last.shipTo,
     remark:'Sammelrechnung für '+ls.length+' Lieferungen: '+ls.map(l=>de(l.at)).join(', ')})}
-function openSammel(g){if(!isAdmin())return;const ls=g.orders.filter(l=>l.kind!=='debt'&&(l.items||[]).length).sort((a,b)=>(b.at||0)-(a.at||0));
+function openSammel(g,pre){if(!isAdmin())return;const ls=g.orders.filter(l=>l.kind!=='debt'&&(l.items||[]).length).sort((a,b)=>(b.at||0)-(a.at||0));
   openSheet('🧾 فاتورة مجمّعة · '+g.name,b=>{if(!ls.length){b.append(el('p','hint','لا توجد طلبات لهذا العميل.'));return}
     const sel=new Set(),mStart=(y,mo)=>new Date(y,mo,1).getTime(),now=new Date();
-    const pick=(from,to)=>{sel.clear();ls.forEach(l=>{if(!l.lex&&(l.at||0)>=from&&(l.at||0)<to)sel.add(l.id)});draw()};
+    const pick=(from,to)=>{sel.clear();ls.forEach(l=>{if(!l.lex&&!l.inv&&(l.at||0)>=from&&(l.at||0)<to)sel.add(l.id)});draw()};
     const qr=el('div','row');qr.style.cssText='gap:8px;flex-wrap:wrap;margin-bottom:8px';
     [['هذا الشهر',mStart(now.getFullYear(),now.getMonth()),Infinity],['الشهر الماضي',mStart(now.getFullYear(),now.getMonth()-1),mStart(now.getFullYear(),now.getMonth())],['كل غير المفوترة',0,Infinity]].forEach(([t,f,to])=>{const x=el('button','btn small',t);x.onclick=()=>pick(f,to);qr.append(x)});
     b.append(el('p','hint','اختر الطلبات التي تدخل في فاتورة واحدة. الطلبات المفوترة سابقاً عليها علامة 🧾.'),qr);
@@ -4266,7 +4267,7 @@ function openSammel(g){if(!isAdmin())return;const ls=g.orders.filter(l=>l.kind!=
         for(const l of chosen)await db.doc('lists/'+l.id).update({lex:info});
         go.textContent='✓ تم إنشاء المسودة';const a=el('a','btn primary','🧾 فتح المسودة في Lexware');a.href=r.url;a.target='_blank';a.rel='noopener';if(r.hinweis)out.append(el('p','note',r.hinweis));out.append(a,el('p','note',chosen.length+' طلبات في فاتورة واحدة · '+(r.kontakt?'مربوطة بالعميل في Lexware.':'العنوان مكتوب يدوياً — العميل غير موجود في Lexware بنفس الاسم.')))}
       catch(e){go.disabled=false;go.textContent=o;const m=String(e.message||e);out.append(el('p','status err',/LEXWARE_KEY_FEHLT/.test(m)?'مفتاح Lexware غير مضبوط في الخادم.':/Unbekannte Aktion/.test(m)?'الخادم لم يُحدَّث بعد.':'فشل: '+m))}};
-    pick(mStart(now.getFullYear(),now.getMonth()),Infinity);b.append(box,sum,go,out)})}
+    if(pre&&pre.length){pre.forEach(i=>sel.add(i));draw()}else pick(mStart(now.getFullYear(),now.getMonth()),Infinity);b.append(box,sum,go,out)})}
 async function lexDraft(l,btn,out){if(!isAdmin())return;const o=btn.textContent;btn.disabled=true;btn.textContent='جاري إنشاء المسودة في Lexware…';out.textContent='';
   try{const r=await srv('lex_draft',JSON.stringify(lexPayload(l)));await db.doc('lists/'+l.id).update({lex:{id:r.id,url:r.url,at:Date.now(),by:WHO()}});
     btn.textContent='✓ تم إنشاء المسودة';const a=el('a','btn primary','🧾 فتح المسودة في Lexware');a.href=r.url;a.target='_blank';a.rel='noopener';out.append(a,el('p','note',r.kontakt?'رُبطت بالعميل الموجود في Lexware.':'العميل غير موجود في Lexware بنفس الاسم — العنوان مكتوب يدوياً في المسودة.'));if(r.hinweis)out.append(el('p','note',r.hinweis))}
@@ -4872,6 +4873,7 @@ function kkOpen(g0){if(kkFor!==g0.key){kkFor=g0.key;kkTab='ov'}openSheet('👤 �
     if(kkTab==='acc'){const out=el('div','filebox'),st=el('button','btn small');st.append(ico('doc'),'كشف حساب PDF');st.onclick=()=>makeStatement(g,st,out);
       const s=sec('الطلبات المفتوحة','Offene Posten',st);const op=g.orders.filter(l=>payOf(l).open>0.004).sort((a,b2)=>(a.at||0)-(b2.at||0));
       if(!op.length)s.append(el('div','ho-ok','✓ لا يوجد مبلغ مفتوح'));op.forEach(l=>{const r=el('button','kk-row'),i=el('div');const od=overDays(l);i.append(el('b',null,kkLbl(l)),el('div','t'+(od>0?' bad':''),new Date(l.at).toLocaleDateString('de-DE')+' · الاستحقاق '+dmy(dueOf(l))+(od>0?' · متأخر '+od+' يوماً':'')));const rt=el('div','kp-rt');rt.append(el('span','sum red',money(payOf(l).open)),payBadge(l));r.append(i,rt);r.onclick=()=>l.kind==='debt'?openDebtSheet(l):openOrder(l.id);s.append(r)});
+      if(isAdmin()&&g.orders.some(l=>billable(l))){const sb=el('button','btn small');sb.append(ico('doc'),'فاتورة مجمّعة');sb.onclick=()=>openSammel(g,g.orders.filter(billable).map(l=>l.id));s.append(sb)}
       if(op.length){const rm=el('button','btn small');rm.append(ico('bell'),'تذكير بالدفع');rm.onclick=()=>remindOpen(g);s.append(rm)}s.append(out);
       const db=el('button','btn small');db.append('رصيد سابق');db.title='دين قديم · Saldovortrag';db.onclick=()=>openDebtSheet(null,g.name);
       pane.append(s);const ph=kkPayHist(g);const s6=sec('الدفعات','Zahlungen',db);if(!ph.length)s6.append(el('p','hint','لا توجد دفعات مسجّلة.'));kkPayCss();
@@ -4976,6 +4978,26 @@ function shipSuggest(){try{const c=cfg();if(!(draft.lief==='de'||draft.lief==='a
 /* Rollen-Vorlagen für Mitarbeiter */
 const ROLES={sales:['مبيعات الصالة','Verkauf',['new','off','cust']],wh:['المستودع','Lager',['wh','lg','inv','shop']],acc:['المحاسبة','Buchhaltung',['cust','acc','cash']],lead:['مدير الفرع','Leitung',['new','off','cust','acc','cash','wh','lg','inv','shop']]};
 function roleBtns(u,draw){const r=el('div','role-b');r.append(el('span',null,'دور جاهز:'));Object.keys(ROLES).forEach(k=>{const b=el('button','btn small'+(u.role===k?' primary':''),ROLES[k][0]);b.title=ROLES[k][1];b.onclick=()=>{u.role=k;u.full=false;u.perms=ROLES[k][2].slice();draw()};r.append(b)});return r}
+
+/* ================= 🧾 الفوترة · Fakturierung (v2): monatliche Sammelrechnungen für alle Kunden an einem Ort =================
+   Ein Kunde = eine Zeile mit allen übergebenen, noch nicht fakturierten Aufträgen des Zeitraums → eine Lexware-Entwurfsrechnung */
+let billR='last';
+const BILL_R=[['last','الشهر الماضي','Vormonat'],['this','هذا الشهر','Dieser Monat'],['all','كل غير المفوتر','Alles offen']];
+function billRange(k){const n=new Date(),m=(y,mo)=>new Date(y,mo,1).getTime();return k==='this'?[m(n.getFullYear(),n.getMonth()),Infinity]:k==='last'?[m(n.getFullYear(),n.getMonth()-1),m(n.getFullYear(),n.getMonth())]:[0,Infinity]}
+const billable=l=>l.kind!=='debt'&&(l.items||[]).length&&l.status==='done'&&!l.lex&&!l.inv;
+function billOpen(){if(!isAdmin())return;openSheet('🧾 الفوترة · Fakturierung',b=>{
+  const [f,t]=billRange(billR),gs=custGroups().map(g=>({g,ls:g.orders.filter(l=>billable(l)&&(l.at||0)>=f&&(l.at||0)<t)})).filter(x=>x.ls.length).sort((a,c)=>String(a.g.name).localeCompare(c.g.name,'de'));
+  const tb=el('div','ln-tabs');BILL_R.forEach(([k,ar,de])=>{const x=el('button',k===billR?'on':'',ar);x.title=de;x.onclick=()=>{billR=k;billOpen()};tb.append(x)});b.append(tb);
+  const tot=gs.reduce((s,x)=>s+x.ls.reduce((a,l)=>a+totals(l).net,0),0);
+  const k=el('div','cu-kpi');[[String(gs.length),'عملاء للفوترة'],[String(gs.reduce((s,x)=>s+x.ls.length,0)),'طلبات مُسلَّمة غير مفوترة'],[money(tot),'المجموع الصافي']].forEach(([v,s])=>{const d=el('button');d.append(el('b',null,v),el('span',null,s));k.append(d)});b.append(k);
+  b.append(el('p','hint','تظهر هنا فقط الطلبات المُسلَّمة التي لم تُفوتَر بعد. «مسودة فاتورة» تجمع طلبات العميل في مسودة واحدة في Lexware، وتُعلَّم الطلبات «مفوترة» تلقائياً. أنت تراجع المسودة وترسلها من Lexware.'));
+  const list=el('div','ln-list');if(!gs.length){const e=el('div','ln-empty');e.append(ico('check','big'),el('div',null,'لا توجد طلبات غير مفوترة في هذه الفترة'));list.append(e)}
+  gs.forEach(({g,ls})=>{const r=el('div','ln-row'),m=el('div'),nm=el('div','nm',g.name);if(g.no)nm.append(el('small',null,'· '+g.no));m.append(nm);
+    const mt=el('div','mt');mt.append(el('span',null,ls.length+' طلب · '+ls.map(l=>dmy(l.at).slice(0,5)).join('، ')));const paid=ls.every(l=>payOf(l).open<=0.004);mt.append(el('span','tg'+(paid?' rdy':''),paid?'مدفوعة':'فيها مبالغ مفتوحة'));m.append(mt);
+    const rt=el('div','ln-r');rt.append(el('span','sum',money(ls.reduce((a,l)=>a+totals(l).net,0))));const go=el('button','ln-act','مسودة فاتورة');go.onclick=e=>{e.stopPropagation();openSammel(g,ls.map(l=>l.id))};rt.append(go);
+    const mk=el('button','ln-act ghost','تعليم مفوتر');mk.title='فوترتها بنفسك في Lexware';mk.onclick=async e=>{e.stopPropagation();if(!confirm('تعليم '+ls.length+' طلب لـ «'+g.name+'» كمفوترة دون إنشاء مسودة؟'))return;mk.disabled=true;for(const l of ls){try{await db.doc('lists/'+l.id).update({inv:{at:Date.now(),by:WHO()}})}catch(_){}}billOpen()};rt.append(mk);
+    r.append(el('span','hav',(String(g.name||'?').charAt(0)||'?').toUpperCase()),m,rt);r.onclick=()=>kkOpen(g);list.append(r)});
+  b.append(list)})}
 
 /* ---------- boot ---------- */
 renderSizes(); renderItems(); tab('home');
