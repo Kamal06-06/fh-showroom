@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="259">
+<meta name="fh-build" content="260">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -5289,7 +5289,10 @@ function makeDb(){
   /* Shop-Bestellungen: fertige Liste vom Server (shop/list) – sofort da, ohne Wartezeit */
   function fsShopData(tries){const F=FB.F;
     F.onSnapshot(F.doc(FB.fs,'shop','list'),s=>{if(!s.exists())return;let o;try{o=JSON.parse(s.data().j)}catch(e){return}
-      if(!o||!Array.isArray(o.orders))return;SO_LIVE=true;if(SO.at&&o.at<SO.at&&(SO.orders||[]).length)return;
+      if(!o||!Array.isArray(o.orders))return;
+      /* veraltete Live-Liste (Server hat länger nicht veröffentlicht) nie anzeigen → direkt frisch vom Server holen */
+      if(!o.at||Date.now()-o.at>15*60e3){SO_LIVE=false;if(soPw())soLoad(true).then(()=>{try{if(soOpenNow()){const sb=$('sheet-b');soSel?soDetail(sb,soSel):soListView(sb)}soSetCount()}catch(e){}}).catch(()=>{});return}
+      SO_LIVE=true;if(SO.at&&o.at<SO.at&&(SO.orders||[]).length)return;
       SO=soqApply(o);soSetCount();IDB.set('so',o);
       try{if(soOpenNow()&&soPw()){const sb=$('sheet-b');soSel?soDetail(sb,soSel):soListView(sb)}if(!$('view-home').hidden)renderHome()}catch(e){}},
       e=>{console.warn('shop list',e);if(e&&e.code==='permission-denied'&&tries<6)setTimeout(()=>{pingAt=0;fsPing().then(()=>fsShopData(tries+1))},3000*(tries+1))})}
@@ -6438,13 +6441,14 @@ function soClpWarmAll(){clearTimeout(soWarmT);soWarmT=setTimeout(async()=>{if(so
     for(const o of list){try{await Promise.all(soClpParts(o))}catch(_){}}}finally{soWarmRun=false}},4000)}
 function soSetCount(){try{soClpWarmAll()}catch(_){}try{const n=(SO.orders||[]).filter(o=>soPaid(o)&&!soPrep(o).ready).length;const c=$('h-shop-n');if(c)c.textContent=n||'';navBadge();if(!$('view-home').hidden)homeTop()}catch(e){}}
 async function soCache(){if((SO.orders||[]).length)return SO;try{const c=await IDB.get('so');if(c&&c.orders&&!(SO.orders||[]).length){SO=soqApply(c);SO.at=0;soSetCount()}}catch(e){}return SO}
-function soLoad(force){if(!force&&(SO_LIVE||SO.at&&Date.now()-SO.at<60e3))return Promise.resolve(SO);if(soP)return soP;
-  soP=soCall('so_list').then(r=>{SO=soqApply(r);soSetCount();IDB.set('so',r);return SO}).finally(()=>{soP=null});return soP}
+const soFresh=()=>!!(SO.at&&Date.now()-SO.at<(SO_LIVE?15*60e3:60e3));
+function soLoad(force){if(!force&&soFresh())return Promise.resolve(SO);if(soP)return soP;
+  soP=soCall('so_list').then(r=>{SO=soqApply(r);if(!SO.at)SO.at=Date.now();soSetCount();IDB.set('so',r);return SO}).finally(()=>{soP=null});return soP}
 const soOpenNow=()=>!$('sheet').hidden&&$('sheet-t').textContent==='🛒 طلبات المتجر';
 async function shopOpen(){if(!can('shop'))return;
   if(!soPw())return shopPwSheet(shopOpen,false);   // Passwort-Fenster sofort, ohne vorher den Server zu fragen
   await soCache();
-  const fresh=SO_LIVE||SO.at&&Date.now()-SO.at<60e3,has=(SO.orders||[]).length;
+  const fresh=soFresh(),has=(SO.orders||[]).length;
   openSheet('🛒 طلبات المتجر',b=>{
     if(has)soSel?soDetail(b,soSel):soListView(b);else b.append(el('p','hint','جاري التحميل…'));
     if(fresh)return;
