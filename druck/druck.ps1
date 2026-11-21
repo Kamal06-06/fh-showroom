@@ -256,8 +256,6 @@ public class FhXEl : FrameworkElement {
     /* Fertiges Etikett als Bild (z. B. Showroom-Etiketten 51x40 / 51x30): ganze Seite fuellen, nur drehen, wenn Bild und Seite verschieden ausgerichtet sind */
     if (L.Bild != null && L.W > 0 && L.H > 0) {
       var bb = new BitmapImage(); bb.BeginInit(); bb.CacheOption = BitmapCacheOption.OnLoad; bb.StreamSource = new MemoryStream(L.Bild); bb.EndInit(); bb.Freeze();
-      /* Anschnitt: Bild 6 % groesser und mittig, damit am Rand kein weisser Streifen bleibt (Rahmen liegt weit genug innen) */
-      const double U = 1.06; dc.PushTransform(new ScaleTransform(U, U, PW / 2, PH / 2));
       if ((PH > PW) != (bb.PixelHeight > bb.PixelWidth)) { dc.PushTransform(new TranslateTransform(PW, 0)); dc.PushTransform(new RotateTransform(90)); dc.DrawImage(bb, new Rect(0, 0, PH, PW)); }
       else dc.DrawImage(bb, new Rect(0, 0, PW, PH));
       return;
