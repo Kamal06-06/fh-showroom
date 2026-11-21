@@ -240,7 +240,7 @@ $fhWpfRefs = @('PresentationCore','PresentationFramework','WindowsBase','ReachFr
 Add-Type -IgnoreWarnings -ReferencedAssemblies ($fhWpfRefs + @('System.Xml')) -TypeDefinition @"
 using System; using System.Collections.Generic; using System.Globalization; using System.IO; using System.Threading;
 using System.Windows; using System.Windows.Media; using System.Windows.Media.Imaging; using System.Windows.Documents; using System.Printing; using System.Windows.Xps;
-public class FhXEtikett { public int R, G, B; public string Name = "", Code = "", Q = "", Pill = "", Nr = "", Dat = "", Ch = ""; public byte[] Bild; }
+public class FhXEtikett { public int R, G, B; public string Name = "", Code = "", Q = "", Pill = "", Nr = "", Dat = "", Ch = ""; public byte[] Bild; public double W, H; }
 public class FhXEl : FrameworkElement {
   public FhXEtikett L; public double PW, PH;
   const double MM = 96.0 / 25.4, PT = 0.3528;
@@ -253,6 +253,13 @@ public class FhXEl : FrameworkElement {
     if (cur.Length > 0) z.Add(cur); return z;
   }
   protected override void OnRender(DrawingContext dc) {
+    /* Fertiges Etikett als Bild (z. B. Showroom-Etiketten 51x40 / 51x30): ganze Seite fuellen, nur drehen, wenn Bild und Seite verschieden ausgerichtet sind */
+    if (L.Bild != null && L.W > 0 && L.H > 0) {
+      var bb = new BitmapImage(); bb.BeginInit(); bb.CacheOption = BitmapCacheOption.OnLoad; bb.StreamSource = new MemoryStream(L.Bild); bb.EndInit(); bb.Freeze();
+      if ((PH > PW) != (bb.PixelHeight > bb.PixelWidth)) { dc.PushTransform(new TranslateTransform(PW, 0)); dc.PushTransform(new RotateTransform(90)); dc.DrawImage(bb, new Rect(0, 0, PH, PW)); }
+      else dc.DrawImage(bb, new Rect(0, 0, PW, PH));
+      return;
+    }
     const double W = 51, H = 30, B = 4, CX = B + (W - B) / 2, MW = W - B - 5;
     bool hoch = PH > PW;
     if (hoch) { dc.PushTransform(new TranslateTransform(PW, 0)); dc.PushTransform(new RotateTransform(90)); }
@@ -303,6 +310,12 @@ public static class FhXpsDruck {
     var srv = new LocalPrintServer(); var q = srv.GetPrintQueue(drucker);
     var ticket = (q.UserPrintTicket ?? q.DefaultPrintTicket).Clone();
     ticket.PageOrientation = PageOrientation.Portrait; ticket.CopyCount = 1;
+    /* Etikettengroesse aus dem Auftrag (z. B. 51x40): passendes Medium des Treibers waehlen, sonst eigene Groesse */
+    if (liste.Count > 0 && liste[0].W > 0 && liste[0].H > 0) {
+      double tw = liste[0].W * 96 / 25.4, th = liste[0].H * 96 / 25.4; PageMediaSize best = null;
+      try { foreach (PageMediaSize m in q.GetPrintCapabilities(ticket).PageMediaSizeCapability) { if (m.Width.HasValue && m.Height.HasValue && Math.Abs(m.Width.Value - tw) < 4 && Math.Abs(m.Height.Value - th) < 4) { best = m; break; } } } catch { }
+      ticket.PageMediaSize = best ?? new PageMediaSize(tw, th);
+    }
     double pw = 51 * 96 / 25.4, ph = 30 * 96 / 25.4;
     if (ticket.PageMediaSize != null && ticket.PageMediaSize.Width.HasValue && ticket.PageMediaSize.Height.HasValue) { pw = ticket.PageMediaSize.Width.Value; ph = ticket.PageMediaSize.Height.Value; }
     var doc = new FixedDocument(); doc.DocumentPaginator.PageSize = new Size(pw, ph);
@@ -345,6 +358,7 @@ function KJsonDruck($datei, $name, $drucker) {
   Write-Host "$(Get-Date -Format HH:mm:ss)  gedruckt auf ${drucker} (Vektor, $r): $name" -ForegroundColor Green
 }
 function KDruck($datei, $name, $drucker) {
+  $gw = 0; $gh = 0; if ($name -match '__(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)') { $gw = [double]$Matches[1]; $gh = [double]$Matches[2] }  # z. B. K-SR-...__51x40.pdf
   $f = WartenOp ([Windows.Storage.StorageFile]::GetFileFromPathAsync($datei)) ([Windows.Storage.StorageFile])
   $doc = WartenOp ([Windows.Data.Pdf.PdfDocument]::LoadFromFileAsync($f)) ([Windows.Data.Pdf.PdfDocument])
   $liste = New-Object 'System.Collections.Generic.List[System.Drawing.Bitmap]'
@@ -360,7 +374,7 @@ function KDruck($datei, $name, $drucker) {
     if ('FhXpsDruck' -as [type]) {
       $mem = New-Object System.IO.MemoryStream; $st.CopyTo($mem)
       if (-not $xl) { $xl = New-Object 'System.Collections.Generic.List[FhXEtikett]' }
-      $e = New-Object FhXEtikett; $e.Bild = $mem.ToArray(); $xl.Add($e); $mem.Dispose()
+      $e = New-Object FhXEtikett; $e.Bild = $mem.ToArray(); $e.W = $gw; $e.H = $gh; $xl.Add($e); $mem.Dispose()
     } else { $liste.Add((New-Object System.Drawing.Bitmap($st))) }
     $reste += $st; $reste += $ms; $pg.Dispose()
   }

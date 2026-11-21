@@ -10,6 +10,7 @@ Einrichten: `FH-Druck-einrichten.cmd` ausführen (fragt einmal die PIN der Showr
 | `P-…` (Etiketten 40 × 30) | Phomemo M110S (USB) | `noscale,landscape` |
 | `Z-…` (DHL-Versandetikett 103 × 199) | Zebra GK420t (USB) | – (direkt per USB als ZPL, ohne Treiber) |
 | `K-…` (farbige Proben-Etiketten 51 × 30, je Etikett eine Seite) | Epson ColorWorks CW-C4000e (USB) | `fit,portrait` (Treiber-Hochformat = 51 breit × 30 lang) |
+| `K-SR-…__51x40.pdf` / `__51x30.pdf` (Showroom-Etiketten, je Etikett ein Auftrag) | Epson CW-C4000e, Medium passend zur Größe im Namen (Treiber-Medium «FH Showroom 51x40 Endlos» anlegen) | XPS, ganze Seite |
 | `R-…` (Regal-Etiketten 102 × 30, je Etikett ein Auftrag) | Epson, Warteschlange „FH Regal 102x30“ | `fit,landscape` |
 | alles andere (CLP 102 × 51) | Epson ColorWorks CW-C6000Ae | `fit,landscape` |
 
