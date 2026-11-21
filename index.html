@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="270">
+<meta name="fh-build" content="271">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -4932,7 +4932,7 @@ function pcOpen(){pcCss();openSheet('🖨️ مركز الطباعة · Druckzen
 
 /* ================= 🏷️ ملصقات الصالة · Showroom-Etiketten (Vitrine) – Design «White Classic» (weißer Grund, 11.2026) =================
    Daten live aus dem Shop (Titel exakt, Handle, Qualitäten, Stammcode bis -SH, Tag «Geschlecht: …») · jedes Etikett ein eigener Druckauftrag */
-const SRE_F={'51x40':{w:51,h:40,pre:'K-',n:'51 × 40 مم',p:'Epson C4000',s:'قياسي · Standard'},'51x30':{w:51,h:30,pre:'K-',n:'51 × 30 مم',p:'Epson C4000',s:'نفس اللفّة'},'102x51':{w:102,h:51,pre:'E-',n:'102 × 51 مم',p:'Epson C6000',s:'لفّة CLP'}};
+const SRE_F={'51x50':{w:51,h:50,pre:'K-',n:'51 × 50 مم',p:'Epson C4000',s:'أعلى · للقارورة 30 مل'},'51x60':{w:51,h:60,pre:'K-',n:'51 × 60 مم',p:'Epson C4000',s:'الأعلى'},'51x40':{w:51,h:40,pre:'K-',n:'51 × 40 مم',p:'Epson C4000',s:'قياسي · Standard'},'51x30':{w:51,h:30,pre:'K-',n:'51 × 30 مم',p:'Epson C4000',s:'نفس اللفّة'},'102x51':{w:102,h:51,pre:'E-',n:'102 × 51 مم',p:'Epson C6000',s:'لفّة CLP'}};
 const SRE_Q=['Standard','Premium','Exklusiv'],SRE_QC={Standard:{bg:[120,127,140],tx:[255,255,255]},Premium:{bg:[184,150,62],tx:[255,255,255]},Exklusiv:{bg:[122,78,45],tx:[255,255,255]}};
 const SRE_G={H:'Herren',D:'Damen',U:'Unisex'};
 let SRE_P=null,sreFonts=null,sreStop=false;
@@ -4951,7 +4951,7 @@ function sreDoc(F){const o=F.w>=F.h?'landscape':'portrait',d=new window.jspdf.js
   d.addFileToVFS('sre-c.ttf',sreFonts.c);d.addFont('sre-c.ttf','SreSerif','bold');d.addFileToVFS('sre-u.ttf',sreFonts.u);d.addFont('sre-u.ttf','SreSans','normal');d.addFileToVFS('sre-ub.ttf',sreFonts.ub);d.addFont('sre-ub.ttf','SreSans','bold');d.setLineHeightFactor(1.05);return d}
 function sreUrl(L){return 'https://fragranceshub.de/products/'+L.h+'?q='+encodeURIComponent(L.q)+'&utm_source=showroom'}
 /* ein Etikett zeichnen – alle Maße relativ zum Format (51×40 ist die Referenz) */
-function sreDraw(d,F,L){const W=F.w,H=F.h,k=H/40,PT=0.3528,NAVY=[22,28,48],GOLD=[176,140,48],LG=[176,140,48],WH=[255,255,255],GR=[90,96,110];/* Design «White Classic» (11.2026): weißer Grund, Navy-Text, Gold nur für Rahmen/Akzente */
+function sreDraw(d,F,L){const W=F.w,H=F.h,k=Math.min(H/40,W/51),xh=H/(40*k),PT=0.3528,NAVY=[22,28,48],GOLD=[176,140,48],LG=[176,140,48],WH=[255,255,255],GR=[90,96,110];/* Design «White Classic» (11.2026): weißer Grund, Navy-Text, Gold nur für Rahmen/Akzente */
   const band=W*8/51,x0=band,x1=W-band,cw=x1-x0,cx=(x0+x1)/2,fi=2.1*k;
   d.setFillColor(...WH);d.rect(0,0,W,H,'F');
   d.setDrawColor(...GOLD);d.setLineWidth(0.5*Math.max(k,.85));d.rect(x0+0.5,fi,cw-1,H-2*fi,'S');
@@ -4960,20 +4960,22 @@ function sreDraw(d,F,L){const W=F.w,H=F.h,k=H/40,PT=0.3528,NAVY=[22,28,48],GOLD=
   /* Marke */
   sp('FRAGRANCE HUB GERMANY','SreSans','bold',Math.min(4.3*k,4.6*cw/35),GOLD,fi+4.1*k,0.32*k);
   /* QR + Chip-Bereich unten */
-  const q=12*k,pad=0.75*k,qx=x1-1.25-0.9*k-q-pad,qy=H-fi-0.75*k-0.9*k-q-pad;
+  const q=12*k*Math.min(xh,1.12),pad=0.75*k,qx=x1-1.25-0.9*k-q-pad,qy=H-fi-0.75*k-0.9*k-q-pad;
   /* Duftname (Serif, Gold) – Ziffern in Ubuntu (Antiqua-Ziffern wirken wie Buchstaben), «| 28» nie getrennt, lieber 1 Zeile, sonst max. 2, Schrift automatisch kleiner */
-  const top=fi+6.3*k,bot=qy-pad-4.6*k,maxW=cw-4.2,nm=String(L.t||'').replace(/\s+\|\s+/g,' |\u00A0');
+  const tall=xh>1.1,top=fi+(tall?8:6.3)*k,bot=qy-pad-(tall?6:4.6)*k,maxW=cw-(tall?6.5:4.2),ML=tall?3:2,nm=String(L.t||'').replace(/\s+\|\s+/g,' |\u00A0');
   const segs=z=>z.split(/(\d+)/).filter(Boolean).map(x=>({t:x.replace(/\u00A0/g,' '),n:/^\d+$/.test(x)}));
   const mw=(z,f)=>segs(z).reduce((w,g)=>{d.setFont(g.n?'SreSans':'SreSerif','bold');d.setFontSize(g.n?f*0.8:f);return w+d.getTextWidth(g.t)},0);
   const wrap=(f)=>{const ws=nm.split(' '),out=[];let cur='';ws.forEach(w=>{const t=cur?cur+' '+w:w;if(cur&&mw(t,f)>maxW){out.push(cur);cur=w}else cur=t});if(cur)out.push(cur);return out};
-  let fs=15*k,lines=[nm],ok=false;
-  for(let f=15*k;f>=10*k&&!ok;f-=0.25){if(mw(nm,f)<=maxW&&f*0.3528*1.05<=bot-top){fs=f;lines=[nm];ok=true}}
-  for(let f=15*k;f>=5.5*k&&!ok;f-=0.25){const z=wrap(f);if(z.length<=2&&z.every(x=>mw(x,f)<=maxW+0.01)&&z.length*f*PT*1.05<=bot-top){fs=f;lines=z;ok=true}}
-  if(!ok){fs=5.5*k;lines=wrap(fs).slice(0,2)}
+  const fM=15*k*Math.min(xh,1.25);let fs=fM,lines=[nm],ok=false;
+  for(let f=fM;f>=10*k&&!ok;f-=0.25){if(mw(nm,f)<=maxW&&f*0.3528*1.05<=bot-top){fs=f;lines=[nm];ok=true}}
+  for(let f=fM;f>=5.5*k&&!ok;f-=0.25){const z=wrap(f);if(z.length<=ML&&z.every(x=>mw(x,f)<=maxW+0.01)&&z.length*f*PT*1.05<=bot-top){fs=f;lines=z;ok=true}}
+  if(!ok){fs=5.5*k;lines=wrap(fs).slice(0,ML)}
+  /* hohe Formate: feine Goldlinien unter der Marke und über dem Code */
+  if(tall){d.setDrawColor(...GOLD);d.setLineWidth(0.2*k);d.line(cx-5*k,fi+5.6*k,cx+5*k,fi+5.6*k);d.line(cx-5*k,bot-0.4*k,cx+5*k,bot-0.4*k)}
   const lh=fs*PT*1.05,y0=top+(bot-top-lines.length*lh)/2+fs*PT*0.78;
   lines.forEach((z,i)=>{let x=cx-mw(z,fs)/2;segs(z).forEach(g=>{d.setFont(g.n?'SreSans':'SreSerif','bold');d.setFontSize(g.n?fs*0.8:fs);d.setTextColor(...NAVY);d.text(g.t,x,y0+i*lh);x+=d.getTextWidth(g.t)})});
   /* Stammcode */
-  d.setFont('SreSans','bold');let cs=6*k;d.setFontSize(cs);while(d.getTextWidth(L.code)>maxW&&cs>3.5){cs-=0.2;d.setFontSize(cs)}d.setTextColor(...GR);d.text(L.code,cx,bot+3.3*k,{align:'center'});
+  d.setFont('SreSans','bold');let cs=6*k;d.setFontSize(cs);while(d.getTextWidth(L.code)>maxW&&cs>3.5){cs-=0.2;d.setFontSize(cs)}d.setTextColor(...GR);d.text(L.code,cx,bot+(tall?3.9:3.3)*k,{align:'center'});
   /* QR */
   d.setFillColor(...WH);d.roundedRect(qx-pad,qy-pad,q+2*pad,q+2*pad,0.6*k,0.6*k,'F');try{d.addImage(qrPng(sreUrl(L)),'PNG',qx,qy,q,q)}catch(e){}
   /* Qualitäts-Chip */
@@ -4988,7 +4990,7 @@ function sreDraw(d,F,L){const W=F.w,H=F.h,k=H/40,PT=0.3528,NAVY=[22,28,48],GOLD=
     d.setFont('SreSans','normal');d.setFontSize(5*k);d.setTextColor(...NAVY);d.text(SRE_G[L.g],sx+r+2.2*k,gy-0.6*k)}}
 function srePdf(F,labels){const d=sreDoc(F),o=F.w>=F.h?'landscape':'portrait';labels.forEach((L,i)=>{if(i)d.addPage([F.w,F.h],o);sreDraw(d,F,L)});return d}
 function sreName(F,L){return F.pre+'SR-'+latin(L.code).replace(/[^A-Za-z0-9-]/g,'')+'-'+String(L.q).charAt(0)+'__'+F.w+'x'+F.h+'.pdf'}
-function sreOpen(){pcCss();sreCss();let fmt=LS.get('sreFmt','51x40');if(!SRE_F[fmt])fmt='51x40';const sel=new Set(),qs=new Set(SRE_Q);let P=[],qtxt='';
+function sreOpen(){pcCss();sreCss();let fmt=LS.get('sreFmt2','51x50');if(!SRE_F[fmt])fmt='51x50';const sel=new Set(),qs=new Set(SRE_Q);let P=[],qtxt='';
   openSheet('🏷️ ملصقات الصالة · Showroom-Etiketten',b=>{pcStatus(b);
     b.append(el('p','hint','ملصقات فاخرة لقوارير العيّنات في الفاترينة: الاسم كما في المتجر، الكود، الجودة، الجنس، ورمز QR يفتح صفحة الزيت بالجودة المختارة.'));
     /* 1 · Duft */
@@ -5000,7 +5002,7 @@ function sreOpen(){pcCss();sreCss();let fmt=LS.get('sreFmt','51x40');if(!SRE_F[f
     b.append(el('div','hsec','٢ · الجودة · Qualität'));const qb=el('div','sre-qs');b.append(qb);
     /* 3 · Format */
     b.append(el('div','hsec','٣ · المقاس · Format'));const fb=el('div','pc-prn sre-f');b.append(fb);
-    Object.keys(SRE_F).forEach(k=>{const F=SRE_F[k],x=el('button');x.dataset.k=k;x.append(el('b',null,F.n),el('span','pz',F.p),el('small',null,F.s));x.onclick=()=>{fmt=k;LS.set('sreFmt',k);drawF();upd()};fb.append(x)});
+    Object.keys(SRE_F).forEach(k=>{const F=SRE_F[k],x=el('button');x.dataset.k=k;x.append(el('b',null,F.n),el('span','pz',F.p),el('small',null,F.s));x.onclick=()=>{fmt=k;LS.set('sreFmt2',k);drawF();upd()};fb.append(x)});
     const drawF=()=>fb.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.k===fmt));drawF();
     /* 4 · Vorschau + Druck */
     b.append(el('div','hsec','٤ · المعاينة والطباعة · Vorschau & Druck'));
