@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="254">
+<meta name="fh-build" content="255">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -809,6 +809,7 @@ label.fld>input:focus,label.fld>select:focus{outline:2px solid var(--gold);outli
 #sheet .sx-ln{margin-top:4px;font-size:11px;font-weight:800;color:#B4231A;background:#FCE8E6;border-radius:999px;padding:1px 8px}
 #sheet .sx-st.on .sx-ln{background:rgba(255,255,255,.14);color:#ffb4ab}
 #sheet .so-tool{gap:8px;flex-wrap:wrap;margin:0 0 4px}
+#sheet .so-ib{display:grid;place-items:center;color:var(--navy)}#sheet .so-ib .ico{width:18px;height:18px}
 #sheet .so-tool input{flex:1 1 220px}
 #sheet .sx-cut2{display:flex;flex-direction:column;justify-content:center;height:42px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);line-height:1.15}
 #sheet .sx-cut2 small{font-size:10.5px;color:var(--muted)}#sheet .sx-cut2 b{font-size:13px}
@@ -5093,7 +5094,7 @@ const ROLES={sales:['مبيعات الصالة','Verkauf',['new','off','cust']],
 function roleBtns(u,draw){const r=el('div','role-b');r.append(el('span',null,'دور جاهز:'));Object.keys(ROLES).forEach(k=>{const b=el('button','btn small'+(u.role===k?' primary':''),ROLES[k][0]);b.title=ROLES[k][1];b.onclick=()=>{u.role=k;u.full=false;u.perms=ROLES[k][2].slice();draw()};r.append(b)});return r}
 
 /* ================= 🚚 تبويب الشحن في الطلب (v2): طريقة التسليم كبطاقات واضحة · العنوان · الطرود · ملصق DHL ================= */
-ICP.globe='<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>';
+ICP.plus='<path d="M12 5v14M5 12h14"/>';ICP.globe='<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>';
 function omShip(l){const p=el('div','om-pane'),done=l.status==='done';
   const b1=el('div','om-box'),h1=el('h4');h1.append('طريقة التسليم',el('small',null,'Lieferart'));b1.append(h1);
   const g=el('div','dl-g');
@@ -6659,12 +6660,12 @@ function soListView(b){b.textContent='';soCss();sheetBack=null;if(!soFilt[soTab]
   if(soTab==='lbl'&&new Date().getHours()>=SO_ARCH_H)b.append(el('p','hint','بعد الساعة 20:00 تنتقل شحنات اليوم إلى الأرشيف، وتبقى هذه الخانة فارغة حتى صباح الغد.'));
   /* 3 · Suche + Werkzeuge */
   const tb=el('div','so-tool');const q=el('input');q.type='search';q.placeholder='🔍 رقم الطلب، العميل أو المدينة';q.value=soQ;q.autocomplete='off';
-  const ib=(t,ti,f)=>{const x=el('button','so-ib',t);x.title=ti;x.setAttribute('aria-label',ti);x.onclick=f;return x};
-  const rf=ib('🔄','تحديث',async()=>{rf.disabled=true;rf.classList.add('spin');try{await soLoad(true)}catch(e){toast('⚠️ '+e.message)}soListView(b)});
+  const ib=(t,ti,f)=>{const x=el('button','so-ib');if(ICP[t])x.append(ico(t));else x.textContent=t;x.title=ti;x.setAttribute('aria-label',ti);x.onclick=f;return x};
+  const rf=ib('sync','تحديث · Aktualisieren',async()=>{rf.disabled=true;rf.classList.add('spin');try{await soLoad(true)}catch(e){toast('⚠️ '+e.message)}soListView(b)});
   tb.append(q);
   if(soReg!=='abh'&&!ARCH){const c=shipCut(),cl=el('span','sx-cut2 '+(c.cls||''));cl.title='Nächster Versand';cl.append(el('small',null,c.t==='الشحن القادم'?'الشحن القادم':'باقي لشحن اليوم'),el('b',null,c.v));tb.append(cl)}
   if(!ARCH){const an=reg.filter(soFilt.arch).length;if(an){const a=el('button','sx-ab');a.type='button';a.title='Versandarchiv';a.append(el('span',null,'الأرشيف'),el('b',null,String(an)));a.onclick=()=>{soTab='arch';soQ='';soView();soListView(b)};tb.append(a)}}
-  tb.append(rf,ib('➕','طلب يدوي · Manuelle Bestellung',()=>soNeuSheet()));
+  tb.append(rf,ib('plus','طلب يدوي · Manuelle Bestellung',()=>soNeuSheet()));
   b.append(tb);
   if(soTab==='open'||soTab==='late'){const nw=reg.filter(soNeedsPrint).sort(soOrder),lp=nw.filter(soLatePaid);
     if(lp.length){const a=el('div','sx-note paid');a.append(el('span',null,'🔔 '+lp.length+' طلب قديم دُفع الآن ولم يُطبع: #'+lp.map(soNr).join(', #')));b.append(a)}
