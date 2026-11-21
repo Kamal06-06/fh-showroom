@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="257">
+<meta name="fh-build" content="258">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -1261,7 +1261,7 @@ header .row .btn.small{min-height:38px}
       <div id="cs-msg" class="status" hidden></div>
     </div></div>
     <div class="panel">
-      <div class="sec-title"><h2>📒 دفتر الصندوق</h2><div class="row"><select id="cs-filter"><option value="">كل الحركات</option><option value="exp">المصروفات فقط</option><option value="in">القبض النقدي</option><option value="withdraw">السحب</option><option value="deposit">الإيداع</option><option value="adj">الرصيد الافتتاحي</option><option value="own">مستحقات الموظفين</option></select><input type="month" id="cs-month-f"></div></div>
+      <div class="sec-title"><h2>📒 دفتر الصندوق</h2><div class="row"><select id="cs-filter"><option value="">كل الحركات</option><option value="exp">المصروفات فقط</option><option value="in">القبض النقدي</option><option value="withdraw">السحب</option><option value="deposit">الإيداع</option><option value="own">مستحقات الموظفين</option></select><input type="month" id="cs-month-f"></div></div>
       <div id="cs-import" class="status" hidden><span id="cs-import-txt"></span> <button class="btn small" id="cs-import-btn">إضافتها إلى الصندوق</button></div>
       <div id="cs-cats" class="hint"></div>
       <div id="cs-list" class="hlist"></div>
@@ -4105,8 +4105,9 @@ function renderCash(){
 }
 function renderCashList(){
   const box=$('cs-list');box.textContent='';const f=$('cs-filter').value,mf=$('cs-month-f').value;const s=cashSums();
-  $('cs-cats').textContent=Object.keys(s.cats).length?'هذا الشهر حسب الفئة: '+Object.keys(s.cats).map(k=>k+' '+money(s.cats[k])).join(' · '):'';
-  const rows=cash.filter(c=>f==='own'?(c.type==='exp'&&c.src==='own'&&!c.reimb):(!f||c.type===f)).filter(c=>!mf||new Date(c.at||0).toISOString().slice(0,7)===mf).sort((a,b)=>(b.at||0)-(a.at||0));
+  {const ck=Object.keys(s.cats).filter(k=>Math.abs(s.cats[k])>0.004);$('cs-cats').textContent=ck.length?'هذا الشهر حسب الفئة: '+ck.map(k=>k+' '+money(s.cats[k])).join(' · '):''}
+  const rows=cash.filter(c=>f==='adj'||!(c.type==='adj'||(c.amt0!=null&&!(+c.amount))))   /* صُفّرت أو رصيد افتتاحي تقني → مخفية من الدفتر (تبقى محفوظة) */
+    .filter(c=>f==='own'?(c.type==='exp'&&c.src==='own'&&!c.reimb):(!f||c.type===f)).filter(c=>!mf||new Date(c.at||0).toISOString().slice(0,7)===mf).sort((a,b)=>(b.at||0)-(a.at||0));
   if(!rows.length){box.append(el('p','hint','لا توجد حركات.'));return}
   rows.forEach(c=>{
     const r=el('div','hrow');r.style.cursor='default';const left=el('div');
