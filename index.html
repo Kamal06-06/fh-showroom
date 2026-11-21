@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="249">
+<meta name="fh-build" content="250">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -854,6 +854,9 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
       <div class="dim" id="setpin-sec" hidden>
         <label for="newpin">تغيير كلمة سر المالك (8 أحرف على الأقل: حروف إنجليزية وأرقام)</label><input type="password" id="newpin" dir="ltr" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" style="width:200px">
         <button class="btn small" id="setpin">حفظ الرمز الجديد</button><span id="setpin-msg" class="code"></span>
+        <div style="margin-top:14px"><label for="kap-old">كلمة سر رأس المال · Kapital-Passwort <small>(تحمي أسعار الشراء وقيمة المخزون – 6 أحرف على الأقل)</small></label>
+        <input type="password" id="kap-old" dir="ltr" autocomplete="off" placeholder="الحالية (إن وُجدت)" style="width:170px"> <input type="password" id="kap-new" dir="ltr" autocomplete="new-password" placeholder="الجديدة" style="width:170px">
+        <button class="btn small" id="kap-set">حفظ</button><span id="kap-msg" class="code"></span></div>
       </div>
       <div class="dim">
         <span class="lbl">مقاس الملصق في PDF:</span>
@@ -1068,7 +1071,7 @@ function errLog(m,where){try{m=String(m||'').slice(0,400);if(!m||!PIN||IN_GAS)re
   setTimeout(()=>{srv1('err_log',JSON.stringify({m,w:String(where||'').slice(0,120),p:page+(sh&&!sh.hidden&&st?' › '+st.textContent.slice(0,40):''),b})).catch(()=>{})},50)}catch(e){}}
 function forceLogout(){if(window._fhOut)return;window._fhOut=1;try{sessionStorage.clear()}catch(e){}LS.set('pin','');LS.set('me',{user:'',admin:false});IDB.set('liste',null).finally(()=>location.reload())}
 async function srv(action,a,b,c,x){try{return await srv0(action,a,b,c,x)}catch(e){const m=String(e&&e.message||e);if(/^(PIN|GERAET_WARTET|GERAET_GESPERRT)$/.test(m)&&PIN&&LS.get('pin','')===PIN)forceLogout();
-  else if(!e.net&&!/^(PIN|GERAET_|NUR_INHABER|SO_PW|SO_KEIN)/.test(m)&&action!=='err_log')errLog('Server '+action+': '+m,'srv');throw e}}
+  else if(!e.net&&!/^(PIN|GERAET_|NUR_INHABER|SO_PW|SO_KEIN|KAP_)/.test(m)&&action!=='err_log')errLog('Server '+action+': '+m,'srv');throw e}}
 async function srv0(action,a,b,c,x){let last;for(let i=0;i<4;i++){try{return await srv1(action,a,b,c,x)}catch(e){last=e;if(!/lock|تأمين|sperr|time[d ]?out|zeitüber|exceeded|too many|Unexpected token|NET 5\d\d/i.test(String(e.message||e))||i===3)throw e;await new Promise(r=>setTimeout(r,2500*(i+1)))}}throw last}
 let db=null, mcp=null, dl=null, catalog=[], lists=[], lastSent=null, editing=null;
 let waNum=LS.get('wa','');
@@ -3748,6 +3751,9 @@ try{const cc=findCust(rec.customer);if(cc&&cc.id&&rec.clpLogo&&(cc.clpLogo!==rec
 };
 
 /* ---------- warehouse ---------- */
+$('kap-set').onclick=async()=>{const o=String($('kap-old').value||'').trim(),n=String($('kap-new').value||'').trim(),m=$('kap-msg');
+  if(n.length<6||n.length>60){m.textContent='6 أحرف على الأقل';return}if(PIN&&n===PIN){m.textContent='يجب أن تختلف عن كلمة سر الدخول';return}
+  try{await srv('kap_set',JSON.stringify({alt:o,neu:n}));$('kap-old').value='';$('kap-new').value='';m.textContent='تم الحفظ ✓'}catch(e){m.textContent='فشل: '+kapMsg(e)}};
 $('setpin').onclick=async()=>{const n=String($('newpin').value||'').trim(),m=$('setpin-msg');if(n.length<8||n.length>40||!/[A-Za-z]/.test(n)||!/\d/.test(n)){m.textContent='8 أحرف على الأقل: حروف إنجليزية وأرقام';return}
   if(!confirm('تغيير رمز المالك (Inhaber)؟ رموز الموظفين والطابعة لا تتأثر. احفظ الرمز الجديد جيداً.'))return;
   try{await srv('setpin',n);PIN=n;LS.set('pin',n);$('newpin').value='';m.textContent='تم تغيير الرمز ✓'}catch(e){m.textContent='فشل: '+(e.message||e)}};
@@ -7542,18 +7548,35 @@ async function orderProposal(){
 }
 
 /* ---------- Inventurliste (Stichtag) ---------- */
-async function inventurReport(btn){
-  const o=btn.textContent;btn.disabled=true;btn.textContent='… جاري التجهيز · wird erstellt';
+const KAP_MSG={KAP_PW:'كلمة سر رأس المال غير صحيحة · Passwort falsch',KAP_NONE:'لم تُحدَّد كلمة سر رأس المال بعد – من الإعدادات ← حسابي · Kapital-Passwort zuerst festlegen',KAP_LOCK:'محاولات خاطئة كثيرة – انتظر 10 دقائق · Zu viele Versuche'};
+function kapMsg(e){const m=String(e&&e.message||e);return KAP_MSG[m]||m}
+function inventurReport(btn){
+  if(!ME.owner)return invRun(btn,'',null);
+  openSheet('📑 تقرير الجرد · Inventurliste',b=>{
+    const mk=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+    const box=mk('div','kap-box');box.style.cssText='max-width:420px;display:flex;flex-direction:column;gap:12px;padding:6px 2px';
+    const p=mk('p','dim','أسعار الشراء وقيمة المخزون (رأس المال) تظهر لك وحدك وبكلمة سر رأس المال. · Einkaufspreise nur mit Kapital-Passwort.');
+    const i=mk('input');i.type='password';i.dir='ltr';i.autocomplete='off';i.placeholder='كلمة سر رأس المال · Kapital-Passwort';i.style.cssText='padding:12px;border-radius:10px;font:inherit';
+    const m=mk('div','code');m.style.color='#b3261e';
+    const row=mk('div');row.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
+    const go=mk('button','btn primary','عرض مع أسعار الشراء · mit EK');
+    const no=mk('button','btn','الكميات فقط · nur Mengen');
+    go.onclick=async()=>{const pw=i.value.trim();if(!pw){m.textContent='أدخل كلمة السر · Passwort eingeben';i.focus();return}m.textContent='';if(await invRun(go,pw,m)){i.value='';closeSheet()}};
+    no.onclick=async()=>{m.textContent='';if(await invRun(no,'',m))closeSheet()};
+    i.onkeydown=e=>{if(e.key==='Enter')go.click()};
+    row.append(go,no);box.append(p,i,row,m);b.append(box);setTimeout(()=>{try{i.focus()}catch(e){}},50)})}
+async function invRun(btn,pw,msg){
+  const o=btn.textContent;btn.disabled=true;btn.textContent='… جاري التجهيز · wird erstellt';let ok=false;
   try{
-    const r=await srv('lg_report');const rows=r.items.filter(x=>(+x.bestand||0)!==0);
+    const r=await srv('lg_report',pw||'');const kap=!!r.kap;const rows=r.items.filter(x=>(+x.bestand||0)!==0);
     const at=new Date(r.at),ds=at.toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'});
     const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'landscape'}),W=297;let y=16,page=1;
     const sum={kg:0,L:0,'Stück':0},val={sum:0,n:0,miss:0};
     const head=()=>{doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('Inventurliste zum Stichtag '+ds,14,y);doc.setFontSize(9);doc.setFont('helvetica','normal');
-      doc.text('Fragrance Hub Germany · Am Alten Kirchplatz 10 · 45665 Recklinghausen · erstellt von: '+latin(r.user||'')+' · Seite '+page,14,y+5);y+=12;
+      doc.text('Erstellt von: '+latin(r.user||'')+' · Seite '+page+(kap?' · VERTRAULICH':''),14,y+5);y+=12;
       doc.setFont('helvetica','bold');doc.setFillColor(26,23,20);doc.setTextColor(255);doc.rect(14,y-5,W-28,7,'F');
       [['Fach',16],['Code',38],['Qualität',90],['Bezeichnung',115]].forEach(([t,x])=>doc.text(t,x,y));
-      doc.text('Menge',212,y,{align:'right'});doc.text('Einh.',216,y);doc.text('EK netto',252,y,{align:'right'});doc.text('Wert netto',W-16,y,{align:'right'});doc.setTextColor(0);doc.setFont('helvetica','normal');y+=6.5};
+      doc.text('Menge',212,y,{align:'right'});doc.text('Einh.',216,y);if(kap){doc.text('EK netto',252,y,{align:'right'});doc.text('Wert netto',W-16,y,{align:'right'})}doc.setTextColor(0);doc.setFont('helvetica','normal');y+=6.5};
     head();
     rows.forEach((x,i)=>{if(y>196){doc.addPage();page++;y=16;head()}
       if(i%2){doc.setFillColor(243,239,230);doc.rect(14,y-4.4,W-28,6,'F')}
@@ -7561,17 +7584,17 @@ async function inventurReport(btn){
       doc.text(x.platz||'-',16,y);doc.text(latin(x.code).slice(0,30),38,y);doc.text(latin(x.tier||''),90,y);
       let nm=latin(x.orig||x.title||'');while(nm.length>3&&doc.getTextWidth(nm)>90)nm=nm.slice(0,-2);doc.text(nm,115,y);
       doc.text(numDE(x.bestand),212,y,{align:'right'});doc.text(u==='Stück'?'Stk':u,216,y);
-      doc.text(x.ek!=null?money(x.ek).replace(' EUR',''):'-',252,y,{align:'right'});doc.text(v!=null?money(v).replace(' EUR',''):'-',W-16,y,{align:'right'});y+=6});
+      if(kap){doc.text(x.ek!=null?money(x.ek).replace(' EUR',''):'-',252,y,{align:'right'});doc.text(v!=null?money(v).replace(' EUR',''):'-',W-16,y,{align:'right'})}y+=6});
     if(y>180){doc.addPage();page++;y=20}
     y+=4;doc.setFont('helvetica','bold');doc.setFontSize(10);
     doc.text('Summen: '+rows.length+' Positionen · Öle '+numDE(sum.kg)+' kg · Alkohol '+numDE(sum.L||0)+' L · Flakons/Zubehör '+numDE(sum['Stück']||0)+' Stk',14,y);y+=6;
-    doc.text('Warenwert netto (EK): '+money(val.sum)+(val.miss?'   ('+val.miss+' Positionen ohne EK – Blatt "Liste", Spalte F)':''),14,y);y+=14;
+    if(kap){doc.text('Warenwert netto (EK): '+money(val.sum)+(val.miss?'   ('+val.miss+' Positionen ohne EK – Blatt "Liste", Spalte F)':''),14,y);y+=6}y+=8;
     doc.setFont('helvetica','normal');doc.text('Gezählt / geprüft: ______________________      Datum: ____________      Unterschrift: ______________________',14,y);
     qrOut(doc,'Inventurliste-'+at.toISOString().slice(0,10)+'.pdf');
-    const csv=['Fach;Code;Qualität;Bezeichnung;Menge;Einheit;EK netto;Wert netto'].concat(rows.map(x=>[x.platz,x.code,x.tier,(x.orig||x.title||'').replace(/;/g,','),String(x.bestand).replace('.',','),x.unit,x.ek!=null?String(x.ek).replace('.',','):'',x.ek!=null?((+x.bestand)*(+x.ek)).toFixed(2).replace('.',','):''].join(';'))).join('\r\n');
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'}));a.download='Inventurliste-'+at.toISOString().slice(0,10)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-  }catch(e){alert('تعذّر إنشاء التقرير · Bericht fehlgeschlagen: '+e.message)}
-  btn.disabled=false;btn.textContent=o;
+    const csv=['Fach;Code;Qualität;Bezeichnung;Menge;Einheit'+(kap?';EK netto;Wert netto':'')].concat(rows.map(x=>[x.platz,x.code,x.tier,(x.orig||x.title||'').replace(/;/g,','),String(x.bestand).replace('.',','),x.unit].concat(kap?[x.ek!=null?String(x.ek).replace('.',','):'',x.ek!=null?((+x.bestand)*(+x.ek)).toFixed(2).replace('.',','):'']:[]).join(';'))).join('\r\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'}));a.download='Inventurliste-'+at.toISOString().slice(0,10)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);ok=true;
+  }catch(e){if(msg)msg.textContent=kapMsg(e);else alert('تعذّر إنشاء التقرير · Bericht fehlgeschlagen: '+kapMsg(e))}
+  btn.disabled=false;btn.textContent=o;return ok;
 }
 
 /* ---------- Mitarbeiter (nur Inhaber) ---------- */
