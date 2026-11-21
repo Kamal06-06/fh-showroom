@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="247">
+<meta name="fh-build" content="248">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -1446,20 +1446,32 @@ function kkPayCss(){if($('kkp-css'))return;const s=document.createElement('style
 .kkp-h b{font-variant-numeric:tabular-nums}
 `;document.head.append(s)}
 const PM_AR={Bar:'💵 نقداً',Überweisung:'🏦 تحويل',PayPal:'PayPal',Karte:'💳 بطاقة'};
+/* Zahlungen: x = Eintrag aus dem Verlauf; isOf(x) erkennt seine Teilbeträge in den Aufträgen (auch alte Einträge ohne Referenz) */
+const kkIsOf=x=>e=>x.ref?e.ref===x.ref:((e.at||0)===x.at&&(e.m||'')===x.m&&!e.ref);
+/* Stand eines Auftrags ohne die bearbeitete Zahlung */
+function kkPayWithout(l,x){const p=payOf(l);if(!x)return p;const rem=r2(((l.pay&&l.pay.hist)||[]).filter(kkIsOf(x)).reduce((s,e)=>s+(+e.a||0),0));const paidAll=r2(p.paidAll-rem);return Object.assign({},p,{paidAll,open:r2(Math.max(0,p.net-paidAll))})}
 /* offene Posten eines Kunden, älteste zuerst */
-function kkOpenItems(g){return g.orders.map(l=>({l,p:payOf(l)})).filter(x=>x.p.open>0.004).sort((a,b)=>(a.l.at||0)-(b.l.at||0))}
+function kkOpenItems(g,x){return g.orders.map(l=>({l,p:kkPayWithout(l,x)})).filter(y=>y.p.open>0.004).sort((a,b)=>(a.l.at||0)-(b.l.at||0))}
 function kkAlloc(items,amt){let rest=r2(amt);return items.map(x=>{const a=r2(Math.min(rest,x.p.open));rest=r2(rest-a);return Object.assign({a,after:r2(x.p.open-a)},x)})}
 const kkLbl=l=>l.kind==='debt'?'💳 رصيد سابق'+(l.note?' · '+l.note:''):'AP-'+stamp(l);
-function kkPay(g0){openSheet('💶 تسجيل دفعة · Zahlungseingang',b=>{kkPayCss();
-  const g=custGroups().find(x=>x.key===g0.key)||g0;const items=kkOpenItems(g),openSum=r2(items.reduce((s,x)=>s+x.p.open,0));
-  const top=el('div','kkp-top'),tl=el('div');tl.append(el('div',null,g.name),el('span',null,items.length+' طلب مفتوح · '+(g.no||'')));
-  const tr=el('div');tr.style.textAlign='left';tr.append(el('span',null,'المفتوح · Offen'),el('b',null,money(openSum)));top.append(tl,tr);b.append(top);
+/* Zahlung speichern: alte Teilbeträge (bei Bearbeitung) entfernen, neue Verteilung eintragen – alles in einem Schritt je Auftrag */
+async function kkCommit(g,old,alloc,info){const touched=new Map();(old?old.ls:[]).forEach(l=>touched.set(l.id,l));alloc.forEach(y=>{if(y.a>0.004)touched.set(y.l.id,y.l)});let n=0;
+  for(const l of touched.values()){const p=l.pay||{},po=payOf(l);
+    let h=Array.isArray(p.hist)?p.hist.slice():(po.paidAll>0.004?[{a:po.paidAll,m:p.method||'',at:p.at||l.at||Date.now()}]:[]);if(old)h=h.filter(e=>!kkIsOf(old)(e));
+    const y=alloc.find(z=>z.l.id===l.id);if(y&&y.a>0.004){const e={a:y.a,m:info.m,at:info.at,who:WHO(),ref:info.ref};if(info.note)e.note=info.note;h.push(e)}
+    const paid=r2(h.reduce((s,e)=>s+(+e.a||0),0)),net=po.net,last=h.slice().sort((a,b)=>(a.at||0)-(b.at||0)).pop();
+    const pay={status:paid<=0.004?'open':paid>=net-0.004?'paid':'part',paid,method:last?last.m||'':'',at:last?last.at:Date.now(),hist:h,cashId:p.cashId||''};
+    pay.cashId=await syncCash(l,pay);await docOf(l).update({pay});l.pay=pay;n++}return n}
+function kkPay(g0,edit){openSheet(edit?'✎ تعديل الدفعة · Zahlung bearbeiten':'💶 تسجيل دفعة · Zahlungseingang',b=>{kkPayCss();
+  const g=custGroups().find(x=>x.key===g0.key)||g0;const items=kkOpenItems(g,edit),openSum=r2(items.reduce((s,x)=>s+x.p.open,0));
+  const top=el('div','kkp-top'),tl=el('div');tl.append(el('div',null,g.name),el('span',null,(edit?'تعديل دفعة '+money(edit.a)+' من '+new Date(edit.at).toLocaleDateString('de-DE')+' · ':'')+items.length+' طلب مفتوح'));
+  const tr=el('div');tr.style.textAlign='left';tr.append(el('span',null,edit?'المفتوح بدون هذه الدفعة':'المفتوح · Offen'),el('b',null,money(openSum)));top.append(tl,tr);b.append(top);
   if(!items.length){b.append(el('p','hint','لا يوجد مبلغ مفتوح على هذا العميل.'));return}
   b.append(el('div','hint','المبلغ المستلم · Betrag'));
-  const ar=el('div','kkp-amt'),amt=moneyInput(el('input'));amt.placeholder='0,00';const all=el('button','btn','المبلغ كاملاً');all.onclick=()=>{amt.value=fmtDE(openSum);upd()};ar.append(amt,all);b.append(ar);
-  let meth='Bar';const mm=el('div','kkp-m'),mb={};Object.keys(PM_AR).forEach(k=>{const x=el('button',k===meth?'on':'',PM_AR[k]);x.type='button';x.onclick=()=>{meth=k;Object.values(mb).forEach(y=>y.classList.remove('on'));x.classList.add('on')};mb[k]=x;mm.append(x)});b.append(mm);
+  const ar=el('div','kkp-amt'),amt=moneyInput(el('input'));amt.placeholder='0,00';if(edit)amt.value=fmtDE(edit.a);const all=el('button','btn','المبلغ كاملاً');all.onclick=()=>{amt.value=fmtDE(openSum);upd()};ar.append(amt,all);b.append(ar);
+  let meth=edit&&PM_AR[edit.m]?edit.m:'Bar';const mm=el('div','kkp-m'),mb={};Object.keys(PM_AR).forEach(k=>{const x=el('button',k===meth?'on':'',PM_AR[k]);x.type='button';x.onclick=()=>{meth=k;Object.values(mb).forEach(y=>y.classList.remove('on'));x.classList.add('on')};mb[k]=x;mm.append(x)});b.append(mm);
   const row=el('div');row.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px';b.append(row);
-  const dt=dateField(row,'تاريخ الدفع · Datum',Date.now());const nt=field(row,'ملاحظة / مرجع (اختياري)',el('input'),'z. B. Überweisung 21.11.');
+  const dt=dateField(row,'تاريخ الدفع · Datum',edit?edit.at:Date.now());const nt=field(row,'ملاحظة / مرجع (اختياري)',el('input'),'z. B. Überweisung 21.11.');if(edit)nt.value=edit.note||'';
   const al=el('div','kkp-al');b.append(al);const st=el('div','status');st.hidden=true;
   const go=el('button','kkp-go','تسجيل الدفعة');go.disabled=true;b.append(go,st);
   const upd=()=>{const a=r2(parseDE(amt.value)||0);al.textContent='';al.append(el('h5',null,'التوزيع على الطلبات (الأقدم أولاً) · Verrechnung'));
@@ -1467,25 +1479,20 @@ function kkPay(g0){openSheet('💶 تسجيل دفعة · Zahlungseingang',b=>{k
     rows.forEach(x=>{const r=el('div','kkp-r'+(x.a>0.004?'':' dim')),i=el('div');i.append(el('div',null,kkLbl(x.l)),el('div','t',new Date(x.l.at).toLocaleDateString('de-DE')+' · مفتوح '+money(x.p.open)));
       const v=el('div','v'+(x.a>0.004&&x.after<=0.004?' g':''),x.a>0.004?(x.after<=0.004?'✓ '+money(x.a):money(x.a)+' · يبقى '+money(x.after)):'—');r.append(i,v);al.append(r)});
     const sm=el('div','kkp-sum');sm.append(el('span',null,'المتبقي على العميل بعد الدفعة'),el('span',null,money(Math.max(0,r2(openSum-a)))));al.append(sm);
-    go.disabled=!(a>0.004)||over;go.textContent=a>0.004?'تسجيل دفعة '+money(a):'تسجيل الدفعة';
+    go.disabled=!(a>0.004)||over;go.textContent=a>0.004?(edit?'حفظ التعديل · '+money(a):'تسجيل دفعة '+money(a)):(edit?'حفظ التعديل':'تسجيل الدفعة');
     st.hidden=!over;st.classList.toggle('err',over);if(over)st.textContent='المبلغ أكبر من المفتوح على العميل ('+money(openSum)+').'};
-  amt.oninput=upd;upd();setTimeout(()=>amt.focus(),150);
+  amt.oninput=upd;upd();setTimeout(()=>{amt.focus();amt.select()},150);
   go.onclick=async()=>{const a=r2(parseDE(amt.value)||0),pt=parseDMY(dt.value);if(!(a>0)||a>openSum+0.004)return;if(!pt){st.hidden=false;st.classList.add('err');st.textContent='تاريخ الدفع غير صحيح — مثال: 21.11.2026';return}
-    go.disabled=true;st.hidden=false;st.classList.remove('err');st.textContent='جاري الحفظ…';const ref='z'+Date.now().toString(36),note=String(nt.value||'').trim();let done=0;
-    try{for(const x of kkAlloc(items,a)){if(!(x.a>0.004))continue;const l=x.l,tot=r2(x.p.paidAll+x.a);
-        const pay={status:tot>=x.p.net-0.004?'paid':'part',paid:tot,method:meth,at:pt,payAt:pt,cashId:(l.pay&&l.pay.cashId)||'',ref,note};
-        nextPay(l,pay);pay.cashId=await syncCash(l,pay);await docOf(l).update({pay});l.pay=pay;done++}
-      st.textContent='✓ تم تسجيل '+money(a)+' على '+done+' طلب';toast('✓ دفعة '+money(a)+' · '+g.name);setTimeout(()=>closeSheet(),700)}
-    catch(e){st.classList.add('err');st.textContent='فشل بعد '+done+' طلب: '+(e.message||e)+' – افتح البطاقة وتحقق';go.disabled=false}};
+    go.disabled=true;st.hidden=false;st.classList.remove('err');st.textContent='جاري الحفظ…';
+    try{const n=await kkCommit(g,edit,kkAlloc(items,a),{m:meth,at:pt,note:String(nt.value||'').trim(),ref:(edit&&edit.ref)||('z'+Date.now().toString(36))});
+      st.textContent=edit?'✓ تم تعديل الدفعة':'✓ تم تسجيل '+money(a);toast((edit?'✓ عُدّلت الدفعة: ':'✓ دفعة ')+money(a)+' · '+g.name);setTimeout(()=>closeSheet(),700)}
+    catch(e){st.classList.add('err');st.textContent='فشل الحفظ: '+(e.message||e)+' – افتح البطاقة وتحقق';go.disabled=false}};
+  if(edit){const d=el('button','btn danger','🗑 حذف هذه الدفعة');d.style.marginTop='8px';d.onclick=async()=>{if(!confirm('حذف الدفعة '+money(edit.a)+'؟ تعود الطلبات المرتبطة بها غير مدفوعة بقدر هذا المبلغ.'))return;d.disabled=true;
+      try{await kkCommit(g,edit,[],{});toast('🗑 حُذفت الدفعة');closeSheet()}catch(e){alert('فشل: '+(e.message||e));d.disabled=false}};b.append(d)}
 })}
-/* Zahlungsverlauf eines Kunden: alle Zahlungen (eine Zeile pro Zahlung, auch wenn sie auf mehrere Aufträge verteilt wurde) */
-function kkPayHist(g){const m=new Map();g.orders.forEach(l=>{((l.pay&&l.pay.hist)||[]).forEach(h=>{const k=h.ref||('x'+l.id+(h.at||0)+h.m);const o=m.get(k)||{k,ref:h.ref||'',at:h.at||0,m:h.m||'',a:0,note:h.note||'',n:0,ls:[]};o.a=r2(o.a+(+h.a||0));o.n++;o.ls.push(l);m.set(k,o)})});
+/* Zahlungsverlauf eines Kunden: eine Zeile pro Zahlung, auch wenn sie auf mehrere Aufträge verteilt wurde */
+function kkPayHist(g){const m=new Map();g.orders.forEach(l=>{((l.pay&&l.pay.hist)||[]).forEach(h=>{const k=h.ref||('x'+(h.at||0)+'|'+(h.m||''));const o=m.get(k)||{k,ref:h.ref||'',at:h.at||0,m:h.m||'',a:0,note:h.note||'',n:0,ls:[]};o.a=r2(o.a+(+h.a||0));o.n++;if(!o.ls.includes(l))o.ls.push(l);m.set(k,o)})});
   return [...m.values()].filter(x=>Math.abs(x.a)>0.004).sort((a,b)=>(b.at||0)-(a.at||0))}
-async function kkPayUndo(g,x){if(!confirm('إلغاء الدفعة '+money(x.a)+' ('+new Date(x.at).toLocaleDateString('de-DE')+')؟\nتعود الطلبات المرتبطة بها إلى «غير مدفوع» بقدر هذا المبلغ.'))return;
-  try{for(const l of x.ls){const p=l.pay||{};const h=(p.hist||[]).filter(e=>!(x.ref?e.ref===x.ref:(e.at===x.at&&(e.m||'')===x.m)));const paid=r2(h.reduce((s,e)=>s+(+e.a||0),0));const net=payOf(l).net;
-      const pay=Object.assign({},p,{hist:h,paid,status:paid<=0.004?'open':paid>=net-0.004?'paid':'part',method:h.length?h[h.length-1].m:''});pay.cashId=await syncCash(l,pay);await docOf(l).update({pay});l.pay=pay}
-    toast('↩︎ أُلغيت الدفعة')}catch(e){alert('فشل الإلغاء: '+(e.message||e))}}
-
 function kkOpen(g){openSheet('👤 بطاقة العميل · Kundenkarte',b=>{soCss();kkCss();g=custGroups().find(x=>x.key===g.key)||g;
   const c=findCust(g.name)||{name:g.name,no:g.no};const orders=g.orders.filter(l=>l.kind!=='debt').sort((a,b2)=>(b2.at||0)-(a.at||0));
   const last=orders[0];
@@ -1537,7 +1544,7 @@ function kkOpen(g){openSheet('👤 بطاقة العميل · Kundenkarte',b=>{s
   /* Zahlungen */
   if(isAdmin()||can('acc')){const ph=kkPayHist(g);if(ph.length){kkPayCss();const s6=el('div','kk-sec');s6.append(el('h4',null,'💶 الدفعات · Zahlungen'));
     ph.slice(0,10).forEach(x=>{const r=el('div','kkp-h'),i=el('div');i.append(el('div',null,(PM_AR[x.m]||x.m||'دفعة')+(x.note?' · '+x.note:'')),el('div','t',new Date(x.at).toLocaleDateString('de-DE')+(x.n>1?' · موزّعة على '+x.n+' طلبات':' · '+kkLbl(x.ls[0]))));
-      const u=el('button','btn small','↩︎');u.title='إلغاء الدفعة';u.onclick=()=>kkPayUndo(g,x);r.append(i,el('b',null,money(x.a)),u);s6.append(r)});b.append(s6)}}
+      const u=el('button','btn small','✎');u.title='تعديل الدفعة';u.onclick=()=>kkPay(g,x);r.append(i,el('b',null,money(x.a)),u);s6.append(r)});b.append(s6)}}
   /* Sendungen */
   const sh=[];orders.forEach(l=>{if(l.dhl&&l.dhl.nr)sh.push({nr:l.dhl.nr,n:l.dhl.n||1,at:l.dhl.at||l.at,id:'AP-'+l.id,t:'طلب AP-'+stamp(l)})});(c.ship||[]).forEach(x=>{if(x&&x.nr)sh.push({nr:x.nr,n:x.n||1,at:x.at,id:x.id,t:'ملصق مستقل'+(x.ref?' · '+x.ref:'')})});
   if(sh.length){const s5=el('div','kk-sec');s5.append(el('h4',null,'🚚 الشحنات · Sendungen'));sh.sort((a,b2)=>(b2.at||0)-(a.at||0)).slice(0,8).forEach(x=>{const r=el('div','kk-adr'),i=el('div');
