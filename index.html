@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="245">
+<meta name="fh-build" content="246">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&display=swap">
@@ -1388,6 +1388,10 @@ $('tab-set').onclick=()=>openSheet('⚙️ الإعدادات',b=>{setBuild();b.
 /* ================= 👤 بطاقة العميل · Kundenkarte =================
    Alles zu einem Kunden an einem Ort: Kontakt, Adressbuch (Rechnung, Lieferadressen, Endempfänger, Packstation),
    Logo für CLP-Etiketten, Preise, Konto, Aufträge und Sendungen. */
+/* Live-Aktualisierung: offene Kundenkarte sofort neu zeichnen, wenn sich Aufträge, Zahlungen oder Kundendaten ändern (Scrollposition bleibt) */
+function liveSheet(){try{const top=scrTop(),sh=$('sheet');if(!top||top.k!=='sheet'||sh.hidden||!/^👤 بطاقة العميل/.test(top.t))return;
+  const ae=document.activeElement;if(ae&&sh.contains(ae)&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName))return;
+  const sb=$('sheet-b'),y1=sb.scrollTop,y2=sh.scrollTop,y3=window.scrollY;navMode='restore';try{drawSheet(top.t,top.fill)}finally{navMode=''}sb.scrollTop=y1;sh.scrollTop=y2;window.scrollTo(0,y3)}catch(e){console.warn('live',e)}}
 function kkCss(){if($('kk-css'))return;const s=document.createElement('style');s.id='kk-css';s.textContent=`
 .kk-head{display:flex;gap:12px;align-items:center;margin:2px 0 12px}
 .kk-av{width:52px;height:52px;border-radius:16px;background:#141210;color:#c9a24a;display:grid;place-items:center;font-size:22px;font-weight:700;flex:none}
@@ -1425,7 +1429,7 @@ function kkDhl(c,a){const x={name:a.name||c.name,firma:a.firma||'',a1:a.a1||'',a
   if(a.typ==='end'){x.drop=true;x.abs=c.name}return x}
 async function kkSave(c,upd){if(!c||!c.id)throw new Error('العميل غير محفوظ بعد');await db.doc('customers/'+c.id).update(upd);Object.assign(c,upd)}
 async function kkEnsure(g){let c=findCust(g.name);if(c&&c.id)return c;await ensureCustomer(g.name,{});return findCust(g.name)}
-function kkOpen(g){openSheet('👤 بطاقة العميل · Kundenkarte',b=>{soCss();kkCss();
+function kkOpen(g){openSheet('👤 بطاقة العميل · Kundenkarte',b=>{soCss();kkCss();g=custGroups().find(x=>x.key===g.key)||g;
   const c=findCust(g.name)||{name:g.name,no:g.no};const orders=g.orders.filter(l=>l.kind!=='debt').sort((a,b2)=>(b2.at||0)-(a.at||0));
   const last=orders[0];
   /* Kopf */
@@ -4474,7 +4478,7 @@ function start(){
   db=makeDb();saveDraft();loadCatalog();db.fsStart();
   setTimeout(()=>{try{ivLoad(false).then(()=>{ivIndex();try{renderItems();if($('q').value.trim())search()}catch(e){}try{if(!$('omodal').hidden)renderOrderModal()}catch(e){}})}catch(e){}},2500);
   db.collection('customers').onSnapshot(snap=>{const all=snap.docs.map(d=>Object.assign({id:d.id},d.data()));customers=all.filter(c=>c&&c.name&&!c.kind);debts=all.filter(c=>c&&c.kind==='debt');offers=all.filter(c=>c&&c.kind==='offer').sort((a,b)=>(b.at||0)-(a.at||0));try{supSet(all)}catch(e){console.warn('sup',e)}showCust();if(!$('sheet').hidden&&sheetFor==='offers')renderOffers();
-    if(!$('view-acc').hidden)renderAcc();if(!$('view-cust').hidden)renderCust();if(!$('view-wh').hidden&&focusCust)renderLists();if(!$('view-home').hidden)renderHome()});
+    if(!$('view-acc').hidden)renderAcc();if(!$('view-cust').hidden)renderCust();if(!$('view-wh').hidden&&focusCust)renderLists();if(!$('view-home').hidden)renderHome();liveSheet()});
   db.collection('lists').onSnapshot(snap=>{
     const next=snap.docs.map(d=>Object.assign({id:d.id},d.data())),sig=JSON.stringify(next);
     if(sig===listSig)return;            // nothing changed: keep the cards (and their file links / running buttons) as they are
@@ -4483,7 +4487,7 @@ function start(){
     if(listSig){const prev=new Map(lists.map(l=>[l.id,l]));const rdy=next.filter(l=>l.readyAt&&l.status!=='done'&&prev.has(l.id)&&!prev.get(l.id).readyAt&&!myReady.has(l.id));
       if(rdy.length){beep();toast('✅ جاهز للتسليم: '+rdy.map(custLabel).join('، ')+' — اضغط للفتح',()=>openOrder(rdy[0].id));
         try{if(window.Notification&&Notification.permission==='granted')new Notification('الطلب جاهز للتسليم',{body:rdy.map(custLabel).join('، ')})}catch(e){}}}
-    listSig=sig;lists=next;renderLists();try{const n=openClaims(),b=$('lg-claim-n');if(b)b.textContent=n?'· '+n:''}catch(e){}try{if(!$('view-new').hidden)renderQuick()}catch(e){}if(!$('drawer').hidden)renderDrawer();if(!$('view-home').hidden)renderHome();
+    listSig=sig;lists=next;renderLists();try{if(!$('view-acc').hidden)renderAcc();if(!$('view-cust').hidden)renderCust()}catch(e){}liveSheet();try{const n=openClaims(),b=$('lg-claim-n');if(b)b.textContent=n?'· '+n:''}catch(e){}try{if(!$('view-new').hidden)renderQuick()}catch(e){}if(!$('drawer').hidden)renderDrawer();if(!$('view-home').hidden)renderHome();
   });
   db.collection('cash').onSnapshot(snap=>{const next=snap.docs.map(d=>Object.assign({id:d.id},d.data())),sig=JSON.stringify(next);if(sig===cashSig)return;cashSig=sig;cash=next;if(!$('view-cash').hidden)renderCash();if(!$('view-home').hidden)renderHome()});
   db.loaded.then(()=>{db.dot();db.flush();db.pull().then(()=>setTimeout(fixCustNos,1500))});
