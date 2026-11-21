@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="266">
+<meta name="fh-build" content="267">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -5013,7 +5013,8 @@ function sreOpen(){pcCss();sreCss();let fmt=LS.get('sreFmt','51x40');if(!SRE_F[f
       av.forEach(t=>{const x=el('button','sre-qc'+(qs.has(t)?' on':''));const C=SRE_QC[t];x.style.setProperty('--c','rgb('+C.bg.join(',')+')');x.append(el('i'),el('b',null,t),el('small',null,String(c[t])));x.onclick=()=>{qs.has(t)?qs.delete(t):qs.add(t);drawQ();upd()};qb.append(x)})};
     const upd=()=>{const n=labels().length,F=SRE_F[fmt];cnt.textContent='محدد: '+sel.size+' زيت';sum.textContent=n?(n+' ملصق · '+F.n+' · '+F.p):'لا ملصقات بعد – اختر الزيت والجودة';pr.textContent=n?'طباعة '+n+' ملصق':'طباعة';pr.disabled=dl.disabled=pv.disabled=!n};
     const fold2=s=>fold(String(s||''));
-    const drawL=()=>{list.textContent='';const w=fold2(qtxt).split(/\s+/).filter(Boolean),R=w.length?P.filter(p=>{const k=fold2(p.t+' '+Object.values(p.q).join(' '));return w.every(x=>k.includes(x))}):P.filter(p=>sel.has(p.h));
+    let ORIG=null;const origOf=p=>{if(!ORIG){ORIG=new Map();(catalog||[]).forEach(c=>{if(c.a)(c.v||[]).forEach(v=>{const k=stem(String(v[1]||'')).toUpperCase();if(k&&!ORIG.has(k))ORIG.set(k,c.a)})})}return Object.values(p.q).map(c=>ORIG.get(String(c).toUpperCase())||'').join(' ')};
+    const drawL=()=>{list.textContent='';const w=fold2(qtxt).split(/\s+/).filter(Boolean),R=w.length?P.filter(p=>{const k=fold2(p.t+' '+Object.values(p.q).join(' ')+' '+origOf(p));return w.every(x=>k.includes(x))}):P.filter(p=>sel.has(p.h));
       list._r=R;if(!R.length){list.append(el('div','hint',w.length?'لا نتائج':'ابحث عن زيت، أو اضغط «كل الزيوت»'));return}
       R.slice(0,80).forEach(p=>{const r=el('label','sre-it'),c=document.createElement('input');c.type='checkbox';c.checked=sel.has(p.h);c.onchange=()=>{c.checked?sel.add(p.h):sel.delete(p.h);drawQ();upd()};
         const m=el('div');m.append(el('b',null,p.t));const cd=el('small',null,[...new Set(Object.values(p.q))].join(' · ')+(p.g?' · '+SRE_G[p.g]:''));cd.dir='ltr';m.append(cd);
