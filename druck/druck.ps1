@@ -484,6 +484,55 @@ $DRUCKERK = DruckerK
 if ($DRUCKERK) { Write-Host "Proben-Etiketten 51 x 30 (farbig): $DRUCKERK" -ForegroundColor Green } else { Write-Host 'Hinweis: Keine Epson CW-C4000e gefunden (Dateien K-... werden nur gespeichert).' -ForegroundColor DarkGray }
 $DRUCKERR = DruckerR
 if ($DRUCKERR) { Write-Host "Regal-Etiketten: $DRUCKERR" -ForegroundColor Green } else { Write-Host 'Hinweis: Keine Regal-Warteschlange (Dateien R-... werden nur gespeichert).' -ForegroundColor DarkGray }
+
+# Regal-Warteschlange auf ENDLOS-Rolle (ohne Abstand) stellen: die Warteschlange wurde als Kopie der CLP-Warteschlange
+# angelegt und erbte «Etiketten mit Abstand» -> Epson meldet «Rolle kann nicht erkannt werden». Treiber-Merkmal wird
+# automatisch gesucht (Medienform / Media Form), Ergebnis in FH-Druck\regal-medien.txt
+function RegalEndlos([string]$name) {
+  if (-not $name) { return }
+  $log = Join-Path $DIR 'regal-medien.txt'; $out = @("$(Get-Date -Format s)  Warteschlange: $name")
+  try {
+    Add-Type -AssemblyName System.Printing, ReachFramework
+    $srv = New-Object System.Printing.LocalPrintServer
+    $q = $null; try { $q = New-Object System.Printing.PrintQueue($srv, $name, [System.Printing.PrintSystemDesiredAccess]::AdministratePrinter) } catch { $out += "Admin-Zugriff: $($_.Exception.Message)"; $q = $srv.GetPrintQueue($name) }
+    $caps = New-Object System.Xml.XmlDocument; $caps.Load($q.GetPrintCapabilitiesAsXml())
+    $best = $null; $bestRank = 99
+    foreach ($f in $caps.SelectNodes("//*[local-name()='Feature']")) {
+      $fn = $f.GetAttribute('name'); $fd = (($f.SelectNodes("*[local-name()='Property'][@name='psk:DisplayName']/*[local-name()='Value']") | Select-Object -First 1).InnerText)
+      $ops = @(); foreach ($o in $f.SelectNodes("*[local-name()='Option']")) {
+        $on = $o.GetAttribute('name'); $od = (($o.SelectNodes("*[local-name()='Property'][@name='psk:DisplayName']/*[local-name()='Value']") | Select-Object -First 1).InnerText); $ops += "$on [$od]"
+        if ("$fn $fd" -match 'Media.?Form|Medienform|Papierform|Media.?Type|Medientyp|Form') {
+          $txt = "$on $od"; $rank = 99
+          if ($txt -match 'Continuous.?Label|Endlos.?Etikett|Endlosetikett') { $rank = 1 } elseif ($txt -match 'Continu|Endlos|Durchgehend') { $rank = 2 }
+          if ($txt -match 'Die.?cut|Gestanzt|Gap|Abstand|Black|Schwarz') { $rank = 99 }
+          if ($rank -lt $bestRank) { $bestRank = $rank; $best = @{ f = $f; fn = $fn; on = $on; od = $od } }
+        }
+      }
+      $out += "Merkmal $fn [$fd]: " + ($ops -join ' | ')
+    }
+    if (-not $best) { $out += 'KEIN passendes Merkmal fuer Endlos gefunden.'; Set-Content $log ($out -join "`r`n") -Encoding UTF8; return }
+    $out += "-> setze $($best.fn) = $($best.on) [$($best.od)]"
+    $psf = 'http://schemas.microsoft.com/windows/2003/08/printing/printschemaframework'
+    $tk = New-Object System.Xml.XmlDocument; $tk.Load($q.DefaultPrintTicket.GetXmlStream())
+    foreach ($a in $caps.DocumentElement.Attributes) { if ($a.Prefix -eq 'xmlns' -and -not $tk.DocumentElement.HasAttribute($a.Name)) { $tk.DocumentElement.SetAttribute($a.Name, $a.Value) } }
+    foreach ($old in @($tk.DocumentElement.SelectNodes("*[local-name()='Feature'][@name='$($best.fn)']"))) { [void]$tk.DocumentElement.RemoveChild($old) }
+    $fe = $tk.CreateElement('psf', 'Feature', $psf); $fe.SetAttribute('name', $best.fn)
+    $op = $tk.CreateElement('psf', 'Option', $psf); $op.SetAttribute('name', $best.on); [void]$fe.AppendChild($op); [void]$tk.DocumentElement.AppendChild($fe)
+    $ms = New-Object IO.MemoryStream; $tk.Save($ms); $ms.Position = 0
+    $neu = New-Object System.Printing.PrintTicket($ms)
+    $res = $q.MergeAndValidatePrintTicket($q.DefaultPrintTicket, $neu)
+    $q.DefaultPrintTicket = $res.ValidatedPrintTicket
+    try { $q.UserPrintTicket = $res.ValidatedPrintTicket } catch {}
+    $q.Commit()
+    $chk = New-Object System.Xml.XmlDocument; $q.Refresh(); $chk.Load($q.DefaultPrintTicket.GetXmlStream())
+    $ist = ($chk.SelectNodes("//*[local-name()='Feature'][@name='$($best.fn)']/*[local-name()='Option']") | Select-Object -First 1).GetAttribute('name')
+    $out += "Ergebnis: $($best.fn) = $ist"
+    if ($ist -eq $best.on) { Write-Host "Regal-Warteschlange auf Endlos-Rolle gestellt ($($best.od))" -ForegroundColor Green; Set-Content (Join-Path $DIR 'regal-endlos.ok') $best.on }
+    else { Write-Host 'Regal: Endlos-Einstellung konnte nicht gespeichert werden (siehe regal-medien.txt)' -ForegroundColor Yellow }
+  } catch { $out += "Fehler: $($_.Exception.Message)"; Write-Host "Regal-Endlos: $($_.Exception.Message)" -ForegroundColor Yellow }
+  Set-Content $log ($out -join "`r`n") -Encoding UTF8
+}
+if ($DRUCKERR -and -not (Test-Path (Join-Path $DIR 'regal-endlos.ok'))) { RegalEndlos $DRUCKERR }
 # Zebra GK420t (DHL-Versandetiketten 103 x 199 / 103 x 150) - Dateiname beginnt mit "Z-". Normal direkt per USB (FhZebra), Windows-Treiber nur als Ersatz
 function DruckerZ {
   $p = Get-Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'Zebra|ZDesigner|GK420' } | Select-Object -First 1
@@ -550,6 +599,7 @@ while ($true) {
       if (-not $DRUCKERR) { $DRUCKERR = DruckerR }
       if (-not $DRUCKERK) { $DRUCKERK = DruckerK }
       foreach ($j in @($r.val)) {
+        if ($j.name -like 'CMD-REGAL*') { RegalEndlos $DRUCKERR; continue }
         if ($j.name -like 'CMD-UPDATE*') { Write-Host 'Fernbefehl: nach neuer Version schauen ...' -ForegroundColor Cyan; SelbstUpdate; continue }  # aus der App ausloesbar, kein Druck
         $f = Join-Path $DONE ((Get-Date -Format 'yyMMdd-HHmmss') + '-' + $j.name)
         [IO.File]::WriteAllBytes($f, [Convert]::FromBase64String($j.b64))
