@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="271">
+<meta name="fh-build" content="272">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -538,7 +538,7 @@ a.ctc{text-decoration:none;color:var(--ink)}a.ctc bdi{direction:ltr;unicode-bidi
 #om-b{flex:1 1 auto;min-height:0;overflow-y:auto!important;padding:14px 16px calc(60px + env(safe-area-inset-bottom))!important}
 #om-b>*{max-width:1000px;margin-inline:auto}
 .ls-top{display:flex;gap:8px;align-items:center;margin-bottom:8px}.ls-q{flex:1;min-width:0}.ls-sec{margin:16px 0}.ls-sec h3{margin:0 0 6px;font-size:17px}.ls-wrap{overflow-x:auto}.ls-t{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}.ls-t th{background:#1a2a4a;color:#fff;font-size:12px;padding:6px 8px;text-align:left;white-space:nowrap}.ls-t th.n,.ls-t td.n{text-align:right;white-space:nowrap}.ls-t td{padding:6px 8px;border-bottom:1px solid var(--line,#e4e6ea);vertical-align:middle}.ls-t td.n{font-weight:700}.ls-c{white-space:nowrap;font-size:13px}.ls-z{font-size:11px;color:var(--muted)}.ls-off{font-size:11px;color:#b45309}.ls-S{color:#6b7280;font-weight:700;font-size:13px}.ls-P{color:#8a6d1f;font-weight:700;font-size:13px}.ls-E{color:#9b1c1c;font-weight:700;font-size:13px}
-.rg-act{flex-wrap:wrap}.rg-n{margin-inline:auto 4px}.rg-box{margin-top:8px}.rg-row{display:grid;grid-template-columns:24px 1fr 150px 70px 72px;gap:8px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--line,#e4e6ea);cursor:pointer}.rg-row[hidden]{display:none}.rg-inf{min-width:0}.rg-pl{font-weight:700;text-align:right}@media(max-width:700px){.rg-row{grid-template-columns:24px 1fr 72px}.rg-row .ls-c{grid-column:2;font-size:12px}.rg-row .ls-S,.rg-row .ls-P,.rg-row .ls-E{grid-column:2}.rg-pl{grid-column:3;grid-row:1}}
+.rg-act{flex-wrap:wrap}.rg-n{margin-inline:auto 4px}.rg-box{margin-top:8px}.rg-row.rg-ok{background:#eef7ee}.rg-row.rg-ok .rg-pl::after{content:' ✓';color:#2e7d32;font-weight:700}.rg-dn{font-size:13px;color:#555;align-self:center}.rg-row{display:grid;grid-template-columns:24px 1fr 150px 70px 72px;gap:8px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--line,#e4e6ea);cursor:pointer}.rg-row[hidden]{display:none}.rg-inf{min-width:0}.rg-pl{font-weight:700;text-align:right}@media(max-width:700px){.rg-row{grid-template-columns:24px 1fr 72px}.rg-row .ls-c{grid-column:2;font-size:12px}.rg-row .ls-S,.rg-row .ls-P,.rg-row .ls-E{grid-column:2}.rg-pl{grid-column:3;grid-row:1}}
 /* ===== v2 (11/2026): Navy & Gold – Navigation, Heute, Abholung · Versand · Shop, Übergabe ===== */
 :root{
   --navy:#1F2433;--navy2:#2A3044;--navy3:#363D55;--gold:#B8963E;--gold2:#D9BF7A;--cream:#FDF7EB;
@@ -5787,21 +5787,28 @@ function rgDraw1(doc,r){const fitS=(t,font,st,s,w)=>{doc.setFont(font,st);for(;s
   doc.setTextColor(0,0,0);fitS(title,'helvetica','bold',15,40);doc.text(title,X,10);fitS(orig,'helvetica','normal',8.2,69);doc.text(orig,X,16.8);fitS(code,'courier','bold',10.5,41);doc.text(code,X,22.5);
   doc.setFillColor(...St.bg);doc.roundedRect(72,3,27,10.5,1.5,1.5,'F');doc.setTextColor(...St.fg);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text(St.t,85.5,9.7,{align:'center'});
   if(r.platz){doc.setTextColor(0,0,0);doc.setFontSize(14);doc.text(latin(r.platz),85.5,22.5,{align:'center'})}}
+/* gedruckte Regal-Etiketten merken (je Gerät) → «تكملة الطباعة» druckt nur, was noch fehlt */
+const rgDoneGet=()=>{try{return LS.get('rgDone',{})||{}}catch(e){return {}}},rgMark=r=>{const m=rgDoneGet();m[r.code+'|'+r.q]=Date.now();LS.set('rgDone',m);const l=document.querySelector('.rg-row[data-k="'+CSS.escape(r.code+'|'+r.q)+'"]');if(l)l.classList.add('rg-ok')};
 const rgDoc=()=>new window.jspdf.jsPDF({unit:'mm',format:[102,30],orientation:'landscape',compress:true});
 function rgPdf(rows){const doc=rgDoc();rows.forEach((r,i)=>{if(i)doc.addPage([102,30],'landscape');rgDraw1(doc,r)});return doc}
-async function rgPrint(btn,rows,done){const o=btn.textContent;btn.disabled=true;btn.textContent='جاري الإرسال…';try{const stP=druckStatus();for(let i=0;i<rows.length;i++){const doc=rgDoc();rgDraw1(doc,rows[i]);await druckQ('R-Regal-'+latin(rows[i].code).replace(/[^A-Za-z0-9-]/g,'')+'-'+rows[i].q+'.pdf',await blob64(doc.output('blob')));if(i%10===9)btn.textContent='جاري الإرسال… '+(i+1)+' / '+rows.length}
+async function rgPrint(btn,rows,done){const o=btn.textContent;btn.disabled=true;btn.textContent='جاري الإرسال…';try{const stP=druckStatus();for(let i=0;i<rows.length;i++){const doc=rgDoc();rgDraw1(doc,rows[i]);await druckQ('R-Regal-'+latin(rows[i].code).replace(/[^A-Za-z0-9-]/g,'')+'-'+rows[i].q+'.pdf',await blob64(doc.output('blob')));rgMark(rows[i]);if(i%10===9)btn.textContent='جاري الإرسال… '+(i+1)+' / '+rows.length}
     await stP;druckMeldung(btn,o,'✓ أُرسل '+rows.length+' ملصق إلى طابعة Epson',druckSt.v);if(done)done()}catch(e){druckMeldung(btn,o,'تعذّر الإرسال إلى الطابعة: '+(e.message||e),null,true)}}
 function rgDraw(b){b.textContent='';const rows=rgRows(),sel=new Set(),K=r=>r.code+'|'+r.q;
   const top=el('div','ls-top'),q=document.createElement('input');q.type='search';q.className='ls-q';q.placeholder='بحث: كود، اسم، ماركة، مكان · Suche';
   const reg=document.createElement('select');[['','كل الرفوف']].concat([...new Set(rows.map(r=>(r.platz||'').split('-')[0]).filter(Boolean))].sort().map(x=>[x,'الرف '+x])).forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;reg.append(o)});top.append(q,reg);
-  const acts=el('div','ls-top rg-act'),all=el('button','btn small','☑️ تحديد الظاهر'),none=el('button','btn small','✖️ إلغاء الكل'),cnt=el('b','rg-n','0 ملصق'),pr=el('button','btn primary','🗄️ ملصقات الرفوف → Epson C6000'),pdf=el('button','btn','📄 PDF');acts.append(all,none,cnt,pr,pdf);
-  const note=el('div','hint','🧻 قبل الطباعة: تأكد أن رول 102 × 30 موجود في طابعة Epson، وليس رول CLP.');const box=el('div','rg-box');box.dir='ltr';b.append(top,acts,note,box);
-  const items=rows.map(r=>{const l=document.createElement('label');l.className='rg-row';const c=document.createElement('input');c.type='checkbox';c.onchange=()=>{if(c.checked)sel.add(K(r));else sel.delete(K(r));upd()};const inf=el('span','rg-inf');inf.append(el('b',null,r.title),el('span','ls-z',' · '+r.orig));const cd=el('span','ls-c',r.code),qt=el('span','ls-'+r.q,LS_Q[r.q]||r.q),pl=el('span','rg-pl',r.platz||'—');l.append(c,inf,cd,qt,pl);box.append(l);return {r,l,c,k:fold(r.code+' '+r.title+' '+r.orig+' '+r.b+' '+r.platz)}});
+  const acts=el('div','ls-top rg-act'),all=el('button','btn small','☑️ تحديد الظاهر'),none=el('button','btn small','✖️ إلغاء الكل'),cnt=el('b','rg-n','0 ملصق'),pr=el('button','btn primary','🗄️ ملصقات الرفوف → Epson C6000'),pdf=el('button','btn','📄 PDF'),go=el('button','btn primary rg-go','⏭️ تكملة الطباعة'),rs0=el('button','btn small','↺ تصفير المطبوع');acts.append(all,none,cnt,pr,pdf);
+  const acts2=el('div','ls-top rg-act'),dn=el('span','rg-dn');acts2.append(go,dn,rs0);
+  const note=el('div','hint','🧻 قبل الطباعة: تأكد أن رول 102 × 30 موجود في طابعة Epson، وليس رول CLP.');const box=el('div','rg-box');box.dir='ltr';b.append(top,acts,acts2,note,box);
+  const items=rows.map(r=>{const l=document.createElement('label');l.className='rg-row'+(rgDoneGet()[K(r)]?' rg-ok':'');l.dataset.k=K(r);const c=document.createElement('input');c.type='checkbox';c.onchange=()=>{if(c.checked)sel.add(K(r));else sel.delete(K(r));upd()};const inf=el('span','rg-inf');inf.append(el('b',null,r.title),el('span','ls-z',' · '+r.orig));const cd=el('span','ls-c',r.code),qt=el('span','ls-'+r.q,LS_Q[r.q]||r.q),pl=el('span','rg-pl',r.platz||'—');l.append(c,inf,cd,qt,pl);box.append(l);return {r,l,c,k:fold(r.code+' '+r.title+' '+r.orig+' '+r.b+' '+r.platz)}});
   const chosen=()=>items.filter(i=>sel.has(K(i.r))).map(i=>i.r);
-  function upd(){const n=sel.size;cnt.textContent=n+' ملصق';pr.disabled=!n;pdf.disabled=!n}
+  const rest=()=>{const m=rgDoneGet();return items.filter(i=>!i.l.hidden&&!m[K(i.r)])};
+  function updG(){const m=rgDoneGet(),vis=items.filter(i=>!i.l.hidden),d=vis.filter(i=>m[K(i.r)]).length,n=vis.length-d;dn.textContent='مطبوع '+d+' من '+vis.length+(n?' · المتبقي '+n:' · ✓ اكتمل');go.disabled=!n;go.textContent=n?'⏭️ تكملة الطباعة ('+n+')':'⏭️ تكملة الطباعة';rs0.hidden=!d}
+  function upd(){const n=sel.size;cnt.textContent=n+' ملصق';pr.disabled=!n;pdf.disabled=!n;updG()}
   function flt(){const w=fold(q.value).split(/\s+/).filter(Boolean),g=reg.value;items.forEach(i=>{i.l.hidden=!(w.every(x=>i.k.includes(x))&&(!g||(i.r.platz||'').split('-')[0]===g))})}
-  q.oninput=flt;reg.onchange=flt;all.onclick=()=>{items.forEach(i=>{if(!i.l.hidden){i.c.checked=true;sel.add(K(i.r))}});upd()};none.onclick=()=>{items.forEach(i=>{i.c.checked=false});sel.clear();upd()};
-  pr.onclick=()=>{const rs=chosen();if(rs.length)rgPrint(pr,rs)};pdf.onclick=async()=>{const rs=chosen();if(!rs.length)return;pdf.disabled=true;const o=pdf.textContent;pdf.textContent='جاري التجهيز…';await new Promise(s=>setTimeout(s,30));try{await qrOut(rgPdf(rs),'Regal-Etiketten-'+rs.length+'.pdf')}catch(e){alert('تعذّر إنشاء الملف: '+e.message)}pdf.textContent=o;pdf.disabled=false};upd()}
+  q.oninput=()=>{flt();updG()};reg.onchange=()=>{flt();updG()};all.onclick=()=>{items.forEach(i=>{if(!i.l.hidden){i.c.checked=true;sel.add(K(i.r))}});upd()};none.onclick=()=>{items.forEach(i=>{i.c.checked=false});sel.clear();upd()};
+  pr.onclick=()=>{const rs=chosen();if(rs.length)rgPrint(pr,rs,updG)};
+  go.onclick=()=>{const r=rest().map(i=>i.r);if(!r.length)return;if(r.length>30&&!confirm('طباعة '+r.length+' ملصق متبقٍ؟'))return;rgPrint(go,r,updG)};
+  rs0.onclick=()=>{if(!confirm('تصفير علامة «مطبوع» لكل الملصقات؟'))return;LS.set('rgDone',{});items.forEach(i=>i.l.classList.remove('rg-ok'));updG()};pdf.onclick=async()=>{const rs=chosen();if(!rs.length)return;pdf.disabled=true;const o=pdf.textContent;pdf.textContent='جاري التجهيز…';await new Promise(s=>setTimeout(s,30));try{await qrOut(rgPdf(rs),'Regal-Etiketten-'+rs.length+'.pdf')}catch(e){alert('تعذّر إنشاء الملف: '+e.message)}pdf.textContent=o;pdf.disabled=false};upd()}
 async function rgOpen(){drawer(false);sheetFor='rg';openSheet('🏷️ ملصقات الرفوف',b=>{sheetFor='rg';rgDraw(b)});
   try{await lsLoad()}catch(e){}try{await ivLoad(false,true)}catch(e){}const b=$('sheet-b');if(b&&!$('sheet').hidden&&sheetFor==='rg'&&!b.querySelector('input[type=checkbox]:checked')&&!(b.querySelector('.ls-q')||{}).value)rgDraw(b)}
 $('h-reg').onclick=rgOpen;
