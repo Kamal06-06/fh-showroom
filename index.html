@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="274">
+<meta name="fh-build" content="275">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -2720,10 +2720,11 @@ function pcOptions(p,vars){
   const n=Math.max(0,...vars.map(v=>v.o.length)),out=[];for(let i=0;i<n;i++){const vals=[];vars.forEach(v=>{const x=v.o[i];if(x!=null&&!vals.includes(x))vals.push(x)});out.push({n:'Option '+(i+1),v:vals})}return out}
 const pcSt=n=>{const m=/^\s*([\d.]+)\s*(stück|stk|pcs)/i.exec(String(n||''));return m?+m[1].replace(/\./g,''):0};
 /* „Set nach Wahl": derselbe Flakon-Konfigurator wie im Shop (alle Kappen auf dem Flakon, Sprühkopf-Farben, Kartonpreise) */
+const APPB=((document.querySelector('meta[name=fh-build]')||{}).content||'')+'';/* Build-Nummer: lädt konfig/app.html nach jedem Update frisch */
 const CFG_M={'square grace':'sqg','square elegance':'sel','square charm':'sch','square rouge':'sro','square black':'sbl','slim aura':'sla','noble line':'nbl','angel':'ang','olympia':'zen','luna':'luna','orbis':'orb','royal dome':'rdo'};
 function cfgModel(t){const s=fold(String(t||'')).toLowerCase();const k=Object.keys(CFG_M).sort((a,b)=>b.length-a.length).find(n=>s.indexOf(n)===0||s.indexOf(n+' ')>-1);if(!k)return null;const m=/(\d+)\s*ml/i.exec(t);return {k:CFG_M[k],ml:m?m[1]:''}}
 function cfgOpen(mk,title){pcModal(title||'تركيب الزجاجة',(b,close)=>{b.style.padding='0';
-  const fr=document.createElement('iframe');fr.src='konfig/app.html?m='+encodeURIComponent(mk.k)+(mk.ml?'&ml='+encodeURIComponent(mk.ml):'');fr.title='Flakon-Konfigurator';
+  const fr=document.createElement('iframe');fr.src='konfig/app.html?b='+APPB+'&m='+encodeURIComponent(mk.k)+(mk.ml?'&ml='+encodeURIComponent(mk.ml):'');fr.title='Flakon-Konfigurator';
   fr.style.cssText='display:block;width:100%;height:min(80vh,900px);border:0;background:#fff';b.append(fr);
   const on=e=>{if(!document.body.contains(fr)){window.removeEventListener('message',on);return}if(e.source!==fr.contentWindow||!e.data||e.data.fhk!=='add')return;
     const n=cfgAdd(e.data);window.removeEventListener('message',on);close();toast(n?'✓ أُضيف التركيب: '+n+' بنود · '+(e.data.desc||''):'⚠️ لم يُضف شيء')};
@@ -2823,7 +2824,7 @@ function setSnap(g){const f=g.fl;if(!f||!f.st||f.st.img||snapBusy[g.id]||IN_GAS)
   const on=e=>{if(e.source!==fr.contentWindow||!e.data||e.data.fhk!=='snap')return;done();const d=String(e.data.thumb||'');
     if(!/^data:image\//.test(d))return;draft.items.forEach(x=>{if(x.st&&x.st.id===g.id&&x.st.role==='fl')x.st.img=d.slice(0,60000)});saveDraft();renderItems()};
   const tm=setTimeout(done,20000);window.addEventListener('message',on);
-  fr.src='konfig/app.html?m='+encodeURIComponent(mk.k)+(mk.ml?'&ml='+encodeURIComponent(mk.ml):'')+'&spr='+encodeURIComponent(spr)+'&cap='+encodeURIComponent(cp?(cp.sku||cp.code||''):'ohne')+'&snap='+encodeURIComponent(g.id);
+  fr.src='konfig/app.html?b='+APPB+'&m='+encodeURIComponent(mk.k)+(mk.ml?'&ml='+encodeURIComponent(mk.ml):'')+'&spr='+encodeURIComponent(spr)+'&cap='+encodeURIComponent(cp?(cp.sku||cp.code||''):'ohne')+'&snap='+encodeURIComponent(g.id);
   document.body.append(fr)}
 function setTile(g){const c=el('div','set-card'),h=el('div','set-h'),f=g.fl||g.parts[0];const im=(f.st&&f.st.img)||imgOf(f);if(!(f.st&&f.st.img))setTimeout(()=>setSnap(g),300);
   if(im){const i=mkImg(im,'');i.className='set-img';h.append(i)}
