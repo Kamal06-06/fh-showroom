@@ -3426,9 +3426,36 @@ const CLP_L={
   FR:{i:4,sig:{Gefahr:'Danger',Achtung:'Attention'},enth:'Contient',menge:'Quantité nette',typ:'Huile parfumée · Fragrance Oil',qr:'Recommander'},
   IT:{i:5,sig:{Gefahr:'Pericolo',Achtung:'Attenzione'},enth:'Contiene',menge:'Quantità netta',typ:'Olio profumato · Fragrance Oil',qr:'Riordina'},
   ES:{i:6,sig:{Gefahr:'Peligro',Achtung:'Atención'},enth:'Contiene',menge:'Cantidad neta',typ:'Aceite aromático · Fragrance Oil',qr:'Volver a pedir'},
-  PL:{i:7,sig:{Gefahr:'Niebezpieczeństwo',Achtung:'Uwaga'},enth:'Zawiera',menge:'Ilość netto',typ:'Olejek zapachowy · Fragrance Oil',qr:'Zamów ponownie'}};
+  PL:{i:7,sig:{Gefahr:'Niebezpieczeństwo',Achtung:'Uwaga'},enth:'Zawiera',menge:'Ilość netto',typ:'Olejek zapachowy · Fragrance Oil',qr:'Zamów ponownie'},
+  /* Norwegen: CLP gilt über den EWR, Etikett muss auf Norwegisch sein – Sätze aus CLP_NO, fehlende fallen auf Englisch zurück */
+  NO:{i:2,sig:{Gefahr:'Fare',Achtung:'Advarsel'},enth:'Inneholder',menge:'Nettoinnhold',typ:'Duftolje · Fragrance Oil',qr:'Bestill på nytt'}};
+/* offizielle norwegische Fassungen der H-/P-Sätze (CLP, norsk), Platzhalter wie in der englischen Fassung ausgefüllt */
+const CLP_NO={
+  EUH208:'Inneholder sensibiliserende stoffer. Kan gi en allergisk reaksjon.',
+  H304:'Kan være dødelig ved svelging om det kommer ned i luftveiene.',H315:'Irriterer huden.',H317:'Kan utløse en allergisk hudreaksjon.',
+  H318:'Gir alvorlig øyeskade.',H319:'Gir alvorlig øyeirritasjon.',H350:'Kan forårsake kreft.',H351:'Mistenkes for å kunne forårsake kreft.',
+  H361:'Mistenkes for å kunne skade forplantningsevnen eller gi fosterskader.',H373:'Kan forårsake organskader ved langvarig eller gjentatt eksponering.',
+  H400:'Meget giftig for liv i vann.',H410:'Meget giftig, med langtidsvirkning, for liv i vann.',H411:'Giftig, med langtidsvirkning, for liv i vann.',
+  H412:'Skadelig, med langtidsvirkning, for liv i vann.',H413:'Kan forårsake skadelige langtidsvirkninger for liv i vann.',
+  H226:'Brannfarlig væske og damp.',H302:'Farlig ved svelging.',H332:'Farlig ved innånding.',H335:'Kan forårsake irritasjon av luftveiene.',H336:'Kan forårsake døsighet eller svimmelhet.',H341:'Mistenkes for å kunne forårsake genetiske skader.',
+  P102:'Oppbevares utilgjengelig for barn.',P201:'Innhent særskilt instruks før bruk.',P202:'Skal ikke håndteres før alle advarsler er lest og oppfattet.',
+  P210:'Holdes vekk fra varme, varme overflater, gnister, åpen flamme og andre antennelseskilder. Røyking forbudt.',
+  P233:'Hold beholderen tett lukket.',P260:'Ikke innånd damp/aerosoler.',
+  P261:'Unngå innånding av damp/aerosoler.',P264:'Vask hendene grundig etter bruk.',P270:'Ikke spis, drikk eller røyk ved bruk av produktet.',P271:'Brukes bare utendørs eller i godt ventilerte områder.',
+  P272:'Tilsølte arbeidsklær må ikke fjernes fra arbeidsplassen.',
+  P273:'Unngå utslipp til miljøet.',P280:'Benytt vernehansker/øyevern.',
+  'P301+P310':'VED SVELGING: Kontakt umiddelbart et GIFTINFORMASJONSSENTER/en lege.','P301+P312':'VED SVELGING: Kontakt et GIFTINFORMASJONSSENTER/en lege ved ubehag.',P331:'IKKE framkall brekning.',
+  'P301+P310+P331':'VED SVELGING: Kontakt umiddelbart et GIFTINFORMASJONSSENTER/en lege. IKKE framkall brekning.',
+  'P302+P352':'VED HUDKONTAKT: Vask med mye vann.','P304+P340':'VED INNÅNDING: Flytt personen til frisk luft og sørg for at vedkommende hviler i en stilling som letter åndedrettet.',
+  'P305+P351+P338':'VED KONTAKT MED ØYNENE: Skyll forsiktig med vann i flere minutter. Fjern eventuelle kontaktlinser dersom dette enkelt lar seg gjøre. Fortsett skyllingen.',
+  'P305+P351+P338+P310':'VED KONTAKT MED ØYNENE: Skyll forsiktig med vann i flere minutter. Fjern eventuelle kontaktlinser dersom dette enkelt lar seg gjøre. Fortsett skyllingen. Kontakt umiddelbart et GIFTINFORMASJONSSENTER/en lege.',
+  'P308+P313':'Ved eksponering eller mistanke om eksponering: Søk legehjelp.',P314:'Søk legehjelp ved ubehag.',P321:'Særlig behandling (se … på etiketten).',
+  'P332+P313':'Ved hudirritasjon: Søk legehjelp.','P333+P313':'Ved hudirritasjon eller utslett: Søk legehjelp.','P337+P313':'Ved vedvarende øyeirritasjon: Søk legehjelp.',
+  'P362+P364':'Tilsølte klær må fjernes og vaskes før bruk.','P370+P378':'Ved brann: Bruk egnet slokkemiddel.',P391:'Samle opp spill.',
+  'P403+P235':'Oppbevares på et godt ventilert sted. Oppbevares kjølig.',P405:'Oppbevares innelåst.',
+  P501:'Innhold/beholder leveres i samsvar med lokale forskrifter.'};
 /* Rückverfolgung auf dem Etikett: EINE Charge (Werks-Batch) + Abfülldatum (= Auftragsdatum) + Auftragsnummer */
-const CLP_LOT={DE:{b:'Charge',f:'Abfülldatum',o:'Auftrag'},EN:{b:'Batch',f:'Filling date',o:'Order'},NL:{b:'Batch',f:'Vuldatum',o:'Bestelling'},FR:{b:'Lot',f:'Date de remplissage',o:'Commande'},IT:{b:'Lotto',f:'Data di riempimento',o:'Ordine'},ES:{b:'Lote',f:'Fecha de envasado',o:'Pedido'},PL:{b:'Partia',f:'Data napełnienia',o:'Zamówienie'}};
+const CLP_LOT={DE:{b:'Charge',f:'Abfülldatum',o:'Auftrag'},EN:{b:'Batch',f:'Filling date',o:'Order'},NL:{b:'Batch',f:'Vuldatum',o:'Bestelling'},FR:{b:'Lot',f:'Date de remplissage',o:'Commande'},IT:{b:'Lotto',f:'Data di riempimento',o:'Ordine'},ES:{b:'Lote',f:'Fecha de envasado',o:'Pedido'},PL:{b:'Partia',f:'Data napełnienia',o:'Zamówienie'},NO:{b:'Batch',f:'Fyllingsdato',o:'Ordre'}};
 const ordNr=l=>l.shopNr||('AP-'+stamp(l)),ordDatum=l=>new Date(l.offerAt||l.at||Date.now()).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Europe/Berlin'});
 const CLP_TAG={
   DE:'Hochkonzentriertes Premium-Duftöl · Qualitätsgeprüft & chargenrückverfolgbar. Nicht unverdünnt auf die Haut auftragen. Sicherheitsdatenblatt auf Anfrage.',
@@ -3437,11 +3464,12 @@ const CLP_TAG={
   FR:'Huile parfumée premium hautement concentrée · Qualité contrôlée & lot traçable. Ne pas appliquer pure sur la peau. Fiche de données de sécurité sur demande.',
   IT:'Olio profumato premium altamente concentrato · Qualità controllata & lotto tracciabile. Non applicare puro sulla pelle. Scheda di dati di sicurezza su richiesta.',
   ES:'Aceite aromático premium altamente concentrado · Calidad controlada y lote trazable. No aplicar sin diluir sobre la piel. Ficha de datos de seguridad bajo pedido.',
-  PL:'Wysoko skoncentrowany olejek zapachowy premium · Kontrola jakości i identyfikowalność partii. Nie stosować bezpośrednio na skórę. Karta charakterystyki na życzenie.'};
+  PL:'Wysoko skoncentrowany olejek zapachowy premium · Kontrola jakości i identyfikowalność partii. Nie stosować bezpośrednio na skórę. Karta charakterystyki na życzenie.',
+  NO:'Høykonsentrert premium duftolje · Kvalitetskontrollert og sporbar per batch. Må ikke påføres ufortynnet på huden. Sikkerhetsdatablad på forespørsel.'};
 const CLP_Q={Standard:{sym:'c',c:[154,95,40]},Premium:{sym:'s',c:[110,116,125]},Exklusiv:{sym:'ss',c:[176,138,46]}};
 const CLP_GOLD=[140,109,63],CLP_GRAU=[85,85,85],CLP_SW=[0,0,0],CLP_PT=0.35278,CLP_LH=1.25;
 const CLP_ADR='Fragrance Hub Germany, Am Alten Kirchplatz 10, 45665 Recklinghausen, Tel. +49 2361 4878835';
-const clpLangs=cc=>{cc=String(cc||'DE').toUpperCase();if(['DE','AT','CH'].includes(cc))return['DE'];if(cc==='BE')return['NL','FR'];if(['NL','FR','IT','ES','PL'].includes(cc))return[cc];return['EN']};
+const clpLangs=cc=>{cc=String(cc||'DE').toUpperCase();if(['DE','AT','CH'].includes(cc))return['DE'];if(cc==='BE')return['NL','FR'];if(['NL','FR','IT','ES','PL','NO'].includes(cc))return[cc];return['EN']};
 const clpQual=q=>{const s=String(q||'').toLowerCase(),n=/premium/.test(s)?'Premium':/exklusiv/.test(s)?'Exklusiv':/standard/.test(s)?'Standard':'';return n?Object.assign({n},CLP_Q[n]):null};
 const clpCanon=k=>{const s=String(k||'').trim().toUpperCase().split('-').filter(Boolean),i=s.indexOf('SH');if(i<1)return null;return s.slice(0,i).filter(x=>x!=='PQ').join('-')+(s.includes('PQ')?'|PQ':'')};
 const clpName=it=>String(it.t||it.code||'').split(/\s+–\s+/)[0].trim();
@@ -3541,7 +3569,7 @@ function clpLabel(doc,e,s,oy,draw){
     qh+=0.3+clpPara(doc,[{t:L.qr,st:'bold',c:CLP_GOLD}],qx-1,oy+15.3,17,Math.max(s-0.5,3),C,draw);kopf=Math.max(kopf,qh)}
   y=oy+kopf+0.8;
   /* ---- H- und P-Sätze in zwei Spalten */
-  const immer=B.immerP||['P102'],ohne=B.ohneP||['P321'],sp=L.i-1,satz=c=>{const r=(B.saetze||{})[c];return (r&&r[sp])||'['+c+']'};
+  const immer=B.immerP||['P102'],ohne=B.ohneP||['P321'],sp=L.i-1,satz=c=>{if(e.lang==='NO'&&CLP_NO[c])return CLP_NO[c];const r=(B.saetze||{})[c];return (r&&r[sp])||'['+c+']'};
   const pc=immer.concat((d.p||[]).filter(c=>!immer.includes(c)&&!ohne.includes(c)));
   const cw=rW/2,col=(arr,x)=>{let yy=y;arr.forEach(c=>{yy+=clpPara(doc,[{t:satz(c)}],x,yy,cw-1.4,s,null,draw)});return yy-y};
   y+=Math.max(col(d.h||[],rx+0.7),col(pc,rx+cw+0.7));
