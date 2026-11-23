@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="279">
+<meta name="fh-build" content="280">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -4675,7 +4675,7 @@ function omEditPane(l){const E=omEd,p=el('div','om-pane'),box=el('div','om-box o
   ab.onclick=()=>{if(!cp){pi.focus();return}const n=Math.max(1,Math.floor(+qn.value||1)),v=cp.v[+vs.value||0]||cp.v[0],pa=String(v[0]||'').split(' / ').map(x=>x.trim());
     const it=cp.oil?{t:cp.t,a:cp.a||'',oil:1,tier:pa.length>1?pa[pa.length-1]:'',code:stem(v[1]||''),size:pa[0]||'',sku:v[1]||'',price:+v[2]||0,q:n}:{t:cp.t,a:'',oil:0,tier:'',code:v[1]||'',size:String(v[0]||''),sku:v[1]||'',price:+v[2]||0,q:n};
     if(l.kg&&cp.oil){try{const kp=kgPrice(it);if(kp!=null)it.price=kp}catch(e){}}
-    it._new=1;E.its.push(it);pi.value='';cp=null;vs.hidden=true;qn.value='1';draw();pi.focus()};
+    it._new=1;E.its.push(it);pi.value='';cp=null;vs.hidden=true;vs.textContent='';oeHits=[];oeSel=-1;sug.hidden=true;qn.value='1';draw();pi.focus()};
   pi.onkeydown=e=>{if(!sug.hidden&&oeHits.length&&(e.key==='ArrowDown'||e.key==='ArrowUp')){e.preventDefault();oeSel=(oeSel+(e.key==='ArrowDown'?1:-1)+oeHits.length)%oeHits.length;oeDraw();return}
     if(e.key==='Escape'){sug.hidden=true;return}
     if(e.key==='Enter'){e.preventDefault();if(!cp&&oeHits[oeSel>=0?oeSel:0]){oePick(oeHits[oeSel>=0?oeSel:0]);return}ab.click()}};
