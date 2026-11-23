@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="272">
+<meta name="fh-build" content="273">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -4899,7 +4899,7 @@ const PRN=[
  {k:'reg',n:'Epson C6000 · الرفوف',s:'102 × 30 مم',u:'ملصقات الرفوف',pre:'R-',w:102,h:30,ic:'pin'},
  {k:'pm',n:'Phomemo',s:'40 × 30 مم',u:'ملصقات أسماء بسيطة',pre:'P-',w:40,h:30,ic:'tag'},
  {k:'kpr',n:'Epson C4000',s:'51 × 30 مم',u:'ملصقات العينات الملوّنة',pre:'K-',w:51,h:30,ic:'color'}];
-function pcCss(){if($('pc-css'))return;const s=document.createElement('style');s.id='pc-css';s.textContent=`
+function dzCss(){if($('dz-css'))return;const s=document.createElement('style');s.id='dz-css';s.textContent=`
 .pc-st{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin:0 2px 12px}.pc-st i{width:10px;height:10px;border-radius:50%;background:#B9BCC5;display:inline-block}.pc-st.on i{background:#1E9E5A}.pc-st.off i{background:#D9452F}
 .pc-prn{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}@media(max-width:700px){.pc-prn{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .pc-prn button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;font:inherit;color:var(--ink);cursor:pointer;box-shadow:var(--sh)}
@@ -4908,7 +4908,7 @@ function pcCss(){if($('pc-css'))return;const s=document.createElement('style');s
 .pc-drop{border:2px dashed var(--gold);border-radius:16px;background:var(--cream);padding:22px;text-align:center;cursor:pointer;font-weight:700}
 .pc-drop small{display:block;font-weight:400;color:var(--muted);margin-top:4px}.pc-drop.over{background:var(--gold-soft)}
 .pc-files{display:flex;flex-direction:column;gap:6px;margin:10px 0}.pc-files div{display:flex;gap:8px;align-items:center;background:var(--soft);border-radius:10px;padding:8px 10px;font-size:13.5px}.pc-files div span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;text-align:right}
-.pc-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}.pc-row input[type=number]{width:80px}
+.dz-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}.dz-row input[type=number]{width:80px}
 .pc-res{display:flex;flex-direction:column;gap:6px;margin:8px 0}
 .pc-it{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .pc-it b{font-size:14px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pc-it small{font-size:12px;color:var(--muted);direction:ltr;display:block;text-align:right}
@@ -4918,7 +4918,7 @@ function pcCss(){if($('pc-css'))return;const s=document.createElement('style');s
 `;document.head.append(s)}
 function pcStatus(box){const s=el('div','pc-st');s.append(el('i'),'جهاز الطباعة في المستودع: جاري الفحص…');box.append(s);
   druckStatus().then(v=>{s.className='pc-st '+(v&&v.online?'on':'off');s.lastChild.textContent=v&&v.online?'جهاز الطباعة في المستودع متصل ✓ · Druck-PC online':'⚠️ جهاز الطباعة في المستودع غير متصل الآن – تُحفظ المهام 5 دقائق · Druck-PC offline'}).catch(()=>{s.lastChild.textContent='تعذّر فحص جهاز الطباعة'})}
-function pcOpen(){pcCss();openSheet('🖨️ مركز الطباعة · Druckzentrum',b=>{pcStatus(b);
+function pcOpen(){dzCss();openSheet('🖨️ مركز الطباعة · Druckzentrum',b=>{pcStatus(b);
   b.append(el('div','hsec','الطابعات في المستودع · Drucker'));
   const g=el('div','pc-prn');PRN.forEach(p=>{const x=el('button');const ii=el('span','ic');ii.append(ico(p.ic));x.append(ii,el('b',null,p.n),el('span','pz',p.s),el('small',null,p.u));x.onclick=()=>pcFile(p.k);g.append(x)});b.append(g);
   b.append(el('div','hsec','ماذا تريد أن تطبع؟ · Was drucken?'));
@@ -4990,7 +4990,7 @@ function sreDraw(d,F,L){const W=F.w,H=F.h,k=Math.min(H/40,W/51),xh=H/(40*k),PT=0
     d.setFont('SreSans','normal');d.setFontSize(5*k);d.setTextColor(...NAVY);d.text(SRE_G[L.g],sx+r+2.2*k,gy-0.6*k)}}
 function srePdf(F,labels){const d=sreDoc(F),o=F.w>=F.h?'landscape':'portrait';labels.forEach((L,i)=>{if(i)d.addPage([F.w,F.h],o);sreDraw(d,F,L)});return d}
 function sreName(F,L){return F.pre+'SR-'+latin(L.code).replace(/[^A-Za-z0-9-]/g,'')+'-'+String(L.q).charAt(0)+'__'+F.w+'x'+F.h+'.pdf'}
-function sreOpen(){pcCss();sreCss();let fmt=LS.get('sreFmt2','51x50');if(!SRE_F[fmt])fmt='51x50';const sel=new Set(),qs=new Set(SRE_Q);let P=[],qtxt='';
+function sreOpen(){dzCss();sreCss();let fmt=LS.get('sreFmt2','51x50');if(!SRE_F[fmt])fmt='51x50';const sel=new Set(),qs=new Set(SRE_Q);let P=[],qtxt='';
   openSheet('🏷️ ملصقات الصالة · Showroom-Etiketten',b=>{pcStatus(b);
     b.append(el('p','hint','ملصقات فاخرة لقوارير العيّنات في الفاترينة: الاسم كما في المتجر، الكود، الجودة، الجنس، ورمز QR يفتح صفحة الزيت بالجودة المختارة.'));
     /* 1 · Duft */
@@ -5006,7 +5006,7 @@ function sreOpen(){pcCss();sreCss();let fmt=LS.get('sreFmt2','51x50');if(!SRE_F[
     const drawF=()=>fb.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.k===fmt));drawF();
     /* 4 · Vorschau + Druck */
     b.append(el('div','hsec','٤ · المعاينة والطباعة · Vorschau & Druck'));
-    const sum=el('div','sre-sum'),acts=el('div','pc-row'),pv=el('button','btn','معاينة · Vorschau'),pr=el('button','btn primary','طباعة'),dl=el('button','btn','PDF'),stp=el('button','btn','إيقاف');stp.hidden=true;
+    const sum=el('div','sre-sum'),acts=el('div','dz-row'),pv=el('button','btn','معاينة · Vorschau'),pr=el('button','btn primary','طباعة'),dl=el('button','btn','PDF'),stp=el('button','btn','إيقاف');stp.hidden=true;
     const st=el('div','status');st.hidden=true;const fr=document.createElement('iframe');fr.className='sre-pv';fr.hidden=true;fr.title='Vorschau';
     acts.append(pv,pr,dl,stp);b.append(sum,acts,st,fr);
     const labels=()=>{const out=[];P.forEach(p=>{if(!sel.has(p.h))return;SRE_Q.forEach(t=>{if(qs.has(t)&&p.q[t])out.push({h:p.h,t:p.t,g:p.g,q:t,code:p.q[t]})})});return out};
@@ -5064,7 +5064,7 @@ function sreCss(){if($('sre-css'))return;const s=document.createElement('style')
 .sre-pv{width:100%;max-width:560px;min-height:260px;border:1px solid var(--line);border-radius:12px;background:#f3f1ec;display:block;margin-top:10px}`;document.head.append(s)}
 
 /* 📁 Externe Datei → gewählter Drucker (Bilder werden auf die Etikettengröße gesetzt) */
-function pcFile(k0){pcCss();let k=k0||'a4',files=[];openSheet('📁 طباعة ملف · Datei drucken',b=>{pcStatus(b);
+function pcFile(k0){dzCss();let k=k0||'a4',files=[];openSheet('📁 طباعة ملف · Datei drucken',b=>{pcStatus(b);
   const g=el('div','pc-prn'),draw=()=>{g.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.k===k))};
   PRN.forEach(p=>{const x=el('button');x.dataset.k=p.k;const ii=el('span','ic');ii.append(ico(p.ic));x.append(ii,el('b',null,p.n),el('span','pz',p.s));x.onclick=()=>{k=p.k;draw()};g.append(x)});b.append(el('div','hsec','1 · اختر الطابعة'),g);draw();
   const fi=el('input');fi.type='file';fi.multiple=true;fi.accept='application/pdf,.pdf,image/*';fi.hidden=true;
@@ -5073,7 +5073,7 @@ function pcFile(k0){pcCss();let k=k0||'a4',files=[];openSheet('📁 طباعة �
   const fl=el('div','pc-files');const add=fs=>{fs.filter(f=>/pdf|image\//.test(f.type)||/\.pdf$/i.test(f.name)).forEach(f=>files.push(f));show()};fi.onchange=()=>{add([...fi.files]);fi.value=''};
   const show=()=>{fl.textContent='';files.forEach((f,i)=>{const r=el('div');r.append(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)?'📄':'🖼️',el('span',null,f.name));const x=el('button','btn small','✕');x.onclick=()=>{files.splice(i,1);show()};r.append(x);fl.append(r)});go.disabled=!files.length};
   b.append(el('div','hsec','2 · الملف'),dz,fi,fl);
-  const row=el('div','pc-row'),cp=el('input');cp.type='number';cp.min='1';cp.max='50';cp.value='1';row.append(el('span',null,'عدد النسخ'),cp);b.append(row);
+  const row=el('div','dz-row'),cp=el('input');cp.type='number';cp.min='1';cp.max='50';cp.value='1';row.append(el('span',null,'عدد النسخ'),cp);b.append(row);
   const st=el('div','status');st.hidden=true;
   const go=el('button','btn primary big','🖨️ إرسال إلى الطابعة');go.style.width='100%';go.disabled=true;
   const me=el('button','btn','📱 فتح على هذا الجهاز');me.style.cssText='width:100%;margin-top:6px';me.onclick=async()=>{for(const f of files){const u=URL.createObjectURL(await pcPdf(f,PRN.find(p=>p.k===k)));window.open(u,'_blank')}};
@@ -5094,7 +5094,7 @@ async function pcPdf(f,P){if(!window.jspdf&&!(/pdf/i.test(f.type)||/\.pdf$/i.tes
 
 /* 🏷️ Namensetiketten direkt aus dem Shop – ohne Auftrag */
 let pcSel=[];
-function pcNames(){pcCss();openSheet('🏷️ ملصقات أسماء الزيوت · Namensetiketten',b=>{
+function pcNames(){dzCss();openSheet('🏷️ ملصقات أسماء الزيوت · Namensetiketten',b=>{
   b.append(el('p','hint','ابحث عن الزيت (بالاسم التجاري أو الأصلي أو الكود)، اختر الجودة، ثم حدّد عدد الملصقات واطبع.'));
   const q=el('input','ln-q');q.type='search';q.placeholder='🔎 بحث في المتجر…';b.append(q);const res=el('div','pc-res');b.append(res);
   const TI=[['S','Standard'],['P','Premium'],['E','Exklusiv']];
