@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="277">
+<meta name="fh-build" content="278">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -854,19 +854,22 @@ html,#sheet .sh,#omodal *{scrollbar-width:auto;scrollbar-color:#B8963E transpare
 .oe-img.oil{position:relative;background:#EEF2F9;color:#2457A4}.oe-img.oil .ico{width:26px;height:26px}.oe-img.oil b{position:absolute;bottom:3px;inset-inline-end:5px;font-size:10px;font-weight:900}
 .oe-img.oil.tP{background:#FFF4D6;color:#8A6A14}.oe-img.oil.tE{background:#1F2433;color:#D9BF7A}
 .oe-img.no::after{content:'';width:18px;height:18px;border-radius:50%;background:#E7E1D3}
-.oe-row{display:grid;grid-template-columns:52px minmax(0,1fr) auto 44px 96px 36px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--surface)}
+.oe-row{display:grid;grid-template-columns:52px minmax(0,1fr) auto 44px 128px 36px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--surface)}
 .oe-row.nw{border-color:var(--gold);background:#FFFBF0}
 .oe-m .nm{font-weight:800;font-size:14px}.oe-m .cd{font-size:12px;color:var(--muted)}
 .oe-st{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;overflow:hidden;direction:ltr}
 .oe-st button{width:38px;height:38px;border:0;background:var(--soft);font-size:20px;font-weight:700;cursor:pointer;color:var(--navy)}.oe-st button:hover{background:#EFE6CF}
 .oe-st input{width:58px;height:38px;border:0;text-align:center;font:inherit;font-weight:800;font-size:15px;-moz-appearance:textfield}
 .oe-st input::-webkit-inner-spin-button{display:none}
-.oe-u{font-size:12px;color:var(--muted)}.oe-p{font-weight:800;text-align:end;white-space:nowrap}
+.oe-u{font-size:12px;color:var(--muted)}.oe-p{font-weight:800;text-align:end;white-space:nowrap}.oe-pc{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.oe-pi{display:flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:9px;padding:2px 8px;background:#fff}.oe-pi:focus-within{border-color:var(--gold);box-shadow:0 0 0 3px rgba(184,150,62,.18)}
+.oe-pi input{width:70px;border:0;outline:0;background:none;font:inherit;font-weight:700;text-align:end;padding:4px 0}.oe-pi i{font-style:normal;color:var(--muted);font-size:12px}.oe-pi.chg{border-color:var(--gold);background:#fffaf0}
+.oe-pc small{font-size:11.5px;color:var(--muted)}
 .oe-x{width:36px;height:36px;border:0;border-radius:9px;background:#FCE8E6;color:#B4231A;font-weight:800;cursor:pointer}
 .oe-addh{font-size:12.5px;font-weight:800;color:var(--muted);margin:14px 2px 6px}
 .oe-tot{margin-top:12px;text-align:end;font-weight:800}
 .oe-ft{display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:12px;position:sticky;bottom:0;background:var(--surface);padding-top:8px}
-@media (max-width:560px){.oe-row{grid-template-columns:44px minmax(0,1fr) auto 36px}.oe-img{width:44px;height:44px}.oe-row .oe-u{display:none}.oe-row .oe-p{grid-column:2/4;text-align:start;font-size:13px}}
+@media (max-width:560px){.oe-row{grid-template-columns:44px minmax(0,1fr) auto 36px}.oe-img{width:44px;height:44px}.oe-row .oe-u{display:none}.oe-row .oe-p,.oe-row .oe-pc{grid-column:2/4;text-align:start;align-items:flex-start;font-size:13px}}
 /* Liste: Lagerplatz deutlich */
 .ls-t th.ls-plh{width:118px}
 .ls-t td.ls-pl{white-space:nowrap}
@@ -4621,7 +4624,7 @@ function buildCardV2(l){omCss();
 
 /* ✎ Positionen direkt im Auftrag bearbeiten: Menge −/+, entfernen, Artikel hinzufügen – ein Klick «حفظ». Lager wird beim Speichern automatisch angepasst. */
 function omEditPane(l){const E=omEd,p=el('div','om-pane'),box=el('div','om-box oe');
-  const hd=el('div','oe-h');hd.append(el('b',null,'تعديل الأصناف والكميات'),el('small',null,'غيّر الكمية بـ − و +، أو احذف، أو أضف صنفاً، ثم احفظ مرة واحدة. المخزون يُحدَّث تلقائياً.'));box.append(hd);
+  const hd=el('div','oe-h');hd.append(el('b',null,'تعديل الأصناف والكميات'),el('small',null,'غيّر الكمية بـ − و + أو السعر (€ لكل وحدة)، أو احذف، أو أضف صنفاً، ثم احفظ مرة واحدة. المخزون يُحدَّث تلقائياً.'));box.append(hd);
   const list=el('div','oe-list'),sumL=el('div','oe-tot');box.append(list);
   const lineNet=it=>(+it.price||0)*(+it.q||1)*(1-(itRab(it)||0)/100);
   const draw=()=>{list.textContent='';
@@ -4640,7 +4643,12 @@ function omEditPane(l){const E=omEd,p=el('div','om-pane'),box=el('div','om-box o
       mi.onclick=()=>set((+it.q||1)-step);pl.onclick=()=>set((+it.q||1)+step);qi.onchange=()=>set(qi.value);qi.onkeydown=e=>{if(e.key==='Enter')qi.blur()};
       st.append(mi,qi,pl);
       const un=el('span','oe-u',kartonN(it)?'كرتون':it.unit==='kg'?'kg':isOil(it)?'عبوة':'قطعة');
-      const pr=el('span','oe-p',money(lineNet(it)));
+      /* Preis je Einheit direkt änderbar (wie im Auftrag), darunter der Zeilenbetrag */
+      let pr;if(isAdmin()||can('new')){pr=el('div','oe-pc');const pw=el('label','oe-pi'+(it._new||(it._ox!=null&&(l.items||[])[it._ox]&&+(l.items||[])[it._ox].price!==+it.price)?' chg':'')),pin=el('input');pin.type='number';pin.inputMode='decimal';pin.min='0';pin.step='0.01';
+        pin.value=it.price==null||it.price===''?'':String(Math.round(+it.price*100)/100);pin.title='السعر الصافي لكل '+(kartonN(it)?'كرتون':it.unit==='kg'?'كيلو':isOil(it)?'عبوة':'قطعة');
+        pin.onchange=()=>{const v=String(pin.value).replace(',','.').trim();if(v===''){draw();return}else{const n=Math.max(0,Math.round(+v*10000)/10000);if(!isFinite(n))return;it.price=n;it.pm=1}draw()};pin.onkeydown=e=>{if(e.key==='Enter')pin.blur()};
+        pw.append(pin,el('i',null,'€'));pr.append(pw,el('small',null,'= '+money(lineNet(it))))}
+      else pr=el('span','oe-p',money(lineNet(it)));
       const x=el('button','oe-x','✕');x.type='button';x.title='حذف الصنف';x.onclick=()=>{E.its.splice(k,1);draw()};
       r.append(im,m,st,un,pr,x);list.append(r)});
     const orig=JSON.stringify(l.items||[]),now=JSON.stringify(E.its.map(x=>{const y=Object.assign({},x);delete y._ox;delete y._new;return y}));
