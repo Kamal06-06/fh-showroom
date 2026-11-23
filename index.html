@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="276">
+<meta name="fh-build" content="277">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -2439,7 +2439,7 @@ function renderItems(){
   const stale=draft.items.length&&!editing&&(Date.now()-(draft.at||0))>15*60000;$('draftbar').hidden=!stale;
   if(stale)$('draft-txt').textContent='⚠️ مسودة غير مرسلة من '+new Date(draft.at||Date.now()).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})+' · '+n+' صنف'+(draft.cust?' · '+draft.cust:'')+' — هل تريد متابعتها أم البدء بطلب جديد؟';
 }
-function resetDraft(){try{setEditOffer(null)}catch(e){}try{$('cphone').value='';$('cemail').value=''}catch(e){}$('clp-addr').value='';$('cust-no').textContent='';draft={pay0:{s:'open',m:'',a:''},src:'',lief:'',pakete:1,dhlAdr:null,cust:'',note:'',rabatt:0,rabattFix:0,versand:0,kg:false,items:[],street:'',city:'',country:'DE',phone:'',email:''};$('cust').value='';$('versand').value='';$('rabscope').value='all';$('kgprice').checked=false;$('kg-st').textContent='';$('street').value='';setCityUI('');$('country').value='DE';showLang();$('note').value='';$('rab').value='';$('rabfix').value='';saveDraft();renderItems();showLogo()}
+function resetDraft(){try{reqClear()}catch(e){}try{setEditOffer(null)}catch(e){}try{$('cphone').value='';$('cemail').value=''}catch(e){}$('clp-addr').value='';$('cust-no').textContent='';draft={pay0:{s:'open',m:'',a:''},src:'',lief:'',pakete:1,dhlAdr:null,cust:'',note:'',rabatt:0,rabattFix:0,versand:0,kg:false,items:[],street:'',city:'',country:'DE',phone:'',email:''};$('cust').value='';$('versand').value='';$('rabscope').value='all';$('kgprice').checked=false;$('kg-st').textContent='';$('street').value='';setCityUI('');$('country').value='DE';showLang();$('note').value='';$('rab').value='';$('rabfix').value='';saveDraft();renderItems();showLogo()}
 $('clear').onclick=resetDraft;
 function setEditing(l){
   editing=l?{id:l.id,customer:l.customer}:null;LS.set('edit3',editing);
