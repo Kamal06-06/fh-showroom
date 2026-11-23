@@ -39,7 +39,16 @@ html,body{margin:0;background:#fff;font-family:-apple-system,BlinkMacSystemFont,
 /* Knopf in der App: „In den Auftrag übernehmen" statt „In den Warenkorb" */
 new MutationObserver(function(){var b=document.getElementById('fhk-add');if(b&&b.textContent.indexOf('Auftrag')<0)b.textContent='➕ In den Auftrag übernehmen · إضافة إلى الطلب'}).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
 </script>
-<script src="https://cdn.shopify.com/s/files/1/0929/4571/1487/files/fh-flakon-konfigurator-v17.js?v=1794480933"></script>
+<script>
+/* Immer die aktuelle Konfigurator-Version aus dem Shop laden (Dateiname ändert sich bei jedem Shop-Update, z. B. v21) */
+(function(){var KEY='fhkSrc',SHOP='https://fragranceshub.de/pages/flakon-konfigurator';
+  function load(u,fb){var s=document.createElement('script');s.src=u;s.onerror=function(){if(fb)fb();else fail()};document.body.appendChild(s)}
+  function fail(){var r=document.getElementById('fhk-root');if(r)r.innerHTML='<p style="padding:24px;font:15px sans-serif;color:#b00">Konfigurator konnte nicht geladen werden – bitte Internet prüfen und erneut öffnen.</p>'}
+  function fresh(){return fetch(SHOP,{cache:'no-store'}).then(function(r){return r.text()}).then(function(h){var m=h.match(/https:\/\/cdn\.shopify\.com[^"'\s]*fh-flakon-konfigurator[^"'\s]*\.js[^"'\s]*/);if(!m)throw 0;var u=m[0].replace(/&amp;/g,'&');try{localStorage.setItem(KEY,u)}catch(e){}return u})}
+  var last='';try{last=localStorage.getItem(KEY)||''}catch(e){}
+  fresh().then(function(u){load(u,last&&last!==u?function(){load(last)}:null)},function(){if(last)load(last);else fail()});
+})();
+</script>
 <script>
 /* Bild eines gespeicherten Sets nachträglich erzeugen: ?snap=<id>&spr=Gold|ohne&cap=<Art.-Nr.>|ohne → echtes Bild (Flakon + Sprühkopf + Kappe) an die App */
 (function(){var q=new URLSearchParams(location.search),id=q.get('snap');if(!id)return;
@@ -48,7 +57,7 @@ new MutationObserver(function(){var b=document.getElementById('fhk-add');if(b&&b
   function pick(box,f){var b=bt(box).find(f);if(b&&b.getAttribute('aria-pressed')!=='true')b.click()}
   function shot(){var d='';try{var cv=document.getElementById('fhk-cv'),w=240,h=Math.round(w*cv.height/cv.width),t=document.createElement('canvas');t.width=w;t.height=h;var x=t.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(cv,0,0,w,h);d=t.toDataURL('image/jpeg',.82)}catch(e){}
     parent.postMessage({fhk:'snap',id:id,thumb:d},'*')}
-  (function go(){if(!bt('o-cap').length||!bt('o-spr').length){if(++n<60)return setTimeout(go,150);return shot()}
+  (function go(){if(!bt('o-cap').length||!bt('o-spr').length){if(++n<200)return setTimeout(go,150);return shot()}
     if(sp)pick('o-spr',function(b){var t=b.textContent.trim().toLowerCase();return sp==='ohne'?t.indexOf('ohne')===0:t===sp});
     setTimeout(function(){if(cap)pick('o-cap',function(b){var t=(b.title||b.textContent||'').toUpperCase();return cap==='OHNE'?/OHNE/.test(t):t.indexOf(cap)>=0});setTimeout(shot,2800)},250)})();
 })();
