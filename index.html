@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="278">
+<meta name="fh-build" content="279">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -895,7 +895,9 @@ html,#sheet .sh,#omodal *{scrollbar-width:auto;scrollbar-color:#B8963E transpare
 .xf-empty{border:1px dashed var(--line);border-radius:12px;padding:12px;text-align:center;color:var(--muted);font-size:13px}
 .xf-add{display:grid;grid-template-columns:minmax(0,1fr) auto 70px auto;gap:8px;align-items:center}
 .xf-add input,.xf-add select{padding:10px;border-radius:10px;font:inherit;min-width:0}
-@media (max-width:560px){.xf-add{grid-template-columns:1fr 70px}.xf-add input[list]{grid-column:1/-1}.xf-add select{grid-column:1/-1}.xf-it{grid-template-columns:minmax(0,1fr) 70px 80px 34px}}
+.oe-sw{position:relative;min-width:0}.oe-sw input{width:100%;box-sizing:border-box}.oe-sug{position:absolute;inset-inline:0;top:100%;margin-top:4px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(31,36,51,.14);z-index:60;max-height:330px;overflow:auto;padding:4px}
+.oe-sug button{display:block;width:100%;text-align:start;border:0;background:none;padding:8px 10px;border-radius:8px;font:inherit;cursor:pointer;color:var(--ink)}.oe-sug button:hover,.oe-sug button.on{background:var(--soft)}.oe-sug b{font-size:14px}.oe-sug small{display:block;color:var(--muted);font-size:12px;margin-top:1px}.oe-sug .no{padding:10px;color:var(--muted);font-size:13px}
+@media (max-width:560px){.xf-add{grid-template-columns:1fr 70px}.xf-add input[list],.xf-add .oe-sw{grid-column:1/-1}.xf-add select{grid-column:1/-1}.xf-it{grid-template-columns:minmax(0,1fr) 70px 80px 34px}}
 /* Erledigte Aufträge (Startseite) */
 .hd-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
 .hd-st{display:flex;gap:8px;flex-wrap:wrap}
@@ -4654,17 +4656,30 @@ function omEditPane(l){const E=omEd,p=el('div','om-pane'),box=el('div','om-box o
     const orig=JSON.stringify(l.items||[]),now=JSON.stringify(E.its.map(x=>{const y=Object.assign({},x);delete y._ox;delete y._new;return y}));
     sumL.textContent=E.its.length+' صنف · '+money(E.its.reduce((s,it)=>s+lineNet(it),0))+(orig===now?'':' · تغييرات غير محفوظة');sv.disabled=orig===now};
   /* hinzufügen */
-  const ad=el('div','xf-add'),pi=el('input');pi.setAttribute('list','oe-pl');pi.placeholder='إضافة صنف: ابحث بالاسم أو الكود…';pi.autocomplete='off';
-  const dlp=el('datalist');dlp.id='oe-pl';(catalog||[]).forEach(pp=>{const op=el('option');op.value=pp.t;dlp.append(op)});
+  const ad=el('div','xf-add'),pi=el('input');pi.placeholder='إضافة صنف: الاسم التجاري، الاسم الأصلي أو الكود…';pi.autocomplete='off';
+  /* Vorschläge wie in der Hauptsuche: Handelsname, Originalname, Code */
+  const sw=el('div','oe-sw'),sug=el('div','oe-sug');sug.hidden=true;sw.append(pi,sug);const dlp=document.createDocumentFragment();
+  const oeKey=pp=>pp._ok||(pp._ok=fold([pp.t,pp.a||'',(pp.v||[]).map(v=>stem(String(v[1]||''))+' '+String(v[1]||'')).join(' ')].join(' ')));
+  let oeHits=[],oeSel=-1;
   const vs=el('select');vs.hidden=true;const qn=el('input');qn.type='number';qn.min='1';qn.value='1';qn.title='الكمية';const ab=el('button','btn','إضافة');ab.type='button';
-  let cp=null;pi.oninput=()=>{const t=pi.value.trim();cp=(catalog||[]).find(pp=>pp.t===t)||(catalog||[]).find(pp=>(pp.v||[]).some(v=>stem(String(v[1]||'')).toUpperCase()===t.toUpperCase()))||null;vs.textContent='';vs.hidden=!cp;
-    if(cp){if(pi.value!==cp.t)pi.value=cp.t;cp.v.forEach((v,k)=>{const o=el('option',null,String(v[0]||'').replace(/ \/ /g,' · ')+(v[2]!=null&&v[2]!==''?' · '+money(+v[2]):''));o.value=k;vs.append(o)})}};
+  let cp=null;const oePick=pp=>{cp=pp;sug.hidden=true;vs.textContent='';vs.hidden=!cp;if(!cp)return;pi.value=cp.t;
+      cp.v.forEach((v,k)=>{const o=el('option',null,String(v[0]||'').replace(/ \/ /g,' · ')+(v[2]!=null&&v[2]!==''?' · '+money(+v[2]):''));o.value=k;vs.append(o)});setTimeout(()=>{try{vs.focus()}catch(e){}},30)};
+  const oeDraw=()=>{sug.textContent='';oeHits.forEach((pp,i)=>{const b=el('button',i===oeSel?'on':'');b.type='button';b.append(el('b',null,pp.t));const sub=[pp.a||'',stem(String((pp.v[0]||[])[1]||''))].filter(Boolean).join(' · ');if(sub)b.append(el('small',null,sub));
+      b.onmousedown=e=>{e.preventDefault();oePick(pp)};sug.append(b)});if(!oeHits.length)sug.append(el('div','no','لا نتائج – جرّب الاسم الأصلي أو الكود'));sug.hidden=false};
+  pi.oninput=()=>{const t=pi.value.trim(),q=fold(t);cp=null;vs.hidden=true;vs.textContent='';if(q.length<2){sug.hidden=true;oeHits=[];return}
+    const ex=(catalog||[]).find(pp=>pp.t===t)||(catalog||[]).find(pp=>(pp.v||[]).some(v=>stem(String(v[1]||'')).toUpperCase()===t.toUpperCase()));
+    const w=q.split(/\s+/).filter(Boolean);oeHits=(catalog||[]).filter(pp=>{const k=oeKey(pp);return w.every(x=>k.includes(x))})
+      .sort((a,b)=>(fold(a.t).startsWith(q)?0:1)-(fold(b.t).startsWith(q)?0:1)||a.t.localeCompare(b.t)).slice(0,10);
+    if(ex&&!oeHits.includes(ex))oeHits.unshift(ex);oeSel=oeHits.length?0:-1;oeDraw()};
+  pi.onblur=()=>setTimeout(()=>{sug.hidden=true},150);pi.onfocus=()=>{if(oeHits.length&&!cp)sug.hidden=false};
   ab.onclick=()=>{if(!cp){pi.focus();return}const n=Math.max(1,Math.floor(+qn.value||1)),v=cp.v[+vs.value||0]||cp.v[0],pa=String(v[0]||'').split(' / ').map(x=>x.trim());
     const it=cp.oil?{t:cp.t,a:cp.a||'',oil:1,tier:pa.length>1?pa[pa.length-1]:'',code:stem(v[1]||''),size:pa[0]||'',sku:v[1]||'',price:+v[2]||0,q:n}:{t:cp.t,a:'',oil:0,tier:'',code:v[1]||'',size:String(v[0]||''),sku:v[1]||'',price:+v[2]||0,q:n};
     if(l.kg&&cp.oil){try{const kp=kgPrice(it);if(kp!=null)it.price=kp}catch(e){}}
     it._new=1;E.its.push(it);pi.value='';cp=null;vs.hidden=true;qn.value='1';draw();pi.focus()};
-  pi.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();ab.click()}};
-  ad.append(pi,vs,qn,ab);box.append(el('div','oe-addh','إضافة صنف · Artikel hinzufügen'),ad,dlp,sumL);
+  pi.onkeydown=e=>{if(!sug.hidden&&oeHits.length&&(e.key==='ArrowDown'||e.key==='ArrowUp')){e.preventDefault();oeSel=(oeSel+(e.key==='ArrowDown'?1:-1)+oeHits.length)%oeHits.length;oeDraw();return}
+    if(e.key==='Escape'){sug.hidden=true;return}
+    if(e.key==='Enter'){e.preventDefault();if(!cp&&oeHits[oeSel>=0?oeSel:0]){oePick(oeHits[oeSel>=0?oeSel:0]);return}ab.click()}};
+  ad.append(sw,vs,qn,ab);box.append(el('div','oe-addh','إضافة صنف · Artikel hinzufügen'),ad,dlp,sumL);
   const m=el('div','status');m.hidden=true;
   const sv=el('button','btn primary big','حفظ التعديلات'),cn=el('button','btn big','إلغاء');sv.type=cn.type='button';
   cn.onclick=()=>{omEd=null;renderOrderModal()};
