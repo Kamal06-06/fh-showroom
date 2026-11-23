@@ -547,14 +547,23 @@ else { Write-Host "A4-Drucker: $DRUCKERA4" -ForegroundColor Green }
 Write-Host 'Bereit. Etiketten und A4-Dokumente aus der App werden automatisch gedruckt. Dieses Fenster offen lassen.' -ForegroundColor Green
 
 # Nichts Altes drucken: Auftraege in den Windows-Warteschlangen, die nach 5 Minuten nicht gedruckt sind, werden geloescht
-# (laeuft ein Auftrag gerade, bekommt er 15 Minuten). Regal-Etiketten ausgenommen: dort ist jedes Etikett ein eigener Auftrag.
+# (laeuft ein Auftrag gerade, wird er nur geloescht, wenn 15 Minuten keine neue Seite kommt). Regal-Etiketten ausgenommen: dort ist jedes Etikett ein eigener Auftrag.
 function AlteAuftraegeLoeschen {
   foreach ($q in @($DRUCKERA4, $DRUCKER, $DRUCKERP, $DRUCKERK)) {
     if (-not $q) { continue }
     foreach ($job in @(Get-PrintJob -PrinterName $q -ErrorAction SilentlyContinue)) {
       if (-not $job) { continue }
       $min = ((Get-Date) - $job.SubmittedTime).TotalMinutes
-      if ($min -gt 15 -or ($min -gt 5 -and "$($job.JobStatus)" -notmatch 'Printing')) {
+      # Grosse Auftraege (z. B. 300+ Etiketten) drucken laenger als 15 Min.: ein Auftrag, der noch Seiten druckt, wird NIE geloescht.
+      # Geloescht wird nur, wenn er 5 Min. gar nicht anfaengt oder 15 Min. lang keine neue Seite mehr kommt (wirklich haengt).
+      $key = "$q|$($job.Id)"; $seiten = [int]$job.PagesPrinted
+      if (-not $script:JobFort) { $script:JobFort = @{} }
+      $f = $script:JobFort[$key]
+      if (-not $f -or $f.S -ne $seiten) { $script:JobFort[$key] = @{ S = $seiten; T = Get-Date }; $f = $script:JobFort[$key] }
+      $still = ((Get-Date) - $f.T).TotalMinutes
+      $druckt = "$($job.JobStatus)" -match 'Printing' -or $seiten -gt 0
+      if ((-not $druckt -and $min -gt 5) -or ($druckt -and $still -gt 15)) {
+        $script:JobFort.Remove($key)
         Remove-PrintJob -InputObject $job -ErrorAction SilentlyContinue
         Write-Host "$(Get-Date -Format HH:mm:ss)  zu alt, nicht gedruckt: $(Split-Path $job.DocumentName -Leaf)" -ForegroundColor Yellow
       }
