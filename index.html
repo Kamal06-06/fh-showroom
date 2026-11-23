@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="275">
+<meta name="fh-build" content="276">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -251,6 +251,17 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 .stepper i{font-style:normal;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line);font-weight:700;font-size:13px;background:var(--surface)}
 .stepper button.ok i{background:var(--navy);border-color:var(--navy);color:var(--gold)}.stepper button.ok{color:var(--ink)}
 .stepper button.need i{border-color:var(--gold);color:#a3460f}
+.stepper button.err i{border-color:#c0392b;background:#fdecea;color:#c0392b}.stepper button.err{color:#c0392b}
+label .rq{font-weight:700;margin-inline-start:4px}label .rq.req{color:#c0392b}label .rq.opt{color:var(--muted);font-weight:400;font-size:11px}
+.fld-err input,.fld-err select,.fld-err textarea{border-color:#c0392b!important;box-shadow:0 0 0 3px rgba(192,57,43,.13)!important}
+.lief.fld-err,.otype.fld-err,.results.fld-err,.labels.fld-err{outline:2px solid #c0392b;outline-offset:4px;border-radius:14px}
+.err-msg{color:#c0392b;font-size:12.5px;margin-top:5px;display:flex;gap:6px;align-items:center}.err-msg:before{content:'!';width:16px;height:16px;border-radius:50%;background:#c0392b;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;flex:none}
+.reqbox{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:6px 0 12px;background:var(--surface)}
+.reqbox h4{margin:0 0 8px;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}.reqbox h4 small{font-weight:400;color:var(--muted);font-size:12px}
+.reqbox ul{margin:0;padding:0;display:grid;gap:2px}.reqbox li{list-style:none;display:flex;gap:10px;align-items:center;padding:6px 4px;border-radius:8px;cursor:pointer;font-size:13.5px}
+.reqbox li:hover{background:var(--soft)}.reqbox li i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:700;border:1.5px solid var(--line);flex:none}
+.reqbox li.ok{color:var(--muted)}.reqbox li.ok i{background:#1e7a46;border-color:#1e7a46;color:#fff}.reqbox li.no i{border-color:#c0392b;color:#c0392b}
+.searchrow{flex-wrap:wrap}.searchrow .err-msg{flex-basis:100%}.reqbox li .go{margin-inline-start:auto;font-size:12px;color:#a3460f}.reqbox.done{border-color:#1e7a46;background:#f1f9f4}
 .sec-title h2 small.de,.panel h2 small.de{font-weight:400;font-size:12px;color:var(--muted)}
 .lief{margin-top:6px;display:grid;gap:8px}
 @media(min-width:760px){.lief{grid-template-columns:repeat(3,1fr)}}
@@ -2329,11 +2340,50 @@ document.querySelectorAll('#lief button').forEach(b=>b.onclick=()=>{draft.lief=d
 function updStepper(){const st=$('stepper');if(!st)return;const has=draft.items.length>0,adrOk=!!(draft.street&&draft.city);
   const S={1:!!String(draft.cust||'').trim(),2:has,3:has&&draft.items.every(i=>i.price!=null&&i.price!==''),4:draft.lief==='pickup'||((draft.lief==='de'||draft.lief==='ab')&&adrOk),5:false};
   st.querySelectorAll('button').forEach(b=>{const k=b.dataset.st;b.classList.toggle('ok',!!S[k]);b.classList.toggle('need',k==='4'&&has&&!S[4]||k==='3'&&has&&!S[3])});
-  const s5=$('sum5');if(s5)s5.textContent=has?draft.items.length+' صنف · المجموع '+$('sum').textContent+(draft.lief?' · '+LIEF[draft.lief]:''):'السلة فارغة'}
+  const s5=$('sum5');if(s5)s5.textContent=has?draft.items.length+' صنف · المجموع '+$('sum').textContent+(draft.lief?' · '+LIEF[draft.lief]:''):'السلة فارغة';
+  try{reqUI()}catch(e){console.warn('req',e)}}
+/* ---------- Pflichtfelder: klar markiert (*), Checkliste vor dem Senden, Fehler direkt am Feld ----------
+   Senden ins Lager: Kunde · Artikel mit Preis · Lieferart; bei Versand Straße, PLZ, Ort, Land; DHL Express zusätzlich Telefon.
+   Angebot: Kunde · Artikel mit Preis. */
+const REQ_F={cust:'cust',items:'q',price:'items',lief:'lief',street:'street',plz:'plz',city:'city',country:'country',phone:'cphone'};
+function reqList(mode){const ship=draft.lief==='de'||draft.lief==='ab',A=draft.dhlAdr,has=draft.items.length>0,v=id=>String(($(id)||{}).value||'').trim(),r=[];
+  r.push({k:'cust',t:'اسم العميل',ok:!!String(draft.cust||'').trim()});
+  r.push({k:'items',t:'صنف واحد على الأقل في السلة',ok:has});
+  if(has)r.push({k:'price',t:'سعر لكل صنف',ok:draft.items.every(i=>i.price!=null&&i.price!=='')});
+  if(mode==='offer')return r;
+  r.push({k:'lief',t:'طريقة التسليم: استلام من المستودع أو شحن',ok:!!draft.lief});
+  if(ship&&!A){r.push({k:'street',t:'الشارع ورقم المبنى',ok:!!v('street')});r.push({k:'plz',t:'الرمز البريدي',ok:!!v('plz')});r.push({k:'city',t:'المدينة',ok:!!v('city')});r.push({k:'country',t:'الدولة',ok:!!v('country')})}
+  if(draft.lief==='ab')r.push({k:'phone',t:'رقم هاتف العميل (مطلوب لـ DHL Express)',ok:!!String(draft.phone||'').trim()||!!(A&&A.tel)});
+  return r}
+function reqMark(id,mode){const lb=document.querySelector('label[for="'+id+'"]');if(!lb)return;let s=lb.querySelector('.rq');if(!s){s=el('span','rq');lb.append(s)}
+  s.className='rq'+(mode==='req'?' req':mode==='opt'?' opt':'');s.textContent=mode==='req'?'*':mode==='opt'?'(اختياري)':'';s.title=mode==='req'?'حقل مطلوب':''}
+function reqUI(){const ship=draft.lief==='de'||draft.lief==='ab';reqMark('cust','req');
+  ['street','plz','city','country'].forEach(id=>reqMark(id,ship?'req':draft.lief==='pickup'?'opt':''));reqMark('cphone',draft.lief==='ab'?'req':'opt');reqMark('cemail','opt');
+  const L=reqList('send'),miss=L.filter(x=>!x.ok),send=$('send'),has=draft.items.length>0;
+  if(send&&!send.dataset.busy){const base=editing?'حفظ التعديلات على الطلب':'إرسال إلى المستودع';send.textContent=!has?base:miss.length?'أكمل البيانات المطلوبة ('+miss.length+')':base+' ✓';send.classList.toggle('primary',!miss.length||!has)}
+  let box=$('req-box');const p5=$('st-5');if(!box&&p5){box=el('div','reqbox');box.id='req-box';const sb=p5.querySelector('.sumbar');p5.insertBefore(box,sb?sb.nextSibling:$('offer'))}
+  if(box){box.textContent='';box.classList.toggle('done',!miss.length);const h=el('h4');h.append(miss.length?'قبل الإرسال إلى المستودع':'✓ كل البيانات المطلوبة مكتملة',el('small',null,(L.length-miss.length)+' / '+L.length+' · Pflichtangaben'));box.append(h);
+    const ul=el('ul');L.forEach(x=>{const li=el('li',x.ok?'ok':'no');li.append(el('i',null,x.ok?'✓':'!'),el('span',null,x.t));if(!x.ok)li.append(el('span','go','أكمل ←'));li.onclick=()=>reqGo(x.k,!x.ok);ul.append(li)});box.append(ul)}
+  /* Schritte: Fehler (rot) nur nach einem Sendeversuch */
+  const tried=document.querySelector('.fld-err');const st=$('stepper');if(st){const S={1:['cust'],2:['items'],3:['price'],4:['lief','street','plz','city','country','phone']};
+    st.querySelectorAll('button').forEach(b=>{const ks=S[b.dataset.st]||[];b.classList.toggle('err',!!tried&&miss.some(m=>ks.includes(m.k)))})}
+  try{updSendbar()}catch(e){}}
+function reqField(k){const id=REQ_F[k],e=$(id);if(!e)return null;if(['street','plz','city','country','phone'].includes(k)&&e.offsetParent===null){try{const c=findCust(draft.cust);if(c){custEdit=true;custCard(c)}else{$('cust-det').hidden=false}}catch(_){}}return e}
+function reqGo(k,err){const e=reqField(k);if(!e)return;e.scrollIntoView({behavior:'smooth',block:'center'});if(/^(INPUT|SELECT)$/.test(e.tagName))setTimeout(()=>{try{e.focus({preventScroll:true})}catch(_){}},350);if(err)reqShowErr(reqList('send').filter(x=>!x.ok&&x.k===k),true)}
+const REQ_MSG={cust:'اكتب اسم العميل أو اختره من القائمة',items:'أضف صنفاً واحداً على الأقل',price:'بعض الأصناف بدون سعر – أدخل السعر',lief:'اختر طريقة التسليم: استلام من المستودع أو DHL',street:'الشارع ورقم المبنى مطلوبان للشحن',plz:'الرمز البريدي مطلوب',city:'المدينة مطلوبة',country:'اختر الدولة',phone:'رقم الهاتف مطلوب لشحن DHL Express'};
+function reqClear(){document.querySelectorAll('.fld-err').forEach(x=>x.classList.remove('fld-err'));document.querySelectorAll('.err-msg').forEach(x=>x.remove())}
+function reqShowErr(miss,noScroll){if(!noScroll)reqClear();let first=null;
+  miss.forEach(m=>{const e=reqField(m.k);if(!e)return;const w=/^(INPUT|SELECT)$/.test(e.tagName)?(e.closest('.custbox,.cd-g>div,div')||e.parentNode):e;
+    if(w.classList.contains('fld-err'))return;w.classList.add('fld-err');const msg=el('div','err-msg',REQ_MSG[m.k]||'حقل مطلوب');msg.dataset.k=m.k;(e.tagName==='INPUT'||e.tagName==='SELECT'?w:e.parentNode).insertBefore(msg,e.tagName==='INPUT'||e.tagName==='SELECT'?null:e.nextSibling);if(!first)first=e});
+  try{reqUI()}catch(_){}if(first&&!noScroll){first.scrollIntoView({behavior:'smooth',block:'center'});if(/^(INPUT|SELECT)$/.test(first.tagName))setTimeout(()=>{try{first.focus({preventScroll:true})}catch(_){}},400)}}
+/* Fehler verschwinden, sobald das Feld ausgefüllt ist */
+document.addEventListener('input',e=>{const w=e.target.closest&&e.target.closest('.fld-err');if(w&&String(e.target.value||'').trim()){w.classList.remove('fld-err');w.querySelectorAll('.err-msg').forEach(x=>x.remove())}setTimeout(()=>{try{reqUI()}catch(_){}},60)},true);
+document.addEventListener('change',()=>setTimeout(()=>{try{reqUI()}catch(_){}},60),true);
+document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#lief button,#otype button')){setTimeout(()=>{const l=$('lief');if(draft.lief&&l&&l.classList.contains('fld-err')){l.classList.remove('fld-err');const m=l.parentNode.querySelector('.err-msg[data-k="lief"]');if(m)m.remove()}try{reqUI()}catch(_){}},80)}},true);
 document.querySelectorAll('#stepper button').forEach(b=>b.onclick=()=>{const p=$('st-'+b.dataset.st);if(p)p.scrollIntoView({behavior:'smooth',block:'start'})});
 ['street','city','plz','cust'].forEach(id=>{const e=$(id);if(e)e.addEventListener('input',()=>{if(id!=='cust'&&draft.dhlAdr){draft.dhlAdr=null;saveDraft()}setTimeout(()=>{updStepper();if(id==='cust')try{kkLiefChips()}catch(e){}},50)})});
 setTimeout(()=>{try{liefUI();updStepper()}catch(e){}},300);
-function saveDraft(){draft.at=Date.now();LS.set('draft3',draft);$('send').disabled=!draft.items.length||!db;$('offer').disabled=!draft.items.length}
+function saveDraft(){draft.at=Date.now();LS.set('draft3',draft);$('send').disabled=!draft.items.length||!db;$('offer').disabled=!draft.items.length;try{reqUI()}catch(e){}}
 /* Mengen-Staffeln intern: Varianten, die sich nur in der Menge unterscheiden (Muster / Karton … / N Stück), werden zu EINEM Eintrag.
    Im Auftrag wählt man die Packung; bei Karton-Staffeln gilt der Preis automatisch nach der Kartonzahl. */
 const QRX=/^(muster\b|karton\b|\d[\d.]*\s*st(ü|u)ck\b)/i;
@@ -3866,8 +3916,7 @@ function draftRec(){return {customer:draft.cust.trim(),note:(draft.note||'').tri
 function setEditOffer(o){editOffer=o?{id:o.id,at:o.at,customer:o.customer}:null;LS.set('editOffer',editOffer);
   $('offer').textContent=editOffer?'📄 حفظ التعديلات على عرض السعر':'📄 حفظ كعرض سعر (بدون تجهيز)'}
 $('offer').onclick=async()=>{
-  if(!draft.items.length)return;
-  if(!draft.cust.trim()){sendStatus('اكتب اسم العميل أولاً.',true);$('cust').focus();return}
+  {const miss=reqList('offer').filter(x=>!x.ok);if(miss.length){reqShowErr(miss);sendStatus('⚠️ أكمل البيانات المطلوبة ('+miss.length+') قبل حفظ عرض السعر.',true);return}}
   if(editing){sendStatus('أنت تعدّل طلباً في المستودع — احفظ التعديلات أو ألغِها أولاً.',true);return}
   {const w=preCheck();if(w.length&&!(await confirmChecks(w,'الحفظ')))return}
   const b=$('offer');b.disabled=true;
@@ -3922,9 +3971,6 @@ function renderOffers(){
 $('h-off').onclick=()=>{drawer(false);offMsg='';renderOffers()};
 /* Prüfung vor dem Senden: typische Fehler abfangen, bevor der Auftrag ins Lager geht */
 function preCheck(){const w=[],its=draft.items;
-  if(!draft.lief)w.push({t:'لم تُحدَّد طريقة التسليم',d:'الخطوة 1: نوع الطلب – العميل في الصالة أو طلب عميل للشحن'});
-  else if(draft.lief!=='pickup'&&!(draft.street&&draft.city))w.push({t:'عنوان الشحن ناقص',d:'الخطوة 4: الشارع ورقم المبنى والرمز البريدي والمدينة'});
-  const noP=its.filter(i=>i.price==null||i.price==='');if(noP.length)w.push({t:'⛔ أصناف بدون سعر ('+noP.length+')',d:noP.map(i=>i.t+(i.size?' · '+i.size:'')).slice(0,5).join('، ')});
   its.forEach(i=>{if(i.grp&&/^muster/i.test(i.gk||'')&&(+i.q||1)>=10)w.push({t:'عينات كثيرة: '+i.t,d:(+i.q||1)+' × Muster (1 Set) — هل تقصد كرتون؟'})});
   const seen={};its.forEach(i=>{const k=i.t+'|'+(i.tier||'')+'|'+(i.size||'')+'|'+(i.gk||'')+'|'+(i.st&&i.st.id||'');if(seen[k])w.push({t:'صنف مكرر في سطرين',d:i.t+' '+(i.tier||'')+' '+(i.size||'')});seen[k]=1});
   its.forEach(i=>{if(isOil(i)&&!i.unit&&(+i.q||1)>=20)w.push({t:'كمية كبيرة: '+i.t,d:(+i.q||1)+' × '+(i.size||'')+' — تأكد من العدد'})});
@@ -3956,8 +4002,8 @@ function confirmChecks(w,label){return new Promise(ok=>{openSheet('⚠️ تحق
   const row=el('div','row grow');const back=el('button','btn big','↩︎ رجوع للتعديل');back.onclick=()=>{closeSheet();ok(false)};
   const go=el('button','btn primary big',label+' رغم ذلك');go.onclick=()=>{closeSheet();ok(true)};row.append(back,go);b.append(row)})})}
 $('send').onclick=async()=>{
-  if(!db||!draft.items.length)return;
-  if(!draft.cust.trim()){sendStatus('اكتب اسم العميل أولاً.',true);$('cust').focus();return}
+  if(!db)return;
+  {const miss=reqList('send').filter(x=>!x.ok);if(miss.length){reqShowErr(miss);sendStatus('⚠️ أكمل البيانات المطلوبة ('+miss.length+') قبل الإرسال إلى المستودع.',true);return}}
   {const w=preCheck();if(w.length&&!(await confirmChecks(w,'الإرسال')))return}
   $('send').disabled=true;
   const offId=editOffer&&editOffer.id,offAt=editOffer&&editOffer.at,was0=!!editing;
