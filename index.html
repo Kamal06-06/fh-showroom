@@ -3026,35 +3026,46 @@ const pkQual=t=>{const q=clpQual(t);if(q)return q.n;const s=String(t||'').trim()
 const pkHeute=()=>new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Europe/Berlin'});
 /* Charge je Position: im Auftrag gespeichert → aktive Werks-Charge (FIFO) → Charge aus den CLP-Daten */
 function pkCharge(l,it,i){const ix=it._ix!=null?it._ix:i,lo=(l.lots||{})[ix];if(lo&&lo.b)return latin(String(lo.b));const n=lotNow(it);return n&&n.b?latin(n.b):''}
+/* QR „Nachbestellen“: Shop-Suche nach dem Stammcode (bis SH) → genau dieses Duftöl. Matrix als 0/1-Text für Druck-PC und PDF */
+function pkQr(code){const st=String(code||'').toUpperCase().replace(/^(.*?-SH)(-.*)?$/,'$1');if(!st||!window.qrcode)return '';
+  const q=qrcode(0,'M');q.addData('https://fragranceshub.de/search?q='+encodeURIComponent(st)+'&utm_source=etikett');q.make();const n=q.getModuleCount();let t='';
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)t+=q.isDark(r,c)?'1':'0';return t}
 function pkLabels(l){const oils=(l.items||[]).filter(isOil),list=oils.some(isProbe)?oils.filter(isProbe):oils,out=[],nr=latin(ordNr(l)),dat=pkHeute();
   list.forEach(it=>{const i=(l.items||[]).indexOf(it),c=pkFam(it)[1],name=latin(clpName(it))||'-',code=latin(it.code||it.sku||'').toUpperCase(),q=pkQual(it.tier),g=sizeG(it.size),ch=pkCharge(l,it,i);
     const pill=latin(isProbe(it)||!g?'Duftöl-Probe'+(g?' · '+String(g).replace('.',',')+' g':''):'Duftöl · '+(g>=1000?String(g/1000).replace('.',',')+' kg':g+' g'));
-    for(let k=0;k<(it.unit==='kg'?1:Math.max(1,it.q|0));k++)out.push({c,name,code,q,pill,nr,dat,ch})});
+    const qr=pkQr(code);
+    for(let k=0;k<(it.unit==='kg'?1:Math.max(1,it.q|0));k++)out.push({c,name,code,q,pill,nr,dat,ch,qr})});
   if(!out.length)throw new Error('لا توجد زيوت في هذا الطلب');return out}
 const pkDoc=()=>new window.jspdf.jsPDF({unit:'mm',format:[51,30],orientation:'landscape',compress:true});
-/* Design „Minimal Luxe“ (11.2026): weiß, doppelter Goldrahmen, Name in Serifenschrift, Rückverfolgung (Charge, Abfülldatum, Auftrag) */
+/* Design „Minimal Luxe + QR“ (24.11.2026): weiß, doppelter Goldrahmen; links Name/Qualität/Code/Charge, rechts QR „Nachbestellen / Reorder“ */
 const PK_GOLD=[184,145,47],PK_INK=[34,34,34],PK_GRAU=[90,90,90];
 function pkSpaced(doc,t,cx,y,sp){const w=doc.getTextWidth(t)+sp*(t.length-1);let x=cx-w/2;for(const ch of t){doc.text(ch,x,y);x+=doc.getTextWidth(ch)+sp}}
-function pkDraw(doc,L){const W=51,H=30,cx=W/2,MW=40;
+function pkDraw(doc,L){const W=51,H=30,mitQr=!!L.qr,cx=mitQr?19:W/2,MW=mitQr?31:40;
   doc.setDrawColor(...PK_GOLD);doc.setLineWidth(0.18);doc.rect(1.6,1.6,W-3.2,H-3.2);doc.setLineWidth(0.09);doc.rect(2.3,2.3,W-4.6,H-4.6);
-  doc.setTextColor(...PK_GOLD);doc.setFont('times','bold');doc.setFontSize(6);pkSpaced(doc,'FRAGRANCE HUB',cx,5.5,0.32);
-  doc.setFont('times','normal');doc.setFontSize(3.6);pkSpaced(doc,'GERMANY',cx,7.3,0.42);
+  doc.setTextColor(...PK_GOLD);doc.setFont('times','bold');doc.setFontSize(6);pkSpaced(doc,'FRAGRANCE HUB',cx,5.4,0.32);
+  doc.setFont('times','normal');doc.setFontSize(3.6);pkSpaced(doc,'GERMANY',cx,7.4,0.42);
   doc.setTextColor(...PK_INK);doc.setFont('times','bold');
-  const f=fit(doc,L.name,MW,5.8,2,10,5.5);doc.setFontSize(f.fs);
-  if(f.lines.length>1){f.lines.forEach((ln,i)=>doc.text(ln,cx,10.4+i*f.lh,{align:'center'}))}else doc.text(f.lines[0],cx,12.4,{align:'center'});
-  doc.setDrawColor(...PK_GOLD);doc.setLineWidth(0.15);doc.line(cx-6,14.4,cx+6,14.4);
+  const f=fit(doc,L.name,MW,4.8,2,9.5,5);doc.setFontSize(f.fs);
+  if(f.lines.length>1){f.lines.forEach((ln,i)=>doc.text(ln,cx,10.6+i*f.lh,{align:'center'}))}else doc.text(f.lines[0],cx,12.2,{align:'center'});
+  doc.setDrawColor(...PK_GOLD);doc.setLineWidth(0.15);doc.line(cx-5,14,cx+5,14);
   doc.setFont('helvetica','normal');doc.setTextColor(...PK_GRAU);const al=[L.q,L.code].filter(Boolean).join('  ·  ').toUpperCase();
-  let fs=4.4;for(;fs>3.4;fs-=0.2){doc.setFontSize(fs);if(doc.getTextWidth(al)<=MW)break}doc.text(al,cx,17.1,{align:'center'});
-  doc.setFont('helvetica','bold');doc.setTextColor(...PK_INK);doc.setFontSize(4.8);doc.text(String(L.pill||'').toUpperCase().replace(' G',' g'),cx,19.9,{align:'center'});
-  doc.setDrawColor(215,215,215);doc.setLineWidth(0.08);doc.line(6,21.5,W-6,21.5);
+  let fs=4.2;for(;fs>3.2;fs-=0.2){doc.setFontSize(fs);if(doc.getTextWidth(al)<=MW)break}doc.text(al,cx,16.5,{align:'center'});
+  doc.setFont('helvetica','bold');doc.setTextColor(...PK_INK);doc.setFontSize(4.6);doc.text(String(L.pill||'').toUpperCase().replace(' G',' g'),cx,19.1,{align:'center'});
+  doc.setDrawColor(215,215,215);doc.setLineWidth(0.08);doc.line(cx-MW/2+2,21,cx+MW/2-2,21);
   doc.setFont('helvetica','normal');doc.setTextColor(...PK_GRAU);
   const z1=[L.ch?'Charge '+L.ch:'',L.dat?'Abgefüllt '+L.dat:''].filter(Boolean).join('  ·  '),z2=L.nr?'Auftrag '+L.nr:'';
-  [[z1,23.6],[z2,25.7]].forEach(([t,y])=>{if(!t)return;let s2=3.6;for(;s2>2.8;s2-=0.1){doc.setFontSize(s2);if(doc.getTextWidth(t)<=MW)break}doc.text(t,cx,y,{align:'center'})})}
+  [[z1,23.1],[z2,25]].forEach(([t,y])=>{if(!t)return;let s2=3.4;for(;s2>2.6;s2-=0.1){doc.setFontSize(s2);if(doc.getTextWidth(t)<=MW)break}doc.text(t,cx,y,{align:'center'})});
+  if(!mitQr)return;
+  doc.setDrawColor(227,214,176);doc.setLineWidth(0.1);doc.line(35.4,5.5,35.4,24.5);
+  const n=Math.round(Math.sqrt(L.qr.length)),qs=11.4,m=qs/n,qx=36.9,qy=6.8;doc.setFillColor(34,34,34);
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(L.qr[r*n+c]==='1')doc.rect(qx+c*m,qy+r*m,m+0.01,m+0.01,'F');
+  doc.setFont('helvetica','bold');doc.setTextColor(...PK_GOLD);doc.setFontSize(2.8);doc.text('NACHBESTELLEN',42.6,20.6,{align:'center',charSpace:0.04});
+  doc.setFont('helvetica','normal');doc.setTextColor(138,138,138);doc.setFontSize(2.7);doc.text('Reorder',42.6,22.2,{align:'center'})}
 function probeColorPdf(l){const doc=pkDoc();pkLabels(l).forEach((L,i)=>{if(i)doc.addPage([51,30],'landscape');pkDraw(doc,L)});return doc}
 async function pkPrint(l,btn){const o=btn.innerHTML;btn.disabled=true;btn.textContent='جاري الإرسال…';
   try{if(!window.jspdf)throw new Error('تعذّر تحميل مولّد PDF');const lo=labOrder(l);if(lo._part&&!lo.items.length)throw new Error('اختر صنفاً واحداً على الأقل من «اختيار الأصناف للملصقات»');
     try{await clpBasis()}catch(_){}const labs=pkLabels(lo),base=fname('kpr',lo).replace(/\.pdf$/i,'');druckStatus();
-    for(let i=0;i<labs.length;i++){const L=labs[i];await druckQ('K-'+base+'-'+String(i+1).padStart(3,'0')+'.json',await blob64(new Blob([JSON.stringify([{c:L.c,name:L.name,code:L.code,q:L.q,pill:L.pill,nr:L.nr,dat:L.dat,ch:L.ch,v:2}])],{type:'application/json'})));if(i%10===9)btn.textContent='جاري الإرسال… '+(i+1)+' / '+labs.length}
+    for(let i=0;i<labs.length;i++){const L=labs[i];await druckQ('K-'+base+'-'+String(i+1).padStart(3,'0')+'.json',await blob64(new Blob([JSON.stringify([{c:L.c,name:L.name,code:L.code,q:L.q,pill:L.pill,nr:L.nr,dat:L.dat,ch:L.ch,qr:L.qr,v:3}])],{type:'application/json'})));if(i%10===9)btn.textContent='جاري الإرسال… '+(i+1)+' / '+labs.length}
     druckMeldung(btn,o,'✓ أُرسل '+labs.length+' ملصق عينة إلى Epson C4000',druckSt.v)}
   catch(e){druckMeldung(btn,o,'تعذّر الإرسال إلى Epson C4000: '+(e.message||e),null,true)}}
 const p2=n=>String(n).padStart(2,'0');

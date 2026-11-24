@@ -240,7 +240,7 @@ $fhWpfRefs = @('PresentationCore','PresentationFramework','WindowsBase','ReachFr
 Add-Type -IgnoreWarnings -ReferencedAssemblies ($fhWpfRefs + @('System.Xml')) -TypeDefinition @"
 using System; using System.Collections.Generic; using System.Globalization; using System.IO; using System.Threading;
 using System.Windows; using System.Windows.Media; using System.Windows.Media.Imaging; using System.Windows.Documents; using System.Printing; using System.Windows.Xps;
-public class FhXEtikett { public int R, G, B; public string Name = "", Code = "", Q = "", Pill = "", Nr = "", Dat = "", Ch = ""; public byte[] Bild; public double W, H; }
+public class FhXEtikett { public int R, G, B; public string Name = "", Code = "", Q = "", Pill = "", Nr = "", Dat = "", Ch = "", Qr = ""; public byte[] Bild; public double W, H; }
 public class FhXEl : FrameworkElement {
   public FhXEtikett L; public double PW, PH;
   const double MM = 96.0 / 25.4, PT = 0.3528;
@@ -270,28 +270,36 @@ public class FhXEl : FrameworkElement {
       var bi = new BitmapImage(); bi.BeginInit(); bi.CacheOption = BitmapCacheOption.OnLoad; bi.StreamSource = new MemoryStream(L.Bild); bi.EndInit(); bi.Freeze();
       dc.DrawImage(bi, new Rect(0, 0, W, H)); return;
     }
-    /* Design "Minimal Luxe" (11.2026): weiss, doppelter Goldrahmen, Name in Serifenschrift, Charge/Abfuelldatum/Auftrag - wie in der App (pkDraw) */
-    const double MW2 = 40, C2 = W / 2;
+    /* Design "Minimal Luxe + QR" (24.11.2026): links Name/Qualitaet/Code/Charge, rechts QR "Nachbestellen / Reorder" - wie in der App (pkDraw) */
+    bool mitQr = !string.IsNullOrEmpty(L.Qr); double C2 = mitQr ? 19 : W / 2, MW2 = mitQr ? 31 : 40;
     var gold = new SolidColorBrush(Color.FromRgb(184, 145, 47)); var dunkel = new SolidColorBrush(Color.FromRgb(34, 34, 34)); var grau = new SolidColorBrush(Color.FromRgb(90, 90, 90));
     dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, W, H));
     dc.DrawRectangle(null, new Pen(gold, 0.18), new Rect(1.6, 1.6, W - 3.2, H - 3.2));
     dc.DrawRectangle(null, new Pen(gold, 0.09), new Rect(2.3, 2.3, W - 4.6, H - 4.6));
-    Spaced(dc, "FRAGRANCE HUB", "Times New Roman", true, 6, gold, C2, 5.5, 0.32);
-    Spaced(dc, "GERMANY", "Times New Roman", false, 3.6, gold, C2, 7.3, 0.42);
-    List<string> zeilen = null; double fs = 10, lh = 0;
-    for (fs = 10; fs >= 5.5; fs -= 0.5) { zeilen = Umbruch(L.Name, "Times New Roman", true, fs, MW2); lh = fs * PT * 1.12; bool ok = zeilen.Count <= 2 && zeilen.Count * lh <= 5.8; foreach (var z in zeilen) if (Ft(z, "Times New Roman", true, fs, dunkel).WidthIncludingTrailingWhitespace > MW2 + 0.01) ok = false; if (ok) break; }
-    if (fs < 5.5) { fs = 5.5; lh = fs * PT * 1.12; zeilen = Umbruch(L.Name, "Times New Roman", true, fs, MW2); if (zeilen.Count > 2) zeilen = zeilen.GetRange(0, 2); }
-    if (zeilen.Count > 1) { for (int i = 0; i < zeilen.Count; i++) Txt(dc, Ft(zeilen[i], "Times New Roman", true, fs, dunkel), C2, 10.4 + i * lh); }
-    else if (zeilen.Count == 1) Txt(dc, Ft(zeilen[0], "Times New Roman", true, fs, dunkel), C2, 12.4);
-    dc.DrawLine(new Pen(gold, 0.15), new Point(C2 - 6, 14.4), new Point(C2 + 6, 14.4));
+    Spaced(dc, "FRAGRANCE HUB", "Times New Roman", true, 6, gold, C2, 5.4, 0.32);
+    Spaced(dc, "GERMANY", "Times New Roman", false, 3.6, gold, C2, 7.4, 0.42);
+    List<string> zeilen = null; double fs = 9.5, lh = 0;
+    for (fs = 9.5; fs >= 5; fs -= 0.5) { zeilen = Umbruch(L.Name, "Times New Roman", true, fs, MW2); lh = fs * PT * 1.12; bool ok = zeilen.Count <= 2 && zeilen.Count * lh <= 4.8; foreach (var z in zeilen) if (Ft(z, "Times New Roman", true, fs, dunkel).WidthIncludingTrailingWhitespace > MW2 + 0.01) ok = false; if (ok) break; }
+    if (fs < 5) { fs = 5; lh = fs * PT * 1.12; zeilen = Umbruch(L.Name, "Times New Roman", true, fs, MW2); if (zeilen.Count > 2) zeilen = zeilen.GetRange(0, 2); }
+    if (zeilen.Count > 1) { for (int i = 0; i < zeilen.Count; i++) Txt(dc, Ft(zeilen[i], "Times New Roman", true, fs, dunkel), C2, 10.6 + i * lh); }
+    else if (zeilen.Count == 1) Txt(dc, Ft(zeilen[0], "Times New Roman", true, fs, dunkel), C2, 12.2);
+    dc.DrawLine(new Pen(gold, 0.15), new Point(C2 - 5, 14), new Point(C2 + 5, 14));
     string al = ((L.Q ?? "") + ((L.Q ?? "").Length > 0 && (L.Code ?? "").Length > 0 ? "  ·  " : "") + (L.Code ?? "")).ToUpper();
-    double afs = 4.4; for (; afs > 3.4; afs -= 0.2) if (Ft(al, "Arial", false, afs, grau).WidthIncludingTrailingWhitespace <= MW2) break;
-    Txt(dc, Ft(al, "Arial", false, afs, grau), C2, 17.1);
-    Txt(dc, Ft((L.Pill ?? "").ToUpper().Replace(" G", " g"), "Arial", true, 4.8, dunkel), C2, 19.9);
-    dc.DrawLine(new Pen(new SolidColorBrush(Color.FromRgb(215, 215, 215)), 0.08), new Point(6, 21.5), new Point(W - 6, 21.5));
+    double afs = 4.2; for (; afs > 3.2; afs -= 0.2) if (Ft(al, "Arial", false, afs, grau).WidthIncludingTrailingWhitespace <= MW2) break;
+    Txt(dc, Ft(al, "Arial", false, afs, grau), C2, 16.5);
+    Txt(dc, Ft((L.Pill ?? "").ToUpper().Replace(" G", " g"), "Arial", true, 4.6, dunkel), C2, 19.1);
+    dc.DrawLine(new Pen(new SolidColorBrush(Color.FromRgb(215, 215, 215)), 0.08), new Point(C2 - MW2 / 2 + 2, 21), new Point(C2 + MW2 / 2 - 2, 21));
     string z1 = ((L.Ch ?? "").Length > 0 ? "Charge " + L.Ch : "") + ((L.Ch ?? "").Length > 0 && (L.Dat ?? "").Length > 0 ? "  ·  " : "") + ((L.Dat ?? "").Length > 0 ? "Abgefüllt " + L.Dat : "");
     string z2 = (L.Nr ?? "").Length > 0 ? "Auftrag " + L.Nr : "";
-    Klein(dc, z1, grau, C2, 23.6, MW2); Klein(dc, z2, grau, C2, 25.7, MW2);
+    Klein(dc, z1, grau, C2, 23.1, MW2); Klein(dc, z2, grau, C2, 25.0, MW2);
+    if (!mitQr) return;
+    dc.DrawLine(new Pen(new SolidColorBrush(Color.FromRgb(227, 214, 176)), 0.1), new Point(35.4, 5.5), new Point(35.4, 24.5));
+    int n = (int)Math.Round(Math.Sqrt(L.Qr.Length)); double qs = 11.4, m = qs / n, qx = 36.9, qy = 6.8;
+    var geo = new StreamGeometry();
+    using (var g = geo.Open()) { for (int r = 0; r < n; r++) for (int c = 0; c < n; c++) if (r * n + c < L.Qr.Length && L.Qr[r * n + c] == '1') { double x = qx + c * m, y = qy + r * m; g.BeginFigure(new Point(x, y), true, true); g.LineTo(new Point(x + m + 0.01, y), false, false); g.LineTo(new Point(x + m + 0.01, y + m + 0.01), false, false); g.LineTo(new Point(x, y + m + 0.01), false, false); } }
+    geo.Freeze(); dc.DrawGeometry(dunkel, null, geo);
+    Spaced(dc, "NACHBESTELLEN", "Arial", true, 2.8, gold, 42.6, 20.6, 0.04);
+    Txt(dc, Ft("Reorder", "Arial", false, 2.7, new SolidColorBrush(Color.FromRgb(138, 138, 138))), 42.6, 22.2);
   }
   static void Klein(DrawingContext dc, string t, Brush br, double cx, double y, double mw) { if (string.IsNullOrEmpty(t)) return; double s = 3.6; for (; s > 2.8; s -= 0.1) if (Ft(t, "Arial", false, s, br).WidthIncludingTrailingWhitespace <= mw) break; Txt(dc, Ft(t, "Arial", false, s, br), cx, y); }
   static void Spaced(DrawingContext dc, string t, string f, bool b, double pt, Brush br, double cx, double baseline, double sp) {
@@ -343,7 +351,7 @@ function KJsonDruck($datei, $name, $drucker) {
     foreach ($d in @($daten)) {
       $e = New-Object FhXEtikett
       $e.R = [int]$d.c[0]; $e.G = [int]$d.c[1]; $e.B = [int]$d.c[2]
-      $e.Name = [string]$d.name; $e.Code = [string]$d.code; $e.Q = [string]$d.q; $e.Pill = [string]$d.pill; $e.Nr = [string]$d.nr; $e.Dat = [string]$d.dat; $e.Ch = [string]$d.ch
+      $e.Name = [string]$d.name; $e.Code = [string]$d.code; $e.Q = [string]$d.q; $e.Pill = [string]$d.pill; $e.Nr = [string]$d.nr; $e.Dat = [string]$d.dat; $e.Ch = [string]$d.ch; if ($d.qr) { $e.Qr = [string]$d.qr }
       $xl.Add($e)
     }
     $r = [FhXpsDruck]::Drucken($drucker, $xl, $name)
