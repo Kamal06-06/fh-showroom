@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="281">
+<meta name="fh-build" content="283">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -1427,8 +1427,8 @@ function errLog(m,where){try{m=String(m||'').slice(0,400);if(!m||!PIN||IN_GAS)re
   setTimeout(()=>{srv1('err_log',JSON.stringify({m,w:String(where||'').slice(0,120),p:page+(sh&&!sh.hidden&&st?' › '+st.textContent.slice(0,40):''),b})).catch(()=>{})},50)}catch(e){}}
 function forceLogout(){if(window._fhOut)return;window._fhOut=1;try{sessionStorage.clear()}catch(e){}LS.set('pin','');LS.set('me',{user:'',admin:false});IDB.set('liste',null).finally(()=>location.reload())}
 async function srv(action,a,b,c,x){try{return await srv0(action,a,b,c,x)}catch(e){const m=String(e&&e.message||e);if(/^(PIN|GERAET_WARTET|GERAET_GESPERRT)$/.test(m)&&PIN&&LS.get('pin','')===PIN)forceLogout();
-  else if(!e.net&&!/^(PIN|GERAET_|NUR_INHABER|SO_PW|SO_KEIN|KAP_)/.test(m)&&action!=='err_log')errLog('Server '+action+': '+m,'srv');throw e}}
-async function srv0(action,a,b,c,x){let last;for(let i=0;i<4;i++){try{return await srv1(action,a,b,c,x)}catch(e){last=e;if(!/lock|تأمين|sperr|time[d ]?out|zeitüber|exceeded|too many|Unexpected token|NET 5\d\d/i.test(String(e.message||e))||i===3)throw e;await new Promise(r=>setTimeout(r,2500*(i+1)))}}throw last}
+  else if(!e.net&&!/^(PIN|GERAET_|NUR_INHABER|SO_PW|SO_KEIN|KAP_)/.test(m)&&!/invoked too many times|zu häufig aufgerufen/i.test(m)&&action!=='err_log')errLog('Server '+action+': '+m,'srv');throw e}}
+async function srv0(action,a,b,c,x){let last;for(let i=0;i<4;i++){try{return await srv1(action,a,b,c,x)}catch(e){last=e;const em=String(e.message||e);if(/invoked too many times|zu häufig aufgerufen|Bandbreite|quota/i.test(em)||!/lock|تأمين|sperr|time[d ]?out|zeitüber|exceeded|too many|Unexpected token|NET 5\d\d/i.test(em)||i===3)throw e;await new Promise(r=>setTimeout(r,2500*(i+1)))}}throw last}
 let db=null, mcp=null, dl=null, catalog=[], lists=[], lastSent=null, editing=null;
 let waNum=LS.get('wa','');
 let customers=[], debts=[], offers=[], focusId=null, imgs={};let editOffer=LS.get('editOffer',null);
