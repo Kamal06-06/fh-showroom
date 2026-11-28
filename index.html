@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<meta name="fh-build" content="284">
+<meta name="fh-build" content="285">
 <meta name="fh-ui" content="v2">
 <meta name="robots" content="noindex, nofollow">
 <title>Fragrance Hub Showroom</title>
@@ -324,6 +324,19 @@ label .rq{font-weight:700;margin-inline-start:4px}label .rq.req{color:#c0392b}la
 :is(#lists,#om-b) .card .acts .tog{grid-column:1/-1;order:-1}
 :is(#lists,#om-b) .irow{grid-template-columns:auto minmax(0,1fr) auto;gap:8px}
 :is(#lists,#om-b) .irow .pr2{display:none}
+:is(#lists,#om-b) .irow .irt{display:flex;flex-direction:column;align-items:flex-end;gap:5px;text-align:right}
+#om-b .irow .irt .isz:empty{display:none}
+#om-b .ipr{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25;white-space:nowrap}
+#om-b .ipr b{font-size:15px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+#om-b .ipr small{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+#om-b .ipr.none small{color:#b45309;font-weight:600}
+#om-b .om-sum{display:block;margin:12px 2px 4px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
+#om-b .om-sum .os-r{background:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;margin:0!important;display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:13.5px;color:var(--muted)}
+#om-b .om-sum .os-r b{color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+#om-b .om-sum .os-r.os-rb b{color:var(--ok)}
+#om-b .om-sum .os-r.os-tot{border-top:1px solid var(--line)!important;margin-top:4px;padding-top:7px;font-size:15px;color:var(--ink);font-weight:700}
+#om-b .om-sum .os-r.os-tot b{font-size:17px}
+#om-b .om-sum .miss{font-size:12.5px;color:#b45309;margin-top:4px}
 :is(#lists,#om-b) .irow .isz:empty{display:none}
 :is(#lists,#om-b) .irow .nm{font-size:14.5px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 :is(#lists,#om-b) .irow .cd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px}
@@ -4622,7 +4635,7 @@ function buildCardV2(l){omCss();
   /* ---------- 📦 التحضير ---------- */
   if(omTab==='prep'&&omEd&&omEd.id===l.id)pane.append(omEditPane(l));
   else if(omTab==='prep'){const p=el('div','om-pane');
-    const odb=el('div','om-box');const chk=prepOf(l);const prog=el('div','prog');
+    const odb=el('div','om-box');const chk=prepOf(l),seeP=isAdmin()||can('acc');const prog=el('div','prog');
     const upd=()=>{const k=items.filter((_,i)=>chk[i]).length;prog.textContent=k?('جُهّز '+k+' من '+items.length+' سطر'):''};
     if(rdy)odb.append(el('div','readybar','✅ كل الأصناف جاهزة'+(l.readyBy?' · 👤 '+l.readyBy:'')+' — '+agoTxt(l.readyAt)));
     const OIL='🧭 الزيوت حسب مسار المستودع · Öle nach Laufweg',REST='فوارغ وإكسسوارات · Flakons & Zubehör',grp={};
@@ -4640,9 +4653,10 @@ function buildCardV2(l){omCss();
         if(isOil(i)){const pl=itPlatz(i),tl=String(i.tier||'').trim();const tg=el('div','ipl');tg.append(el('b',null,pl||'—'));if(tl)tg.append(el('span','ivq '+tl.charAt(0).toUpperCase(),tl));mid.append(tg)}
         mid.append(el('div','nm',i.t));if(i.code)mid.append(el('div','cd',i.code));if(isOil(i)){const lo=lotsOf(l)[ix],cur=lo?null:lotNow(i),bt=el('button','lot',lo?'Charge '+lo.b+' ✎':cur?'Charge '+cur.b+' (مقترحة) ✎':'+ Charge');bt.title='رقم دفعة المصنع (Charge / Batch)';bt.onclick=e=>{e.preventDefault();e.stopPropagation();lotEdit(l,ix,()=>{try{renderOrderModal()}catch(_){}})};mid.append(bt)}
         if(!isOil(i)&&i.size){const d=el('div','cd',i.size),cs=capOf(i);if(cs)d.prepend(mkImg(cs,'capi'));mid.append(d)}{const ad=arOf(i);if(ad)mid.append(arEl(ad))}if(i.note)mid.append(el('div','nt','✎ '+i.note));
-        const sz=el('div','isz',isOil(i)?(i.size||''):'');const pr=el('div','pr2',(i.price!=null&&i.price!=='')?money(i.price)+(itRab(i)?' −'+itRab(i)+'%':''):'');
+        const sz=el('div','isz',isOil(i)?(i.size||''):'');
         const left=el('div');left.style.display='flex';left.style.gap='6px';left.style.alignItems='center';left.append(cb,q);{const src=imgOf(i);if(src)mid.prepend(mkImg(src,'ithumb'))}
-        r.append(left,mid,sz,pr);odb.append(r)})});
+        const rt=el('div','irt');rt.append(sz);if(seeP)rt.append(omPrice(i));r.append(left,mid,rt);odb.append(r)})});
+    if(seeP)odb.append(omSum(l));
     upd();odb.append(prog);p.append(odb);
     const tog=el('button','btn big tog om-wide'+(done?'':' primary')+(rdy?' pulse':''),done?'↩︎ إعادة فتح الطلب':rdy?'✓ تم التسليم · إغلاق الطلب':'✓ تم التحضير');
     tog.onclick=()=>apTog(l,done,tog);{const ph=plHint(l,done,rdy);if(ph)p.append(ph)}p.append(tog);apAbhExtra(l,done,p);
@@ -4761,6 +4775,18 @@ let omId=null,omSig='';
 function openOrder(id){const top=scrTop();if(!(top&&top.k==='order'&&top.id===id))SCR.push({k:'order',id});showOrder(id)}
 function showOrder(id){const fresh=omId!==id||$('omodal').hidden;$('sheet').hidden=true;omId=id;renderOrderModal();
   if($('omodal').hidden){$('omodal').hidden=false;document.documentElement.style.overflow='hidden'}scrHist();if(fresh)$('om-b').scrollTop=0}
+/* Preise im Auftrag (Tab التحضير) – nur für Inhaber/Buchhaltung: Zeilensumme groß, darunter Menge × Einzelpreis und Rabatt */
+function omPrice(i){const w=el('div','ipr');
+  if(i.price==null||i.price===''){w.classList.add('none');w.append(el('small',null,'بدون سعر · ohne Preis'));return w}
+  const rb=itRab(i),q=+i.q||1;w.append(el('b',null,money(lineTot(i))));
+  const d=el('small');d.dir='ltr';d.textContent=(q!==1?q+' × ':'')+money(i.price)+(rb?' · −'+rb+' %':'');if(q!==1||rb)w.append(d);return w}
+function omSum(l){const t=totals(l),w=el('div','om-sum'),row=(a,v,cls)=>{const r=el('div','os-r'+(cls?' os-'+cls:''));r.append(el('span',null,a),el('b',null,v));w.append(r)};
+  row('مجموع الأصناف · Zwischensumme',money(t.sub));
+  if(t.pd)row('خصم '+t.r+' %'+(t.oilOnly?' (الزيوت)':'')+' · Rabatt','−'+money(t.pd),'rb');
+  if(t.fix)row('خصم مبلغ · Rabatt','−'+money(t.fix),'rb');
+  if(t.ship)row('الشحن · Versand',money(t.ship));
+  row('الصافي · Netto',money(t.net),'tot');
+  if(t.missing)w.append(el('div','miss','⚠️ '+t.missing+' صنف بدون سعر'));return w}
 function renderOrderModal(){
   const l=lists.find(x=>x.id===omId);if(!l){closeOrder();return}
   const b=$('om-b'),st=b.scrollTop;omSig=JSON.stringify(l);
